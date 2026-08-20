@@ -27,6 +27,16 @@ if (Test-Path -LiteralPath $BackupDirectory) {
 $null = New-Item -ItemType Directory -Path $BackupDirectory
 
 $ComposeArguments = @('compose', '--project-directory', $ProjectRoot, '-f', $ComposeFile)
+function Write-Utf8LfLines {
+  param(
+    [Parameter(Mandatory)] [string] $Path,
+    [Parameter(Mandatory)] [string[]] $Lines
+  )
+
+  $Utf8WithoutBom = [Text.UTF8Encoding]::new($false)
+  [IO.File]::WriteAllText($Path, (($Lines -join "`n") + "`n"), $Utf8WithoutBom)
+}
+
 function Invoke-Compose {
   param([Parameter(ValueFromRemainingArguments)] [string[]] $Arguments)
   & docker @ComposeArguments @Arguments
@@ -71,16 +81,22 @@ try {
 
   foreach ($FileName in @('database.dump', 'media.tar.gz')) {
     $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $BackupDirectory $FileName)).Hash.ToLowerInvariant()
-    Set-Content -LiteralPath (Join-Path $BackupDirectory "$FileName.sha256") -Value "$Hash  $FileName" -Encoding utf8NoBOM
+    Write-Utf8LfLines -Path (Join-Path $BackupDirectory "$FileName.sha256") -Lines @("$Hash  $FileName")
   }
 
-  @(
+  $ManifestLines = @(
+    'format=xp-whatsapp-backup-v1'
     'application=xp-whatsapp'
     "created_at_utc=$Timestamp"
     'database_container=xp-whatsapp-database'
     'database_format=postgresql-custom'
     'media_volume=xp_whatsapp_media'
-  ) | Set-Content -LiteralPath (Join-Path $BackupDirectory 'manifest.txt') -Encoding utf8NoBOM
+    'database_file=database.dump'
+    "database_sha256=$((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $BackupDirectory 'database.dump')).Hash.ToLowerInvariant())"
+    'media_file=media.tar.gz'
+    "media_sha256=$((Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $BackupDirectory 'media.tar.gz')).Hash.ToLowerInvariant())"
+  )
+  Write-Utf8LfLines -Path (Join-Path $BackupDirectory 'manifest.txt') -Lines $ManifestLines
 } finally {
   & docker @ComposeArguments exec -T database rm -f -- $TemporaryDatabase *> $null
 }

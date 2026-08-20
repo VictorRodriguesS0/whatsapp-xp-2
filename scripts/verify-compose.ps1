@@ -107,9 +107,11 @@ try {
   $PreviousPostgresPassword = $env:POSTGRES_PASSWORD
   $PreviousDatabaseUrl = $env:DATABASE_URL
   $PreviousAuthSecret = $env:AUTH_SECRET
+  $PreviousAppPort = $env:APP_PORT
   $env:POSTGRES_PASSWORD = 'compose-validation-only'
   $env:DATABASE_URL = 'postgresql://xp_whatsapp:compose-validation-only@database:5432/xp_atendimento'
   $env:AUTH_SECRET = 'compose-validation-only-00000000000000000000'
+  $env:APP_PORT = '3100'
 
   $ResolvedJson = & docker compose --env-file .env.example config --format json 2>&1
   if ($LASTEXITCODE -ne 0) {
@@ -122,22 +124,96 @@ try {
     throw "Compose deve resolver exatamente app,database; encontrado: $($ServiceNames -join ',')"
   }
 
-  if ($null -ne $Resolved.services.database.PSObject.Properties['ports']) {
+  $Database = $Resolved.services.database
+  $App = $Resolved.services.app
+
+  if ($null -ne $Database.PSObject.Properties['ports'] -and @($Database.ports).Count -gt 0) {
     throw 'O serviço database resolveu uma porta publicada.'
   }
 
-  $AppPort = @($Resolved.services.app.ports)[0]
-  if ($AppPort.host_ip -ne '127.0.0.1' -or $AppPort.target -ne 3000) {
-    throw 'A porta resolvida da aplicação não está restrita a 127.0.0.1:3000.'
+  $AppPorts = @($App.ports)
+  if ($AppPorts.Count -ne 1) {
+    throw "A aplicação deve resolver exatamente uma porta; encontrado: $($AppPorts.Count)"
+  }
+  $AppPort = $AppPorts[0]
+  if (
+    $AppPort.host_ip -ne '127.0.0.1' -or
+    $AppPort.target -ne 3000 -or
+    [string]$AppPort.published -ne '3100' -or
+    $AppPort.protocol -ne 'tcp'
+  ) {
+    throw 'A porta resolvida deve ser exatamente 127.0.0.1:3100:3000/tcp.'
+  }
+
+  foreach ($Service in @($Database, $App)) {
+    if ($null -eq $Service.PSObject.Properties['healthcheck'] -or @($Service.healthcheck.test).Count -eq 0) {
+      throw 'Os serviços database e app precisam de healthcheck resolvido.'
+    }
+    if ($Service.restart -ne 'unless-stopped') {
+      throw 'Os serviços database e app precisam de restart unless-stopped.'
+    }
+    if ($null -eq $Service.PSObject.Properties['stop_grace_period'] -or -not $Service.stop_grace_period) {
+      throw 'Os serviços database e app precisam de stop_grace_period.'
+    }
+  }
+  if ($Database.stop_grace_period -ne '1m0s' -or $App.stop_grace_period -ne '30s') {
+    throw 'stop_grace_period deve resolver para database=1m e app=30s.'
+  }
+
+  if (
+    $null -eq $App.PSObject.Properties['depends_on'] -or
+    $null -eq $App.depends_on.PSObject.Properties['database'] -or
+    $App.depends_on.database.condition -ne 'service_healthy'
+  ) {
+    throw 'A aplicação deve depender do database com condition service_healthy.'
+  }
+
+  $DatabaseNetworks = @($Database.networks.PSObject.Properties.Name | Sort-Object)
+  $AppNetworks = @($App.networks.PSObject.Properties.Name | Sort-Object)
+  if (($DatabaseNetworks -join ',') -ne 'xp_whatsapp_internal') {
+    throw "Database deve usar somente xp_whatsapp_internal; encontrado: $($DatabaseNetworks -join ',')"
+  }
+  if (($AppNetworks -join ',') -ne 'xp_whatsapp_egress,xp_whatsapp_internal') {
+    throw "App deve usar redes interna e egress; encontrado: $($AppNetworks -join ',')"
   }
 
   if ($Resolved.networks.xp_whatsapp_internal.internal -ne $true) {
-    throw 'A rede resolvida não está marcada como internal.'
+    throw 'A rede resolvida xp_whatsapp_internal não está marcada como internal.'
+  }
+
+  $DatabaseVolumes = @($Database.volumes)
+  $AppVolumes = @($App.volumes)
+  if (
+    $DatabaseVolumes.Count -ne 1 -or
+    $DatabaseVolumes[0].type -ne 'volume' -or
+    $DatabaseVolumes[0].source -ne 'xp_whatsapp_postgres' -or
+    $DatabaseVolumes[0].target -ne '/var/lib/postgresql'
+  ) {
+    throw 'Database deve montar somente xp_whatsapp_postgres em /var/lib/postgresql.'
+  }
+  if (
+    $AppVolumes.Count -ne 1 -or
+    $AppVolumes[0].type -ne 'volume' -or
+    $AppVolumes[0].source -ne 'xp_whatsapp_media' -or
+    $AppVolumes[0].target -ne '/data/media'
+  ) {
+    throw 'App deve montar somente xp_whatsapp_media em /data/media.'
+  }
+  if (
+    $Resolved.volumes.xp_whatsapp_postgres.name -ne 'xp_whatsapp_postgres' -or
+    $Resolved.volumes.xp_whatsapp_media.name -ne 'xp_whatsapp_media'
+  ) {
+    throw 'Os volumes resolvidos precisam preservar os nomes explícitos.'
+  }
+
+  if ($App.environment.NEXT_PUBLIC_APP_URL -ne 'https://whatsapp.xpeletronicos.com') {
+    throw 'NEXT_PUBLIC_APP_URL resolvida deve usar a origem HTTPS aprovada.'
   }
 } finally {
   $env:POSTGRES_PASSWORD = $PreviousPostgresPassword
   $env:DATABASE_URL = $PreviousDatabaseUrl
   $env:AUTH_SECRET = $PreviousAuthSecret
+  $env:APP_PORT = $PreviousAppPort
   Pop-Location
 }
 

@@ -1,9 +1,31 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 1 ]; then
-  echo "Uso: $0 /caminho/absoluto/para/backups" >&2
+if [ "$#" -ne 1 ] && { [ "$#" -ne 3 ] || [ "$2" != '--path-file' ]; }; then
+  echo "Uso: $0 /caminho/absoluto/para/backups [--path-file /tmp/caminho]" >&2
   exit 64
+fi
+
+PATH_FILE=
+if [ "$#" -eq 3 ]; then
+  PATH_FILE=$3
+  case "$PATH_FILE" in
+    /*) ;;
+    *) echo 'O arquivo de retorno deve usar caminho absoluto.' >&2; exit 64 ;;
+  esac
+  PATH_FILE_DIRECTORY=$(CDPATH= cd -- "$(dirname -- "$PATH_FILE")" 2>/dev/null && pwd -P) || {
+    echo 'O diretório do arquivo de retorno não existe.' >&2
+    exit 64
+  }
+  TEMP_DIRECTORY=$(CDPATH= cd -- "${TMPDIR:-/tmp}" 2>/dev/null && pwd -P) || exit 64
+  case "$(basename -- "$PATH_FILE")" in
+    xp-restore-backup-path.*) ;;
+    *) echo 'O arquivo de retorno é reservado ao restore interno.' >&2; exit 64 ;;
+  esac
+  if [ "$PATH_FILE_DIRECTORY" != "$TEMP_DIRECTORY" ] || [ ! -f "$PATH_FILE" ] || [ -L "$PATH_FILE" ]; then
+    echo 'O arquivo de retorno deve ser um arquivo temporário regular criado pelo restore.' >&2
+    exit 64
+  fi
 fi
 
 case "$1" in
@@ -62,8 +84,10 @@ if [ "$MEDIA_PROJECT" != 'xp-whatsapp' ]; then
 fi
 
 TEMP_DATABASE="/tmp/xp-whatsapp-backup-${TIMESTAMP}-$$.dump"
+MEDIA_HELPER="xp-whatsapp-media-backup-$$"
 cleanup() {
   compose exec -T database rm -f -- "$TEMP_DATABASE" >/dev/null 2>&1 || true
+  docker rm -f "$MEDIA_HELPER" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -74,24 +98,37 @@ compose exec -T database sh -ceu '
 ' sh "$TEMP_DATABASE"
 docker cp "$DATABASE_CONTAINER:$TEMP_DATABASE" "$BACKUP_DIR/database.dump"
 
-docker run --rm \
+docker create --name "$MEDIA_HELPER" \
   --mount type=volume,source=xp_whatsapp_media,target=/source,readonly \
-  --mount "type=bind,source=$BACKUP_DIR,target=/backup" \
-  alpine:3.22 sh -ceu 'umask 077; tar -C /source -czf /backup/media.tar.gz .'
+  alpine:3.22 sh -ceu 'umask 077; tar -C /source -czf /tmp/media.tar.gz .' >/dev/null
+docker start -a "$MEDIA_HELPER" >/dev/null
+docker cp "$MEDIA_HELPER:/tmp/media.tar.gz" "$BACKUP_DIR/media.tar.gz"
+docker rm -f "$MEDIA_HELPER" >/dev/null
+docker create --name "$MEDIA_HELPER" alpine:3.22 sh /validator /tmp/media.tar.gz >/dev/null
+docker cp "$SCRIPT_DIR/validate-media-archive.sh" "$MEDIA_HELPER:/validator"
+docker cp "$BACKUP_DIR/media.tar.gz" "$MEDIA_HELPER:/tmp/media.tar.gz"
+docker start -a "$MEDIA_HELPER" >/dev/null
+docker rm -f "$MEDIA_HELPER" >/dev/null
 
-docker run --rm \
-  --mount "type=bind,source=$BACKUP_DIR,target=/backup,readonly" \
-  alpine:3.22 sh -ceu 'test -s /backup/database.dump; test -s /backup/media.tar.gz; tar -tzf /backup/media.tar.gz >/dev/null'
+[ -s "$BACKUP_DIR/database.dump" ]
+[ -s "$BACKUP_DIR/media.tar.gz" ]
 
-(cd "$BACKUP_DIR" && sha256sum database.dump > database.dump.sha256)
-(cd "$BACKUP_DIR" && sha256sum media.tar.gz > media.tar.gz.sha256)
+DATABASE_HASH=$(sha256sum "$BACKUP_DIR/database.dump" | awk '{print $1}')
+MEDIA_HASH=$(sha256sum "$BACKUP_DIR/media.tar.gz" | awk '{print $1}')
+printf '%s  %s\n' "$DATABASE_HASH" 'database.dump' > "$BACKUP_DIR/database.dump.sha256"
+printf '%s  %s\n' "$MEDIA_HASH" 'media.tar.gz' > "$BACKUP_DIR/media.tar.gz.sha256"
 
 printf '%s\n' \
+  'format=xp-whatsapp-backup-v1' \
   'application=xp-whatsapp' \
   "created_at_utc=$TIMESTAMP" \
   'database_container=xp-whatsapp-database' \
   'database_format=postgresql-custom' \
   'media_volume=xp_whatsapp_media' \
+  'database_file=database.dump' \
+  "database_sha256=$DATABASE_HASH" \
+  'media_file=media.tar.gz' \
+  "media_sha256=$MEDIA_HASH" \
   > "$BACKUP_DIR/manifest.txt"
 
 chmod 0600 \
@@ -103,4 +140,8 @@ chmod 0600 \
 trap - EXIT HUP INT TERM
 cleanup
 
+if [ -n "$PATH_FILE" ]; then
+  printf '%s\n' "$BACKUP_DIR" > "$PATH_FILE"
+  chmod 0600 "$PATH_FILE"
+fi
 echo "Backup validado em: $BACKUP_DIR"

@@ -32,6 +32,7 @@ Não publique 3000, 3100 ou 5432 no firewall. O Compose publica a aplicação so
 ## Ambiente
 
 Copie `.env.example` para `.env` e preencha os campos vazios. Nunca versionar `.env`.
+O arquivo versionado usa a origem HTTPS aprovada de produção para falhar de forma segura se for implantado sem revisão. Em desenvolvimento local, altere somente a cópia `.env` para `NEXT_PUBLIC_APP_URL=http://localhost:3000`; em produção mantenha `https://whatsapp.xpeletronicos.com`. A URL deve sempre coincidir com a origem usada pelo navegador.
 
 ```powershell
 Copy-Item .env.example .env
@@ -78,7 +79,7 @@ npm run db:seed
 npm run dev
 ```
 
-Acesse `http://localhost:3000`. `npm run db:migrate` cria uma migration de desenvolvimento; revise o SQL antes de versioná-la. Para apenas aplicar migrations já existentes, use `npm run db:deploy`.
+Antes de iniciar, confirme na cópia local `.env` que `NEXT_PUBLIC_APP_URL=http://localhost:3000`. Acesse essa mesma origem no navegador. `npm run db:migrate` cria uma migration de desenvolvimento; revise o SQL antes de versioná-la. Para apenas aplicar migrations já existentes, use `npm run db:deploy`.
 
 O seed é idempotente e cria o cenário demonstrativo. As três contas usam a senha `Senha-Demo-2026!`:
 
@@ -240,7 +241,7 @@ docker compose ps
 
 ## Backup
 
-O backup cria um subdiretório UTC com `database.dump` em formato custom do `pg_dump`, `media.tar.gz`, checksums SHA-256 individuais e manifesto. O volume de mídia é montado somente leitura no container temporário Alpine. Use um diretório absoluto fora de `/opt/example-app` e copie o resultado para armazenamento externo criptografado.
+O backup cria um subdiretório UTC com `database.dump` em formato custom do `pg_dump`, `media.tar.gz`, sidecars SHA-256 individuais e um manifesto estruturado que também fixa os nomes e hashes dos dois artefatos. O volume de mídia é montado somente leitura no container temporário Alpine. Use um diretório absoluto fora de `/opt/example-app` e copie o diretório completo, sem renomear seus arquivos, para armazenamento externo criptografado.
 
 Linux:
 
@@ -261,12 +262,14 @@ Teste periodicamente o restore em ambiente isolado. Um backup não testado não 
 
 Restore é destrutivo e exige indisponibilidade. Avise os atendentes, interrompa `app`, mantenha apenas `database` em execução e forneça caminhos absolutos exatos. O script:
 
-- valida checksums, formato do dump e caminhos do tar;
+- exige no mesmo diretório os nomes exatos `database.dump` e `media.tar.gz`, seus sidecars e o manifesto, e compara todos os hashes e nomes entre si;
+- valida o gzip/tar inteiro antes de qualquer mutação e rejeita caminho absoluto, travessia, nome fora da raiz, duplicata, link, device ou qualquer entrada que não seja arquivo regular/diretório;
 - confirma container, projeto Compose e volume alvo;
 - recusa execução se `app` estiver rodando;
 - cria automaticamente um backup preventivo no diretório informado;
 - exige a frase exata `RESTORE-XP-WHATSAPP`;
-- restaura banco e mídia, mas deixa a aplicação parada para validação.
+- restaura banco e mídia, mas deixa a aplicação parada para validação;
+- se algo falhar depois do início da mutação, restaura automaticamente banco e mídia a partir do backup preventivo e continua com a aplicação parada.
 
 ```sh
 cd /opt/example-app
@@ -285,7 +288,7 @@ docker compose ps
 curl --fail --silent http://127.0.0.1:3100/api/health
 ```
 
-Não renomeie o dump ou o arquivo de mídia sem atualizar os sidecars `.sha256`. Se qualquer etapa falhar, mantenha a aplicação parada e recupere o backup preventivo antes de aceitar novos atendimentos.
+Não renomeie nem separe nenhum arquivo do bundle: o restore falha de forma fechada se basename, sidecar, hash calculado ou manifesto divergirem. Se a execução falhar antes da mutação, nada é alterado. Se falhar depois dela, confira nos logs a mensagem `Rollback automático concluído`; se aparecer `FALHA NO ROLLBACK AUTOMÁTICO`, preserve a aplicação parada e use o caminho explícito do backup preventivo exibido no erro para recuperação manual. Em qualquer caso, só volte a aceitar atendimentos depois de validar banco, mídia e healthcheck e iniciar `app` manualmente.
 
 ## Atualização
 
