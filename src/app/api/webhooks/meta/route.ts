@@ -4,10 +4,17 @@ import type { ServerEnv } from "@/lib/env";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { normalizeWebhook, WebhookPayloadError } from "@/modules/webhooks/normalize";
-import { processWebhookEvents } from "@/modules/webhooks/process";
+import {
+  processWebhookEvents,
+  WebhookProcessingError,
+} from "@/modules/webhooks/process";
 import { verifyMetaSignature, verifyMetaToken } from "@/modules/webhooks/signature";
 
 export const runtime = "nodejs";
+export const META_WEBHOOK_MAX_BODY_BYTES = 1024 * 1024;
+
+class WebhookBodyTooLargeError extends Error {}
+class WebhookBodyReadError extends Error {}
 
 type WebhookEnvironment = Pick<
   ServerEnv,
@@ -22,6 +29,7 @@ type MetaWebhookRouteDependencies = {
   processWebhookEvents: typeof processWebhookEvents;
   verifyMetaSignature: typeof verifyMetaSignature;
   verifyMetaToken: typeof verifyMetaToken;
+  maxBodyBytes: number;
   logger: WebhookLogger;
 };
 
@@ -31,11 +39,84 @@ const defaultDependencies: MetaWebhookRouteDependencies = {
   processWebhookEvents,
   verifyMetaSignature,
   verifyMetaToken,
+  maxBodyBytes: META_WEBHOOK_MAX_BODY_BYTES,
   logger,
 };
 
 function safeJsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status });
+}
+
+function validateContentLength(headers: Headers, maximumBytes: number): void {
+  const contentLength = headers.get("content-length");
+
+  if (contentLength === null) {
+    return;
+  }
+
+  if (!/^(0|[1-9]\d*)$/.test(contentLength)) {
+    throw new WebhookBodyTooLargeError();
+  }
+
+  if (BigInt(contentLength) > BigInt(maximumBytes)) {
+    throw new WebhookBodyTooLargeError();
+  }
+}
+
+async function readLimitedBody(
+  request: Request,
+  maximumBytes: number,
+): Promise<Uint8Array> {
+  validateContentLength(request.headers, maximumBytes);
+
+  if (!request.body) {
+    return new Uint8Array();
+  }
+
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let totalBytes = 0;
+
+  try {
+    while (true) {
+      let result: ReadableStreamReadResult<Uint8Array>;
+
+      try {
+        result = await reader.read();
+      } catch {
+        throw new WebhookBodyReadError();
+      }
+
+      if (result.done) {
+        break;
+      }
+
+      totalBytes += result.value.byteLength;
+
+      if (totalBytes > maximumBytes) {
+        try {
+          await reader.cancel();
+        } catch {
+          // The size error remains authoritative even when cancellation fails.
+        }
+        throw new WebhookBodyTooLargeError();
+      }
+
+      chunks.push(result.value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  const body = new Uint8Array(totalBytes);
+  let offset = 0;
+
+  for (const chunk of chunks) {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+
+  return body;
 }
 
 export function createMetaWebhookRouteHandlers(
@@ -67,11 +148,16 @@ export function createMetaWebhookRouteHandlers(
     },
     POST: async (request: Request): Promise<Response> => {
       const requestId = randomUUID();
-      let rawBody: string;
+      let rawBodyBytes: Uint8Array;
 
       try {
-        rawBody = await request.text();
-      } catch {
+        rawBodyBytes = await readLimitedBody(request, dependencies.maxBodyBytes);
+      } catch (error) {
+        if (error instanceof WebhookBodyTooLargeError) {
+          dependencies.logger.warn("webhook.body_too_large", { requestId });
+          return safeJsonError("Payload muito grande", 413);
+        }
+
         dependencies.logger.warn("webhook.body_rejected", { requestId });
         return safeJsonError("Payload inválido", 400);
       }
@@ -84,9 +170,18 @@ export function createMetaWebhookRouteHandlers(
         return safeJsonError("Webhook indisponível", 503);
       }
 
-      if (!dependencies.verifyMetaSignature(rawBody, signature, appSecret)) {
+      if (!dependencies.verifyMetaSignature(rawBodyBytes, signature, appSecret)) {
         dependencies.logger.warn("webhook.signature_rejected", { requestId });
         return safeJsonError("Assinatura inválida", 401);
+      }
+
+      let rawBody: string;
+
+      try {
+        rawBody = new TextDecoder("utf-8", { fatal: true }).decode(rawBodyBytes);
+      } catch {
+        dependencies.logger.warn("webhook.payload_rejected", { requestId });
+        return safeJsonError("Payload inválido", 400);
       }
 
       let events;
@@ -117,10 +212,18 @@ export function createMetaWebhookRouteHandlers(
         });
         return Response.json({ received: true, ...summary });
       } catch (error) {
+        const retryable =
+          !(error instanceof WebhookProcessingError) || error.retryable;
         dependencies.logger.error("webhook.processing_failed", {
           requestId,
           errorType: error instanceof Error ? error.name : "Unknown",
+          retryable,
         });
+
+        if (!retryable) {
+          return safeJsonError("Evento não processável", 422);
+        }
+
         return safeJsonError("Erro interno", 500);
       }
     },

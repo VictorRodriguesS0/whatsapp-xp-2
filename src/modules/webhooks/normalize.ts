@@ -37,6 +37,10 @@ function record(value: unknown): UnknownRecord | null {
     : null;
 }
 
+function hasOwn(value: UnknownRecord, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(value, key);
+}
+
 function cleanString(
   value: unknown,
   maximumLength: number,
@@ -78,6 +82,11 @@ function parseTimestamp(value: unknown): { date: Date; raw: string } | null {
     : null;
 }
 
+function whatsappUserId(value: unknown): string | null {
+  const cleaned = cleanString(value, 32);
+  return cleaned && /^\d{1,32}$/.test(cleaned) ? cleaned : null;
+}
+
 function contactsByWhatsappId(value: UnknownRecord): Map<string, string> {
   const contacts = Array.isArray(value.contacts) ? value.contacts : [];
   const names = new Map<string, string>();
@@ -102,16 +111,18 @@ function normalizeMedia(
 ): { media: NormalizedMedia; body: string | null } | null {
   const media = record(message[rawType]);
   const metaMediaId = cleanString(media?.id, 512);
+  const mimeType = cleanString(media?.mime_type, 255);
+  const sha256 = cleanString(media?.sha256, 256);
 
-  if (!media || !metaMediaId) {
+  if (!media || !metaMediaId || !mimeType || !sha256) {
     return null;
   }
 
   return {
     media: {
       metaMediaId,
-      mimeType: cleanString(media.mime_type, 255) ?? "application/octet-stream",
-      sha256: cleanString(media.sha256, 256),
+      mimeType,
+      sha256,
       filename: cleanFilename(media.filename),
     },
     body: cleanString(media.caption, 4096, { trim: false }),
@@ -124,7 +135,7 @@ function normalizeMessage(
 ): NormalizedMessageEvent | null {
   const message = record(candidate);
   const whatsappMessageId = cleanString(message?.id, 512);
-  const from = cleanString(message?.from, 64);
+  const from = whatsappUserId(message?.from);
   const rawType = cleanString(message?.type, 64);
   const parsedTimestamp = parseTimestamp(message?.timestamp);
 
@@ -137,7 +148,12 @@ function normalizeMessage(
   let media: NormalizedMedia | null = null;
 
   if (type === MessageType.TEXT) {
-    body = cleanString(record(message.text)?.body, 4096, { trim: false });
+    const text = record(message.text);
+    body = cleanString(text?.body, 4096, { trim: false });
+
+    if (!text || !body) {
+      return null;
+    }
   } else if (type !== MessageType.UNSUPPORTED) {
     const normalizedMedia = normalizeMedia(message, rawType);
 
@@ -182,13 +198,24 @@ function failureReason(status: UnknownRecord): string | null {
 
 function normalizeStatus(candidate: unknown): NormalizedStatusEvent | null {
   const status = record(candidate);
-  const whatsappMessageId = cleanString(status?.id, 512);
   const rawStatus = cleanString(status?.status, 32);
-  const normalizedStatus = rawStatus ? statusMap.get(rawStatus) : undefined;
-  const parsedTimestamp = parseTimestamp(status?.timestamp);
 
-  if (!status || !whatsappMessageId || !normalizedStatus || !parsedTimestamp) {
+  if (!status || !rawStatus) {
+    throw new WebhookPayloadError();
+  }
+
+  const normalizedStatus = statusMap.get(rawStatus);
+
+  if (!normalizedStatus) {
     return null;
+  }
+
+  const whatsappMessageId = cleanString(status.id, 512);
+  const parsedTimestamp = parseTimestamp(status.timestamp);
+  const recipientId = whatsappUserId(status.recipient_id);
+
+  if (!whatsappMessageId || !parsedTimestamp || !recipientId) {
+    throw new WebhookPayloadError();
   }
 
   return {
@@ -229,6 +256,15 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
       }
 
       const contactNames = contactsByWhatsappId(value);
+
+      if (hasOwn(value, "messages") && !Array.isArray(value.messages)) {
+        throw new WebhookPayloadError();
+      }
+
+      if (hasOwn(value, "statuses") && !Array.isArray(value.statuses)) {
+        throw new WebhookPayloadError();
+      }
+
       const messages = Array.isArray(value.messages) ? value.messages : [];
       const statuses = Array.isArray(value.statuses) ? value.statuses : [];
 

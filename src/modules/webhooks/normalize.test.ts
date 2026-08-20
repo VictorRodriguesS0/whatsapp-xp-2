@@ -102,4 +102,62 @@ describe("Meta webhook normalization", () => {
 
     expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
+
+  it.each(["messages", "statuses"] as const)(
+    "rejects a declared non-array %s collection",
+    (field) => {
+      const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+      payload.entry[0].changes[0].value[field] = { attacker: "not-an-array" };
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each([
+    ["id", ""],
+    ["from", "not-a-whatsapp-id"],
+    ["timestamp", "yesterday"],
+  ] as const)("rejects an invalid required message %s", (field, value) => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry[0].changes[0].value.messages[0][field] = value;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([undefined, 42, "\u0000"])(
+    "rejects an invalid required text body: %s",
+    (body) => {
+      const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+      payload.entry[0].changes[0].value.messages[0].text.body = body;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each(["id", "mime_type", "sha256"] as const)(
+    "rejects supported media without required %s metadata",
+    (field) => {
+      const payload = inboundMediaFixture("image") as Record<string, any>;
+      delete payload.entry[0].changes[0].value.messages[0].image[field];
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each(["id", "timestamp", "recipient_id"] as const)(
+    "rejects an allowlisted status without required %s",
+    (field) => {
+      const payload = statusFixture("delivered") as Record<string, any>;
+      delete payload.entry[0].changes[0].value.statuses[0][field];
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it("continues to ignore an unknown status even when it has no event metadata", () => {
+    const payload = statusFixture("deleted") as Record<string, any>;
+    payload.entry[0].changes[0].value.statuses = [{ status: "deleted" }];
+
+    expect(normalizeWebhook(payload)).toEqual([]);
+  });
 });
