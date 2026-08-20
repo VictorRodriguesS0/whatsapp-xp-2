@@ -2,7 +2,7 @@ import "server-only";
 
 import { spawn as nodeSpawn, type ChildProcess } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, mkdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
+import { lstat, mkdir, readdir, readFile, realpath, rmdir, stat, unlink } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { z } from "zod";
 
@@ -44,6 +44,19 @@ const PROCESS_DIAGNOSTIC_LIMIT_BYTES = 8 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
 
 class ProcessFailure extends Error {}
+
+type OutputReservation = {
+  lexicalDirectory: string;
+  outputFilename: string;
+  dev: number;
+  ino: number;
+};
+
+type ConvertDependencies = {
+  runProcess?: RunBoundedProcess;
+  createUuid?: () => string;
+  afterOutputDirectoryReservedForTest?: (lexicalDirectory: string) => Promise<void>;
+};
 
 function contained(root: string, candidate: string): boolean {
   const pathFromRoot = relative(root, candidate);
@@ -121,6 +134,31 @@ async function outputSnapshot(path: string): Promise<{ sizeBytes: bigint; sha256
     sizeBytes: BigInt(bytes.byteLength),
     sha256: createHash("sha256").update(bytes).digest("hex"),
   };
+}
+
+async function cleanupReservation(reservation: OutputReservation): Promise<void> {
+  let directory;
+  try {
+    directory = await lstat(reservation.lexicalDirectory);
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === "ENOENT") return;
+    throw error;
+  }
+  if (!directory.isDirectory() || directory.isSymbolicLink() || directory.dev !== reservation.dev || directory.ino !== reservation.ino) return;
+
+  const entries = await readdir(reservation.lexicalDirectory);
+  if (entries.length === 1 && entries[0] === reservation.outputFilename) {
+    const outputPath = resolve(reservation.lexicalDirectory, reservation.outputFilename);
+    const output = await lstat(outputPath);
+    if (!output.isFile() || output.isSymbolicLink()) return;
+    await unlink(outputPath);
+  } else if (entries.length !== 0) {
+    return;
+  }
+  await rmdir(reservation.lexicalDirectory).catch((error: unknown) => {
+    if (error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTEMPTY")) return;
+    throw error;
+  });
 }
 
 export function createRunBoundedProcess(
@@ -209,7 +247,7 @@ const defaultRunner = createRunBoundedProcess();
 
 export async function convertRecording(
   input: { root: string; source: StagedMediaFile },
-  dependencies: { runProcess?: RunBoundedProcess; createUuid?: () => string } = {},
+  dependencies: ConvertDependencies = {},
 ): Promise<StagedMediaFile> {
   const mimeType = canonicalMime(input.source.mimeType);
   if (!RAW_RECORDING_MIME_TYPES.has(mimeType) || input.source.sizeBytes <= 0n || input.source.sizeBytes > BigInt(RAW_RECORDING_MAX_BYTES)) {
@@ -220,8 +258,7 @@ export async function convertRecording(
   const id = createUuid();
   if (!UUID_PATTERN.test(id)) throw new HttpError(500, "Erro ao converter gravação");
   let outputPath: string | undefined;
-  let outputDirectory: string | undefined;
-  let ownsOutputDirectory = false;
+  let reservation: OutputReservation | undefined;
   try {
     const configuredRoot = resolve(input.root);
     await ensurePrivateDirectoryTree(configuredRoot, true);
@@ -233,14 +270,17 @@ export async function convertRecording(
     await ensurePrivateDirectoryTree(recordingsRoot, true);
     const physicalRecordingsRoot = await realpath(recordingsRoot);
     if (!contained(mediaRoot, physicalRecordingsRoot)) throw new ProcessFailure();
-    outputDirectory = resolve(physicalRecordingsRoot, id);
-    if (!contained(physicalRecordingsRoot, outputDirectory)) throw new ProcessFailure();
-    await mkdir(outputDirectory, { mode: 0o700 });
-    ownsOutputDirectory = true;
-    outputDirectory = await realpath(outputDirectory);
-    if (!contained(physicalRecordingsRoot, outputDirectory)) throw new ProcessFailure();
-    outputPath = resolve(outputDirectory, `${id}.ogg`);
-    if (!contained(outputDirectory, outputPath)) throw new ProcessFailure();
+    const lexicalOutputDirectory = resolve(physicalRecordingsRoot, id);
+    if (!contained(physicalRecordingsRoot, lexicalOutputDirectory)) throw new ProcessFailure();
+    await mkdir(lexicalOutputDirectory, { mode: 0o700 });
+    const reservedDirectory = await lstat(lexicalOutputDirectory);
+    if (!reservedDirectory.isDirectory() || reservedDirectory.isSymbolicLink()) throw new ProcessFailure();
+    reservation = { lexicalDirectory: lexicalOutputDirectory, outputFilename: `${id}.ogg`, dev: reservedDirectory.dev, ino: reservedDirectory.ino };
+    await dependencies.afterOutputDirectoryReservedForTest?.(lexicalOutputDirectory);
+    const physicalOutputDirectory = await realpath(lexicalOutputDirectory);
+    if (!contained(physicalRecordingsRoot, physicalOutputDirectory)) throw new ProcessFailure();
+    outputPath = resolve(physicalOutputDirectory, reservation.outputFilename);
+    if (!contained(physicalOutputDirectory, outputPath)) throw new ProcessFailure();
 
     const sourceProbe = await runProcess({ command: "ffprobe", args: probeArgs(input.source.path), timeoutMs: 10_000, diagnosticLimitBytes: PROCESS_DIAGNOSTIC_LIMIT_BYTES });
     assertSourceProbe(sourceProbe.stdout);
@@ -261,14 +301,11 @@ export async function convertRecording(
       async cleanup() {
         if (cleaned) return;
         cleaned = true;
-        await unlink(outputPath!).catch((error: unknown) => {
-          if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
-        });
-        await rm(outputDirectory!, { recursive: true, force: true });
+        await cleanupReservation(reservation!);
       },
     };
   } catch (error) {
-    if (outputDirectory && ownsOutputDirectory) await rm(outputDirectory, { recursive: true, force: true }).catch(() => undefined);
+    if (reservation) await cleanupReservation(reservation).catch(() => undefined);
     if (error instanceof HttpError) throw error;
     throw new HttpError(422, "Não foi possível converter a gravação");
   }

@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { EventEmitter } from "node:events";
-import { mkdir, mkdtemp, readFile, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, rmdir, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -95,6 +95,9 @@ describe("recording conversion", () => {
     expect(result.path).toBe(outputPath(rootPath));
     expect(await readFile(result.path)).toEqual(validOgg);
     await result.cleanup();
+    await result.cleanup();
+    await expect(stat(result.path)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(join(rootPath, ".recordings", outputId))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it.each(["text/plain", "audio/wav"]) ("rejects unsupported raw MIME %s", async (mimeType) => {
@@ -144,6 +147,7 @@ describe("recording conversion", () => {
     };
     await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 422 });
     await expect(stat(outputPath(rootPath))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(join(rootPath, ".recordings", outputId))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("never removes a pre-existing colliding output after conversion failure", async () => {
@@ -158,6 +162,37 @@ describe("recording conversion", () => {
     };
     await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 422 });
     await expect(readFile(collisionOutput, "utf8")).resolves.toBe("pre-existing");
+  });
+
+  it("leaves a reserved directory intact when unexpected content is present during cleanup", async () => {
+    const rootPath = await root();
+    const result = await convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: successfulRunner(), createUuid: () => outputId });
+    const unexpected = join(rootPath, ".recordings", outputId, "unexpected.txt");
+    await writeFile(unexpected, "must survive");
+
+    await result.cleanup();
+    await result.cleanup();
+
+    await expect(readFile(result.path)).resolves.toEqual(validOgg);
+    await expect(readFile(unexpected, "utf8")).resolves.toBe("must survive");
+  });
+
+  it("leaves an external target intact when the reserved directory is swapped before realpath", async () => {
+    const rootPath = await root();
+    const outside = await root();
+    const sentinel = join(outside, "sentinel.txt");
+    await writeFile(sentinel, "external must survive");
+
+    await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, {
+      runProcess: successfulRunner(),
+      createUuid: () => outputId,
+      afterOutputDirectoryReservedForTest: async (reservedPath: string) => {
+        await rmdir(reservedPath);
+        await symlink(outside, reservedPath, "junction");
+      },
+    })).rejects.toMatchObject({ status: 422 });
+
+    await expect(readFile(sentinel, "utf8")).resolves.toBe("external must survive");
   });
 
   it.each([
