@@ -83,4 +83,40 @@ describe("ConversationView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Voltar para conversas" }));
     expect(handlers.onBack).toHaveBeenCalledOnce();
   });
+
+  it("resets scroll and visibility tracking after closing and reopening the same conversation", () => {
+    const scrollTo = vi.fn();
+    const originalScrollTo = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollTo");
+    Object.defineProperty(HTMLElement.prototype, "scrollTo", { configurable: true, value: scrollTo });
+    const { rerender } = render(<ConversationView {...handlers} conversation={conversation} />);
+    scrollTo.mockClear();
+    handlers.onVisibleMessage.mockClear();
+
+    rerender(<ConversationView {...handlers} conversation={null} />);
+    rerender(<ConversationView {...handlers} conversation={conversation} />);
+
+    expect(scrollTo).toHaveBeenCalledWith(expect.objectContaining({ behavior: "auto" }));
+    expect(handlers.onVisibleMessage).toHaveBeenCalledWith("message-1");
+    if (originalScrollTo) Object.defineProperty(HTMLElement.prototype, "scrollTo", originalScrollTo);
+    else delete (HTMLElement.prototype as { scrollTo?: unknown }).scrollTo;
+  });
+
+  it("uses instant scrolling when reduced motion is requested", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    const { rerender, getByRole } = render(<ConversationView {...handlers} conversation={conversation} />);
+    const history = getByRole("log");
+    const scrollTo = vi.fn();
+    Object.defineProperties(history, {
+      scrollHeight: { configurable: true, value: 1_000 },
+      clientHeight: { configurable: true, value: 100 },
+      scrollTop: { configurable: true, writable: true, value: 900 },
+      scrollTo: { configurable: true, value: scrollTo },
+    });
+    fireEvent.scroll(history);
+
+    rerender(<ConversationView {...handlers} conversation={{ ...conversation, messages: [...conversation.messages, { ...message, id: "message-2" }] }} />);
+
+    expect(scrollTo).toHaveBeenCalledWith({ top: 1_000, behavior: "auto" });
+    vi.unstubAllGlobals();
+  });
 });

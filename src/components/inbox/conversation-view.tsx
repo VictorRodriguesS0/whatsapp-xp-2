@@ -22,6 +22,10 @@ function lastConfirmedMessageId(messages: InboxMessage[]) {
   return null;
 }
 
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+}
+
 function ConversationHeader({
   conversation,
   onBack,
@@ -40,9 +44,9 @@ function ConversationHeader({
             {conversation.contact.profilePictureUrl ? <AvatarImage alt="" src={conversation.contact.profilePictureUrl} /> : null}
             <AvatarFallback>{initials(conversation.contact.name)}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0 flex-1"><h2 className="truncate font-bold text-[var(--text)]">{conversation.contact.name}</h2><p className="truncate text-xs text-[var(--muted)]">{conversation.contact.phone}</p></div>
+          <div className="min-w-0 flex-1"><h2 className="truncate font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>{conversation.contact.name}</h2><p className="truncate text-xs text-[var(--muted)]">{conversation.contact.phone}</p></div>
         </>
-      ) : <h2 className="min-w-0 flex-1 font-bold text-[var(--text)]">Conversa</h2>}
+      ) : <h2 className="min-w-0 flex-1 font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>Conversa</h2>}
       <Button aria-label="Abrir dados do cliente" className="details-trigger" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost"><Info aria-hidden="true" className="size-5" /></Button>
     </header>
   );
@@ -99,13 +103,24 @@ export function ConversationView({
   }, [conversation?.id]);
 
   useLayoutEffect(() => {
+    if (!conversation) {
+      previousConversationId.current = null;
+      previousMessageCount.current = 0;
+      nearBottomRef.current = true;
+      reportedMessageId.current = null;
+      latestMessageIdRef.current = null;
+      return;
+    }
     const history = historyRef.current;
-    if (!history || !conversation) return;
+    if (!history) return;
     const changedConversation = previousConversationId.current !== conversation.id;
     const appended = conversation.messages.length > previousMessageCount.current;
     if (changedConversation) reportedMessageId.current = null;
     if ((changedConversation || (appended && nearBottomRef.current)) && typeof history.scrollTo === "function") {
-      history.scrollTo({ top: history.scrollHeight, behavior: changedConversation ? "auto" : "smooth" });
+      history.scrollTo({
+        top: history.scrollHeight,
+        behavior: changedConversation || prefersReducedMotion() ? "auto" : "smooth",
+      });
     }
     if ((changedConversation || (appended && nearBottomRef.current)) && latestMessageId && reportedMessageId.current !== latestMessageId) {
       reportedMessageId.current = latestMessageId;

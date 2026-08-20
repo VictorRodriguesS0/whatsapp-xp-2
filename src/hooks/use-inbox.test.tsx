@@ -16,6 +16,29 @@ function response(data: unknown, ok = true, status = 200) {
   return Promise.resolve({ ok, status, json: () => Promise.resolve(data) } as Response);
 }
 
+function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.000Z") {
+  return {
+    id,
+    contact: { id: `contact-${id}`, name, phone: "5561999999999", profilePictureUrl: null },
+    responsible: null,
+    lastMessageAt,
+    latestMessage: null,
+    unreadCount: 0,
+  };
+}
+
+function conversationDetail(id = "conversation-id", messages: unknown[] = []) {
+  const now = "2026-08-20T14:30:00.000Z";
+  return {
+    ...listItem(id, "Carlos", now),
+    createdAt: now,
+    updatedAt: now,
+    messages,
+    lastReadMessageId: null,
+    lastReadAt: null,
+  };
+}
+
 describe("useInbox", () => {
   afterEach(() => vi.restoreAllMocks());
 
@@ -251,18 +274,18 @@ describe("useInbox", () => {
 
     expect(hook.result.current.selectedId).toBe("conversation-b");
     expect(hook.result.current.conversation).toBeNull();
-    expect(hook.result.current.conversationError).toBe("Falha B");
+    expect(hook.result.current.conversationError).toBe("Não foi possível carregar a conversa.");
   });
 
-  it("retries a persisted failed send through the retry endpoint", async () => {
+  it("retries a persisted failed attachment without a local File through the retry endpoint", async () => {
     const now = new Date().toISOString();
     const failedMessage = {
       id: "persisted-failed",
       clientRequestId: "11111111-1111-4111-8111-111111111111",
       direction: "OUTBOUND",
-      type: "TEXT",
-      body: "Olá",
-      mediaObjectId: null,
+      type: "IMAGE",
+      body: "Foto",
+      mediaObjectId: "stored-media",
       sentBy: { id: user.id, name: user.name },
       status: "FAILED",
       failureReason: "Meta indisponível",
@@ -281,13 +304,10 @@ describe("useInbox", () => {
         unreadCount: 0,
         createdAt: now,
         updatedAt: now,
-        messages: [],
+        messages: [failedMessage],
         lastReadMessageId: null,
         lastReadAt: null,
       }, error: null });
-      if (url.endsWith("/conversation-id/messages") && init?.method === "POST") {
-        return response({ data: failedMessage, error: null }, true, 201);
-      }
       if (url === "/api/messages/persisted-failed/retry" && init?.method === "POST") {
         return response({ data: { ...failedMessage, status: "SENT", failureReason: null }, error: null });
       }
@@ -296,7 +316,6 @@ describe("useInbox", () => {
     const hook = renderHook(() => useInbox(user));
     await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
     await act(() => hook.result.current.openConversation("conversation-id"));
-    await act(() => hook.result.current.sendText("conversation-id", "Olá"));
     expect(hook.result.current.conversation?.messages.at(-1)).toMatchObject({ id: "persisted-failed", status: "FAILED" });
 
     await act(() => hook.result.current.retryMessage("persisted-failed"));
@@ -342,5 +361,264 @@ describe("useInbox", () => {
     expect(hook.result.current.conversation?.responsible).toEqual({ id: user.id, name: user.name });
     expect(hook.result.current.conversation?.messages).toHaveLength(1);
     expect(hook.result.current.conversation?.messages[0]).toMatchObject({ body: "Ainda aqui", status: "FAILED" });
+  });
+
+  it("appends older pages without duplicates and preserves them during a full refresh", async () => {
+    let firstPageRequests = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations?cursor=cursor-1") {
+        return response({ data: { items: [listItem("b", "B atualizado"), listItem("c", "C")], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations") {
+        firstPageRequests += 1;
+        return firstPageRequests === 1
+          ? response({ data: { items: [listItem("a", "A"), listItem("b", "B")], nextCursor: "cursor-1" }, error: null })
+          : response({ data: { items: [listItem("a", "A novo"), listItem("d", "D")], nextCursor: "cursor-2" }, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["a", "b"]));
+
+    await act(() => hook.result.current.loadMore());
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["a", "b", "c"]);
+    expect(hook.result.current.conversations[1].contact.name).toBe("B atualizado");
+
+    await act(() => hook.result.current.refreshList());
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["a", "d", "b", "c"]);
+    expect(hook.result.current.nextCursor).toBeNull();
+  });
+
+  it("resets loaded pages before running a new search", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("old")], nextCursor: "older" }, error: null });
+      if (url === "/api/conversations?search=Rita") return response({ data: { items: [listItem("rita", "Rita")], nextCursor: null }, error: null });
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.conversations).toHaveLength(1));
+
+    act(() => hook.result.current.setSearch("Rita"));
+    expect(hook.result.current.conversations).toEqual([]);
+    expect(hook.result.current.nextCursor).toBeNull();
+    await waitFor(() => expect(hook.result.current.conversations[0]?.id).toBe("rita"));
+  });
+
+  it("ignores an older page response after the search changes", async () => {
+    let resolveOlder!: (response: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("old")], nextCursor: "older" }, error: null });
+      if (url === "/api/conversations?cursor=older") return new Promise<Response>((resolve) => { resolveOlder = resolve; });
+      if (url === "/api/conversations?search=Rita") return response({ data: { items: [listItem("rita", "Rita")], nextCursor: null }, error: null });
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.nextCursor).toBe("older"));
+
+    let olderPage!: Promise<void>;
+    act(() => { olderPage = hook.result.current.loadMore(); });
+    act(() => hook.result.current.setSearch("Rita"));
+    await waitFor(() => expect(hook.result.current.conversations[0]?.id).toBe("rita"));
+    resolveOlder(await response({ data: { items: [listItem("stale")], nextCursor: null }, error: null }));
+    await act(() => olderPage);
+
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["rita"]);
+  });
+
+  it("keeps a lost media upload aliased through SSE failure and retries the same multipart row", async () => {
+    const file = new File(["image"], "produto.png", { type: "image/png" });
+    const createPreview = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:produto");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    let clientRequestId = "";
+    let detailFetches = 0;
+    const sentForms: FormData[] = [];
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages") && !init?.method) {
+        detailFetches += 1;
+        const failed = {
+          id: "persisted-media",
+          clientRequestId,
+          direction: "OUTBOUND",
+          type: "IMAGE",
+          body: "Foto",
+          mediaObjectId: null,
+          sentBy: { id: user.id, name: user.name },
+          status: "FAILED",
+          failureReason: "Graph code 131053",
+          externalTimestamp: "2026-08-20T14:30:00.000Z",
+          createdAt: "2026-08-20T14:30:00.000Z",
+        };
+        return response({ data: conversationDetail("conversation-id", detailFetches > 1 ? [failed] : []), error: null });
+      }
+      if (url.endsWith("/messages") && init?.method === "POST") {
+        const form = init.body as FormData;
+        sentForms.push(form);
+        clientRequestId = String(form.get("clientRequestId"));
+        if (sentForms.length === 1) return Promise.reject(new Error("Failed to fetch"));
+        return response({ data: {
+          id: "persisted-media",
+          clientRequestId,
+          direction: "OUTBOUND",
+          type: "IMAGE",
+          body: "Foto",
+          mediaObjectId: "media-id",
+          sentBy: { id: user.id, name: user.name },
+          status: "SENT",
+          failureReason: null,
+          externalTimestamp: "2026-08-20T14:30:00.000Z",
+          createdAt: "2026-08-20T14:30:00.000Z",
+        }, error: null }, true, 201);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+    await act(() => hook.result.current.sendMedia("conversation-id", file, "Foto"));
+    await act(() => hook.result.current.refreshConversation());
+    expect(createPreview).toHaveBeenCalledWith(file);
+    expect(revokePreview).not.toHaveBeenCalled();
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(hook.result.current.conversation?.messages[0]).toMatchObject({ id: "persisted-media", status: "FAILED", localFileName: "produto.png" });
+
+    await act(() => hook.result.current.retryMessage("persisted-media"));
+
+    expect(sentForms).toHaveLength(2);
+    expect(sentForms[1].get("clientRequestId")).toBe(sentForms[0].get("clientRequestId"));
+    expect((sentForms[1].get("file") as File).name).toBe("produto.png");
+    expect(fetchMock.mock.calls.some(([url]) => String(url) === "/api/messages/persisted-media/retry")).toBe(false);
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(hook.result.current.conversation?.messages[0]).toMatchObject({ id: "persisted-media", status: "SENT", mediaObjectId: "media-id" });
+    expect(revokePreview).toHaveBeenCalledOnce();
+  });
+
+  it("releases a media preview once when SSE success wins the HTTP response race", async () => {
+    const file = new File(["image"], "produto.png", { type: "image/png" });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:produto");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    let clientRequestId = "";
+    let detailFetches = 0;
+    let resolveSend!: (response: Response) => void;
+    const serverMessage = () => ({
+      id: "persisted-media",
+      clientRequestId,
+      direction: "OUTBOUND",
+      type: "IMAGE",
+      body: "Foto",
+      mediaObjectId: "media-id",
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+      failureReason: null,
+      externalTimestamp: "2026-08-20T14:30:00.000Z",
+      createdAt: "2026-08-20T14:30:00.000Z",
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages") && init?.method === "POST") {
+        clientRequestId = String((init.body as FormData).get("clientRequestId"));
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      if (url.endsWith("/messages")) {
+        detailFetches += 1;
+        return response({ data: conversationDetail("conversation-id", detailFetches > 1 ? [serverMessage()] : []), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let sendPromise!: Promise<unknown>;
+    act(() => { sendPromise = hook.result.current.sendMedia("conversation-id", file, "Foto"); });
+    await act(() => hook.result.current.refreshConversation());
+    expect(revokePreview).toHaveBeenCalledOnce();
+
+    resolveSend(await response({ data: serverMessage(), error: null }, true, 201));
+    await act(() => sendPromise);
+
+    expect(revokePreview).toHaveBeenCalledOnce();
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+  });
+
+  it("blocks overlapping responsible updates so an older response cannot win", async () => {
+    let resolvePatch!: (response: Response) => void;
+    const patchCalls: Array<string | null> = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages")) return response({ data: conversationDetail(), error: null });
+      if (url.endsWith("/responsible") && init?.method === "PATCH") {
+        const requested = (JSON.parse(String(init.body)) as { userId: string | null }).userId;
+        patchCalls.push(requested);
+        return new Promise<Response>((resolve) => { resolvePatch = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let first!: Promise<void>;
+    act(() => { first = hook.result.current.setResponsible("first-user"); });
+    await waitFor(() => expect(hook.result.current.responsiblePending).toBe(true));
+    await act(() => hook.result.current.setResponsible("second-user"));
+    expect(patchCalls).toEqual(["first-user"]);
+
+    resolvePatch(await response({ data: { ...conversationDetail(), responsible: { id: "first-user", name: "Primeiro" } }, error: null }));
+    await act(() => first);
+    expect(hook.result.current.responsiblePending).toBe(false);
+    expect(hook.result.current.conversation?.responsible?.id).toBe("first-user");
+  });
+
+  it("refetches server truth and hides raw provider errors after an assignment failure", async () => {
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages")) {
+        detailFetches += 1;
+        return response({ data: { ...conversationDetail(), responsible: detailFetches > 1 ? { id: "server-user", name: "Servidor" } : null }, error: null });
+      }
+      if (url.endsWith("/responsible") && init?.method === "PATCH") {
+        return response({ data: null, error: { message: "Graph OAuthException code 190" } }, false, 502);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.setResponsible("requested-user"));
+
+    expect(detailFetches).toBe(2);
+    expect(hook.result.current.conversation?.responsible?.id).toBe("server-user");
+    expect(hook.result.current.conversationError).toBe("Não foi possível alterar o responsável.");
+    expect(hook.result.current.conversationError).not.toMatch(/Graph|OAuthException|190/i);
+  });
+
+  it("never exposes a network Error message in list state", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      if (String(input) === "/api/conversations") return Promise.reject(new Error("Failed to fetch"));
+      if (String(input) === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      throw new Error(`Unexpected request ${String(input)}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    expect(hook.result.current.listError).toBe("Não foi possível carregar as conversas.");
+    expect(hook.result.current.listError).not.toContain("Failed to fetch");
   });
 });

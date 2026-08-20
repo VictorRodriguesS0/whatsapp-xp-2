@@ -18,6 +18,11 @@ type ConversationListProps = {
   error?: string | null;
   search?: string;
   onRetry?: () => void;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  loadMoreError?: string | null;
+  onLoadMore?: () => void;
+  onButtonRef?: (id: string, element: HTMLButtonElement | null) => void;
 };
 
 function initials(name: string) {
@@ -53,6 +58,11 @@ export function ConversationList({
   error,
   search = "",
   onRetry,
+  hasMore = false,
+  loadingMore = false,
+  loadMoreError,
+  onLoadMore,
+  onButtonRef,
 }: ConversationListProps) {
   if (loading && items.length === 0) {
     return <div className="flex min-h-40 items-center justify-center p-6"><Spinner label="Carregando conversas" /></div>;
@@ -96,7 +106,9 @@ export function ConversationList({
                 "min-h-11 w-full px-4 py-3 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
                 selected && "bg-[var(--selected)]",
               )}
+              data-conversation-id={item.id}
               onClick={() => onSelect(item.id)}
+              ref={(element) => onButtonRef?.(item.id, element)}
               type="button"
             >
               <span className="flex min-w-0 items-start gap-3">
@@ -121,6 +133,19 @@ export function ConversationList({
         );
       })}
       </ul>
+      {hasMore || loadingMore || loadMoreError ? (
+        <div className="border-t border-[var(--border)] px-4 py-3 text-center">
+          {loadMoreError ? <p className="mb-2 text-sm text-[var(--danger)]" role="alert">{loadMoreError}</p> : null}
+          <Button
+            aria-label={loadingMore ? "Carregando conversas anteriores" : loadMoreError ? "Tentar carregar novamente" : "Carregar conversas anteriores"}
+            disabled={loadingMore}
+            onClick={onLoadMore}
+            variant="secondary"
+          >
+            {loadingMore ? <Spinner label="Carregando conversas anteriores" /> : loadMoreError ? "Tentar carregar novamente" : "Carregar conversas anteriores"}
+          </Button>
+        </div>
+      ) : null}
     </>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { LogOut, Search, Settings } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -14,22 +14,57 @@ import { ConversationList } from "./conversation-list";
 import { ConversationView } from "./conversation-view";
 import { CustomerPanel } from "./customer-panel";
 
+function isMobileViewport() {
+  return typeof window !== "undefined" && window.matchMedia?.("(max-width: 719px)").matches;
+}
+
+function afterPaint(callback: () => void) {
+  if (typeof window.requestAnimationFrame === "function") {
+    const frame = window.requestAnimationFrame(callback);
+    return () => window.cancelAnimationFrame(frame);
+  }
+  const timer = window.setTimeout(callback, 0);
+  return () => window.clearTimeout(timer);
+}
+
 export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
-  const selectedListItem = inbox.conversations.find((item) => item.id === inbox.selectedId) ?? inbox.conversation;
+  const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
+  const lastSelectedId = useRef<string | null>(null);
+  const cancelScheduledFocus = useRef<(() => void) | null>(null);
+  const selectedListItem = inbox.conversation?.id === inbox.selectedId
+    ? inbox.conversation
+    : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
 
   function selectConversation(id: string) {
+    lastSelectedId.current = id;
     setMobileView("thread");
     void inbox.openConversation(id);
+    if (isMobileViewport()) {
+      cancelScheduledFocus.current?.();
+      cancelScheduledFocus.current = afterPaint(() => document.querySelector<HTMLElement>("[data-thread-heading]")?.focus());
+    }
   }
 
   function backToList() {
+    const idToRestore = lastSelectedId.current ?? inbox.selectedId;
     setMobileView("list");
     setDetailsOpen(false);
     inbox.closeConversation();
+    if (isMobileViewport() && idToRestore) {
+      cancelScheduledFocus.current?.();
+      cancelScheduledFocus.current = afterPaint(() => conversationButtons.current.get(idToRestore)?.focus());
+    }
   }
+
+  const registerConversationButton = useCallback((id: string, element: HTMLButtonElement | null) => {
+    if (element) conversationButtons.current.set(id, element);
+    else conversationButtons.current.delete(id);
+  }, []);
+
+  useEffect(() => () => cancelScheduledFocus.current?.(), []);
 
   async function logout() {
     try {
@@ -60,7 +95,20 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               </label>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <ConversationList error={inbox.listError} items={inbox.conversations} loading={inbox.loadingList} onRetry={inbox.refreshList} onSelect={selectConversation} search={inbox.search} selectedId={inbox.selectedId} />
+              <ConversationList
+                error={inbox.listError}
+                hasMore={Boolean(inbox.nextCursor)}
+                items={inbox.conversations}
+                loadMoreError={inbox.loadMoreError}
+                loading={inbox.loadingList}
+                loadingMore={inbox.loadingMore}
+                onButtonRef={registerConversationButton}
+                onLoadMore={() => void inbox.loadMore()}
+                onRetry={inbox.refreshList}
+                onSelect={selectConversation}
+                search={inbox.search}
+                selectedId={inbox.selectedId}
+              />
             </div>
           </aside>
 
@@ -82,7 +130,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
           </section>
 
           <aside aria-label="Dados do cliente" className="customer-pane min-h-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]">
-            <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} users={inbox.users} />
+            <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} pending={inbox.responsiblePending} users={inbox.users} />
           </aside>
         </div>
       </div>
@@ -91,7 +139,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
         <DialogContent className="customer-dialog">
           <DialogTitle className="pr-12 text-lg font-bold text-[var(--text)]">Dados do cliente</DialogTitle>
           <DialogDescription className="sr-only">Contato e responsável pela conversa selecionada.</DialogDescription>
-          <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} users={inbox.users} />
+          <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} pending={inbox.responsiblePending} users={inbox.users} />
         </DialogContent>
       </Dialog>
     </main>

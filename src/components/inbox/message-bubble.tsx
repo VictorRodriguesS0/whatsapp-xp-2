@@ -46,7 +46,7 @@ export function MessageBubble({ message, onRetry }: { message: InboxMessage; onR
         </div>
         {message.status === "FAILED" ? (
           <div className="mt-2 border-t border-[color-mix(in_srgb,var(--danger)_22%,transparent)] pt-2">
-            <p className="text-xs text-[var(--danger)]">{message.failureReason || "Falha ao enviar"}</p>
+            <p className="text-xs text-[var(--danger)]">Não foi possível enviar esta mensagem.</p>
             {onRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
           </div>
         ) : null}

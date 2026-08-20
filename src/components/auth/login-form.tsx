@@ -5,6 +5,7 @@ import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
+import { publicErrorMessage } from "@/lib/public-error";
 
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
@@ -25,15 +26,9 @@ export function LoginForm() {
         window.location.assign("/conversas");
         return;
       }
-      if (response.status === 429) {
-        setError("Muitas tentativas. Aguarde alguns minutos e tente novamente.");
-      } else if (response.status === 401) {
-        setError("E-mail ou senha inválidos.");
-      } else {
-        setError("Não foi possível entrar agora. Tente novamente.");
-      }
+      setError(publicErrorMessage("login", response.status));
     } catch {
-      setError("Sem conexão. Confira sua rede e tente novamente.");
+      setError(publicErrorMessage("login", undefined, true));
     } finally {
       setLoading(false);
     }

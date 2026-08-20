@@ -87,4 +87,34 @@ describe("ConversationList", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Conexão interrompida.");
     expect(screen.getByRole("button", { name: /Carlos Lima/i })).toBeVisible();
   });
+
+  it("loads and retries older conversations without hiding the current page", () => {
+    const loadMore = vi.fn();
+    const { rerender } = render(
+      <ConversationList
+        hasMore
+        items={[fixture]}
+        loadingMore
+        onLoadMore={loadMore}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "Carregando conversas anteriores" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Carlos Lima/i })).toBeVisible();
+
+    rerender(
+      <ConversationList
+        hasMore
+        items={[fixture]}
+        loadMoreError="Não foi possível carregar conversas anteriores."
+        onLoadMore={loadMore}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Tentar carregar novamente" }));
+    expect(loadMore).toHaveBeenCalledOnce();
+  });
 });

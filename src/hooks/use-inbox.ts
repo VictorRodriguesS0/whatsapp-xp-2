@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { publicErrorMessage } from "@/lib/public-error";
 import type { SessionUser } from "@/modules/auth/session";
 import type {
   ConversationDetail,
@@ -49,9 +50,13 @@ type PendingMedia = {
 type PendingSend = PendingText | PendingMedia;
 
 class ApiRequestError extends Error {
-  constructor(public status: number, message: string) {
-    super(message);
+  constructor(public status: number) {
+    super("API request failed");
   }
+}
+
+function errorStatus(error: unknown) {
+  return error instanceof ApiRequestError ? error.status : undefined;
 }
 
 function handleUnauthorized(status: number) {
@@ -62,7 +67,7 @@ async function readEnvelope<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as ApiEnvelope<T>;
   if (!response.ok || payload.data === null) {
     handleUnauthorized(response.status);
-    throw new ApiRequestError(response.status, payload.error?.message ?? "Não foi possível concluir a solicitação.");
+    throw new ApiRequestError(response.status);
   }
   return payload.data;
 }
@@ -105,28 +110,89 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
   };
 }
 
+function appendConversationPage(current: ConversationListItem[], incoming: ConversationListItem[]) {
+  const incomingById = new Map(incoming.map((item) => [item.id, item]));
+  const merged = current.map((item) => incomingById.get(item.id) ?? item);
+  const existingIds = new Set(current.map((item) => item.id));
+  for (const item of incoming) {
+    if (!existingIds.has(item.id)) merged.push(item);
+  }
+  return merged;
+}
+
+function mergeRefreshedPage(firstPage: ConversationListItem[], current: ConversationListItem[]) {
+  const refreshedIds = new Set(firstPage.map((item) => item.id));
+  return [...firstPage, ...current.filter((item) => !refreshedIds.has(item.id))];
+}
+
+function pendingEntryByClientRequestId(
+  pendingSends: Map<string, PendingSend>,
+  clientRequestId?: string | null,
+): [string, PendingSend] | null {
+  if (!clientRequestId) return null;
+  for (const entry of pendingSends) {
+    if (entry[1].clientRequestId === clientRequestId) return entry;
+  }
+  return null;
+}
+
+function removePendingAliases(pendingSends: Map<string, PendingSend>, clientRequestId: string) {
+  for (const [rowId, pending] of pendingSends) {
+    if (pending.clientRequestId === clientRequestId) pendingSends.delete(rowId);
+  }
+}
+
+function retainPendingAlias(pendingSends: Map<string, PendingSend>, rowId: string, pending: PendingSend) {
+  removePendingAliases(pendingSends, pending.clientRequestId);
+  pendingSends.set(rowId, pending);
+}
+
+function releasePending(pendingSends: Map<string, PendingSend>, pending: PendingSend) {
+  const wasRetained = pendingEntryByClientRequestId(pendingSends, pending.clientRequestId) !== null;
+  removePendingAliases(pendingSends, pending.clientRequestId);
+  if (wasRetained && pending.kind === "media" && pending.previewUrl) URL.revokeObjectURL?.(pending.previewUrl);
+}
+
+function withPendingMedia(message: MessageDto, pending: PendingMedia): InboxMessage {
+  return {
+    ...message,
+    previewUrl: pending.previewUrl,
+    localFileName: pending.file.name,
+  };
+}
+
 export function useInbox(initialUser: SessionUser) {
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [conversation, setConversation] = useState<InboxConversation | null>(null);
   const [users, setUsers] = useState<ResponsibleOption[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingList, setLoadingList] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [conversationError, setConversationError] = useState<string | null>(null);
+  const [responsiblePending, setResponsiblePending] = useState(false);
   const searchRef = useRef(search);
   const selectedIdRef = useRef(selectedId);
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
+  const pageRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const conversationRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const pendingSends = useRef(new Map<string, PendingSend>());
   const lastReadRequest = useRef<string | null>(null);
+  const nextCursorRef = useRef(nextCursor);
+  const hasLoadedAdditionalPages = useRef(false);
+  const responsibleRequestPending = useRef(false);
 
   searchRef.current = search;
   selectedIdRef.current = selectedId;
+  nextCursorRef.current = nextCursor;
 
   const refreshList = useCallback(async () => {
     listRequest.current?.controller.abort();
+    pageRequest.current?.controller.abort();
     const sequence = (listRequest.current?.sequence ?? 0) + 1;
     const controller = new AbortController();
     listRequest.current = { sequence, controller };
@@ -141,15 +207,71 @@ export function useInbox(initialUser: SessionUser) {
         headers: { Accept: "application/json" },
       });
       const result = await readEnvelope<ConversationListResult>(response);
-      if (listRequest.current?.sequence === sequence) setConversations(result.items);
+      if (listRequest.current?.sequence === sequence) {
+        setConversations((current) => hasLoadedAdditionalPages.current
+          ? mergeRefreshedPage(result.items, current)
+          : result.items);
+        if (!hasLoadedAdditionalPages.current) {
+          nextCursorRef.current = result.nextCursor;
+          setNextCursor(result.nextCursor);
+        }
+      }
     } catch (error) {
       if (controller.signal.aborted) return;
       if (listRequest.current?.sequence === sequence) {
-        setListError(error instanceof Error ? error.message : "Não foi possível carregar as conversas.");
+        setListError(publicErrorMessage("list", errorStatus(error)));
       }
     } finally {
       if (listRequest.current?.sequence === sequence) setLoadingList(false);
     }
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    const cursor = nextCursorRef.current;
+    if (!cursor || loadingMore) return;
+    pageRequest.current?.controller.abort();
+    const sequence = (pageRequest.current?.sequence ?? 0) + 1;
+    const controller = new AbortController();
+    const searchAtRequest = searchRef.current.trim();
+    pageRequest.current = { sequence, controller };
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    try {
+      const params = new URLSearchParams();
+      if (searchAtRequest) params.set("search", searchAtRequest);
+      params.set("cursor", cursor);
+      const response = await fetch(`/api/conversations?${params.toString()}`, {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
+      const result = await readEnvelope<ConversationListResult>(response);
+      if (pageRequest.current?.sequence !== sequence || searchRef.current.trim() !== searchAtRequest) return;
+      setConversations((current) => appendConversationPage(current, result.items));
+      hasLoadedAdditionalPages.current = true;
+      nextCursorRef.current = result.nextCursor;
+      setNextCursor(result.nextCursor);
+    } catch (error) {
+      if (controller.signal.aborted) return;
+      if (pageRequest.current?.sequence === sequence) {
+        setLoadMoreError(publicErrorMessage("load-more", errorStatus(error)));
+      }
+    } finally {
+      if (pageRequest.current?.sequence === sequence) setLoadingMore(false);
+    }
+  }, [loadingMore]);
+
+  const changeSearch = useCallback((value: string) => {
+    searchRef.current = value;
+    listRequest.current?.controller.abort();
+    pageRequest.current?.controller.abort();
+    hasLoadedAdditionalPages.current = false;
+    nextCursorRef.current = null;
+    setSearch(value);
+    setConversations([]);
+    setNextCursor(null);
+    setListError(null);
+    setLoadMoreError(null);
+    setLoadingMore(false);
   }, []);
 
   const loadUsers = useCallback(async () => {
@@ -202,23 +324,32 @@ export function useInbox(initialUser: SessionUser) {
       const confirmedRequestIds = new Set(
         detail.messages.flatMap((message) => message.clientRequestId ? [message.clientRequestId] : []),
       );
-      for (const [rowId, pending] of pendingSends.current) {
-        if (!confirmedRequestIds.has(pending.clientRequestId)) continue;
-        pendingSends.current.delete(rowId);
-        if (pending.kind === "media" && pending.previewUrl) URL.revokeObjectURL?.(pending.previewUrl);
-      }
+      const reconciledMessages = detail.messages.map((message): InboxMessage => {
+        const entry = pendingEntryByClientRequestId(pendingSends.current, message.clientRequestId);
+        if (!entry) return message;
+        const pending = entry[1];
+        if (pending.kind === "media" && !message.mediaObjectId) {
+          retainPendingAlias(pendingSends.current, message.id, pending);
+          return withPendingMedia(message, pending);
+        }
+        releasePending(pendingSends.current, pending);
+        return message;
+      });
+      const reconciledDetail = { ...detail, messages: reconciledMessages };
       setConversation((current) => {
-        if (!current || current.id !== id) return detail;
+        if (!current || current.id !== id) return reconciledDetail;
         const optimistic = current.messages.filter(
           (message) => message.id.startsWith("optimistic:")
             && (!message.clientRequestId || !confirmedRequestIds.has(message.clientRequestId)),
         );
-        return optimistic.length > 0 ? { ...detail, messages: [...detail.messages, ...optimistic] } : detail;
+        return optimistic.length > 0
+          ? { ...reconciledDetail, messages: [...reconciledMessages, ...optimistic] }
+          : reconciledDetail;
       });
     } catch (error) {
       if (controller.signal.aborted) return;
       if (conversationRequest.current?.sequence === sequence) {
-        setConversationError(error instanceof Error ? error.message : "Não foi possível carregar a conversa.");
+        setConversationError(publicErrorMessage("conversation", errorStatus(error)));
       }
     } finally {
       if (conversationRequest.current?.sequence === sequence) setLoadingConversation(false);
@@ -276,38 +407,53 @@ export function useInbox(initialUser: SessionUser) {
         body,
       });
       const message = await readEnvelope<MessageDto>(response);
+      const resolvedMessage = pending.kind === "media" && !message.mediaObjectId
+        ? withPendingMedia(message, pending)
+        : message;
       setConversation((current) => {
         if (!current || current.id !== pending.conversationId) return current;
-        const rowExists = current.messages.some((item) => item.id === rowId);
-        if (!rowExists) {
-          return current.messages.some((item) => item.id === message.id)
-            ? current
-            : { ...current, messages: [...current.messages, message] };
+        let replaced = false;
+        const messages: InboxMessage[] = [];
+        for (const item of current.messages) {
+          const matchesRequest = item.id === rowId
+            || item.id === message.id
+            || item.clientRequestId === pending.clientRequestId;
+          if (matchesRequest) {
+            if (!replaced) messages.push(resolvedMessage);
+            replaced = true;
+          } else {
+            messages.push(item);
+          }
         }
-        const withoutServerDuplicate = current.messages.filter(
-          (item) => item.id === rowId || item.id !== message.id,
-        );
+        if (!replaced) messages.push(resolvedMessage);
         return {
           ...current,
-          messages: withoutServerDuplicate.map((item) => (item.id === rowId ? message : item)),
+          messages,
         };
       });
-      pendingSends.current.delete(rowId);
-      if (message.status === "FAILED" && pending.kind === "media" && !message.mediaObjectId) {
-        pendingSends.current.set(message.id, pending);
-      }
-      if (pending.kind === "media" && pending.previewUrl && message.status !== "FAILED") {
-        URL.revokeObjectURL?.(pending.previewUrl);
+      if (pending.kind === "media" && !message.mediaObjectId) {
+        retainPendingAlias(pendingSends.current, message.id, pending);
+      } else {
+        releasePending(pendingSends.current, pending);
       }
       void refreshList();
-      return message;
+      return resolvedMessage;
     } catch (error) {
-      setConversation((current) => updateMessage(current, rowId, (message) => ({
-        ...message,
-        status: "FAILED",
-        failureReason: error instanceof Error ? error.message : "Falha ao enviar",
-      })));
-      pendingSends.current.set(rowId, pending);
+      const retained = pendingEntryByClientRequestId(pendingSends.current, pending.clientRequestId);
+      if (!retained) return null;
+      const failureRowId = retained[0];
+      setConversation((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          messages: current.messages.map((message) => (
+            message.id === failureRowId || message.clientRequestId === pending.clientRequestId
+              ? { ...message, status: "FAILED", failureReason: publicErrorMessage("send", errorStatus(error)) }
+              : message
+          )),
+        };
+      });
+      retainPendingAlias(pendingSends.current, failureRowId, pending);
       return null;
     }
   }, [refreshList]);
@@ -356,8 +502,7 @@ export function useInbox(initialUser: SessionUser) {
       const payload = (await response.json()) as { data?: MessageDto; error?: string | { message?: string } };
       if (!response.ok || !payload.data) {
         handleUnauthorized(response.status);
-        const reason = typeof payload.error === "string" ? payload.error : payload.error?.message;
-        throw new ApiRequestError(response.status, reason ?? "Falha ao reenviar");
+        throw new ApiRequestError(response.status);
       }
       setConversation((current) => updateMessage(current, messageId, () => payload.data!));
       void refreshList();
@@ -366,15 +511,17 @@ export function useInbox(initialUser: SessionUser) {
       setConversation((current) => updateMessage(current, messageId, (message) => ({
         ...message,
         status: "FAILED",
-        failureReason: error instanceof Error ? error.message : "Falha ao reenviar",
+        failureReason: publicErrorMessage("retry", errorStatus(error)),
       })));
       return null;
     }
   }, [performSend, refreshList]);
 
-  const setResponsible = useCallback(async (userId: string | null) => {
+  const setResponsible = useCallback(async (userId: string | null): Promise<void> => {
     const id = selectedIdRef.current;
-    if (!id) return;
+    if (!id || responsibleRequestPending.current) return;
+    responsibleRequestPending.current = true;
+    setResponsiblePending(true);
     try {
       const response = await fetch(`/api/conversations/${id}/responsible`, {
         method: "PATCH",
@@ -389,9 +536,17 @@ export function useInbox(initialUser: SessionUser) {
       }
       void refreshList();
     } catch (error) {
-      setConversationError(error instanceof Error ? error.message : "Não foi possível alterar o responsável.");
+      if (selectedIdRef.current === id) {
+        await fetchConversation(id, false);
+        if (selectedIdRef.current === id) {
+          setConversationError(publicErrorMessage("responsible", errorStatus(error)));
+        }
+      }
+    } finally {
+      responsibleRequestPending.current = false;
+      setResponsiblePending(false);
     }
-  }, [refreshList]);
+  }, [fetchConversation, refreshList]);
 
   const onRealtimeSync = useCallback(() => {
     void Promise.all([refreshList(), refreshConversation(), loadUsers()]);
@@ -428,6 +583,7 @@ export function useInbox(initialUser: SessionUser) {
     void loadUsers();
     return () => {
       listRequest.current?.controller.abort();
+      pageRequest.current?.controller.abort();
       conversationRequest.current?.controller.abort();
       for (const pending of pendingSends.current.values()) {
         if (pending.kind === "media" && pending.previewUrl) URL.revokeObjectURL?.(pending.previewUrl);
@@ -441,15 +597,20 @@ export function useInbox(initialUser: SessionUser) {
     users,
     selectedId,
     search,
+    nextCursor,
     loadingList,
+    loadingMore,
     loadingConversation,
     listError,
+    loadMoreError,
     conversationError,
+    responsiblePending,
     connected: realtime.connected,
-    setSearch,
+    setSearch: changeSearch,
     openConversation,
     closeConversation,
     refreshList,
+    loadMore,
     refreshConversation,
     sendText,
     sendMedia,

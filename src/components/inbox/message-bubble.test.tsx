@@ -51,6 +51,17 @@ describe("MessageBubble", () => {
     expect(retry).toHaveBeenCalledWith(outboundFixture.id);
   });
 
+  it("does not expose provider failure details", () => {
+    render(
+      <MessageBubble
+        message={{ ...outboundFixture, status: "FAILED", failureReason: "Graph OAuthException code 131047" }}
+      />,
+    );
+
+    expect(screen.getByText("Não foi possível enviar esta mensagem.")).toBeVisible();
+    expect(screen.queryByText(/Graph|OAuthException|131047/i)).not.toBeInTheDocument();
+  });
+
   it("uses the authenticated media route", () => {
     render(
       <MessageBubble

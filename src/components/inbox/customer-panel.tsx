@@ -17,11 +17,13 @@ export function CustomerPanel({
   users,
   currentUserId,
   onSetResponsible,
+  pending = false,
 }: {
   conversation: ConversationListItem | null;
   users: ResponsibleOption[];
   currentUserId: string;
   onSetResponsible: (userId: string | null) => void;
+  pending?: boolean;
 }) {
   if (!conversation) {
     return <div className="p-5 text-sm text-[var(--muted)]">Selecione uma conversa para ver os dados do cliente.</div>;
@@ -50,6 +52,7 @@ export function CustomerPanel({
 
         <label className="mt-4 block text-xs font-semibold text-[var(--muted)]" id="responsible-select-label">Trocar responsável</label>
         <Select
+          disabled={pending}
           onValueChange={(value) => onSetResponsible(value === "none" ? null : value)}
           value={conversation.responsible?.id ?? "none"}
         >
@@ -63,9 +66,10 @@ export function CustomerPanel({
         </Select>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {conversation.responsible?.id !== currentUserId ? <Button onClick={() => onSetResponsible(currentUserId)} size="small">Assumir conversa</Button> : null}
-          {conversation.responsible ? <Button onClick={() => onSetResponsible(null)} size="small" variant="secondary">Remover responsável</Button> : null}
+          {conversation.responsible?.id !== currentUserId ? <Button disabled={pending} onClick={() => onSetResponsible(currentUserId)} size="small">Assumir conversa</Button> : null}
+          {conversation.responsible ? <Button disabled={pending} onClick={() => onSetResponsible(null)} size="small" variant="secondary">Remover responsável</Button> : null}
         </div>
+        {pending ? <p className="mt-2 text-xs text-[var(--muted)]" role="status">Atualizando responsável</p> : null}
       </section>
     </div>
   );
