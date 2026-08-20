@@ -2,11 +2,19 @@
 
 import { describe, expect, it } from "vitest";
 
+import { Prisma } from "@/generated/prisma/client";
 import { UserRole } from "@/generated/prisma/enums";
 import { verifyPassword } from "@/modules/auth/password";
 import type { SessionUser } from "@/modules/auth/session";
 
-import { createUser, listUsers, resetUserPassword, updateUser } from "./service";
+import {
+  createUser,
+  listUsers,
+  resetUserPassword,
+  runSerializableTransaction,
+  type SerializableTransactionClient,
+  updateUser,
+} from "./service";
 import type { UserRecord, UserRepository } from "./types";
 
 const attendant: SessionUser = {
@@ -109,7 +117,77 @@ function createRepository(
   return repository;
 }
 
+function serializationFailure(): Error {
+  return new Prisma.PrismaClientKnownRequestError("serialization failure", {
+    code: "P2034",
+    clientVersion: "test",
+  });
+}
+
 describe("user administration service", () => {
+  it("requests serializable isolation from the default Prisma transaction runner", async () => {
+    const options: Array<{ isolationLevel?: string }> = [];
+    const client: SerializableTransactionClient<{ attempt: number }> = {
+      $transaction: async (operation, transactionOptions) => {
+        options.push(transactionOptions);
+        return operation({ attempt: 1 });
+      },
+    };
+
+    await expect(
+      runSerializableTransaction(client, async () => "committed"),
+    ).resolves.toBe("committed");
+
+    expect(options).toEqual([
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ]);
+  });
+
+  it("retries a P2034 transaction conflict and re-evaluates the operation", async () => {
+    let transactions = 0;
+    const attempts: number[] = [];
+    const client: SerializableTransactionClient<{ attempt: number }> = {
+      $transaction: async (operation) => {
+        transactions += 1;
+        return operation({ attempt: transactions });
+      },
+    };
+
+    await expect(
+      runSerializableTransaction(client, async (transaction) => {
+        attempts.push(transaction.attempt);
+
+        if (transaction.attempt === 1) {
+          throw serializationFailure();
+        }
+
+        return "committed";
+      }),
+    ).resolves.toBe("committed");
+
+    expect(transactions).toBe(2);
+    expect(attempts).toEqual([1, 2]);
+  });
+
+  it("does not retry a non-transaction error", async () => {
+    let transactions = 0;
+    const failure = new Error("session deletion failed");
+    const client: SerializableTransactionClient = {
+      $transaction: async (operation) => {
+        transactions += 1;
+        return operation(undefined);
+      },
+    };
+
+    await expect(
+      runSerializableTransaction(client, async () => {
+        throw failure;
+      }),
+    ).rejects.toBe(failure);
+
+    expect(transactions).toBe(1);
+  });
+
   it("prevents an attendant from creating users", async () => {
     await expect(
       createUser(attendant, {
@@ -118,6 +196,33 @@ describe("user administration service", () => {
         password: "Senha-Demo-2026!",
         role: UserRole.ATTENDANT,
       }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("prevents an attendant from listing users", async () => {
+    await expect(listUsers(attendant, createRepository([user()]))).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it("prevents an attendant from updating users", async () => {
+    const target = user();
+
+    await expect(
+      updateUser(attendant, target.id, { active: false }, createRepository([target])),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("prevents an attendant from resetting passwords", async () => {
+    const target = user();
+
+    await expect(
+      resetUserPassword(
+        attendant,
+        target.id,
+        "Nova-Senha-2026!",
+        createRepository([target]),
+      ),
     ).rejects.toMatchObject({ status: 403 });
   });
 
@@ -261,5 +366,18 @@ describe("user administration service", () => {
     expect(await verifyPassword("Nova-Senha-2026!", repository.records[0]!.passwordHash)).toBe(true);
     expect(repository.deletedSessionUserIds).toEqual([target.id]);
     expect(result).not.toHaveProperty("passwordHash");
+  });
+
+  it("rolls back a password reset when session revocation fails", async () => {
+    const target = user();
+    const repository = createRepository([target], { failSessionDeletion: true });
+    const originalHash = target.passwordHash;
+
+    await expect(
+      resetUserPassword(admin, target.id, "Nova-Senha-2026!", repository),
+    ).rejects.toThrow("session deletion failed");
+
+    expect(repository.records[0]?.passwordHash).toBe(originalHash);
+    expect(repository.deletedSessionUserIds).toEqual([]);
   });
 });

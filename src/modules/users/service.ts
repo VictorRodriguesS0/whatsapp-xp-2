@@ -24,6 +24,38 @@ import type {
 
 type PrismaUserRepositoryClient = Pick<PrismaClient, "user" | "session">;
 
+export type SerializableTransactionClient<TTransaction = undefined> = {
+  $transaction<TResult>(
+    operation: (transaction: TTransaction) => Promise<TResult>,
+    options: { isolationLevel: Prisma.TransactionIsolationLevel },
+  ): Promise<TResult>;
+};
+
+function isPrismaError(error: unknown, code: string): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
+  );
+}
+
+export async function runSerializableTransaction<TTransaction, TResult>(
+  client: SerializableTransactionClient<TTransaction>,
+  operation: (transaction: TTransaction) => Promise<TResult>,
+): Promise<TResult> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await client.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      if (!isPrismaError(error, "P2034") || attempt === 2) {
+        throw error;
+      }
+    }
+  }
+
+  throw new Error("Unreachable transaction state");
+}
+
 function createPrismaUserRepository(
   client: PrismaUserRepositoryClient,
 ): UserRepository {
@@ -47,19 +79,13 @@ function createPrismaUserRepository(
 const userRepository = createPrismaUserRepository(prisma);
 
 userRepository.transaction = (operation) =>
-  prisma.$transaction(
+  runSerializableTransaction(
+    prisma,
     (transaction) => operation(createPrismaUserRepository(transaction)),
-    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
   );
 
 function toPublicUser({ passwordHash: _passwordHash, ...user }: UserRecord): PublicUser {
   return user;
-}
-
-function isPrismaError(error: unknown, code: string): boolean {
-  return (
-    error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
-  );
 }
 
 function rethrowDatabaseError(error: unknown): never {
