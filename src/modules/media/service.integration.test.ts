@@ -19,9 +19,10 @@ const roots: string[] = [];
 
 class Provider implements WhatsAppProvider {
   calls = 0;
+  delayMs = 10;
   async getMediaMetadata(mediaId: string) {
     this.calls += 1;
-    await new Promise((resolve) => setTimeout(resolve, 10));
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
     return { id: mediaId, url: "https://lookaside.fbsbx.com/file", mimeType: "image/jpeg", sha256: sha, sizeBytes: 4n };
   }
   async downloadMedia() {
@@ -55,5 +56,39 @@ describe("received media PostgreSQL leases", () => {
     expect(provider.calls).toBe(1);
     await expect(prisma.mediaObject.findUnique({ where: { id: media.id }, select: { status: true, downloadAttempts: true, downloadLeaseId: true } }))
       .resolves.toEqual({ status: MediaStatus.AVAILABLE, downloadAttempts: 1, downloadLeaseId: null });
+  });
+
+  it("renews a PostgreSQL lease during a slow provider download", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-slow-"));
+    roots.push(root);
+    const provider = new Provider();
+    provider.delayMs = 120;
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local", originalFilename: "foto.jpg", mimeType: "image/jpeg", sizeBytes: 0n,
+        sha256: sha, metaMediaId: "meta-pg-slow", status: MediaStatus.PENDING,
+      },
+    });
+    const common = {
+      repository: prismaMediaRepository,
+      storage: new LocalMediaStorage(root),
+      provider,
+      mediaRoot: root,
+      leaseMs: 30,
+      leaseRenewIntervalMs: 10,
+    };
+    const worker = (): MediaServiceDependencies => ({ ...common, inFlight: new Map() });
+
+    const first = ensureMediaAvailable(media.id, worker());
+    while (!(await prisma.mediaObject.findUnique({ where: { id: media.id }, select: { downloadLeaseId: true } }))?.downloadLeaseId) {
+      await new Promise((resolve) => setTimeout(resolve, 2));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 70));
+    const second = ensureMediaAvailable(media.id, worker());
+    await Promise.all([first, second]);
+
+    expect(provider.calls).toBe(1);
+    await expect(prisma.mediaObject.findUnique({ where: { id: media.id }, select: { status: true, downloadAttempts: true } }))
+      .resolves.toEqual({ status: MediaStatus.AVAILABLE, downloadAttempts: 1 });
   });
 });
