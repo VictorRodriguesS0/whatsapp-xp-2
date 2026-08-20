@@ -4,6 +4,7 @@ import {
   responsibleSchema,
 } from "@/modules/conversations/schemas";
 import { setResponsible } from "@/modules/conversations/service";
+import { publishRealtime } from "@/modules/realtime/hub";
 
 import {
   conversationErrorResponse,
@@ -16,6 +17,7 @@ type ConversationResponsibleRouteDependencies = {
   assertSameOrigin: typeof assertSameOrigin;
   requireUser: typeof requireUser;
   setResponsible: typeof setResponsible;
+  publishRealtime: typeof publishRealtime;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -24,6 +26,7 @@ const defaultDependencies: ConversationResponsibleRouteDependencies = {
   assertSameOrigin,
   requireUser,
   setResponsible,
+  publishRealtime,
 };
 
 export function createConversationResponsibleRouteHandlers(
@@ -42,6 +45,10 @@ export function createConversationResponsibleRouteHandlers(
           parsedId,
           input.userId,
         );
+        dependencies.publishRealtime({
+          type: "responsible.updated",
+          conversationId: parsedId,
+        });
         return conversationSuccessResponse(conversation);
       } catch (error) {
         return conversationErrorResponse(error);

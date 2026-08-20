@@ -7,6 +7,7 @@ import {
   listUsers,
 } from "@/modules/users/service";
 import { createUserSchema } from "@/modules/users/schemas";
+import { publishRealtime } from "@/modules/realtime/hub";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ type UsersRouteDependencies = {
   requireAdmin: typeof requireAdmin;
   listUsers: typeof listUsers;
   createUser: typeof createUser;
+  publishRealtime: typeof publishRealtime;
 };
 
 const defaultDependencies: UsersRouteDependencies = {
@@ -22,6 +24,7 @@ const defaultDependencies: UsersRouteDependencies = {
   requireAdmin,
   listUsers,
   createUser,
+  publishRealtime,
 };
 
 function invalidInputResponse(error: unknown): Response {
@@ -51,6 +54,7 @@ export function createUsersRouteHandlers(
         const actor = await dependencies.requireAdmin();
         const input = createUserSchema.parse(await request.json());
         const user = await dependencies.createUser(actor, input);
+        dependencies.publishRealtime({ type: "user.updated", userId: user.id });
         return Response.json({ user }, { status: 201 });
       } catch (error) {
         return invalidInputResponse(error);

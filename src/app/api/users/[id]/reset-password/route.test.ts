@@ -16,6 +16,33 @@ const admin = {
 };
 
 describe("reset password route", () => {
+  it("publishes an invalidation after resetting a password", async () => {
+    const events: unknown[] = [];
+    const { POST } = createResetPasswordRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireAdmin: async () => admin,
+      resetUserPassword: async () => ({
+        ...admin,
+        active: true,
+        createdAt: new Date(0),
+        updatedAt: new Date(0),
+      }),
+      publishRealtime: (event) => events.push(event),
+    });
+
+    const response = await POST(
+      new Request(`${origin}/api/users/${id}/reset-password`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin },
+        body: JSON.stringify({ password: "Senha-Demo-2026!" }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(events).toEqual([{ type: "user.updated", userId: id }]);
+  });
+
   it("returns a safe 400 before resetting an invalid password", async () => {
     let resetWasCalled = false;
     const { POST } = createResetPasswordRouteHandlers({
@@ -24,6 +51,9 @@ describe("reset password route", () => {
       resetUserPassword: async () => {
         resetWasCalled = true;
         return { ...admin, active: true, createdAt: new Date(0), updatedAt: new Date(0) };
+      },
+      publishRealtime: () => {
+        throw new Error("must not be called");
       },
     });
 

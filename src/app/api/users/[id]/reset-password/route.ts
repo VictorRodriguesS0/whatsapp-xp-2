@@ -7,6 +7,7 @@ import {
   resetUserPasswordSchema,
   userIdSchema,
 } from "@/modules/users/schemas";
+import { publishRealtime } from "@/modules/realtime/hub";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ type ResetPasswordRouteDependencies = {
   assertSameOrigin: typeof assertSameOrigin;
   requireAdmin: typeof requireAdmin;
   resetUserPassword: typeof resetUserPassword;
+  publishRealtime: typeof publishRealtime;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -22,6 +24,7 @@ const defaultDependencies: ResetPasswordRouteDependencies = {
   assertSameOrigin,
   requireAdmin,
   resetUserPassword,
+  publishRealtime,
 };
 
 function errorResponse(error: unknown): Response {
@@ -47,6 +50,7 @@ export function createResetPasswordRouteHandlers(
         const parsedId = userIdSchema.parse(id);
         const { password } = resetUserPasswordSchema.parse(await request.json());
         const user = await dependencies.resetUserPassword(actor, parsedId, password);
+        dependencies.publishRealtime({ type: "user.updated", userId: user.id });
         return Response.json({ user });
       } catch (error) {
         return errorResponse(error);

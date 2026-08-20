@@ -4,6 +4,7 @@ import { HttpError, toErrorResponse } from "@/lib/http";
 import { assertSameOrigin, requireAdmin } from "@/modules/auth/guards";
 import { updateUser } from "@/modules/users/service";
 import { updateUserSchema, userIdSchema } from "@/modules/users/schemas";
+import { publishRealtime } from "@/modules/realtime/hub";
 
 export const runtime = "nodejs";
 
@@ -11,6 +12,7 @@ type UserRouteDependencies = {
   assertSameOrigin: typeof assertSameOrigin;
   requireAdmin: typeof requireAdmin;
   updateUser: typeof updateUser;
+  publishRealtime: typeof publishRealtime;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -19,6 +21,7 @@ const defaultDependencies: UserRouteDependencies = {
   assertSameOrigin,
   requireAdmin,
   updateUser,
+  publishRealtime,
 };
 
 function errorResponse(error: unknown): Response {
@@ -44,6 +47,7 @@ export function createUserRouteHandlers(
         const parsedId = userIdSchema.parse(id);
         const input = updateUserSchema.parse(await request.json());
         const user = await dependencies.updateUser(actor, parsedId, input);
+        dependencies.publishRealtime({ type: "user.updated", userId: user.id });
         return Response.json({ user });
       } catch (error) {
         return errorResponse(error);

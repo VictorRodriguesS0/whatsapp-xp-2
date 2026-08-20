@@ -4,6 +4,7 @@ import {
   markReadSchema,
 } from "@/modules/conversations/schemas";
 import { markRead } from "@/modules/conversations/service";
+import { publishRealtime } from "@/modules/realtime/hub";
 
 import {
   conversationErrorResponse,
@@ -16,6 +17,7 @@ type ConversationReadRouteDependencies = {
   assertSameOrigin: typeof assertSameOrigin;
   requireUser: typeof requireUser;
   markRead: typeof markRead;
+  publishRealtime: typeof publishRealtime;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -24,6 +26,7 @@ const defaultDependencies: ConversationReadRouteDependencies = {
   assertSameOrigin,
   requireUser,
   markRead,
+  publishRealtime,
 };
 
 export function createConversationReadRouteHandlers(
@@ -38,6 +41,11 @@ export function createConversationReadRouteHandlers(
         const parsedId = conversationIdSchema.parse(id);
         const input = markReadSchema.parse(await request.json());
         const read = await dependencies.markRead(actor.id, parsedId, input.messageId);
+        dependencies.publishRealtime({
+          type: "read.updated",
+          conversationId: parsedId,
+          userId: actor.id,
+        });
         return conversationSuccessResponse(read);
       } catch (error) {
         return conversationErrorResponse(error);

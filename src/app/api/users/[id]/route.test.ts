@@ -18,6 +18,7 @@ const admin = {
 describe("individual user route", () => {
   it("awaits dynamic params before updating a user", async () => {
     let updatedId = "";
+    const events: unknown[] = [];
     const { PATCH } = createUserRouteHandlers({
       assertSameOrigin: () => undefined,
       requireAdmin: async () => admin,
@@ -25,6 +26,7 @@ describe("individual user route", () => {
         updatedId = receivedId;
         return { ...admin, active: true, createdAt: new Date(0), updatedAt: new Date(0) };
       },
+      publishRealtime: (event) => events.push(event),
     });
 
     const response = await PATCH(
@@ -38,5 +40,6 @@ describe("individual user route", () => {
 
     expect(response.status).toBe(200);
     expect(updatedId).toBe(id);
+    expect(events).toEqual([{ type: "user.updated", userId: id }]);
   });
 });

@@ -18,6 +18,7 @@ const actor = {
 describe("conversation read route", () => {
   it("checks origin, awaits params and marks only the actor read", async () => {
     const calls: string[] = [];
+    const events: unknown[] = [];
     const read = {
       conversationId: id,
       lastReadMessageId: messageId,
@@ -30,6 +31,7 @@ describe("conversation read route", () => {
         calls.push(`${userId}:${conversationId}:${receivedMessageId}`);
         return read;
       },
+      publishRealtime: (event) => events.push(event),
     });
 
     const response = await POST(
@@ -42,6 +44,9 @@ describe("conversation read route", () => {
     );
 
     expect(calls).toEqual(["origin", `${actor.id}:${id}:${messageId}`]);
+    expect(events).toEqual([
+      { type: "read.updated", conversationId: id, userId: actor.id },
+    ]);
     await expect(response.json()).resolves.toEqual({ data: read, error: null });
   });
 
@@ -50,6 +55,9 @@ describe("conversation read route", () => {
       assertSameOrigin: () => undefined,
       requireUser: async () => actor,
       markRead: async () => {
+        throw new Error("must not be called");
+      },
+      publishRealtime: () => {
         throw new Error("must not be called");
       },
     });

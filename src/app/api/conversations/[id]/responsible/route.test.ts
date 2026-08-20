@@ -18,6 +18,7 @@ const actor = {
 describe("conversation responsible route", () => {
   it("accepts null to remove the responsible employee", async () => {
     let receivedUserId: string | null | undefined;
+    const events: unknown[] = [];
     const detail = {
       id,
       contact: { id, name: "Carlos", phone: "1", profilePictureUrl: null },
@@ -38,6 +39,7 @@ describe("conversation responsible route", () => {
         receivedUserId = userId;
         return detail;
       },
+      publishRealtime: (event) => events.push(event),
     });
 
     const response = await PATCH(
@@ -50,6 +52,7 @@ describe("conversation responsible route", () => {
     );
 
     expect(receivedUserId).toBeNull();
+    expect(events).toEqual([{ type: "responsible.updated", conversationId: id }]);
     await expect(response.json()).resolves.toEqual({ data: detail, error: null });
   });
 
@@ -59,6 +62,9 @@ describe("conversation responsible route", () => {
       requireUser: async () => actor,
       setResponsible: async () => {
         throw new HttpError(400, "Responsável deve ser um usuário ativo");
+      },
+      publishRealtime: () => {
+        throw new Error("must not be called");
       },
     });
 
