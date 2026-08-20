@@ -55,6 +55,7 @@ export function subscribeRealtime(
 ): ReadableStream<Uint8Array> {
   let subscriber: Subscriber | undefined;
   let heartbeat: ReturnType<typeof setInterval> | undefined;
+  let abortListenerAttached = false;
   let closed = false;
 
   const close = () => {
@@ -63,6 +64,11 @@ export function subscribeRealtime(
     }
 
     closed = true;
+
+    if (abortListenerAttached) {
+      signal.removeEventListener("abort", close);
+      abortListenerAttached = false;
+    }
 
     if (heartbeat) {
       clearInterval(heartbeat);
@@ -96,6 +102,7 @@ export function subscribeRealtime(
         }
       }, HEARTBEAT_INTERVAL_MS);
       signal.addEventListener("abort", close, { once: true });
+      abortListenerAttached = true;
     },
     cancel() {
       close();

@@ -25,7 +25,7 @@ export function createRealtimeRouteHandlers(
         return new Response(dependencies.subscribeRealtime(request.signal, user.id), {
           headers: {
             "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache, no-transform",
+            "Cache-Control": "no-cache, no-store, no-transform",
             "X-Accel-Buffering": "no",
           },
         });

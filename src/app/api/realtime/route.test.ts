@@ -54,7 +54,9 @@ describe("realtime route", () => {
     expect(receivedUserId).toBe("user-1");
     expect(authenticationCalls).toBe(1);
     expect(response.headers.get("Content-Type")).toBe("text/event-stream");
-    expect(response.headers.get("Cache-Control")).toBe("no-cache, no-transform");
+    expect(response.headers.get("Cache-Control")).toBe(
+      "no-cache, no-store, no-transform",
+    );
     expect(response.headers.get("X-Accel-Buffering")).toBe("no");
   });
 });

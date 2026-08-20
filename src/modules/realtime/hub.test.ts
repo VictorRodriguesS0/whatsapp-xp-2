@@ -51,4 +51,22 @@ describe("realtime hub", () => {
 
     expect(realtimeSubscriberCount()).toBe(0);
   });
+
+  it("removes the abort listener when a reader cancels the stream", async () => {
+    let abortListener: EventListener | undefined;
+    const removeEventListener = vi.fn();
+    const signal = {
+      aborted: false,
+      addEventListener: (_type: string, listener: EventListener) => {
+        abortListener = listener;
+      },
+      removeEventListener,
+    } as unknown as AbortSignal;
+    const reader = subscribeRealtime(signal).getReader();
+
+    await reader.cancel();
+
+    expect(removeEventListener).toHaveBeenCalledWith("abort", abortListener);
+    expect(realtimeSubscriberCount()).toBe(0);
+  });
 });
