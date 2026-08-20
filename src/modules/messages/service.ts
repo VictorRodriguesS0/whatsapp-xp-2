@@ -37,6 +37,7 @@ import { safeFailureReason, safeOriginalFilename } from "./status";
 
 export const MESSAGE_SEND_RATE_LIMIT = 30;
 export const MESSAGE_SEND_RATE_WINDOW_MS = 60_000;
+const DELIVERY_LEASE_MS = 30_000;
 
 export type MessageFileInput = {
   filename: string;
@@ -80,6 +81,8 @@ export type MessageServiceRecord = {
   failureReason: string | null;
   operationalState: MessageOperationalState;
   providerAttemptedAt: Date | null;
+  deliveryLeaseId: string | null;
+  deliveryLeaseUntil: Date | null;
   externalTimestamp: Date;
   createdAt: Date;
   contactPhone: string;
@@ -106,9 +109,12 @@ export type StoredMessageMediaInput = {
 export interface MessageServiceRepository {
   findByClientRequestId(clientRequestId: string): Promise<MessageServiceRecord | null>;
   createPending(input: PendingMessageInput): Promise<{ message: MessageServiceRecord; created: boolean }>;
-  attachStoredMedia(messageId: string, input: StoredMessageMediaInput): Promise<MessageServiceRecord>;
+  attachStoredMedia(messageId: string, input: StoredMessageMediaInput): Promise<MessageServiceRecord | null>;
   setMediaMetaId(messageId: string, metaMediaId: string): Promise<MessageServiceRecord>;
   markOperation(messageId: string, operationalState: MessageOperationalState, attemptedAt?: Date | null): Promise<MessageServiceRecord>;
+  claimReadyForDelivery(messageId: string, input: { leaseId: string; now: Date; leaseUntil: Date }): Promise<MessageServiceRecord | null>;
+  releaseDeliveryClaim(messageId: string, leaseId: string): Promise<void>;
+  markProviderAttempt(messageId: string, leaseId: string, operationalState: MessageOperationalState, attemptedAt: Date): Promise<MessageServiceRecord | null>;
   markSent(messageId: string, whatsappMessageId: string): Promise<MessageServiceRecord>;
   markFailed(messageId: string, failureReason: string, operationalState: MessageOperationalState): Promise<MessageServiceRecord>;
   findById(messageId: string): Promise<MessageServiceRecord | null>;
@@ -128,6 +134,13 @@ export class MessageSendRateLimiter {
     active.push(now.getTime());
     this.attempts.set(userId, active);
     return true;
+  }
+
+  refund(userId: string): void {
+    const attempts = this.attempts.get(userId);
+    if (!attempts?.length) return;
+    attempts.pop();
+    if (attempts.length === 0) this.attempts.delete(userId);
   }
 }
 
@@ -168,6 +181,9 @@ export type MessageServiceDependencies = {
   concurrency?: ProviderConcurrencyLimiter;
   idempotencyInFlight?: Map<string, Promise<MessageDto>>;
   publishRealtime(event: RealtimeEvent): void;
+  now?: () => Date;
+  createUuid?: () => string;
+  deliveryLeaseMs?: number;
 };
 
 const prismaMessageScalarSelect = {
@@ -184,6 +200,8 @@ const prismaMessageScalarSelect = {
   failureReason: true,
   operationalState: true,
   providerAttemptedAt: true,
+  deliveryLeaseId: true,
+  deliveryLeaseUntil: true,
   externalTimestamp: true,
   createdAt: true,
 } as const;
@@ -237,6 +255,8 @@ async function hydrateServiceRecord(row: PrismaMessageRow): Promise<MessageServi
     failureReason: row.failureReason,
     operationalState: row.operationalState,
     providerAttemptedAt: row.providerAttemptedAt,
+    deliveryLeaseId: row.deliveryLeaseId,
+    deliveryLeaseUntil: row.deliveryLeaseUntil,
     externalTimestamp: row.externalTimestamp,
     createdAt: row.createdAt,
     contactPhone: contact.phone,
@@ -317,7 +337,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
     }
   },
   async attachStoredMedia(messageId, input) {
-    const messageIdResult = await prisma.$transaction(async (transaction) => {
+    const attached = await prisma.$transaction(async (transaction) => {
       const media = await transaction.mediaObject.create({
         data: {
           storageProvider: "local",
@@ -330,13 +350,32 @@ export const prismaMessageRepository: MessageServiceRepository = {
         },
         select: { id: true },
       });
-      return transaction.message.update({
-        where: { id: messageId },
-        data: { mediaObjectId: media.id },
-        select: { id: true },
+      const claimed = await transaction.message.updateMany({
+        where: {
+          id: messageId,
+          direction: MessageDirection.OUTBOUND,
+          mediaObjectId: null,
+          OR: [
+            { status: MessageStatus.PENDING, operationalState: MessageOperationalState.READY },
+            { status: MessageStatus.FAILED, operationalState: MessageOperationalState.LOCAL_FAILURE },
+          ],
+        },
+        data: {
+          mediaObjectId: media.id,
+          status: MessageStatus.PENDING,
+          failureReason: null,
+          operationalState: MessageOperationalState.READY,
+          deliveryLeaseId: null,
+          deliveryLeaseUntil: null,
+        },
       });
+      if (claimed.count !== 1) {
+        await transaction.mediaObject.delete({ where: { id: media.id } });
+        return false;
+      }
+      return true;
     });
-    return this.findById(messageIdResult.id).then((message) => message!);
+    return attached ? this.findById(messageId) : null;
   },
   async setMediaMetaId(messageId, metaMediaId) {
     const current = await prisma.message.findUniqueOrThrow({ where: { id: messageId }, select: { mediaObjectId: true } });
@@ -355,10 +394,51 @@ export const prismaMessageRepository: MessageServiceRepository = {
     });
     return hydrateServiceRecord(row);
   },
+  async claimReadyForDelivery(messageId, input) {
+    const claimed = await prisma.message.updateMany({
+      where: {
+        id: messageId,
+        direction: MessageDirection.OUTBOUND,
+        status: MessageStatus.PENDING,
+        operationalState: MessageOperationalState.READY,
+        OR: [{ deliveryLeaseUntil: null }, { deliveryLeaseUntil: { lte: input.now } }],
+      },
+      data: { deliveryLeaseId: input.leaseId, deliveryLeaseUntil: input.leaseUntil },
+    });
+    return claimed.count === 1 ? this.findById(messageId) : null;
+  },
+  async releaseDeliveryClaim(messageId, leaseId) {
+    await prisma.message.updateMany({
+      where: {
+        id: messageId,
+        status: MessageStatus.PENDING,
+        operationalState: MessageOperationalState.READY,
+        deliveryLeaseId: leaseId,
+      },
+      data: { deliveryLeaseId: null, deliveryLeaseUntil: null },
+    });
+  },
+  async markProviderAttempt(messageId, leaseId, operationalState, attemptedAt) {
+    const marked = await prisma.message.updateMany({
+      where: {
+        id: messageId,
+        status: MessageStatus.PENDING,
+        operationalState: MessageOperationalState.READY,
+        deliveryLeaseId: leaseId,
+      },
+      data: {
+        operationalState,
+        providerAttemptedAt: attemptedAt,
+        deliveryLeaseId: null,
+        deliveryLeaseUntil: null,
+      },
+    });
+    return marked.count === 1 ? this.findById(messageId) : null;
+  },
   async markSent(messageId, whatsappMessageId) {
     const row = await prisma.message.update({
       where: { id: messageId },
-      data: { whatsappMessageId, status: MessageStatus.SENT, failureReason: null, operationalState: MessageOperationalState.SENT },
+      data: { whatsappMessageId, status: MessageStatus.SENT, failureReason: null, operationalState: MessageOperationalState.SENT, deliveryLeaseId: null, deliveryLeaseUntil: null },
       select: prismaMessageScalarSelect,
     });
     return hydrateServiceRecord(row);
@@ -366,7 +446,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
   async markFailed(messageId, failureReason, operationalState) {
     const row = await prisma.message.update({
       where: { id: messageId },
-      data: { status: MessageStatus.FAILED, failureReason, operationalState },
+      data: { status: MessageStatus.FAILED, failureReason, operationalState, deliveryLeaseId: null, deliveryLeaseUntil: null },
       select: prismaMessageScalarSelect,
     });
     return hydrateServiceRecord(row);
@@ -384,7 +464,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
           status: MessageStatus.FAILED,
           operationalState: { in: [MessageOperationalState.REJECTED, MessageOperationalState.LOCAL_FAILURE] },
         },
-        data: { status: MessageStatus.PENDING, failureReason: null, operationalState: MessageOperationalState.READY },
+        data: { status: MessageStatus.PENDING, failureReason: null, operationalState: MessageOperationalState.READY, deliveryLeaseId: null, deliveryLeaseUntil: null },
       });
       if (claimed.count !== 1) return null;
       return messageId;
@@ -461,13 +541,11 @@ async function deliver(
   dependencies: MessageServiceDependencies,
 ): Promise<MessageServiceRecord> {
   if (message.type === MessageType.TEXT) {
-    message = await dependencies.repository.markOperation(message.id, MessageOperationalState.SEND_IN_FLIGHT, new Date());
     const result = await providerCall(() => dependencies.provider.sendText({ to: message.contactPhone, body: message.body! }));
     return dependencies.repository.markSent(message.id, result.whatsappMessageId);
   }
   if (!message.mediaObject) throw new Error("Missing media");
   const mediaObject = message.mediaObject;
-  message = await dependencies.repository.markOperation(message.id, MessageOperationalState.UPLOAD_IN_FLIGHT, new Date());
   const uploaded = await providerCall(() => dependencies.provider.uploadMedia({
     filename: mediaObject.originalFilename,
     mimeType: mediaObject.mimeType,
@@ -492,9 +570,22 @@ async function deliverAndCommit(
 ): Promise<MessageDto> {
   const concurrency = dependencies.concurrency ?? defaultConcurrency;
   return concurrency.run(message.sentByUserId, async () => {
+    const clock = dependencies.now ?? (() => new Date());
+    const leaseId = (dependencies.createUuid ?? randomUUID)();
+    const now = clock();
+    const claimed = await dependencies.repository.claimReadyForDelivery(message.id, {
+      leaseId,
+      now,
+      leaseUntil: new Date(now.getTime() + (dependencies.deliveryLeaseMs ?? DELIVERY_LEASE_MS)),
+    });
+    if (!claimed) {
+      const current = (await dependencies.repository.findById(message.id)) ?? message;
+      return toMessageDto(current);
+    }
+
     if (!dependencies.limiter.consume(message.sentByUserId)) {
       const failed = await dependencies.repository.markFailed(
-        message.id,
+        claimed.id,
         "Limite de envios excedido",
         MessageOperationalState.LOCAL_FAILURE,
       );
@@ -502,29 +593,78 @@ async function deliverAndCommit(
       throw new HttpError(429, "Limite de envios excedido");
     }
 
+    const firstOperation = claimed.type === MessageType.TEXT
+      ? MessageOperationalState.SEND_IN_FLIGHT
+      : MessageOperationalState.UPLOAD_IN_FLIGHT;
+    let attempted: MessageServiceRecord | null;
+    try {
+      attempted = await dependencies.repository.markProviderAttempt(claimed.id, leaseId, firstOperation, clock());
+    } catch {
+      dependencies.limiter.refund(claimed.sentByUserId);
+      await dependencies.repository.releaseDeliveryClaim(claimed.id, leaseId).catch(() => undefined);
+      const current = (await dependencies.repository.findById(claimed.id).catch(() => null)) ?? claimed;
+      publishSafely(dependencies, { type: "message.status", conversationId: current.conversationId, messageId: current.id });
+      return toMessageDto(current);
+    }
+    if (!attempted) {
+      dependencies.limiter.refund(claimed.sentByUserId);
+      const current = (await dependencies.repository.findById(claimed.id)) ?? claimed;
+      return toMessageDto(current);
+    }
+
     let final: MessageServiceRecord;
     try {
-      final = await deliver(message, dependencies);
+      final = await deliver(attempted, dependencies);
     } catch (error) {
       if (error instanceof ProviderCallError && error.cause instanceof WhatsAppProviderError && error.cause.kind === "rejected") {
         final = await dependencies.repository.markFailed(
-          message.id,
+          attempted.id,
           safeFailureReason(error.cause),
           MessageOperationalState.REJECTED,
         );
       } else if (error instanceof ProviderCallError) {
         try {
-          final = await dependencies.repository.markOperation(message.id, MessageOperationalState.OUTCOME_UNKNOWN);
+          final = await dependencies.repository.markOperation(attempted.id, MessageOperationalState.OUTCOME_UNKNOWN);
         } catch {
-          final = (await dependencies.repository.findById(message.id)) ?? message;
+          final = (await dependencies.repository.findById(attempted.id)) ?? attempted;
         }
       } else {
-        final = (await dependencies.repository.findById(message.id)) ?? message;
+        final = (await dependencies.repository.findById(attempted.id)) ?? attempted;
       }
     }
     publishSafely(dependencies, { type: "message.status", conversationId: final.conversationId, messageId: final.id });
     return toMessageDto(final);
   });
+}
+
+type MediaSendMessageInput = Exclude<SendMessageInput, { type: "TEXT" }>;
+
+async function validateOutboundFile(input: MediaSendMessageInput): Promise<MessageFileInput> {
+  const filename = safeOriginalFilename(input.file.filename);
+  const validated = "path" in input.file && input.file.path
+    ? await validateMediaFile({ path: input.file.path, filename, mimeType: input.file.mimeType })
+    : validateMedia({ bytes: input.file.bytes!, filename, mimeType: input.file.mimeType });
+  if (validated.kind.toUpperCase() !== input.type) {
+    throw new HttpError(400, "Tipo de mensagem incompatível com o arquivo");
+  }
+  return { ...input.file, filename, mimeType: validated.mimeType } as MessageFileInput;
+}
+
+async function storeOutboundFile(file: MessageFileInput, dependencies: MessageServiceDependencies) {
+  return "path" in file && file.path
+    ? dependencies.storage.putStream({
+        filename: file.filename,
+        mimeType: file.mimeType,
+        maximumBytes: Number(file.sizeBytes),
+        stream: Readable.toWeb(createReadStream(file.path)) as ReadableStream<Uint8Array>,
+      })
+    : dependencies.storage.put({ filename: file.filename, mimeType: file.mimeType, bytes: file.bytes! });
+}
+
+function assertStoredMatchesStaging(file: MessageFileInput, stored: { sizeBytes: bigint; sha256: string }): void {
+  if ("path" in file && file.path && (stored.sizeBytes !== file.sizeBytes || stored.sha256 !== file.sha256)) {
+    throw new Error("Staged media changed");
+  }
 }
 
 async function sendMessageOnce(
@@ -542,17 +682,44 @@ async function sendMessageOnce(
   const existing = await dependencies.repository.findByClientRequestId(clientRequestId);
   if (existing) {
     assertSameIdempotentOperation(existing, actor, parsedConversationId);
+    if (existing.type !== input.type) throw new HttpError(409, "Identificador de envio já utilizado");
+    if (existing.status === MessageStatus.PENDING && existing.operationalState === MessageOperationalState.READY &&
+      (existing.type === MessageType.TEXT || existing.mediaObject)) {
+      return deliverAndCommit(existing, dependencies);
+    }
+    const repairableMedia = input.type !== MessageType.TEXT && !existing.mediaObject && (
+      (existing.status === MessageStatus.FAILED && existing.operationalState === MessageOperationalState.LOCAL_FAILURE) ||
+      (existing.status === MessageStatus.PENDING && existing.operationalState === MessageOperationalState.READY)
+    );
+    if (repairableMedia) {
+      const validatedFile = await validateOutboundFile(input);
+      let storedKey: string | undefined;
+      try {
+        const stored = await storeOutboundFile(validatedFile, dependencies);
+        storedKey = stored.key;
+        assertStoredMatchesStaging(validatedFile, stored);
+        const repaired = await dependencies.repository.attachStoredMedia(existing.id, {
+          storageKey: stored.key,
+          originalFilename: validatedFile.filename,
+          mimeType: validatedFile.mimeType,
+          sizeBytes: stored.sizeBytes,
+          sha256: stored.sha256,
+        });
+        if (!repaired) {
+          await dependencies.storage.remove(stored.key).catch(() => undefined);
+          return toMessageDto((await dependencies.repository.findById(existing.id)) ?? existing);
+        }
+        return deliverAndCommit(repaired, dependencies);
+      } catch (error) {
+        if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
+        return toMessageDto((await dependencies.repository.findById(existing.id)) ?? existing);
+      }
+    }
     return toMessageDto(existing);
   }
   let validatedFile: MessageFileInput | undefined;
   if (input.type !== MessageType.TEXT) {
-    const filename = safeOriginalFilename(input.file.filename);
-    const validated = "path" in input.file && input.file.path
-      ? await validateMediaFile({ path: input.file.path, filename, mimeType: input.file.mimeType })
-      : validateMedia({ bytes: input.file.bytes!, filename, mimeType: input.file.mimeType });
-    const expectedType = validated.kind.toUpperCase();
-    if (expectedType !== input.type) throw new HttpError(400, "Tipo de mensagem incompatível com o arquivo");
-    validatedFile = { ...input.file, filename, mimeType: validated.mimeType } as MessageFileInput;
+    validatedFile = await validateOutboundFile(input);
   }
   const created = await dependencies.repository.createPending({
     conversationId: parsedConversationId,
@@ -571,30 +738,21 @@ async function sendMessageOnce(
   if (validatedFile) {
     let storedKey: string | undefined;
     try {
-      const stored = "path" in validatedFile && validatedFile.path
-        ? await dependencies.storage.putStream({
-            filename: validatedFile.filename,
-            mimeType: validatedFile.mimeType,
-            maximumBytes: Number(validatedFile.sizeBytes),
-            stream: Readable.toWeb(createReadStream(validatedFile.path)) as ReadableStream<Uint8Array>,
-          })
-        : await dependencies.storage.put({
-            filename: validatedFile.filename,
-            mimeType: validatedFile.mimeType,
-            bytes: validatedFile.bytes!,
-          });
+      const stored = await storeOutboundFile(validatedFile, dependencies);
       storedKey = stored.key;
-      if (
-        "path" in validatedFile && validatedFile.path &&
-        (stored.sizeBytes !== validatedFile.sizeBytes || stored.sha256 !== validatedFile.sha256)
-      ) throw new Error("Staged media changed");
-      message = await dependencies.repository.attachStoredMedia(message.id, {
+      assertStoredMatchesStaging(validatedFile, stored);
+      const attached = await dependencies.repository.attachStoredMedia(message.id, {
         storageKey: stored.key,
         originalFilename: validatedFile.filename,
         mimeType: validatedFile.mimeType,
         sizeBytes: stored.sizeBytes,
         sha256: stored.sha256,
       });
+      if (!attached) {
+        await dependencies.storage.remove(stored.key).catch(() => undefined);
+        return toMessageDto((await dependencies.repository.findById(message.id)) ?? message);
+      }
+      message = attached;
     } catch (error) {
       if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
       const failed = await dependencies.repository.markFailed(

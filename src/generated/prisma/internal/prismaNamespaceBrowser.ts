@@ -142,6 +142,8 @@ export const MessageScalarFieldEnum = {
   failureReason: 'failureReason',
   operationalState: 'operationalState',
   providerAttemptedAt: 'providerAttemptedAt',
+  deliveryLeaseId: 'deliveryLeaseId',
+  deliveryLeaseUntil: 'deliveryLeaseUntil',
   externalTimestamp: 'externalTimestamp',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

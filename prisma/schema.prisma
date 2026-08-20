@@ -130,6 +130,8 @@ model Message {
   failureReason       String?             @map("failure_reason")
   operationalState    MessageOperationalState @default(READY) @map("operational_state")
   providerAttemptedAt DateTime?           @map("provider_attempted_at") @db.Timestamptz(3)
+  deliveryLeaseId     String?             @map("delivery_lease_id") @db.Uuid
+  deliveryLeaseUntil  DateTime?           @map("delivery_lease_until") @db.Timestamptz(3)
   externalTimestamp   DateTime            @map("external_timestamp") @db.Timestamptz(3)
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -139,6 +141,7 @@ model Message {
   lastReadFor         ConversationRead[]   @relation("LastReadMessage")
 
   @@index([conversationId, externalTimestamp])
+  @@index([status, operationalState, deliveryLeaseUntil], map: "messages_delivery_claim_idx")
   @@map("messages")
 }
 

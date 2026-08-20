@@ -56,6 +56,7 @@ class MemoryRepository implements MessageServiceRepository {
   private sequence = 0;
   failMarkSent = false;
   failAttach = false;
+  failMarkOperationOnce = false;
 
   async findByClientRequestId(clientRequestId: string) {
     const id = this.clientIds.get(clientRequestId);
@@ -84,6 +85,8 @@ class MemoryRepository implements MessageServiceRepository {
       failureReason: null,
       operationalState: MessageOperationalState.READY,
       providerAttemptedAt: null,
+      deliveryLeaseId: null,
+      deliveryLeaseUntil: null,
       externalTimestamp: now,
       createdAt: now,
       contactPhone: "5561999999999",
@@ -98,6 +101,7 @@ class MemoryRepository implements MessageServiceRepository {
   async attachStoredMedia(messageId: string, input: StoredMessageMediaInput) {
     if (this.failAttach) throw new Error("attach failed");
     const current = this.records.get(messageId)!;
+    if (current.mediaObjectId) return null;
     const updated: MessageServiceRecord = {
       ...current,
       mediaObjectId: `30000000-0000-4000-8000-${String(this.sequence).padStart(12, "0")}`,
@@ -110,6 +114,9 @@ class MemoryRepository implements MessageServiceRepository {
         sha256: input.sha256,
         metaMediaId: null,
       },
+      status: MessageStatus.PENDING,
+      failureReason: null,
+      operationalState: MessageOperationalState.READY,
     };
     this.records.set(messageId, updated);
     this.history.push("attach-media");
@@ -126,7 +133,7 @@ class MemoryRepository implements MessageServiceRepository {
   async markSent(messageId: string, whatsappMessageId: string) {
     if (this.failMarkSent) throw new Error("database unavailable");
     const current = this.records.get(messageId)!;
-    const updated = { ...current, whatsappMessageId, status: MessageStatus.SENT, failureReason: null, operationalState: MessageOperationalState.SENT };
+    const updated = { ...current, whatsappMessageId, status: MessageStatus.SENT, failureReason: null, operationalState: MessageOperationalState.SENT, deliveryLeaseId: null, deliveryLeaseUntil: null };
     this.records.set(messageId, updated);
     this.history.push("commit:SENT");
     return updated;
@@ -134,7 +141,7 @@ class MemoryRepository implements MessageServiceRepository {
 
   async markFailed(messageId: string, failureReason: string, operationalState: MessageOperationalState = MessageOperationalState.REJECTED) {
     const current = this.records.get(messageId)!;
-    const updated = { ...current, status: MessageStatus.FAILED, failureReason, operationalState };
+    const updated = { ...current, status: MessageStatus.FAILED, failureReason, operationalState, deliveryLeaseId: null, deliveryLeaseUntil: null };
     this.records.set(messageId, updated);
     this.history.push("commit:FAILED");
     return updated;
@@ -145,10 +152,39 @@ class MemoryRepository implements MessageServiceRepository {
   }
 
   async markOperation(messageId: string, operationalState: MessageOperationalState, attemptedAt: Date | null = null) {
+    if (this.failMarkOperationOnce) {
+      this.failMarkOperationOnce = false;
+      throw new Error("database unavailable before provider");
+    }
     const current = this.records.get(messageId)!;
     const updated = { ...current, operationalState, providerAttemptedAt: attemptedAt ?? current.providerAttemptedAt };
     this.records.set(messageId, updated);
     this.history.push(`operation:${operationalState}`);
+    return updated;
+  }
+
+  async claimReadyForDelivery(messageId: string, input: { leaseId: string; now: Date; leaseUntil: Date }) {
+    const current = this.records.get(messageId);
+    if (!current || current.status !== MessageStatus.PENDING || current.operationalState !== MessageOperationalState.READY ||
+      (current.deliveryLeaseUntil && current.deliveryLeaseUntil > input.now)) return null;
+    const updated = { ...current, deliveryLeaseId: input.leaseId, deliveryLeaseUntil: input.leaseUntil };
+    this.records.set(messageId, updated);
+    return updated;
+  }
+
+  async releaseDeliveryClaim(messageId: string, leaseId: string) {
+    const current = this.records.get(messageId);
+    if (current?.deliveryLeaseId === leaseId && current.operationalState === MessageOperationalState.READY) {
+      this.records.set(messageId, { ...current, deliveryLeaseId: null, deliveryLeaseUntil: null });
+    }
+  }
+
+  async markProviderAttempt(messageId: string, leaseId: string, operationalState: MessageOperationalState, attemptedAt: Date) {
+    const current = this.records.get(messageId);
+    if (!current || current.deliveryLeaseId !== leaseId || current.operationalState !== MessageOperationalState.READY) return null;
+    const marked = await this.markOperation(messageId, operationalState, attemptedAt);
+    const updated = { ...marked, deliveryLeaseId: null, deliveryLeaseUntil: null };
+    this.records.set(messageId, updated);
     return updated;
   }
 
@@ -157,7 +193,7 @@ class MemoryRepository implements MessageServiceRepository {
     if (!current || current.status !== MessageStatus.FAILED || current.direction !== MessageDirection.OUTBOUND) {
       return null;
     }
-    const updated = { ...current, status: MessageStatus.PENDING, failureReason: null };
+    const updated = { ...current, status: MessageStatus.PENDING, failureReason: null, operationalState: MessageOperationalState.READY, deliveryLeaseId: null, deliveryLeaseUntil: null };
     this.records.set(messageId, updated);
     this.history.push("commit:PENDING-retry");
     return updated;
@@ -223,9 +259,14 @@ class FakeProvider implements WhatsAppProvider {
 
 class CountingLimiter extends MessageSendRateLimiter {
   calls = 0;
+  refunds = 0;
   override consume(userId: string, now?: Date): boolean {
     this.calls += 1;
     return super.consume(userId, now);
+  }
+  refund(userId: string): void {
+    this.refunds += 1;
+    super.refund(userId);
   }
 }
 
@@ -339,6 +380,23 @@ describe("outbound message service", () => {
     expect(state.provider.calls).toEqual(["text"]);
   });
 
+  it("resumes the same READY record after a pre-provider database failure and refunds quota", async () => {
+    const state = harness();
+    const limiter = new CountingLimiter();
+    state.dependencies.limiter = limiter;
+    state.repository.failMarkOperationOnce = true;
+    const clientRequestId = randomUUID();
+
+    const first = await sendMessage(actor, conversationId, { type: MessageType.TEXT, clientRequestId, body: "Olá" }, state.dependencies);
+    const resumed = await sendMessage(actor, conversationId, { type: MessageType.TEXT, clientRequestId, body: "Olá" }, state.dependencies);
+
+    expect(first).toMatchObject({ status: MessageStatus.PENDING });
+    expect(resumed).toMatchObject({ id: first.id, status: MessageStatus.SENT });
+    expect(state.repository.records).toHaveLength(1);
+    expect(state.provider.calls).toEqual(["text"]);
+    expect(limiter.refunds).toBe(1);
+  });
+
   it.each([
     [MessageType.IMAGE, "image/jpeg", "foto.jpg", Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]), "image"],
     [MessageType.AUDIO, "audio/mpeg", "som.mp3", new TextEncoder().encode("ID3\u0004"), "audio"],
@@ -412,5 +470,49 @@ describe("outbound message service", () => {
     expect(failed.status).toBe(MessageStatus.FAILED);
     expect(state.storage.removeCalls).toBe(1);
     await expect(retryMessage(actor, failed.id, state.dependencies)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("repairs LOCAL_FAILURE media through a new multipart payload with the same clientRequestId", async () => {
+    const state = harness();
+    const clientRequestId = randomUUID();
+    const input = {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { mimeType: "image/jpeg", filename: "x.jpg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    } as const;
+    state.repository.failAttach = true;
+    const failed = await sendMessage(actor, conversationId, input, state.dependencies);
+    state.repository.failAttach = false;
+
+    const [repaired, duplicate] = await Promise.all([
+      sendMessage(actor, conversationId, input, state.dependencies),
+      sendMessage(actor, conversationId, input, state.dependencies),
+    ]);
+
+    expect(failed).toMatchObject({ status: MessageStatus.FAILED, mediaObjectId: null });
+    expect(repaired).toMatchObject({ id: failed.id, status: MessageStatus.SENT });
+    expect(duplicate.id).toBe(failed.id);
+    expect(state.repository.records).toHaveLength(1);
+    expect(state.provider.calls).toEqual(["upload", "image"]);
+    expect(state.storage.removeCalls).toBe(1);
+  });
+
+  it("does not delete repaired media when delivery is locally rate-limited", async () => {
+    const state = harness();
+    const clientRequestId = randomUUID();
+    const input = {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { mimeType: "image/jpeg", filename: "x.jpg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    } as const;
+    state.repository.failAttach = true;
+    const failed = await sendMessage(actor, conversationId, input, state.dependencies);
+    state.repository.failAttach = false;
+    state.dependencies.limiter = new class extends MessageSendRateLimiter { override consume() { return false; } }();
+
+    await expect(sendMessage(actor, conversationId, input, state.dependencies)).rejects.toMatchObject({ status: 429 });
+
+    expect(state.repository.records.get(failed.id)?.mediaObject).not.toBeNull();
+    expect(state.storage.removeCalls).toBe(1);
   });
 });

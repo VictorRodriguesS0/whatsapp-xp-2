@@ -141,6 +141,51 @@ describe("conversation history route", () => {
     expect([...receivedInput.stagedBytes]).toEqual([...new TextEncoder().encode("%PDF-1.7")]);
   });
 
+  it("accepts replacement media with the same clientRequestId for service-level LOCAL_FAILURE repair", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-route-media-repair-"));
+    roots.push(root);
+    const clientRequestId = "40000000-0000-4000-8000-000000000001";
+    let calls = 0;
+    const { POST } = createConversationMessagesRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      mediaRoot: root,
+      sendMessage: async (_actor, _conversationId, input) => {
+        calls += 1;
+        expect(input).toMatchObject({ type: MessageType.DOCUMENT, clientRequestId });
+        return {
+          id,
+          direction: MessageDirection.OUTBOUND,
+          type: MessageType.DOCUMENT,
+          body: null,
+          mediaObjectId: calls === 1 ? null : id,
+          sentBy: { id: actor.id, name: actor.name },
+          status: calls === 1 ? MessageStatus.FAILED : MessageStatus.SENT,
+          failureReason: calls === 1 ? "Falha local" : null,
+          externalTimestamp: new Date(0).toISOString(),
+          createdAt: new Date(0).toISOString(),
+        };
+      },
+    });
+    const request = () => {
+      const form = new FormData();
+      form.set("type", "DOCUMENT");
+      form.set("clientRequestId", clientRequestId);
+      form.set("file", new File([new TextEncoder().encode("%PDF-1.7")], "nota.pdf", { type: "application/pdf" }));
+      return new Request(`http://localhost/api/conversations/${id}/messages`, { method: "POST", body: form });
+    };
+
+    const first = await POST(request(), { params: Promise.resolve({ id }) });
+    const repaired = await POST(request(), { params: Promise.resolve({ id }) });
+
+    expect(first.status).toBe(201);
+    expect(repaired.status).toBe(201);
+    await expect(first.json()).resolves.toMatchObject({ data: { id, status: MessageStatus.FAILED } });
+    await expect(repaired.json()).resolves.toMatchObject({ data: { id, status: MessageStatus.SENT } });
+    expect(calls).toBe(2);
+    await expect(readdir(join(root, ".staging"))).resolves.toEqual([]);
+  });
+
   it("rejects an oversized multipart request from Content-Length before reading its body", async () => {
     let formDataCalled = false;
     const root = await mkdtemp(join(tmpdir(), "xp-route-media-"));
