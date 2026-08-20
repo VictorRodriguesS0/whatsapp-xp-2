@@ -34,7 +34,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Seus direitos</h2>
         <p>Você pode solicitar confirmação do tratamento, acesso, correção ou exclusão de dados elegíveis. Registros cuja conservação seja exigida por lei poderão ser preservados pelo prazo aplicável.</p>
-        <p className="mt-3">Envie sua solicitação para <a className="font-semibold text-[var(--accent)] underline underline-offset-4" href="https://wa.me/556195149019">+55 61 9514-9019</a>.</p>
+        <p className="mt-3">Envie sua solicitação para <a className="inline-flex min-h-11 items-center font-semibold text-[var(--accent)] underline underline-offset-4" href="https://wa.me/556195149019">+55 61 9514-9019</a>.</p>
       </section>
     </LegalDocument>
   );

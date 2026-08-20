@@ -30,7 +30,7 @@ export default function DataDeletionPage() {
           <li>Confirmaremos o recebimento pelo mesmo canal.</li>
           <li>Localizaremos e avaliaremos os dados vinculados ao atendimento.</li>
           <li>Os dados elegíveis serão excluídos ou anonimizados.</li>
-          <li>Comunicaremos o resultado da solicitação.</li>
+          <li>Comunicaremos o resultado da solicitação pelo mesmo canal.</li>
         </ul>
       </section>
       <section>

@@ -26,6 +26,22 @@ describe("public legal pages", () => {
     expect(privacyMetadata.title).toBe("Política de Privacidade | XP Eletrônicos");
   });
 
+  it("gives the privacy WhatsApp link a 44px structural touch target", () => {
+    render(<PrivacyPage />);
+
+    expect(screen.getByRole("link", { name: "+55 61 9514-9019" })).toHaveClass("inline-flex", "min-h-11");
+  });
+
+  it("uses the established high-contrast text token for legal supporting copy", () => {
+    render(<PrivacyPage />);
+
+    expect(
+      screen.getByText("Como tratamos as informações usadas no atendimento da XP Eletrônicos pelo WhatsApp."),
+    ).toHaveClass("text-[var(--text)]");
+    expect(screen.getByText("Última atualização: 20 de agosto de 2026")).toHaveClass("text-[var(--text)]");
+    expect(screen.getByText("XP Eletrônicos · Atendimento via WhatsApp")).toHaveClass("text-[var(--text)]");
+  });
+
   it("publishes executable data-deletion instructions on the official channel", () => {
     render(<DataDeletionPage />);
 
@@ -34,6 +50,7 @@ describe("public legal pages", () => {
     expect(screen.getByText(/confirmar sua identidade/i)).toBeInTheDocument();
     expect(screen.getByText(/excluídos ou anonimizados/i)).toBeInTheDocument();
     expect(screen.getByText(/obrigação legal/i)).toBeInTheDocument();
+    expect(screen.getByText("Comunicaremos o resultado da solicitação pelo mesmo canal.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Enviar solicitação pelo WhatsApp" })).toHaveAttribute(
       "href",
       "https://wa.me/556195149019?text=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados",

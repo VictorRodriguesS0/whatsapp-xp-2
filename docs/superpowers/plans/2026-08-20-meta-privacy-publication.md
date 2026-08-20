@@ -443,7 +443,7 @@ After confirmation, publish the Meta app. Ask the user to send a message from an
 
 - [ ] **Step 8: Record evidence and final status**
 
-Mark this plan's checkboxes, record the Git commit, image identifier, production HTTP results, Meta publication status and the real-message result. Run `git status --short` and require a clean worktree before reporting completion.
+Mark this plan's checkboxes, record the Git commit, image identifier, production HTTP results, Meta publication status and the real-message result. Commit those evidence records explicitly, then run `git status --short` and require a clean worktree before reporting completion.
 
 ---
 
