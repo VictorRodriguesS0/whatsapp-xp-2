@@ -21,6 +21,7 @@ import type {
 } from "./types";
 
 type ReservationResult = "NEW" | "RECLAIMED" | WebhookStatus;
+const MISSING_STATUS_RETRY_GRACE_MS = 5 * 60_000;
 
 type MessageRecord = {
   id: string;
@@ -62,6 +63,7 @@ export type WebhookProcessDependencies = {
     errorSummary: string,
   ): Promise<void>;
   publishRealtime(event: RealtimeEvent): void;
+  now?(): Date;
 };
 
 type PrismaWebhookClient = Pick<
@@ -351,10 +353,14 @@ async function processStatus(
   event: NormalizedStatusEvent,
   key: string,
   repository: WebhookRepository,
+  now: Date,
 ): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null; pendingMediaId: string | null }> {
   const message = await repository.findMessage(event.whatsappMessageId);
 
   if (!message) {
+    if (Math.abs(now.getTime() - event.timestamp.getTime()) <= MISSING_STATUS_RETRY_GRACE_MS) {
+      throw new WebhookProcessingError(true);
+    }
     await repository.completeEvent(key);
     return { duplicate: false, realtime: null, pendingMediaId: null };
   }
@@ -387,6 +393,7 @@ export async function processWebhookEvents(
 
   for (const event of events) {
     const key = deduplicationKey(event);
+    const now = dependencies.now?.() ?? new Date();
     let outcome: {
       duplicate: boolean;
       realtime: RealtimeEvent | null;
@@ -407,7 +414,7 @@ export async function processWebhookEvents(
 
         return event.kind === "message"
           ? processMessage(event, key, repository)
-          : processStatus(event, key, repository);
+          : processStatus(event, key, repository, now);
       });
     } catch (error) {
       const processingError =

@@ -328,6 +328,38 @@ describe("webhook event processing", () => {
       .toMatchObject({ status: WebhookStatus.PROCESSED, errorSummary: null });
     expect(harness.publications).toEqual([]);
   });
+
+  it("retries a recent missing status and applies it after the outbound message is committed", async () => {
+    const harness = createHarness();
+    const now = new Date("2026-08-20T12:00:00.000Z");
+    const timestamp = String((now.getTime() - 30_000) / 1000);
+    const dependencies = {
+      ...harness.dependencies,
+      now: () => now,
+    } as WebhookProcessDependencies;
+    const events = normalizeWebhook(statusFixture("delivered", timestamp, "wamid.racing"));
+
+    await expect(processWebhookEvents(events, dependencies)).rejects.toMatchObject({
+      retryable: true,
+    });
+    expect(harness.state.events.get(`status:wamid.racing:DELIVERED:${timestamp}`)?.status)
+      .toBe(WebhookStatus.FAILED);
+
+    harness.state.messages.set("wamid.racing", {
+      id: "message-racing",
+      conversationId: "conversation-racing",
+      whatsappMessageId: "wamid.racing",
+      status: MessageStatus.SENT,
+      externalTimestamp: now,
+      mediaObjectId: null,
+    });
+
+    await expect(processWebhookEvents(events, dependencies))
+      .resolves.toEqual({ processed: 1, duplicates: 0 });
+    expect(harness.state.messages.get("wamid.racing")?.status).toBe(MessageStatus.DELIVERED);
+    expect(harness.state.events.get(`status:wamid.racing:DELIVERED:${timestamp}`)?.status)
+      .toBe(WebhookStatus.PROCESSED);
+  });
 });
 
 describe("webhook PostgreSQL integration", () => {
