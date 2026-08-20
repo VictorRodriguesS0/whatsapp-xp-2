@@ -34,11 +34,16 @@ function user(overrides: Partial<UserRecord> = {}): UserRecord {
 
 function createRepository(
   initialUsers: UserRecord[] = [],
+  options: { failSessionDeletion?: boolean } = {},
 ): UserRepository & { records: UserRecord[]; deletedSessionUserIds: string[] } {
   const records = [...initialUsers];
   const deletedSessionUserIds: string[] = [];
+  let transactionQueue = Promise.resolve();
 
-  return {
+  const repository: UserRepository & {
+    records: UserRecord[];
+    deletedSessionUserIds: string[];
+  } = {
     records,
     deletedSessionUserIds,
     list: async () => records,
@@ -71,9 +76,37 @@ function createRepository(
       return record;
     },
     deleteSessions: async (userId) => {
+      if (options.failSessionDeletion) {
+        throw new Error("session deletion failed");
+      }
+
       deletedSessionUserIds.push(userId);
     },
+    transaction: async (operation) => {
+      let releaseQueue!: () => void;
+      const previousTransaction = transactionQueue;
+      transactionQueue = new Promise<void>((resolve) => {
+        releaseQueue = resolve;
+      });
+      await previousTransaction;
+
+      const stagedRepository = createRepository(
+        records.map((record) => ({ ...record })),
+        options,
+      );
+
+      try {
+        const result = await operation(stagedRepository);
+        records.splice(0, records.length, ...stagedRepository.records);
+        deletedSessionUserIds.push(...stagedRepository.deletedSessionUserIds);
+        return result;
+      } finally {
+        releaseQueue();
+      }
+    },
   };
+
+  return repository;
 }
 
 describe("user administration service", () => {
@@ -170,6 +203,48 @@ describe("user administration service", () => {
     ).rejects.toMatchObject({ status: 409 });
 
     expect(repository.records[0]?.active).toBe(true);
+  });
+
+  it("keeps one active administrator when two administrators deactivate concurrently", async () => {
+    const otherAdmin = user({
+      id: "f697fbf1-10c6-4a06-a22f-2b742fcb1019",
+      name: "Marcos",
+      email: "marcos@example.test",
+      role: UserRole.ADMIN,
+    });
+    const repository = createRepository([
+      user({ id: admin.id, role: UserRole.ADMIN }),
+      otherAdmin,
+    ]);
+
+    const outcomes = await Promise.allSettled([
+      updateUser(admin, admin.id, { active: false }, repository),
+      updateUser(
+        { ...admin, id: otherAdmin.id },
+        otherAdmin.id,
+        { active: false },
+        repository,
+      ),
+    ]);
+
+    expect(outcomes.filter((outcome) => outcome.status === "rejected")).toHaveLength(1);
+    expect(
+      repository.records.filter(
+        (record) => record.active && record.role === UserRole.ADMIN,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("rolls back a deactivation when session revocation fails", async () => {
+    const target = user();
+    const repository = createRepository([target], { failSessionDeletion: true });
+
+    await expect(
+      updateUser(admin, target.id, { active: false }, repository),
+    ).rejects.toThrow("session deletion failed");
+
+    expect(repository.records[0]?.active).toBe(true);
+    expect(repository.deletedSessionUserIds).toEqual([]);
   });
 
   it("revokes all sessions after resetting a password", async () => {

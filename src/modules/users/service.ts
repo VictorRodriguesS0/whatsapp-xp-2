@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma } from "@/generated/prisma/client";
+import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { UserRole } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -22,18 +22,35 @@ import type {
   UserRepository,
 } from "./types";
 
-const userRepository: UserRepository = {
-  list: () => prisma.user.findMany({ orderBy: { name: "asc" } }),
-  findById: (id) => prisma.user.findUnique({ where: { id } }),
-  findByEmail: (email) => prisma.user.findUnique({ where: { email } }),
-  countActiveAdmins: () =>
-    prisma.user.count({ where: { active: true, role: UserRole.ADMIN } }),
-  create: (data) => prisma.user.create({ data }),
-  update: (id, data) => prisma.user.update({ where: { id }, data }),
-  deleteSessions: async (userId) => {
-    await prisma.session.deleteMany({ where: { userId } });
-  },
-};
+type PrismaUserRepositoryClient = Pick<PrismaClient, "user" | "session">;
+
+function createPrismaUserRepository(
+  client: PrismaUserRepositoryClient,
+): UserRepository {
+  const repository: UserRepository = {
+    list: () => client.user.findMany({ orderBy: { name: "asc" } }),
+    findById: (id) => client.user.findUnique({ where: { id } }),
+    findByEmail: (email) => client.user.findUnique({ where: { email } }),
+    countActiveAdmins: () =>
+      client.user.count({ where: { active: true, role: UserRole.ADMIN } }),
+    create: (data) => client.user.create({ data }),
+    update: (id, data) => client.user.update({ where: { id }, data }),
+    deleteSessions: async (userId) => {
+      await client.session.deleteMany({ where: { userId } });
+    },
+    transaction: async (operation) => operation(repository),
+  };
+
+  return repository;
+}
+
+const userRepository = createPrismaUserRepository(prisma);
+
+userRepository.transaction = (operation) =>
+  prisma.$transaction(
+    (transaction) => operation(createPrismaUserRepository(transaction)),
+    { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+  );
 
 function toPublicUser({ passwordHash: _passwordHash, ...user }: UserRecord): PublicUser {
   return user;
@@ -55,6 +72,23 @@ function rethrowDatabaseError(error: unknown): never {
   }
 
   throw error;
+}
+
+async function runTransaction<T>(
+  repository: UserRepository,
+  operation: (repository: UserRepository) => Promise<T>,
+): Promise<T> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      return await repository.transaction(operation);
+    } catch (error) {
+      if (!isPrismaError(error, "P2034") || attempt === 2) {
+        return rethrowDatabaseError(error);
+      }
+    }
+  }
+
+  throw new Error("Unreachable transaction state");
 }
 
 async function requireExistingUser(
@@ -137,25 +171,28 @@ export async function updateUser(
   await requireAdmin(async () => actor);
   const parsedId = userIdSchema.parse(id);
   const parsed = updateUserSchema.parse(input);
-  const current = await requireExistingUser(parsedId, repository);
 
-  if (parsed.email) {
-    await ensureUniqueEmail(parsed.email, repository, parsedId);
-  }
+  return runTransaction(repository, async (transaction) => {
+    const current = await requireExistingUser(parsedId, transaction);
 
-  await ensureActiveAdminRemains(current, parsed, repository);
-
-  try {
-    const user = await repository.update(parsedId, parsed);
-
-    if (parsed.active === false) {
-      await repository.deleteSessions(parsedId);
+    if (parsed.email) {
+      await ensureUniqueEmail(parsed.email, transaction, parsedId);
     }
 
-    return toPublicUser(user);
-  } catch (error) {
-    return rethrowDatabaseError(error);
-  }
+    await ensureActiveAdminRemains(current, parsed, transaction);
+
+    try {
+      const user = await transaction.update(parsedId, parsed);
+
+      if (parsed.active === false) {
+        await transaction.deleteSessions(parsedId);
+      }
+
+      return toPublicUser(user);
+    } catch (error) {
+      return rethrowDatabaseError(error);
+    }
+  });
 }
 
 export async function resetUserPassword(
@@ -167,15 +204,17 @@ export async function resetUserPassword(
   await requireAdmin(async () => actor);
   const parsedId = userIdSchema.parse(id);
   const { password: parsedPassword } = resetUserPasswordSchema.parse({ password });
-  await requireExistingUser(parsedId, repository);
+  const passwordHash = await hashPassword(parsedPassword);
 
-  try {
-    const user = await repository.update(parsedId, {
-      passwordHash: await hashPassword(parsedPassword),
-    });
-    await repository.deleteSessions(parsedId);
-    return toPublicUser(user);
-  } catch (error) {
-    return rethrowDatabaseError(error);
-  }
+  return runTransaction(repository, async (transaction) => {
+    await requireExistingUser(parsedId, transaction);
+
+    try {
+      const user = await transaction.update(parsedId, { passwordHash });
+      await transaction.deleteSessions(parsedId);
+      return toPublicUser(user);
+    } catch (error) {
+      return rethrowDatabaseError(error);
+    }
+  });
 }

@@ -34,4 +34,5 @@ export type UserRepository = {
   create(data: CreateUserData): Promise<UserRecord>;
   update(id: string, data: UpdateUserData): Promise<UserRecord>;
   deleteSessions(userId: string): Promise<void>;
+  transaction<T>(operation: (repository: UserRepository) => Promise<T>): Promise<T>;
 };
