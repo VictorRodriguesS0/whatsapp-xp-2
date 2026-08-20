@@ -1,12 +1,12 @@
 // @vitest-environment node
 
 import { createHash } from "node:crypto";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { LocalMediaStorage } from "./local-storage";
+import { closingFileHandleStream, LocalMediaStorage } from "./local-storage";
 
 const roots: string[] = [];
 
@@ -21,6 +21,28 @@ afterEach(async () => {
 });
 
 describe("local media storage", () => {
+  it("closes the underlying file handle on EOF and cancellation", async () => {
+    let eofClosed = 0;
+    let reads = 0;
+    const eofStream = closingFileHandleStream({
+      async read(buffer: Uint8Array) {
+        reads += 1;
+        if (reads === 1) { buffer.set(new TextEncoder().encode("ok")); return { bytesRead: 2, buffer }; }
+        return { bytesRead: 0, buffer };
+      },
+      async close() { eofClosed += 1; },
+    });
+    await expect(new Response(eofStream).text()).resolves.toBe("ok");
+    expect(eofClosed).toBe(1);
+
+    let cancelledClosed = 0;
+    const cancelled = closingFileHandleStream({
+      async read(buffer: Uint8Array) { buffer[0] = 1; return { bytesRead: 1, buffer }; },
+      async close() { cancelledClosed += 1; },
+    });
+    await cancelled.cancel();
+    expect(cancelledClosed).toBe(1);
+  });
   it("uses a random server key partitioned by UTC year and month", async () => {
     const root = await temporaryRoot();
     const bytes = new TextEncoder().encode("conteúdo seguro");
@@ -92,5 +114,62 @@ describe("local media storage", () => {
     const result = new Uint8Array(await new Response(stream).arrayBuffer());
 
     expect(result).toEqual(bytes);
+  });
+
+  it("creates the dedicated root and every partition with restrictive permissions", async () => {
+    const parent = await temporaryRoot();
+    const root = join(parent, "dedicated");
+    const storage = new LocalMediaStorage(root, {
+      now: () => new Date("2026-08-20T12:00:00.000Z"),
+      randomUUID: () => "123e4567-e89b-42d3-a456-426614174000",
+    });
+
+    const stored = await storage.put({ filename: "x.txt", bytes: new TextEncoder().encode("x"), mimeType: "text/plain" });
+
+    if (process.platform !== "win32") {
+      expect((await stat(root)).mode & 0o777).toBe(0o700);
+      expect((await stat(join(root, "2026"))).mode & 0o777).toBe(0o700);
+      expect((await stat(join(root, "2026", "08"))).mode & 0o777).toBe(0o700);
+      expect((await stat(join(root, ...stored.key.split("/")))).mode & 0o777).toBe(0o600);
+    }
+  });
+
+  it.skipIf(process.platform === "win32")("rejects a symbolic-link ancestor before creating child directories", async () => {
+    const root = await temporaryRoot();
+    const outside = await temporaryRoot();
+    await mkdir(join(outside, "08"), { mode: 0o700 });
+    await symlink(outside, join(root, "2026"), "dir");
+    const storage = new LocalMediaStorage(root, {
+      now: () => new Date("2026-08-20T12:00:00.000Z"),
+      randomUUID: () => "123e4567-e89b-42d3-a456-426614174000",
+    });
+
+    await expect(storage.put({ filename: "x.txt", bytes: new TextEncoder().encode("x"), mimeType: "text/plain" }))
+      .rejects.toThrow(/inválida/i);
+    await expect(readFile(join(outside, "08", "123e4567-e89b-42d3-a456-426614174000")))
+      .rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("writes a chunked stream incrementally and supports explicit orphan cleanup", async () => {
+    const root = await temporaryRoot();
+    const storage = new LocalMediaStorage(root, {
+      now: () => new Date("2026-08-20T12:00:00.000Z"),
+      randomUUID: () => "123e4567-e89b-42d3-a456-426614174000",
+    });
+    let pulls = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        pulls += 1;
+        if (pulls <= 4) controller.enqueue(new Uint8Array(1024 * 1024).fill(pulls));
+        else controller.close();
+      },
+    });
+
+    const stored = await storage.putStream({ filename: "large.bin", mimeType: "application/octet-stream", stream, maximumBytes: 4 * 1024 * 1024 });
+
+    expect(pulls).toBeGreaterThan(1);
+    expect(stored.sizeBytes).toBe(4n * 1024n * 1024n);
+    await storage.remove(stored.key);
+    await expect(storage.open(stored.key)).rejects.toThrow();
   });
 });

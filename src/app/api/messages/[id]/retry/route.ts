@@ -1,6 +1,7 @@
 import { assertSameOrigin, requireUser } from "@/modules/auth/guards";
 import { retryMessage } from "@/modules/messages/service";
-import { toErrorResponse } from "@/lib/http";
+import { HttpError, toErrorResponse } from "@/lib/http";
+import { messageUuidSchema } from "@/modules/messages/schemas";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,9 @@ export function createRetryMessageRouteHandlers(
         dependencies.assertSameOrigin(request);
         const actor = await dependencies.requireUser();
         const { id } = await context.params;
-        const message = await dependencies.retryMessage(actor, id);
+        const parsed = messageUuidSchema.safeParse(id);
+        if (!parsed.success) throw new HttpError(404, "Mensagem não encontrada");
+        const message = await dependencies.retryMessage(actor, parsed.data);
         return Response.json({ data: message, error: null });
       } catch (error) {
         return toErrorResponse(error);

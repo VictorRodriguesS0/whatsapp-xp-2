@@ -14,7 +14,14 @@ describe("parseServerEnv", () => {
   it("accepts demo mode without Meta credentials", () => {
     expect(parseServerEnv(validBase)).toMatchObject({
       WHATSAPP_PROVIDER: "demo",
+      META_HTTP_TIMEOUT_MS: 15_000,
     });
+  });
+
+  it("accepts a bounded configurable total Meta timeout", () => {
+    expect(parseServerEnv({ ...validBase, META_HTTP_TIMEOUT_MS: "2500" }).META_HTTP_TIMEOUT_MS).toBe(2500);
+    expect(() => parseServerEnv({ ...validBase, META_HTTP_TIMEOUT_MS: "50" })).toThrow();
+    expect(() => parseServerEnv({ ...validBase, META_HTTP_TIMEOUT_MS: "60001" })).toThrow();
   });
 
   it.each([

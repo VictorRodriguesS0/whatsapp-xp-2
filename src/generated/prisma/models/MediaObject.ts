@@ -28,10 +28,12 @@ export type AggregateMediaObject = {
 
 export type MediaObjectAvgAggregateOutputType = {
   sizeBytes: number | null
+  downloadAttempts: number | null
 }
 
 export type MediaObjectSumAggregateOutputType = {
   sizeBytes: bigint | null
+  downloadAttempts: number | null
 }
 
 export type MediaObjectMinAggregateOutputType = {
@@ -45,6 +47,10 @@ export type MediaObjectMinAggregateOutputType = {
   metaMediaId: string | null
   status: $Enums.MediaStatus | null
   failureReason: string | null
+  downloadLeaseId: string | null
+  downloadLeaseUntil: Date | null
+  downloadNextAttemptAt: Date | null
+  downloadAttempts: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -60,6 +66,10 @@ export type MediaObjectMaxAggregateOutputType = {
   metaMediaId: string | null
   status: $Enums.MediaStatus | null
   failureReason: string | null
+  downloadLeaseId: string | null
+  downloadLeaseUntil: Date | null
+  downloadNextAttemptAt: Date | null
+  downloadAttempts: number | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -75,6 +85,10 @@ export type MediaObjectCountAggregateOutputType = {
   metaMediaId: number
   status: number
   failureReason: number
+  downloadLeaseId: number
+  downloadLeaseUntil: number
+  downloadNextAttemptAt: number
+  downloadAttempts: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -83,10 +97,12 @@ export type MediaObjectCountAggregateOutputType = {
 
 export type MediaObjectAvgAggregateInputType = {
   sizeBytes?: true
+  downloadAttempts?: true
 }
 
 export type MediaObjectSumAggregateInputType = {
   sizeBytes?: true
+  downloadAttempts?: true
 }
 
 export type MediaObjectMinAggregateInputType = {
@@ -100,6 +116,10 @@ export type MediaObjectMinAggregateInputType = {
   metaMediaId?: true
   status?: true
   failureReason?: true
+  downloadLeaseId?: true
+  downloadLeaseUntil?: true
+  downloadNextAttemptAt?: true
+  downloadAttempts?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -115,6 +135,10 @@ export type MediaObjectMaxAggregateInputType = {
   metaMediaId?: true
   status?: true
   failureReason?: true
+  downloadLeaseId?: true
+  downloadLeaseUntil?: true
+  downloadNextAttemptAt?: true
+  downloadAttempts?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -130,6 +154,10 @@ export type MediaObjectCountAggregateInputType = {
   metaMediaId?: true
   status?: true
   failureReason?: true
+  downloadLeaseId?: true
+  downloadLeaseUntil?: true
+  downloadNextAttemptAt?: true
+  downloadAttempts?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -232,6 +260,10 @@ export type MediaObjectGroupByOutputType = {
   metaMediaId: string | null
   status: $Enums.MediaStatus
   failureReason: string | null
+  downloadLeaseId: string | null
+  downloadLeaseUntil: Date | null
+  downloadNextAttemptAt: Date | null
+  downloadAttempts: number
   createdAt: Date
   updatedAt: Date
   _count: MediaObjectCountAggregateOutputType | null
@@ -270,6 +302,10 @@ export type MediaObjectWhereInput = {
   metaMediaId?: Prisma.StringNullableFilter<"MediaObject"> | string | null
   status?: Prisma.EnumMediaStatusFilter<"MediaObject"> | $Enums.MediaStatus
   failureReason?: Prisma.StringNullableFilter<"MediaObject"> | string | null
+  downloadLeaseId?: Prisma.UuidNullableFilter<"MediaObject"> | string | null
+  downloadLeaseUntil?: Prisma.DateTimeNullableFilter<"MediaObject"> | Date | string | null
+  downloadNextAttemptAt?: Prisma.DateTimeNullableFilter<"MediaObject"> | Date | string | null
+  downloadAttempts?: Prisma.IntFilter<"MediaObject"> | number
   createdAt?: Prisma.DateTimeFilter<"MediaObject"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"MediaObject"> | Date | string
   message?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
@@ -286,6 +322,10 @@ export type MediaObjectOrderByWithRelationInput = {
   metaMediaId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadLeaseId?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadLeaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadNextAttemptAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   message?: Prisma.MessageOrderByWithRelationInput
@@ -305,6 +345,10 @@ export type MediaObjectWhereUniqueInput = Prisma.AtLeast<{
   metaMediaId?: Prisma.StringNullableFilter<"MediaObject"> | string | null
   status?: Prisma.EnumMediaStatusFilter<"MediaObject"> | $Enums.MediaStatus
   failureReason?: Prisma.StringNullableFilter<"MediaObject"> | string | null
+  downloadLeaseId?: Prisma.UuidNullableFilter<"MediaObject"> | string | null
+  downloadLeaseUntil?: Prisma.DateTimeNullableFilter<"MediaObject"> | Date | string | null
+  downloadNextAttemptAt?: Prisma.DateTimeNullableFilter<"MediaObject"> | Date | string | null
+  downloadAttempts?: Prisma.IntFilter<"MediaObject"> | number
   createdAt?: Prisma.DateTimeFilter<"MediaObject"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"MediaObject"> | Date | string
   message?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
@@ -321,6 +365,10 @@ export type MediaObjectOrderByWithAggregationInput = {
   metaMediaId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadLeaseId?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadLeaseUntil?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadNextAttemptAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.MediaObjectCountOrderByAggregateInput
@@ -344,6 +392,10 @@ export type MediaObjectScalarWhereWithAggregatesInput = {
   metaMediaId?: Prisma.StringNullableWithAggregatesFilter<"MediaObject"> | string | null
   status?: Prisma.EnumMediaStatusWithAggregatesFilter<"MediaObject"> | $Enums.MediaStatus
   failureReason?: Prisma.StringNullableWithAggregatesFilter<"MediaObject"> | string | null
+  downloadLeaseId?: Prisma.UuidNullableWithAggregatesFilter<"MediaObject"> | string | null
+  downloadLeaseUntil?: Prisma.DateTimeNullableWithAggregatesFilter<"MediaObject"> | Date | string | null
+  downloadNextAttemptAt?: Prisma.DateTimeNullableWithAggregatesFilter<"MediaObject"> | Date | string | null
+  downloadAttempts?: Prisma.IntWithAggregatesFilter<"MediaObject"> | number
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"MediaObject"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"MediaObject"> | Date | string
 }
@@ -359,6 +411,10 @@ export type MediaObjectCreateInput = {
   metaMediaId?: string | null
   status: $Enums.MediaStatus
   failureReason?: string | null
+  downloadLeaseId?: string | null
+  downloadLeaseUntil?: Date | string | null
+  downloadNextAttemptAt?: Date | string | null
+  downloadAttempts?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   message?: Prisma.MessageCreateNestedOneWithoutMediaObjectInput
@@ -375,6 +431,10 @@ export type MediaObjectUncheckedCreateInput = {
   metaMediaId?: string | null
   status: $Enums.MediaStatus
   failureReason?: string | null
+  downloadLeaseId?: string | null
+  downloadLeaseUntil?: Date | string | null
+  downloadNextAttemptAt?: Date | string | null
+  downloadAttempts?: number
   createdAt?: Date | string
   updatedAt?: Date | string
   message?: Prisma.MessageUncheckedCreateNestedOneWithoutMediaObjectInput
@@ -391,6 +451,10 @@ export type MediaObjectUpdateInput = {
   metaMediaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMediaStatusFieldUpdateOperationsInput | $Enums.MediaStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadNextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUpdateOneWithoutMediaObjectNestedInput
@@ -407,6 +471,10 @@ export type MediaObjectUncheckedUpdateInput = {
   metaMediaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMediaStatusFieldUpdateOperationsInput | $Enums.MediaStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadNextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   message?: Prisma.MessageUncheckedUpdateOneWithoutMediaObjectNestedInput
@@ -423,6 +491,10 @@ export type MediaObjectCreateManyInput = {
   metaMediaId?: string | null
   status: $Enums.MediaStatus
   failureReason?: string | null
+  downloadLeaseId?: string | null
+  downloadLeaseUntil?: Date | string | null
+  downloadNextAttemptAt?: Date | string | null
+  downloadAttempts?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -438,6 +510,10 @@ export type MediaObjectUpdateManyMutationInput = {
   metaMediaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMediaStatusFieldUpdateOperationsInput | $Enums.MediaStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadNextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -453,6 +529,10 @@ export type MediaObjectUncheckedUpdateManyInput = {
   metaMediaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMediaStatusFieldUpdateOperationsInput | $Enums.MediaStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadNextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -473,12 +553,17 @@ export type MediaObjectCountOrderByAggregateInput = {
   metaMediaId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  downloadLeaseId?: Prisma.SortOrder
+  downloadLeaseUntil?: Prisma.SortOrder
+  downloadNextAttemptAt?: Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type MediaObjectAvgOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
 }
 
 export type MediaObjectMaxOrderByAggregateInput = {
@@ -492,6 +577,10 @@ export type MediaObjectMaxOrderByAggregateInput = {
   metaMediaId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  downloadLeaseId?: Prisma.SortOrder
+  downloadLeaseUntil?: Prisma.SortOrder
+  downloadNextAttemptAt?: Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -507,12 +596,17 @@ export type MediaObjectMinOrderByAggregateInput = {
   metaMediaId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  downloadLeaseId?: Prisma.SortOrder
+  downloadLeaseUntil?: Prisma.SortOrder
+  downloadNextAttemptAt?: Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
 
 export type MediaObjectSumOrderByAggregateInput = {
   sizeBytes?: Prisma.SortOrder
+  downloadAttempts?: Prisma.SortOrder
 }
 
 export type MediaObjectCreateNestedOneWithoutMessageInput = {
@@ -543,6 +637,14 @@ export type EnumMediaStatusFieldUpdateOperationsInput = {
   set?: $Enums.MediaStatus
 }
 
+export type IntFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type MediaObjectCreateWithoutMessageInput = {
   id?: string
   storageProvider: string
@@ -554,6 +656,10 @@ export type MediaObjectCreateWithoutMessageInput = {
   metaMediaId?: string | null
   status: $Enums.MediaStatus
   failureReason?: string | null
+  downloadLeaseId?: string | null
+  downloadLeaseUntil?: Date | string | null
+  downloadNextAttemptAt?: Date | string | null
+  downloadAttempts?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -569,6 +675,10 @@ export type MediaObjectUncheckedCreateWithoutMessageInput = {
   metaMediaId?: string | null
   status: $Enums.MediaStatus
   failureReason?: string | null
+  downloadLeaseId?: string | null
+  downloadLeaseUntil?: Date | string | null
+  downloadNextAttemptAt?: Date | string | null
+  downloadAttempts?: number
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -600,6 +710,10 @@ export type MediaObjectUpdateWithoutMessageInput = {
   metaMediaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMediaStatusFieldUpdateOperationsInput | $Enums.MediaStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadNextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -615,6 +729,10 @@ export type MediaObjectUncheckedUpdateWithoutMessageInput = {
   metaMediaId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMediaStatusFieldUpdateOperationsInput | $Enums.MediaStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  downloadLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadNextAttemptAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  downloadAttempts?: Prisma.IntFieldUpdateOperationsInput | number
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -632,6 +750,10 @@ export type MediaObjectSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   metaMediaId?: boolean
   status?: boolean
   failureReason?: boolean
+  downloadLeaseId?: boolean
+  downloadLeaseUntil?: boolean
+  downloadNextAttemptAt?: boolean
+  downloadAttempts?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   message?: boolean | Prisma.MediaObject$messageArgs<ExtArgs>
@@ -648,6 +770,10 @@ export type MediaObjectSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   metaMediaId?: boolean
   status?: boolean
   failureReason?: boolean
+  downloadLeaseId?: boolean
+  downloadLeaseUntil?: boolean
+  downloadNextAttemptAt?: boolean
+  downloadAttempts?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["mediaObject"]>
@@ -663,6 +789,10 @@ export type MediaObjectSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   metaMediaId?: boolean
   status?: boolean
   failureReason?: boolean
+  downloadLeaseId?: boolean
+  downloadLeaseUntil?: boolean
+  downloadNextAttemptAt?: boolean
+  downloadAttempts?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }, ExtArgs["result"]["mediaObject"]>
@@ -678,11 +808,15 @@ export type MediaObjectSelectScalar = {
   metaMediaId?: boolean
   status?: boolean
   failureReason?: boolean
+  downloadLeaseId?: boolean
+  downloadLeaseUntil?: boolean
+  downloadNextAttemptAt?: boolean
+  downloadAttempts?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type MediaObjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "storageProvider" | "storageKey" | "originalFilename" | "mimeType" | "sizeBytes" | "sha256" | "metaMediaId" | "status" | "failureReason" | "createdAt" | "updatedAt", ExtArgs["result"]["mediaObject"]>
+export type MediaObjectOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "storageProvider" | "storageKey" | "originalFilename" | "mimeType" | "sizeBytes" | "sha256" | "metaMediaId" | "status" | "failureReason" | "downloadLeaseId" | "downloadLeaseUntil" | "downloadNextAttemptAt" | "downloadAttempts" | "createdAt" | "updatedAt", ExtArgs["result"]["mediaObject"]>
 export type MediaObjectInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   message?: boolean | Prisma.MediaObject$messageArgs<ExtArgs>
 }
@@ -705,6 +839,10 @@ export type $MediaObjectPayload<ExtArgs extends runtime.Types.Extensions.Interna
     metaMediaId: string | null
     status: $Enums.MediaStatus
     failureReason: string | null
+    downloadLeaseId: string | null
+    downloadLeaseUntil: Date | null
+    downloadNextAttemptAt: Date | null
+    downloadAttempts: number
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["mediaObject"]>
@@ -1141,6 +1279,10 @@ export interface MediaObjectFieldRefs {
   readonly metaMediaId: Prisma.FieldRef<"MediaObject", 'String'>
   readonly status: Prisma.FieldRef<"MediaObject", 'MediaStatus'>
   readonly failureReason: Prisma.FieldRef<"MediaObject", 'String'>
+  readonly downloadLeaseId: Prisma.FieldRef<"MediaObject", 'String'>
+  readonly downloadLeaseUntil: Prisma.FieldRef<"MediaObject", 'DateTime'>
+  readonly downloadNextAttemptAt: Prisma.FieldRef<"MediaObject", 'DateTime'>
+  readonly downloadAttempts: Prisma.FieldRef<"MediaObject", 'Int'>
   readonly createdAt: Prisma.FieldRef<"MediaObject", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"MediaObject", 'DateTime'>
 }

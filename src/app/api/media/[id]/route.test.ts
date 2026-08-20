@@ -53,4 +53,16 @@ describe("authenticated media route", () => {
     expect(response.status).toBe(401);
     expect(resolved).toBe(false);
   });
+
+  it("returns a stable 404 envelope for a malformed media UUID", async () => {
+    let resolved = false;
+    const { GET } = createMediaRouteHandlers({
+      requireUser: async () => actor,
+      getMediaForDownload: async () => { resolved = true; throw new Error("must not run"); },
+    });
+    const response = await GET(new Request("http://localhost/api/media/not-a-uuid"), { params: Promise.resolve({ id: "not-a-uuid" }) });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Mídia não encontrada" });
+    expect(resolved).toBe(false);
+  });
 });

@@ -17,10 +17,23 @@ export type MediaMetadata = {
   sizeBytes: bigint;
 };
 
+export type MediaUploadSource = {
+  filename: string;
+  mimeType: string;
+  sizeBytes: bigint;
+  open(): Promise<ReadableStream<Uint8Array>>;
+};
+
+export type MediaDownload = {
+  stream: ReadableStream<Uint8Array>;
+  mimeType: string;
+  sizeBytes: bigint | null;
+};
+
 export interface WhatsAppProvider {
   sendText(input: { to: string; body: string }): Promise<SendResult>;
-  uploadMedia(input: { bytes: Uint8Array; filename: string; mimeType: string }): Promise<{ mediaId: string }>;
+  uploadMedia(input: MediaUploadSource): Promise<{ mediaId: string }>;
   sendMedia(input: { to: string; type: MediaMessageType; mediaId: string; caption?: string; filename?: string }): Promise<SendResult>;
   getMediaMetadata(mediaId: string): Promise<MediaMetadata>;
-  downloadMedia(input: { url: string; maximumBytes: number }): Promise<{ bytes: Uint8Array; mimeType: string }>;
+  downloadMedia(input: { url: string; maximumBytes: number }): Promise<MediaDownload>;
 }

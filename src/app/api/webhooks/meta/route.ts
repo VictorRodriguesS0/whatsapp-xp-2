@@ -5,6 +5,7 @@ import type { ServerEnv } from "@/lib/env";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { ensureMediaAvailable } from "@/modules/media/service";
+import { MediaTaskLimiter } from "@/modules/media/task-limiter";
 import { normalizeWebhook, WebhookPayloadError } from "@/modules/webhooks/normalize";
 import {
   processWebhookEvents,
@@ -37,6 +38,8 @@ type MetaWebhookRouteDependencies = {
   logger: WebhookLogger;
 };
 
+const defaultMediaTaskLimiter = new MediaTaskLimiter(4);
+
 const defaultDependencies: MetaWebhookRouteDependencies = {
   getServerEnv,
   normalizeWebhook,
@@ -44,7 +47,7 @@ const defaultDependencies: MetaWebhookRouteDependencies = {
   verifyMetaSignature,
   verifyMetaToken,
   maxBodyBytes: META_WEBHOOK_MAX_BODY_BYTES,
-  scheduleAfter: (work) => after(work),
+  scheduleAfter: (work) => after(() => defaultMediaTaskLimiter.run(work)),
   ensureMediaAvailable,
   logger,
 };

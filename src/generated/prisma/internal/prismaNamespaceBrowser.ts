@@ -140,6 +140,8 @@ export const MessageScalarFieldEnum = {
   sentByUserId: 'sentByUserId',
   status: 'status',
   failureReason: 'failureReason',
+  operationalState: 'operationalState',
+  providerAttemptedAt: 'providerAttemptedAt',
   externalTimestamp: 'externalTimestamp',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -159,6 +161,10 @@ export const MediaObjectScalarFieldEnum = {
   metaMediaId: 'metaMediaId',
   status: 'status',
   failureReason: 'failureReason',
+  downloadLeaseId: 'downloadLeaseId',
+  downloadLeaseUntil: 'downloadLeaseUntil',
+  downloadNextAttemptAt: 'downloadNextAttemptAt',
+  downloadAttempts: 'downloadAttempts',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

@@ -41,6 +41,16 @@ enum MediaStatus {
   FAILED
 }
 
+enum MessageOperationalState {
+  READY
+  UPLOAD_IN_FLIGHT
+  SEND_IN_FLIGHT
+  OUTCOME_UNKNOWN
+  SENT
+  REJECTED
+  LOCAL_FAILURE
+}
+
 enum WebhookStatus {
   PROCESSING
   PROCESSED
@@ -118,6 +128,8 @@ model Message {
   sentByUserId        String?             @map("sent_by_user_id") @db.Uuid
   status              MessageStatus
   failureReason       String?             @map("failure_reason")
+  operationalState    MessageOperationalState @default(READY) @map("operational_state")
+  providerAttemptedAt DateTime?           @map("provider_attempted_at") @db.Timestamptz(3)
   externalTimestamp   DateTime            @map("external_timestamp") @db.Timestamptz(3)
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
@@ -141,10 +153,15 @@ model MediaObject {
   metaMediaId      String?     @map("meta_media_id")
   status           MediaStatus
   failureReason    String?     @map("failure_reason")
+  downloadLeaseId  String?     @map("download_lease_id") @db.Uuid
+  downloadLeaseUntil DateTime? @map("download_lease_until") @db.Timestamptz(3)
+  downloadNextAttemptAt DateTime? @map("download_next_attempt_at") @db.Timestamptz(3)
+  downloadAttempts Int         @default(0) @map("download_attempts")
   createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
   message          Message?
 
+  @@index([status, downloadNextAttemptAt, downloadLeaseUntil], map: "media_objects_download_claim_idx")
   @@map("media_objects")
 }
 

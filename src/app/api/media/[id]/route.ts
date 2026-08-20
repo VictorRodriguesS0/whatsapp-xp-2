@@ -1,6 +1,7 @@
 import { HttpError, toErrorResponse } from "@/lib/http";
 import { requireUser } from "@/modules/auth/guards";
 import { getMediaForDownload } from "@/modules/media/service";
+import { messageUuidSchema } from "@/modules/messages/schemas";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,9 @@ export function createMediaRouteHandlers(
       try {
         const actor = await dependencies.requireUser();
         const { id } = await context.params;
-        const media = await dependencies.getMediaForDownload(actor.id, id);
+        const parsed = messageUuidSchema.safeParse(id);
+        if (!parsed.success) throw new HttpError(404, "Mídia não encontrada");
+        const media = await dependencies.getMediaForDownload(actor.id, parsed.data);
         return new Response(media.stream, {
           headers: {
             "Content-Type": media.mimeType,

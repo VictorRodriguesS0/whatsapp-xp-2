@@ -1,19 +1,25 @@
 import "server-only";
 
-import { createHash } from "node:crypto";
+import { randomUUID } from "node:crypto";
+import { createReadStream } from "node:fs";
+import { Readable } from "node:stream";
 
 import { Prisma } from "@/generated/prisma/client";
 import { MediaStatus, type MediaStatus as MediaStatusValue } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { getServerEnv } from "@/lib/env";
 import { HttpError } from "@/lib/http";
-import { LocalMediaStorage } from "./local-storage";
-import type { MediaStorage } from "./storage";
-import { mediaRuleForMime, validateMedia } from "./validation";
-import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
-import type { WhatsAppProvider } from "@/modules/whatsapp/provider";
 import { messageUuidSchema } from "@/modules/messages/schemas";
 import { safeOriginalFilename } from "@/modules/messages/status";
+import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
+import type { WhatsAppProvider } from "@/modules/whatsapp/provider";
+import { LocalMediaStorage } from "./local-storage";
+import type { MediaStorage } from "./storage";
+import { stageMediaStream, type StagedMediaFile } from "./temp-file";
+import { MediaValidationError, mediaRuleForMime, validateMediaFile } from "./validation";
+
+const DOWNLOAD_LEASE_MS = 2 * 60_000;
+const MAXIMUM_BACKOFF_MS = 30_000;
 
 export type MediaObjectRecord = {
   id: string;
@@ -26,169 +32,187 @@ export type MediaObjectRecord = {
   status: MediaStatusValue;
   failureReason: string | null;
   linkedToMessage: boolean;
+  downloadLeaseId: string | null;
+  downloadLeaseUntil: Date | null;
+  downloadNextAttemptAt: Date | null;
+  downloadAttempts: number;
 };
 
 export interface MediaServiceRepository {
   findById(id: string): Promise<MediaObjectRecord | null>;
   findVisibleById(id: string, actorId: string): Promise<MediaObjectRecord | null>;
-  markAvailable(
-    id: string,
-    input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string },
-  ): Promise<boolean>;
-  markFailed(id: string, reason: string): Promise<void>;
+  claimPending(id: string, input: { leaseId: string; now: Date; leaseUntil: Date }): Promise<MediaObjectRecord | null>;
+  markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }): Promise<boolean>;
+  markPermanentFailure(id: string, leaseId: string, reason: string): Promise<void>;
+  releaseTransientFailure(id: string, leaseId: string, input: { reason: string; nextAttemptAt: Date }): Promise<void>;
 }
 
 export type MediaServiceDependencies = {
   repository: MediaServiceRepository;
   storage: MediaStorage;
   provider: WhatsAppProvider;
+  mediaRoot: string;
   inFlight: Map<string, Promise<void>>;
+  now?: () => Date;
+  createUuid?: () => string;
 };
 
 const mediaSelect = {
-  id: true,
-  storageKey: true,
-  originalFilename: true,
-  mimeType: true,
-  sizeBytes: true,
-  sha256: true,
-  metaMediaId: true,
-  status: true,
-  failureReason: true,
-  message: { select: { id: true } },
+  id: true, storageKey: true, originalFilename: true, mimeType: true, sizeBytes: true, sha256: true,
+  metaMediaId: true, status: true, failureReason: true, downloadLeaseId: true, downloadLeaseUntil: true,
+  downloadNextAttemptAt: true, downloadAttempts: true, message: { select: { id: true } },
 } as const;
-
 type PrismaMediaRow = Prisma.MediaObjectGetPayload<{ select: typeof mediaSelect }>;
 
 function mapMedia(row: PrismaMediaRow): MediaObjectRecord {
-  return {
-    id: row!.id,
-    storageKey: row!.storageKey,
-    originalFilename: row!.originalFilename,
-    mimeType: row!.mimeType,
-    sizeBytes: row!.sizeBytes,
-    sha256: row!.sha256,
-    metaMediaId: row!.metaMediaId,
-    status: row!.status,
-    failureReason: row!.failureReason,
-    linkedToMessage: Boolean(row!.message),
-  };
+  const { message, ...media } = row;
+  return { ...media, linkedToMessage: Boolean(message) };
 }
 
-const prismaMediaRepository: MediaServiceRepository = {
+export const prismaMediaRepository: MediaServiceRepository = {
   async findById(id) {
     const row = await prisma.mediaObject.findUnique({ where: { id }, select: mediaSelect });
     return row ? mapMedia(row) : null;
   },
   async findVisibleById(id, _actorId) {
-    const row = await prisma.mediaObject.findFirst({
-      where: { id, message: { isNot: null } },
-      select: mediaSelect,
-    });
+    const row = await prisma.mediaObject.findFirst({ where: { id, message: { isNot: null } }, select: mediaSelect });
     return row ? mapMedia(row) : null;
   },
-  async markAvailable(id, input) {
-    const result = await prisma.mediaObject.updateMany({
-      where: { id, status: MediaStatus.PENDING },
+  async claimPending(id, input) {
+    const claimed = await prisma.mediaObject.updateMany({
+      where: {
+        id,
+        status: MediaStatus.PENDING,
+        AND: [
+          { OR: [{ downloadLeaseUntil: null }, { downloadLeaseUntil: { lte: input.now } }] },
+          { OR: [{ downloadNextAttemptAt: null }, { downloadNextAttemptAt: { lte: input.now } }] },
+        ],
+      },
       data: {
-        storageKey: input.storageKey,
-        sizeBytes: input.sizeBytes,
-        sha256: input.sha256,
-        mimeType: input.mimeType,
-        status: MediaStatus.AVAILABLE,
-        failureReason: null,
+        downloadLeaseId: input.leaseId,
+        downloadLeaseUntil: input.leaseUntil,
+        downloadAttempts: { increment: 1 },
+      },
+    });
+    return claimed.count === 1 ? this.findById(id) : null;
+  },
+  async markAvailable(id, leaseId, input) {
+    const result = await prisma.mediaObject.updateMany({
+      where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
+      data: {
+        storageKey: input.storageKey, sizeBytes: input.sizeBytes, sha256: input.sha256, mimeType: input.mimeType,
+        status: MediaStatus.AVAILABLE, failureReason: null, downloadLeaseId: null, downloadLeaseUntil: null,
+        downloadNextAttemptAt: null,
       },
     });
     return result.count === 1;
   },
-  async markFailed(id, reason) {
+  async markPermanentFailure(id, leaseId, reason) {
     await prisma.mediaObject.updateMany({
-      where: { id, status: MediaStatus.PENDING },
-      data: { status: MediaStatus.FAILED, failureReason: reason },
+      where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
+      data: { status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null },
+    });
+  },
+  async releaseTransientFailure(id, leaseId, input) {
+    await prisma.mediaObject.updateMany({
+      where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
+      data: { failureReason: input.reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: input.nextAttemptAt },
     });
   },
 };
 
-const defaultInFlight = new Map<string, Promise<void>>();
+const mediaRoot = getServerEnv().MEDIA_ROOT;
 const defaultDependencies: MediaServiceDependencies = {
   repository: prismaMediaRepository,
-  storage: new LocalMediaStorage(getServerEnv().MEDIA_ROOT),
+  storage: new LocalMediaStorage(mediaRoot),
   provider: getWhatsAppProvider(),
-  inFlight: defaultInFlight,
+  mediaRoot,
+  inFlight: new Map(),
 };
 
-function hashMatches(expected: string | null, bytes: Uint8Array): boolean {
-  if (!expected) return true;
-  const digest = createHash("sha256").update(bytes);
-  const hex = digest.copy().digest("hex");
-  const base64 = digest.digest("base64");
-  return expected === hex || expected === base64;
+function parsePublicUuid(value: string, notFoundMessage: string): string {
+  const result = messageUuidSchema.safeParse(value);
+  if (!result.success) throw new HttpError(404, notFoundMessage);
+  return result.data;
 }
 
-async function persistPendingMedia(
-  id: string,
-  dependencies: MediaServiceDependencies,
-): Promise<void> {
-  const media = await dependencies.repository.findById(id);
-  if (!media) throw new HttpError(404, "Mídia não encontrada");
-  if (media.status === MediaStatus.AVAILABLE) return;
-  if (media.status !== MediaStatus.PENDING || !media.metaMediaId) {
-    throw new HttpError(424, "Mídia indisponível");
-  }
+function hashesMatch(expected: string | null, actualHex: string): boolean {
+  if (!expected) return true;
+  const actualBase64 = Buffer.from(actualHex, "hex").toString("base64");
+  return expected === actualHex || expected === actualBase64;
+}
 
+function transientBackoffMs(attempt: number): number {
+  return Math.min(MAXIMUM_BACKOFF_MS, 1000 * 2 ** Math.max(0, Math.min(attempt - 1, 5)));
+}
+
+async function persistPendingMedia(id: string, dependencies: MediaServiceDependencies): Promise<void> {
+  const initial = await dependencies.repository.findById(id);
+  if (!initial) throw new HttpError(404, "Mídia não encontrada");
+  if (initial.status === MediaStatus.AVAILABLE) return;
+  if (initial.status !== MediaStatus.PENDING || !initial.metaMediaId) throw new HttpError(424, "Mídia indisponível");
+
+  const now = (dependencies.now ?? (() => new Date()))();
+  const leaseId = (dependencies.createUuid ?? randomUUID)();
+  const media = await dependencies.repository.claimPending(id, { leaseId, now, leaseUntil: new Date(now.getTime() + DOWNLOAD_LEASE_MS) });
+  if (!media) return;
+
+  let staged: StagedMediaFile | undefined;
+  let storedKey: string | undefined;
   try {
     const rule = mediaRuleForMime(media.mimeType);
-    const metadata = await dependencies.provider.getMediaMetadata(media.metaMediaId);
-    if (
-      metadata.id !== media.metaMediaId ||
-      metadata.mimeType !== rule.mimeType ||
-      metadata.sizeBytes <= 0n ||
-      metadata.sizeBytes > BigInt(rule.maximumBytes)
-    ) {
-      throw new Error("Invalid Meta media metadata");
+    const metadata = await dependencies.provider.getMediaMetadata(media.metaMediaId!);
+    if (metadata.id !== media.metaMediaId || metadata.mimeType !== rule.mimeType || metadata.sizeBytes <= 0n || metadata.sizeBytes > BigInt(rule.maximumBytes)) {
+      throw new MediaValidationError("Metadados remotos incompatíveis");
     }
-    const downloaded = await dependencies.provider.downloadMedia({
-      url: metadata.url,
-      maximumBytes: rule.maximumBytes,
-    });
-    if (
-      downloaded.mimeType !== rule.mimeType ||
-      BigInt(downloaded.bytes.byteLength) !== metadata.sizeBytes ||
-      !hashMatches(media.sha256, downloaded.bytes) ||
-      !hashMatches(metadata.sha256, downloaded.bytes)
-    ) {
-      throw new Error("Downloaded media mismatch");
+    const downloaded = await dependencies.provider.downloadMedia({ url: metadata.url, maximumBytes: rule.maximumBytes });
+    if (downloaded.mimeType !== rule.mimeType || (downloaded.sizeBytes !== null && downloaded.sizeBytes !== metadata.sizeBytes)) {
+      throw new MediaValidationError("Download remoto incompatível");
     }
-    validateMedia({
-      bytes: downloaded.bytes,
-      mimeType: rule.mimeType,
-      filename: media.originalFilename || undefined,
-    });
-    const stored = await dependencies.storage.put({
-      bytes: downloaded.bytes,
-      mimeType: rule.mimeType,
+    staged = await stageMediaStream({
+      root: dependencies.mediaRoot,
       filename: safeOriginalFilename(media.originalFilename),
-    });
-    await dependencies.repository.markAvailable(id, {
-      storageKey: stored.key,
-      sizeBytes: stored.sizeBytes,
-      sha256: stored.sha256,
       mimeType: rule.mimeType,
+      maximumBytes: rule.maximumBytes,
+      stream: downloaded.stream,
     });
+    if (staged.sizeBytes !== metadata.sizeBytes || !hashesMatch(media.sha256, staged.sha256) || !hashesMatch(metadata.sha256, staged.sha256)) {
+      throw new MediaValidationError("Conteúdo remoto incompatível");
+    }
+    await validateMediaFile({ path: staged.path, mimeType: rule.mimeType, filename: staged.filename });
+    const stored = await dependencies.storage.putStream({
+      filename: staged.filename,
+      mimeType: staged.mimeType,
+      maximumBytes: rule.maximumBytes,
+      stream: Readable.toWeb(createReadStream(staged.path)) as ReadableStream<Uint8Array>,
+    });
+    storedKey = stored.key;
+    if (stored.sizeBytes !== staged.sizeBytes || stored.sha256 !== staged.sha256) throw new Error("Stored media mismatch");
+    const committed = await dependencies.repository.markAvailable(id, leaseId, {
+      storageKey: stored.key, sizeBytes: stored.sizeBytes, sha256: stored.sha256, mimeType: rule.mimeType,
+    });
+    if (!committed) await dependencies.storage.remove(stored.key).catch(() => undefined);
   } catch (error) {
-    await dependencies.repository.markFailed(id, "Falha ao obter mídia");
+    if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
+    if (error instanceof MediaValidationError) {
+      await dependencies.repository.markPermanentFailure(id, leaseId, "Mídia remota inválida");
+    } else {
+      const attempt = media.downloadAttempts;
+      await dependencies.repository.releaseTransientFailure(id, leaseId, {
+        reason: "Falha transitória ao obter mídia",
+        nextAttemptAt: new Date(now.getTime() + transientBackoffMs(attempt)),
+      });
+    }
     throw error;
+  } finally {
+    await staged?.cleanup().catch(() => undefined);
   }
 }
 
-export function ensureMediaAvailable(
-  mediaId: string,
-  dependencies: MediaServiceDependencies = defaultDependencies,
-): Promise<void> {
-  const id = messageUuidSchema.parse(mediaId);
+export function ensureMediaAvailable(mediaId: string, dependencies: MediaServiceDependencies = defaultDependencies): Promise<void> {
+  const id = parsePublicUuid(mediaId, "Mídia não encontrada");
   const existing = dependencies.inFlight.get(id);
   if (existing) return existing;
-
   let task: Promise<void>;
   task = persistPendingMedia(id, dependencies).finally(() => {
     if (dependencies.inFlight.get(id) === task) dependencies.inFlight.delete(id);
@@ -197,28 +221,19 @@ export function ensureMediaAvailable(
   return task;
 }
 
-export async function getMediaForDownload(
-  actorId: string,
-  mediaId: string,
-  dependencies: MediaServiceDependencies = defaultDependencies,
-) {
-  const parsedActorId = messageUuidSchema.parse(actorId);
-  const id = messageUuidSchema.parse(mediaId);
+export async function getMediaForDownload(actorId: string, mediaId: string, dependencies: MediaServiceDependencies = defaultDependencies) {
+  const parsedActorId = parsePublicUuid(actorId, "Usuário não encontrado");
+  const id = parsePublicUuid(mediaId, "Mídia não encontrada");
   let media = await dependencies.repository.findVisibleById(id, parsedActorId);
   if (!media) throw new HttpError(404, "Mídia não encontrada");
   if (media.status === MediaStatus.PENDING) {
-    await ensureMediaAvailable(id, dependencies);
+    await ensureMediaAvailable(id, dependencies).catch(() => undefined);
     media = await dependencies.repository.findVisibleById(id, parsedActorId);
   }
-  if (!media || media.status !== MediaStatus.AVAILABLE || !media.storageKey) {
-    throw new HttpError(424, "Mídia indisponível");
-  }
+  if (!media || media.status !== MediaStatus.AVAILABLE || !media.storageKey) throw new HttpError(424, "Mídia indisponível");
   const rule = mediaRuleForMime(media.mimeType);
   return {
-    stream: await dependencies.storage.open(media.storageKey),
-    mimeType: rule.mimeType,
-    sizeBytes: media.sizeBytes,
-    filename: safeOriginalFilename(media.originalFilename),
-    kind: rule.kind,
+    stream: await dependencies.storage.open(media.storageKey), mimeType: rule.mimeType, sizeBytes: media.sizeBytes,
+    filename: safeOriginalFilename(media.originalFilename), kind: rule.kind,
   };
 }

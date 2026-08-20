@@ -1118,6 +1118,8 @@ export const MessageScalarFieldEnum = {
   sentByUserId: 'sentByUserId',
   status: 'status',
   failureReason: 'failureReason',
+  operationalState: 'operationalState',
+  providerAttemptedAt: 'providerAttemptedAt',
   externalTimestamp: 'externalTimestamp',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -1137,6 +1139,10 @@ export const MediaObjectScalarFieldEnum = {
   metaMediaId: 'metaMediaId',
   status: 'status',
   failureReason: 'failureReason',
+  downloadLeaseId: 'downloadLeaseId',
+  downloadLeaseUntil: 'downloadLeaseUntil',
+  downloadNextAttemptAt: 'downloadNextAttemptAt',
+  downloadAttempts: 'downloadAttempts',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -1290,6 +1296,20 @@ export type ListEnumMessageStatusFieldRefInput<$PrismaModel> = FieldRefInputType
 
 
 /**
+ * Reference to a field of type 'MessageOperationalState'
+ */
+export type EnumMessageOperationalStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MessageOperationalState'>
+
+
+
+/**
+ * Reference to a field of type 'MessageOperationalState[]'
+ */
+export type ListEnumMessageOperationalStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MessageOperationalState[]'>
+
+
+
+/**
  * Reference to a field of type 'BigInt'
  */
 export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
@@ -1318,20 +1338,6 @@ export type ListEnumMediaStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$
 
 
 /**
- * Reference to a field of type 'WebhookStatus'
- */
-export type EnumWebhookStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebhookStatus'>
-    
-
-
-/**
- * Reference to a field of type 'WebhookStatus[]'
- */
-export type ListEnumWebhookStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebhookStatus[]'>
-    
-
-
-/**
  * Reference to a field of type 'Int'
  */
 export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
@@ -1342,6 +1348,20 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
+ * Reference to a field of type 'WebhookStatus'
+ */
+export type EnumWebhookStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebhookStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'WebhookStatus[]'
+ */
+export type ListEnumWebhookStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebhookStatus[]'>
     
 
 
@@ -1579,4 +1599,3 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
-

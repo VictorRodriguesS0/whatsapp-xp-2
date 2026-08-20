@@ -36,6 +36,8 @@ export type MessageMinAggregateOutputType = {
   sentByUserId: string | null
   status: $Enums.MessageStatus | null
   failureReason: string | null
+  operationalState: $Enums.MessageOperationalState | null
+  providerAttemptedAt: Date | null
   externalTimestamp: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -53,6 +55,8 @@ export type MessageMaxAggregateOutputType = {
   sentByUserId: string | null
   status: $Enums.MessageStatus | null
   failureReason: string | null
+  operationalState: $Enums.MessageOperationalState | null
+  providerAttemptedAt: Date | null
   externalTimestamp: Date | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -70,6 +74,8 @@ export type MessageCountAggregateOutputType = {
   sentByUserId: number
   status: number
   failureReason: number
+  operationalState: number
+  providerAttemptedAt: number
   externalTimestamp: number
   createdAt: number
   updatedAt: number
@@ -89,6 +95,8 @@ export type MessageMinAggregateInputType = {
   sentByUserId?: true
   status?: true
   failureReason?: true
+  operationalState?: true
+  providerAttemptedAt?: true
   externalTimestamp?: true
   createdAt?: true
   updatedAt?: true
@@ -106,6 +114,8 @@ export type MessageMaxAggregateInputType = {
   sentByUserId?: true
   status?: true
   failureReason?: true
+  operationalState?: true
+  providerAttemptedAt?: true
   externalTimestamp?: true
   createdAt?: true
   updatedAt?: true
@@ -123,6 +133,8 @@ export type MessageCountAggregateInputType = {
   sentByUserId?: true
   status?: true
   failureReason?: true
+  operationalState?: true
+  providerAttemptedAt?: true
   externalTimestamp?: true
   createdAt?: true
   updatedAt?: true
@@ -213,6 +225,8 @@ export type MessageGroupByOutputType = {
   sentByUserId: string | null
   status: $Enums.MessageStatus
   failureReason: string | null
+  operationalState: $Enums.MessageOperationalState
+  providerAttemptedAt: Date | null
   externalTimestamp: Date
   createdAt: Date
   updatedAt: Date
@@ -251,6 +265,8 @@ export type MessageWhereInput = {
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   externalTimestamp?: Prisma.DateTimeFilter<"Message"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
@@ -272,6 +288,8 @@ export type MessageOrderByWithRelationInput = {
   sentByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  operationalState?: Prisma.SortOrder
+  providerAttemptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   externalTimestamp?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -296,6 +314,8 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   externalTimestamp?: Prisma.DateTimeFilter<"Message"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
@@ -317,6 +337,8 @@ export type MessageOrderByWithAggregationInput = {
   sentByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  operationalState?: Prisma.SortOrder
+  providerAttemptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   externalTimestamp?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -340,6 +362,8 @@ export type MessageScalarWhereWithAggregatesInput = {
   sentByUserId?: Prisma.UuidNullableWithAggregatesFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusWithAggregatesFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateWithAggregatesFilter<"Message"> | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
   externalTimestamp?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Message"> | Date | string
@@ -354,6 +378,8 @@ export type MessageCreateInput = {
   body?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -375,6 +401,8 @@ export type MessageUncheckedCreateInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -390,6 +418,8 @@ export type MessageUpdateInput = {
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -411,6 +441,8 @@ export type MessageUncheckedUpdateInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -429,6 +461,8 @@ export type MessageCreateManyInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -443,6 +477,8 @@ export type MessageUpdateManyMutationInput = {
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -460,6 +496,8 @@ export type MessageUncheckedUpdateManyInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -487,6 +525,8 @@ export type MessageCountOrderByAggregateInput = {
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  operationalState?: Prisma.SortOrder
+  providerAttemptedAt?: Prisma.SortOrder
   externalTimestamp?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -504,6 +544,8 @@ export type MessageMaxOrderByAggregateInput = {
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  operationalState?: Prisma.SortOrder
+  providerAttemptedAt?: Prisma.SortOrder
   externalTimestamp?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -521,6 +563,8 @@ export type MessageMinOrderByAggregateInput = {
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  operationalState?: Prisma.SortOrder
+  providerAttemptedAt?: Prisma.SortOrder
   externalTimestamp?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -627,6 +671,14 @@ export type EnumMessageStatusFieldUpdateOperationsInput = {
   set?: $Enums.MessageStatus
 }
 
+export type EnumMessageOperationalStateFieldUpdateOperationsInput = {
+  set?: $Enums.MessageOperationalState
+}
+
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
+}
+
 export type MessageCreateNestedOneWithoutMediaObjectInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutMediaObjectInput, Prisma.MessageUncheckedCreateWithoutMediaObjectInput>
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutMediaObjectInput
@@ -684,6 +736,8 @@ export type MessageCreateWithoutSentByUserInput = {
   body?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -703,6 +757,8 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   mediaObjectId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -750,6 +806,8 @@ export type MessageScalarWhereInput = {
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   externalTimestamp?: Prisma.DateTimeFilter<"Message"> | Date | string
   createdAt?: Prisma.DateTimeFilter<"Message"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
@@ -764,6 +822,8 @@ export type MessageCreateWithoutConversationInput = {
   body?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -783,6 +843,8 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -824,6 +886,8 @@ export type MessageCreateWithoutMediaObjectInput = {
   body?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -843,6 +907,8 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -874,6 +940,8 @@ export type MessageUpdateWithoutMediaObjectInput = {
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -893,6 +961,8 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -908,6 +978,8 @@ export type MessageCreateWithoutLastReadForInput = {
   body?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -928,6 +1000,8 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -958,6 +1032,8 @@ export type MessageUpdateWithoutLastReadForInput = {
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -978,6 +1054,8 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -994,6 +1072,8 @@ export type MessageCreateManySentByUserInput = {
   mediaObjectId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1008,6 +1088,8 @@ export type MessageUpdateWithoutSentByUserInput = {
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1027,6 +1109,8 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1044,6 +1128,8 @@ export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1060,6 +1146,8 @@ export type MessageCreateManyConversationInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1074,6 +1162,8 @@ export type MessageUpdateWithoutConversationInput = {
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1093,6 +1183,8 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1110,6 +1202,8 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1158,6 +1252,8 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  operationalState?: boolean
+  providerAttemptedAt?: boolean
   externalTimestamp?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1180,6 +1276,8 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  operationalState?: boolean
+  providerAttemptedAt?: boolean
   externalTimestamp?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1200,6 +1298,8 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  operationalState?: boolean
+  providerAttemptedAt?: boolean
   externalTimestamp?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -1220,12 +1320,14 @@ export type MessageSelectScalar = {
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  operationalState?: boolean
+  providerAttemptedAt?: boolean
   externalTimestamp?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "operationalState" | "providerAttemptedAt" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   mediaObject?: boolean | Prisma.Message$mediaObjectArgs<ExtArgs>
@@ -1264,6 +1366,8 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     sentByUserId: string | null
     status: $Enums.MessageStatus
     failureReason: string | null
+    operationalState: $Enums.MessageOperationalState
+    providerAttemptedAt: Date | null
     externalTimestamp: Date
     createdAt: Date
     updatedAt: Date
@@ -1705,6 +1809,8 @@ export interface MessageFieldRefs {
   readonly sentByUserId: Prisma.FieldRef<"Message", 'String'>
   readonly status: Prisma.FieldRef<"Message", 'MessageStatus'>
   readonly failureReason: Prisma.FieldRef<"Message", 'String'>
+  readonly operationalState: Prisma.FieldRef<"Message", 'MessageOperationalState'>
+  readonly providerAttemptedAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly externalTimestamp: Prisma.FieldRef<"Message", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Message", 'DateTime'>

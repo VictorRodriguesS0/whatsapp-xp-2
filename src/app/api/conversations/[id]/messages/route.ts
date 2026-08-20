@@ -4,6 +4,8 @@ import { conversationIdSchema } from "@/modules/conversations/schemas";
 import { getConversation } from "@/modules/conversations/service";
 import { outboundMediaFieldsSchema, outboundTextSchema } from "@/modules/messages/schemas";
 import { sendMessage, type SendMessageInput } from "@/modules/messages/service";
+import { getServerEnv } from "@/lib/env";
+import { parseMediaMultipartRequest } from "@/modules/media/multipart";
 
 import {
   conversationErrorResponse,
@@ -17,6 +19,7 @@ type ConversationMessagesRouteDependencies = {
   requireUser: typeof requireUser;
   getConversation: typeof getConversation;
   sendMessage: typeof sendMessage;
+  mediaRoot: string;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -26,9 +29,10 @@ const defaultDependencies: ConversationMessagesRouteDependencies = {
   requireUser,
   getConversation,
   sendMessage,
+  mediaRoot: getServerEnv().MEDIA_ROOT,
 };
 
-async function parseSendInput(request: Request): Promise<SendMessageInput> {
+async function parseSendInput(request: Request, mediaRoot: string): Promise<SendMessageInput> {
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
 
   if (contentType.startsWith("application/json")) {
@@ -39,24 +43,22 @@ async function parseSendInput(request: Request): Promise<SendMessageInput> {
     throw new HttpError(415, "Formato de envio não suportado");
   }
 
-  const form = await request.formData();
+  const form = await parseMediaMultipartRequest(request, mediaRoot);
   const fields = outboundMediaFieldsSchema.parse({
-    type: form.get("type"),
-    clientRequestId: form.get("clientRequestId"),
-    body: form.get("body") || undefined,
+    type: form.fields.type,
+    clientRequestId: form.fields.clientRequestId,
+    body: form.fields.body || undefined,
   });
-  const file = form.get("file");
-
-  if (!(file instanceof File) || file.size === 0 || !file.type) {
-    throw new HttpError(400, "Arquivo inválido");
-  }
 
   return {
     ...fields,
     file: {
-      filename: file.name,
-      mimeType: file.type,
-      bytes: new Uint8Array(await file.arrayBuffer()),
+      filename: form.file.filename,
+      mimeType: form.file.mimeType,
+      path: form.file.path,
+      sizeBytes: form.file.sizeBytes,
+      sha256: form.file.sha256,
+      cleanup: form.file.cleanup,
     },
   };
 }
@@ -83,9 +85,13 @@ export function createConversationMessagesRouteHandlers(
         const actor = await dependencies.requireUser();
         const { id } = await context.params;
         const parsedId = conversationIdSchema.parse(id);
-        const input = await parseSendInput(request);
-        const message = await dependencies.sendMessage(actor, parsedId, input);
-        return conversationSuccessResponse(message, 201);
+        const input = await parseSendInput(request, dependencies.mediaRoot);
+        try {
+          const message = await dependencies.sendMessage(actor, parsedId, input);
+          return conversationSuccessResponse(message, 201);
+        } finally {
+          if (input.type !== "TEXT") await input.file.cleanup?.();
+        }
       } catch (error) {
         return conversationErrorResponse(error);
       }

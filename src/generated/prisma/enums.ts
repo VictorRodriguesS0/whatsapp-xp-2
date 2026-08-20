@@ -58,6 +58,19 @@ export const MediaStatus = {
 export type MediaStatus = (typeof MediaStatus)[keyof typeof MediaStatus]
 
 
+export const MessageOperationalState = {
+  READY: 'READY',
+  UPLOAD_IN_FLIGHT: 'UPLOAD_IN_FLIGHT',
+  SEND_IN_FLIGHT: 'SEND_IN_FLIGHT',
+  OUTCOME_UNKNOWN: 'OUTCOME_UNKNOWN',
+  SENT: 'SENT',
+  REJECTED: 'REJECTED',
+  LOCAL_FAILURE: 'LOCAL_FAILURE'
+} as const
+
+export type MessageOperationalState = (typeof MessageOperationalState)[keyof typeof MessageOperationalState]
+
+
 export const WebhookStatus = {
   PROCESSING: 'PROCESSING',
   PROCESSED: 'PROCESSED',

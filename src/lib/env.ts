@@ -19,6 +19,7 @@ const schema = z
     NEXT_PUBLIC_APP_URL: z.string().url(),
     WHATSAPP_PROVIDER: z.enum(["demo", "meta"]).default("demo"),
     META_GRAPH_API_VERSION: z.string().regex(/^v\d+\.\d+$/).default("v23.0"),
+    META_HTTP_TIMEOUT_MS: z.coerce.number().int().min(100).max(60_000).default(15_000),
     META_APP_ID: z.string().optional(),
     META_APP_SECRET: z.string().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),

@@ -35,4 +35,17 @@ describe("message retry route", () => {
     expect(response.status).toBe(200);
     expect(order).toEqual(["origin", "auth", `${actor.id}:${id}`]);
   });
+
+  it("returns a stable 404 envelope for a malformed message UUID", async () => {
+    let retried = false;
+    const { POST } = createRetryMessageRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      retryMessage: async () => { retried = true; throw new Error("must not run"); },
+    });
+    const response = await POST(new Request("http://localhost/api/messages/not-a-uuid/retry", { method: "POST" }), { params: Promise.resolve({ id: "not-a-uuid" }) });
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "Mensagem não encontrada" });
+    expect(retried).toBe(false);
+  });
 });

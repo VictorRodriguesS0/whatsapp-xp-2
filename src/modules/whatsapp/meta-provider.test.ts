@@ -16,7 +16,7 @@ describe("Meta WhatsApp provider", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({ messaging_product: "whatsapp", contacts: [{ input: "5561999999999", wa_id: "5561999999999" }], messages: [{ id: "wamid.1" }] }),
     );
-    const provider = new MetaWhatsAppProvider(config, fetchMock);
+    const provider = new MetaWhatsAppProvider({ ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 }, fetchMock);
 
     await expect(provider.sendText({ to: "5561999999999", body: "Olá" })).resolves.toEqual({
       whatsappMessageId: "wamid.1",
@@ -47,11 +47,12 @@ describe("Meta WhatsApp provider", () => {
       .mockImplementation(async () =>
         Response.json({ messaging_product: "whatsapp", messages: [{ id: "wamid.media" }] }),
       );
-    const provider = new MetaWhatsAppProvider(config, fetchMock);
+    const provider = new MetaWhatsAppProvider({ ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 }, fetchMock);
 
     await expect(
       provider.uploadMedia({
-        bytes: new TextEncoder().encode("%PDF-1.7"),
+        sizeBytes: 8n,
+        open: async () => new ReadableStream({ start(controller) { controller.enqueue(new TextEncoder().encode("%PDF-1.7")); controller.close(); } }),
         filename: "nota.pdf",
         mimeType: "application/pdf",
       }),
@@ -59,8 +60,8 @@ describe("Meta WhatsApp provider", () => {
 
     const upload = fetchMock.mock.calls[0]!;
     expect(upload[0]).toBe("https://graph.facebook.com/v23.0/123/media");
-    expect(upload[1]?.headers).toEqual({ Authorization: "Bearer secret-token" });
-    expect(upload[1]?.body).toBeInstanceOf(FormData);
+    expect(upload[1]?.body).toBeInstanceOf(ReadableStream);
+    expect(upload[1]?.headers).toMatchObject({ Authorization: "Bearer secret-token", "Content-Type": expect.stringContaining("multipart/form-data; boundary=") });
 
     for (const type of ["image", "audio", "video", "document"] as const) {
       await provider.sendMedia({
@@ -92,23 +93,26 @@ describe("Meta WhatsApp provider", () => {
       .mockResolvedValueOnce(new Response(Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]), {
         headers: { "content-type": "image/jpeg", "content-length": "4" },
       }));
-    const provider = new MetaWhatsAppProvider(config, fetchMock);
+    const provider = new MetaWhatsAppProvider({ ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 }, fetchMock);
 
     await expect(provider.getMediaMetadata("media-1")).resolves.toMatchObject({
       url: temporaryUrl,
       mimeType: "image/jpeg",
       sizeBytes: 4n,
     });
-    await expect(provider.downloadMedia({ url: temporaryUrl, maximumBytes: 10 })).resolves.toMatchObject({
-      mimeType: "image/jpeg",
-      bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]),
-    });
+    const downloaded = await provider.downloadMedia({ url: temporaryUrl, maximumBytes: 10 });
+    await expect(new Response(downloaded.stream).arrayBuffer()).resolves.toEqual(
+      Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]).buffer,
+    );
+    expect(downloaded).toMatchObject({ mimeType: "image/jpeg", sizeBytes: 4n });
 
     expect(fetchMock.mock.calls[0]![0]).toBe("https://graph.facebook.com/v23.0/media-1?phone_number_id=123");
-    expect(fetchMock.mock.calls[1]).toEqual([
-      temporaryUrl,
-      { headers: { Authorization: "Bearer secret-token" }, redirect: "manual" },
-    ]);
+    expect(fetchMock.mock.calls[1]?.[0]).toBe(temporaryUrl);
+    expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({
+      headers: { Authorization: "Bearer secret-token" },
+      redirect: "manual",
+      signal: expect.any(AbortSignal),
+    });
   });
 
   it.each([
@@ -118,7 +122,7 @@ describe("Meta WhatsApp provider", () => {
     "https://user@lookaside.fbsbx.com/file",
   ])("rejects an unsafe media download URL without making a request: %s", async (url) => {
     const fetchMock = vi.fn<typeof fetch>();
-    const provider = new MetaWhatsAppProvider(config, fetchMock);
+    const provider = new MetaWhatsAppProvider({ ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 }, fetchMock);
     await expect(provider.downloadMedia({ url, maximumBytes: 10 })).rejects.toBeInstanceOf(WhatsAppProviderError);
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -127,7 +131,7 @@ describe("Meta WhatsApp provider", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(null, { status: 302, headers: { location: "https://evil.example/file" } }),
     );
-    const provider = new MetaWhatsAppProvider(config, fetchMock);
+    const provider = new MetaWhatsAppProvider({ ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 }, fetchMock);
     await expect(
       provider.downloadMedia({ url: "https://lookaside.fbsbx.com/file", maximumBytes: 10 }),
     ).rejects.toBeInstanceOf(WhatsAppProviderError);
@@ -138,7 +142,7 @@ describe("Meta WhatsApp provider", () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({ error: { message: `bad ${config.accessToken}\r\n`, type: "OAuthException", code: 190 } }, { status: 400 }),
     );
-    const provider = new MetaWhatsAppProvider(config, fetchMock);
+    const provider = new MetaWhatsAppProvider({ ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 }, fetchMock);
 
     const error = await provider.sendText({ to: "1", body: "x" }).catch((caught: unknown) => caught);
 
@@ -146,6 +150,48 @@ describe("Meta WhatsApp provider", () => {
     expect(String(error)).toContain("Graph 190");
     expect(String(error)).not.toContain(config.accessToken);
     expect(String(error)).not.toContain("\r");
+  });
+
+  it("classifies a definitive Graph rejection separately from an unknown transport outcome", async () => {
+    const rejected = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => Response.json({ error: { code: 131047, message: "rejected" } }, { status: 400 }),
+    );
+    const unknown = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 10, maximumJsonBytes: 1024 },
+      async (_url, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      }),
+    );
+
+    await expect(rejected.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "rejected" });
+    await expect(unknown.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "unknown" });
+  });
+
+  it("rejects oversized or truncated JSON as unknown without buffering an unbounded body", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(40).fill(0x61));
+      },
+      cancel() { cancelled = true; },
+    });
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 32 },
+      async () => new Response(body, { status: 200 }),
+    );
+
+    await expect(provider.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "unknown" });
+    expect(cancelled).toBe(true);
+  });
+
+  it("classifies a truncated media response as unknown while streaming", async () => {
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => new Response(Uint8Array.from([1, 2, 3, 4]), { headers: { "content-type": "image/jpeg", "content-length": "5" } }),
+    );
+    const download = await provider.downloadMedia({ url: "https://lookaside.fbsbx.com/file", maximumBytes: 10 });
+    await expect(new Response(download.stream).arrayBuffer()).rejects.toMatchObject({ kind: "unknown" });
   });
 });
 
@@ -156,7 +202,7 @@ describe("demo WhatsApp provider", () => {
       whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000",
       status: "SENT",
     });
-    await expect(provider.uploadMedia({ bytes: jpegBytes(), filename: "x.jpg", mimeType: "image/jpeg" }))
+    await expect(provider.uploadMedia({ sizeBytes: 4n, open: async () => new ReadableStream({ start(controller) { controller.enqueue(jpegBytes()); controller.close(); } }), filename: "x.jpg", mimeType: "image/jpeg" }))
       .resolves.toEqual({ mediaId: "demo-123e4567-e89b-42d3-a456-426614174000" });
     await expect(provider.sendMedia({ to: "1", type: "image", mediaId: "demo-media" }))
       .resolves.toEqual({ whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000", status: "SENT" });

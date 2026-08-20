@@ -1,20 +1,46 @@
 import "server-only";
 
-import type { MediaMetadata, WhatsAppProvider } from "./provider";
+import type { MediaDownload, MediaMetadata, MediaUploadSource, WhatsAppProvider } from "./provider";
 
 type MetaProviderConfig = {
   version: string;
   phoneNumberId: string;
   accessToken: string;
+  timeoutMs?: number;
+  maximumJsonBytes?: number;
 };
 
 type JsonRecord = Record<string, unknown>;
 
+export type WhatsAppProviderErrorKind = "rejected" | "unknown";
+
 export class WhatsAppProviderError extends Error {
-  constructor(message = "Falha no provedor WhatsApp") {
+  constructor(
+    public readonly kind: WhatsAppProviderErrorKind,
+    message = "Falha no provedor WhatsApp",
+  ) {
     super(message);
     this.name = "WhatsAppProviderError";
   }
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_MAXIMUM_JSON_BYTES = 64 * 1024;
+
+function unknownProviderError(): WhatsAppProviderError {
+  return new WhatsAppProviderError("unknown");
+}
+
+function raceWithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const abort = () => reject(unknownProviderError());
+    if (signal.aborted) { reject(unknownProviderError()); return; }
+    signal.addEventListener("abort", abort, { once: true });
+    operation.then(
+      (value) => { signal.removeEventListener("abort", abort); resolve(value); },
+      (error) => { signal.removeEventListener("abort", abort); reject(error); },
+    );
+  });
 }
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -35,12 +61,45 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     return { Authorization: `Bearer ${this.config.accessToken}`, ...extra };
   }
 
-  private async json(response: Response): Promise<JsonRecord> {
+  private async operation<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    try {
+      return await raceWithAbort(work(controller.signal), controller.signal);
+    } catch (error) {
+      if (error instanceof WhatsAppProviderError) throw error;
+      throw unknownProviderError();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  private async json(response: Response, signal: AbortSignal): Promise<JsonRecord> {
+    if (!response.body) throw unknownProviderError();
+    const reader = response.body.getReader();
+    const chunks: Uint8Array[] = [];
+    const maximum = this.config.maximumJsonBytes ?? DEFAULT_MAXIMUM_JSON_BYTES;
+    let total = 0;
+    try {
+      while (true) {
+        const result = await raceWithAbort(reader.read(), signal);
+        if (result.done) break;
+        total += result.value.byteLength;
+        if (total > maximum) {
+          await reader.cancel().catch(() => undefined);
+          throw unknownProviderError();
+        }
+        chunks.push(result.value);
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    const body = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), total);
     let payload: unknown;
     try {
-      payload = await response.json();
+      payload = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(body));
     } catch {
-      throw new WhatsAppProviderError();
+      throw unknownProviderError();
     }
 
     if (!response.ok) {
@@ -54,24 +113,27 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
         .replace(/[\u0000-\u001f\u007f]/g, " ")
         .trim()
         .slice(0, 160);
-      throw new WhatsAppProviderError(`Graph ${code}: ${message || "request_failed"}`);
+      throw new WhatsAppProviderError("rejected", `Graph ${code}: ${message || "request_failed"}`);
     }
 
-    if (!isRecord(payload)) throw new WhatsAppProviderError();
+    if (!isRecord(payload)) throw unknownProviderError();
     return payload;
   }
 
   private async send(body: JsonRecord) {
-    const response = await this.request(this.endpoint(`${encodeURIComponent(this.config.phoneNumberId)}/messages`), {
-      method: "POST",
-      headers: this.authorizationHeaders({ "Content-Type": "application/json" }),
-      body: JSON.stringify(body),
+    return this.operation(async (signal) => {
+      const response = await this.request(this.endpoint(`${encodeURIComponent(this.config.phoneNumberId)}/messages`), {
+        method: "POST",
+        headers: this.authorizationHeaders({ "Content-Type": "application/json" }),
+        body: JSON.stringify(body),
+        signal,
+      });
+      const payload = await this.json(response, signal);
+      const messages = Array.isArray(payload.messages) ? payload.messages : [];
+      const first = messages[0];
+      if (!isRecord(first) || typeof first.id !== "string" || !first.id) throw unknownProviderError();
+      return { whatsappMessageId: first.id, status: "SENT" as const };
     });
-    const payload = await this.json(response);
-    const messages = Array.isArray(payload.messages) ? payload.messages : [];
-    const first = messages[0];
-    if (!isRecord(first) || typeof first.id !== "string" || !first.id) throw new WhatsAppProviderError();
-    return { whatsappMessageId: first.id, status: "SENT" as const };
   }
 
   sendText(input: { to: string; body: string }) {
@@ -84,20 +146,49 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     });
   }
 
-  async uploadMedia(input: { bytes: Uint8Array; filename: string; mimeType: string }) {
-    const form = new FormData();
-    form.set("messaging_product", "whatsapp");
-    form.set("type", input.mimeType);
-    const bytes = Uint8Array.from(input.bytes);
-    form.set("file", new Blob([bytes], { type: input.mimeType }), input.filename);
-    const response = await this.request(this.endpoint(`${encodeURIComponent(this.config.phoneNumberId)}/media`), {
-      method: "POST",
-      headers: this.authorizationHeaders(),
-      body: form,
+  async uploadMedia(input: MediaUploadSource) {
+    return this.operation(async (signal) => {
+      const boundary = `xp-${crypto.randomUUID()}`;
+      const safeFilename = input.filename.replace(/[\r\n"\\]/g, "_");
+      const prefix = new TextEncoder().encode(
+        `--${boundary}\r\nContent-Disposition: form-data; name="messaging_product"\r\n\r\nwhatsapp\r\n` +
+        `--${boundary}\r\nContent-Disposition: form-data; name="type"\r\n\r\n${input.mimeType}\r\n` +
+        `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${safeFilename}"\r\nContent-Type: ${input.mimeType}\r\n\r\n`,
+      );
+      const suffix = new TextEncoder().encode(`\r\n--${boundary}--\r\n`);
+      const fileStream = await input.open();
+      const fileReader = fileStream.getReader();
+      let phase = 0;
+      let streamed = 0n;
+      const body = new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          if (phase === 0) { phase = 1; controller.enqueue(prefix); return; }
+          if (phase === 1) {
+            const result = await raceWithAbort(fileReader.read(), signal);
+            if (!result.done) { streamed += BigInt(result.value.byteLength); controller.enqueue(result.value); return; }
+            fileReader.releaseLock();
+            if (streamed !== input.sizeBytes) { controller.error(unknownProviderError()); return; }
+            phase = 2; controller.enqueue(suffix); return;
+          }
+          controller.close();
+        },
+        async cancel() { await fileReader.cancel().catch(() => undefined); fileReader.releaseLock(); },
+      });
+      const contentLength = BigInt(prefix.byteLength) + input.sizeBytes + BigInt(suffix.byteLength);
+      const response = await this.request(this.endpoint(`${encodeURIComponent(this.config.phoneNumberId)}/media`), {
+        method: "POST",
+        headers: this.authorizationHeaders({
+          "Content-Type": `multipart/form-data; boundary=${boundary}`,
+          "Content-Length": contentLength.toString(),
+        }),
+        body,
+        signal,
+        duplex: "half",
+      } as RequestInit & { duplex: "half" });
+      const payload = await this.json(response, signal);
+      if (typeof payload.id !== "string" || !payload.id) throw unknownProviderError();
+      return { mediaId: payload.id };
     });
-    const payload = await this.json(response);
-    if (typeof payload.id !== "string" || !payload.id) throw new WhatsAppProviderError();
-    return { mediaId: payload.id };
   }
 
   sendMedia(input: { to: string; type: "image" | "audio" | "video" | "document"; mediaId: string; caption?: string; filename?: string }) {
@@ -118,7 +209,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     try {
       url = new URL(rawUrl);
     } catch {
-      throw new WhatsAppProviderError("URL temporária de mídia inválida");
+      throw new WhatsAppProviderError("rejected", "URL temporária de mídia inválida");
     }
     if (
       url.protocol !== "https:" ||
@@ -127,79 +218,107 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
       url.username !== "" ||
       url.password !== ""
     ) {
-      throw new WhatsAppProviderError("URL temporária de mídia inválida");
+      throw new WhatsAppProviderError("rejected", "URL temporária de mídia inválida");
     }
     return url;
   }
 
   async getMediaMetadata(mediaId: string): Promise<MediaMetadata> {
-    if (!/^[A-Za-z0-9._-]{1,256}$/.test(mediaId)) throw new WhatsAppProviderError();
-    const url = new URL(this.endpoint(encodeURIComponent(mediaId)));
-    url.searchParams.set("phone_number_id", this.config.phoneNumberId);
-    const payload = await this.json(await this.request(url.toString(), {
-      headers: this.authorizationHeaders(),
-    }));
+    if (!/^[A-Za-z0-9._-]{1,256}$/.test(mediaId)) throw new WhatsAppProviderError("rejected");
+    return this.operation(async (signal) => {
+      const url = new URL(this.endpoint(encodeURIComponent(mediaId)));
+      url.searchParams.set("phone_number_id", this.config.phoneNumberId);
+      const payload = await this.json(await this.request(url.toString(), {
+        headers: this.authorizationHeaders(), signal,
+      }), signal);
     if (
       typeof payload.id !== "string" ||
       typeof payload.url !== "string" ||
       typeof payload.mime_type !== "string" ||
       (typeof payload.file_size !== "number" && typeof payload.file_size !== "string")
-    ) throw new WhatsAppProviderError();
+      ) throw unknownProviderError();
     this.assertSafeTemporaryUrl(payload.url);
     let sizeBytes: bigint;
     try {
       sizeBytes = BigInt(payload.file_size);
     } catch {
-      throw new WhatsAppProviderError();
+      throw unknownProviderError();
     }
-    if (sizeBytes < 0n) throw new WhatsAppProviderError();
-    return {
+      if (sizeBytes < 0n) throw unknownProviderError();
+      return {
       id: payload.id,
       url: payload.url,
       mimeType: payload.mime_type.trim().toLowerCase(),
       sha256: typeof payload.sha256 === "string" ? payload.sha256 : null,
       sizeBytes,
-    };
+      };
+    });
   }
 
-  async downloadMedia(input: { url: string; maximumBytes: number }) {
+  async downloadMedia(input: { url: string; maximumBytes: number }): Promise<MediaDownload> {
     const url = this.assertSafeTemporaryUrl(input.url);
-    const response = await this.request(url.toString(), {
-      headers: this.authorizationHeaders(),
-      redirect: "manual",
-    });
-    if (!response.ok || response.status >= 300 || !response.body) throw new WhatsAppProviderError();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), this.config.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+    let response: Response;
+    try {
+      response = await raceWithAbort(
+        this.request(url.toString(), { headers: this.authorizationHeaders(), redirect: "manual", signal: controller.signal }),
+        controller.signal,
+      );
+    } catch (error) {
+      clearTimeout(timer);
+      if (error instanceof WhatsAppProviderError) throw error;
+      throw unknownProviderError();
+    }
+    if (!response.ok || response.status >= 300 || !response.body) {
+      clearTimeout(timer);
+      throw new WhatsAppProviderError("rejected");
+    }
     const contentLength = response.headers.get("content-length");
     if (contentLength && (!/^\d+$/.test(contentLength) || BigInt(contentLength) > BigInt(input.maximumBytes))) {
       await response.body.cancel().catch(() => undefined);
-      throw new WhatsAppProviderError("Mídia remota muito grande");
+      clearTimeout(timer);
+      throw new WhatsAppProviderError("rejected", "Mídia remota muito grande");
     }
+    const expectedSize = contentLength && /^\d+$/.test(contentLength) ? BigInt(contentLength) : null;
     const reader = response.body.getReader();
-    const chunks: Uint8Array[] = [];
     let total = 0;
-    try {
-      while (true) {
-        const result = await reader.read();
-        if (result.done) break;
-        total += result.value.byteLength;
+    const stream = new ReadableStream<Uint8Array>({
+      async pull(streamController) {
+        try {
+          const result = await raceWithAbort(reader.read(), controller.signal);
+          if (result.done) {
+            clearTimeout(timer);
+            if (expectedSize !== null && BigInt(total) !== expectedSize) {
+              streamController.error(unknownProviderError());
+              return;
+            }
+            streamController.close();
+            return;
+          }
+          total += result.value.byteLength;
         if (total > input.maximumBytes) {
           await reader.cancel().catch(() => undefined);
-          throw new WhatsAppProviderError("Mídia remota muito grande");
+            clearTimeout(timer);
+            streamController.error(new WhatsAppProviderError("rejected", "Mídia remota muito grande"));
+            return;
         }
-        chunks.push(result.value);
+          streamController.enqueue(result.value);
+        } catch (error) {
+          clearTimeout(timer);
+          streamController.error(error instanceof WhatsAppProviderError ? error : unknownProviderError());
+        }
+      },
+      async cancel() {
+        clearTimeout(timer);
+        controller.abort();
+        await reader.cancel().catch(() => undefined);
       }
-    } finally {
-      reader.releaseLock();
-    }
-    const bytes = new Uint8Array(total);
-    let offset = 0;
-    for (const chunk of chunks) {
-      bytes.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
+    });
     return {
-      bytes,
+      stream,
       mimeType: (response.headers.get("content-type") ?? "").split(";", 1)[0]!.trim().toLowerCase(),
+      sizeBytes: expectedSize,
     };
   }
 }

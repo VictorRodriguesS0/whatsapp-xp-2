@@ -94,7 +94,7 @@ describe("database", () => {
       ORDER BY table_name, column_name
     `;
 
-    expect(temporalColumns).toHaveLength(18);
+    expect(temporalColumns).toHaveLength(21);
     expect(new Set(temporalColumns.map((column) => column.dataType))).toEqual(
       new Set(["timestamp with time zone"]),
     );
