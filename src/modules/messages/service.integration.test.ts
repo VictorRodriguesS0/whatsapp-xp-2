@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -16,6 +16,7 @@ import type { MediaUploadSource } from "@/modules/whatsapp/provider";
 
 import {
   MessageSendRateLimiter,
+  createPrismaMessageRepository,
   prismaMessageRepository,
   retryMessage,
   sendMessage,
@@ -24,6 +25,11 @@ import {
 } from "./service";
 
 const roots: string[] = [];
+
+async function countStoredFiles(root: string): Promise<number> {
+  const entries = await readdir(root, { recursive: true, withFileTypes: true });
+  return entries.filter((entry) => entry.isFile() && !entry.name.endsWith(".part")).length;
+}
 
 describe("outbound message PostgreSQL concurrency", () => {
   beforeEach(resetTestDatabase);
@@ -282,6 +288,143 @@ describe("outbound message PostgreSQL concurrency", () => {
     expect(committed).toMatchObject({ status: MessageStatus.PENDING, operationalState: MessageOperationalState.READY, mediaObject: { storageKey: expect.any(String) } });
     const stream = await storage.open(committed.mediaObject!.storageKey!);
     expect((await new Response(stream).arrayBuffer()).byteLength).toBe(4);
+  });
+
+  it("reports NO_COMMIT and removes the stored file when an in-transaction attachment mutation rolls back", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const mediaRoot = await mkdtemp(join(tmpdir(), "xp-attach-rollback-pg-"));
+    roots.push(mediaRoot);
+    const storage = new LocalMediaStorage(mediaRoot);
+    const repository = createPrismaMessageRepository({
+      async attachmentMutation(context, mutate) {
+        await mutate(context);
+        throw new Error("fault inside transaction");
+      },
+    });
+    const clientRequestId = randomUUID();
+
+    const input = {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { filename: "foto.jpg", mimeType: "image/jpeg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    } as const;
+    const dependencies = {
+      repository, storage, provider: new DemoWhatsAppProvider(), limiter: new MessageSendRateLimiter(), publishRealtime: () => undefined,
+    };
+
+    const failed = await sendMessage(actor, conversation.id, input, dependencies);
+    const repeated = await sendMessage(actor, conversation.id, input, dependencies);
+
+    expect(failed).toMatchObject({ status: MessageStatus.FAILED, mediaObjectId: null });
+    expect(repeated.id).toBe(failed.id);
+    await expect(prisma.message.findUniqueOrThrow({ where: { clientRequestId }, select: { operationalState: true } }))
+      .resolves.toEqual({ operationalState: MessageOperationalState.LOCAL_FAILURE });
+    await expect(prisma.message.count({ where: { clientRequestId } })).resolves.toBe(1);
+    await expect(prisma.mediaObject.count()).resolves.toBe(0);
+    await expect(countStoredFiles(mediaRoot)).resolves.toBe(0);
+  });
+
+  it("preserves a committed file after an ambiguous outer transaction failure and does not accumulate on repetition", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const mediaRoot = await mkdtemp(join(tmpdir(), "xp-attach-unknown-pg-"));
+    roots.push(mediaRoot);
+    const storage = new LocalMediaStorage(mediaRoot);
+    const repository = createPrismaMessageRepository({
+      async runAttachmentTransaction(operation) {
+        const result = await prisma.$transaction(operation);
+        throw Object.assign(new Error("connection lost after commit"), { committedResult: result });
+      },
+    });
+    const provider = new DemoWhatsAppProvider();
+    let providerCalls = 0;
+    provider.uploadMedia = async () => { providerCalls += 1; return { mediaId: "unused" }; };
+    const dependencies = { repository, storage, provider, limiter: new MessageSendRateLimiter(), publishRealtime: () => undefined };
+    const clientRequestId = randomUUID();
+    const input = {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { filename: "foto.jpg", mimeType: "image/jpeg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    } as const;
+
+    const uncertain = await sendMessage(actor, conversation.id, input, dependencies);
+    const repeated = await sendMessage(actor, conversation.id, input, dependencies);
+
+    expect(uncertain).toMatchObject({ status: MessageStatus.FAILED, failureReason: "Estado da mídia requer reconciliação", mediaObjectId: expect.any(String) });
+    await expect(prisma.message.findUniqueOrThrow({ where: { clientRequestId }, select: { operationalState: true } }))
+      .resolves.toEqual({ operationalState: MessageOperationalState.LOCAL_FAILURE });
+    expect(repeated.id).toBe(uncertain.id);
+    expect(providerCalls).toBe(0);
+    await expect(prisma.mediaObject.count()).resolves.toBe(1);
+    await expect(countStoredFiles(mediaRoot)).resolves.toBe(1);
+  });
+
+  it("retries confirmed P2034 rollbacks before attaching and delivering once", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const mediaRoot = await mkdtemp(join(tmpdir(), "xp-attach-p2034-retry-pg-"));
+    roots.push(mediaRoot);
+    let transactionAttempts = 0;
+    const repository = createPrismaMessageRepository({
+      async runAttachmentTransaction(operation) {
+        transactionAttempts += 1;
+        if (transactionAttempts < 3) throw Object.assign(new Error("write conflict"), { code: "P2034" });
+        return prisma.$transaction(operation);
+      },
+    });
+    const provider = new DemoWhatsAppProvider();
+    let uploadCalls = 0;
+    provider.uploadMedia = async () => { uploadCalls += 1; return { mediaId: "meta-after-retry" }; };
+
+    const result = await sendMessage(actor, conversation.id, {
+      type: MessageType.IMAGE,
+      clientRequestId: randomUUID(),
+      file: { filename: "foto.jpg", mimeType: "image/jpeg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    }, {
+      repository,
+      storage: new LocalMediaStorage(mediaRoot),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    });
+
+    expect(result.status).toBe(MessageStatus.SENT);
+    expect(transactionAttempts).toBe(3);
+    expect(uploadCalls).toBe(1);
+    await expect(prisma.mediaObject.count()).resolves.toBe(1);
+    await expect(countStoredFiles(mediaRoot)).resolves.toBe(1);
+  });
+
+  it("classifies exhausted confirmed P2034 rollbacks as NO_COMMIT and removes the file", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const mediaRoot = await mkdtemp(join(tmpdir(), "xp-attach-p2034-exhausted-pg-"));
+    roots.push(mediaRoot);
+    let transactionAttempts = 0;
+    const repository = createPrismaMessageRepository({
+      async runAttachmentTransaction() {
+        transactionAttempts += 1;
+        throw Object.assign(new Error("write conflict"), { code: "P2034" });
+      },
+    });
+
+    const result = await sendMessage(actor, conversation.id, {
+      type: MessageType.IMAGE,
+      clientRequestId: randomUUID(),
+      file: { filename: "foto.jpg", mimeType: "image/jpeg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    }, {
+      repository,
+      storage: new LocalMediaStorage(mediaRoot),
+      provider: new DemoWhatsAppProvider(),
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    });
+
+    expect(result).toMatchObject({ status: MessageStatus.FAILED, mediaObjectId: null });
+    expect(transactionAttempts).toBe(3);
+    await expect(prisma.mediaObject.count()).resolves.toBe(0);
+    await expect(countStoredFiles(mediaRoot)).resolves.toBe(0);
   });
 
   it("keeps the conservative provider-attempt boundary when post-CAS hydration fails", async () => {

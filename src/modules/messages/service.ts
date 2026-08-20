@@ -106,7 +106,7 @@ export type StoredMessageMediaInput = {
   sha256: string;
 };
 
-export type AttachmentCommitResult = "ATTACHED" | "CAS_LOST" | "NO_COMMIT";
+export type AttachmentCommitResult = "ATTACHED" | "CAS_LOST" | "NO_COMMIT" | "COMMIT_UNKNOWN";
 export type ProviderAttemptCommitResult = "MARKED" | "CAS_LOST";
 
 export interface MessageServiceRepository {
@@ -295,6 +295,98 @@ function isPrismaUnique(error: unknown): boolean {
   );
 }
 
+type AttachmentMutationContext = {
+  transaction: Prisma.TransactionClient;
+  messageId: string;
+  input: StoredMessageMediaInput;
+};
+
+type AttachmentMutationResult = Exclude<AttachmentCommitResult, "NO_COMMIT" | "COMMIT_UNKNOWN">;
+type AttachmentMutation = (
+  context: AttachmentMutationContext,
+  mutate: (context: AttachmentMutationContext) => Promise<AttachmentMutationResult>,
+) => Promise<AttachmentMutationResult>;
+type AttachmentTransactionRunner = <T>(
+  operation: (transaction: Prisma.TransactionClient) => Promise<T>,
+) => Promise<T>;
+
+export type PrismaMessageRepositoryOptions = {
+  attachmentMutation?: AttachmentMutation;
+  runAttachmentTransaction?: AttachmentTransactionRunner;
+};
+
+const ATTACHMENT_TRANSACTION_MAX_ATTEMPTS = 3;
+
+function prismaErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== "object" || !("code" in error)) return undefined;
+  return typeof error.code === "string" ? error.code : undefined;
+}
+
+async function mutateStoredMediaAttachment(context: AttachmentMutationContext): Promise<AttachmentMutationResult> {
+  const media = await context.transaction.mediaObject.create({
+    data: {
+      storageProvider: "local",
+      storageKey: context.input.storageKey,
+      originalFilename: context.input.originalFilename,
+      mimeType: context.input.mimeType,
+      sizeBytes: context.input.sizeBytes,
+      sha256: context.input.sha256,
+      status: MediaStatus.AVAILABLE,
+    },
+    select: { id: true },
+  });
+  const claimed = await context.transaction.message.updateMany({
+    where: {
+      id: context.messageId,
+      direction: MessageDirection.OUTBOUND,
+      mediaObjectId: null,
+      OR: [
+        { status: MessageStatus.PENDING, operationalState: MessageOperationalState.READY },
+        { status: MessageStatus.FAILED, operationalState: MessageOperationalState.LOCAL_FAILURE },
+      ],
+    },
+    data: {
+      mediaObjectId: media.id,
+      status: MessageStatus.PENDING,
+      failureReason: null,
+      operationalState: MessageOperationalState.READY,
+      deliveryLeaseId: null,
+      deliveryLeaseUntil: null,
+    },
+  });
+  if (claimed.count !== 1) {
+    await context.transaction.mediaObject.delete({ where: { id: media.id } });
+    return "CAS_LOST";
+  }
+  return "ATTACHED";
+}
+
+async function attachStoredMediaWithOutcome(
+  messageId: string,
+  input: StoredMessageMediaInput,
+  options: PrismaMessageRepositoryOptions,
+): Promise<AttachmentCommitResult> {
+  const runTransaction = options.runAttachmentTransaction ?? ((operation) => prisma.$transaction(operation));
+  const mutation = options.attachmentMutation ?? ((context, mutate) => mutate(context));
+  for (let attempt = 1; attempt <= ATTACHMENT_TRANSACTION_MAX_ATTEMPTS; attempt += 1) {
+    let callbackCompleted = false;
+    try {
+      return await runTransaction(async (transaction) => {
+        const result = await mutation({ transaction, messageId, input }, mutateStoredMediaAttachment);
+        callbackCompleted = true;
+        return result;
+      });
+    } catch (error) {
+      if (prismaErrorCode(error) === "P2034") {
+        if (attempt < ATTACHMENT_TRANSACTION_MAX_ATTEMPTS) continue;
+        return "NO_COMMIT";
+      }
+      return callbackCompleted ? "COMMIT_UNKNOWN" : "NO_COMMIT";
+    }
+  }
+  return "NO_COMMIT";
+}
+
 export const prismaMessageRepository: MessageServiceRepository = {
   async findByClientRequestId(clientRequestId) {
     const row = await prisma.message.findUnique({
@@ -350,45 +442,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
     }
   },
   async attachStoredMedia(messageId, input) {
-    const attached = await prisma.$transaction(async (transaction) => {
-      const media = await transaction.mediaObject.create({
-        data: {
-          storageProvider: "local",
-          storageKey: input.storageKey,
-          originalFilename: input.originalFilename,
-          mimeType: input.mimeType,
-          sizeBytes: input.sizeBytes,
-          sha256: input.sha256,
-          status: MediaStatus.AVAILABLE,
-        },
-        select: { id: true },
-      });
-      const claimed = await transaction.message.updateMany({
-        where: {
-          id: messageId,
-          direction: MessageDirection.OUTBOUND,
-          mediaObjectId: null,
-          OR: [
-            { status: MessageStatus.PENDING, operationalState: MessageOperationalState.READY },
-            { status: MessageStatus.FAILED, operationalState: MessageOperationalState.LOCAL_FAILURE },
-          ],
-        },
-        data: {
-          mediaObjectId: media.id,
-          status: MessageStatus.PENDING,
-          failureReason: null,
-          operationalState: MessageOperationalState.READY,
-          deliveryLeaseId: null,
-          deliveryLeaseUntil: null,
-        },
-      });
-      if (claimed.count !== 1) {
-        await transaction.mediaObject.delete({ where: { id: media.id } });
-        return false;
-      }
-      return true;
-    });
-    return attached ? "ATTACHED" : "CAS_LOST";
+    return attachStoredMediaWithOutcome(messageId, input, {});
   },
   async setMediaMetaId(messageId, metaMediaId) {
     const current = await prisma.message.findUniqueOrThrow({ where: { id: messageId }, select: { mediaObjectId: true } });
@@ -485,6 +539,15 @@ export const prismaMessageRepository: MessageServiceRepository = {
     return claimedId ? this.findById(claimedId) : null;
   },
 };
+
+export function createPrismaMessageRepository(options: PrismaMessageRepositoryOptions): MessageServiceRepository {
+  return {
+    ...prismaMessageRepository,
+    attachStoredMedia(messageId, input) {
+      return attachStoredMediaWithOutcome(messageId, input, options);
+    },
+  };
+}
 
 const defaultLimiter = new MessageSendRateLimiter();
 const defaultConcurrency = new ProviderConcurrencyLimiter();
@@ -733,6 +796,15 @@ async function sendMessageOnce(
           attachStarted = false;
           throw new Error("Media attachment was not committed");
         }
+        if (attachment === "COMMIT_UNKNOWN") {
+          const uncertain = await dependencies.repository.markFailed(
+            existing.id,
+            "Estado da mídia requer reconciliação",
+            MessageOperationalState.LOCAL_FAILURE,
+          );
+          publishSafely(dependencies, { type: "message.status", conversationId: uncertain.conversationId, messageId: uncertain.id });
+          return toMessageDto(uncertain);
+        }
         const repaired = await dependencies.repository.findById(existing.id);
         if (!repaired) throw new Error("Committed media attachment could not be hydrated");
         return deliverAndCommit(repaired, dependencies);
@@ -786,6 +858,15 @@ async function sendMessageOnce(
         storedKey = undefined;
         attachStarted = false;
         throw new Error("Media attachment was not committed");
+      }
+      if (attachment === "COMMIT_UNKNOWN") {
+        const uncertain = await dependencies.repository.markFailed(
+          message.id,
+          "Estado da mídia requer reconciliação",
+          MessageOperationalState.LOCAL_FAILURE,
+        );
+        publishSafely(dependencies, { type: "message.status", conversationId: uncertain.conversationId, messageId: uncertain.id });
+        return toMessageDto(uncertain);
       }
       const attached = await dependencies.repository.findById(message.id);
       if (!attached) throw new Error("Committed media attachment could not be hydrated");

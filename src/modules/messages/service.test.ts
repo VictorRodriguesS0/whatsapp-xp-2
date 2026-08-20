@@ -57,6 +57,7 @@ class MemoryRepository implements MessageServiceRepository {
   private sequence = 0;
   failMarkSent = false;
   failAttach = false;
+  failAttachmentCommitUnknown = false;
   failMarkOperationOnce = false;
 
   async findByClientRequestId(clientRequestId: string) {
@@ -121,6 +122,7 @@ class MemoryRepository implements MessageServiceRepository {
     };
     this.records.set(messageId, updated);
     this.history.push("attach-media");
+    if (this.failAttachmentCommitUnknown) return "COMMIT_UNKNOWN" as const;
     return "ATTACHED" as const;
   }
 
@@ -485,6 +487,31 @@ describe("outbound message service", () => {
     expect(failed.status).toBe(MessageStatus.FAILED);
     expect(state.storage.removeCalls).toBe(1);
     await expect(retryMessage(actor, failed.id, state.dependencies)).rejects.toMatchObject({ status: 409 });
+  });
+
+  it("preserves a commit-unknown attachment and prevents repeated uploads from accumulating files", async () => {
+    const state = harness();
+    const clientRequestId = randomUUID();
+    const input = {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { mimeType: "image/jpeg", filename: "x.jpg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    } as const;
+    state.repository.failAttachmentCommitUnknown = true;
+
+    const uncertain = await sendMessage(actor, conversationId, input, state.dependencies);
+    const repeated = await sendMessage(actor, conversationId, input, state.dependencies);
+
+    expect(uncertain).toMatchObject({
+      status: MessageStatus.FAILED,
+      failureReason: "Estado da mídia requer reconciliação",
+      mediaObjectId: expect.any(String),
+    });
+    expect(state.repository.records.get(uncertain.id)?.operationalState).toBe(MessageOperationalState.LOCAL_FAILURE);
+    expect(repeated.id).toBe(uncertain.id);
+    expect(state.storage.removeCalls).toBe(0);
+    expect(state.storage.files.size).toBe(1);
+    expect(state.provider.calls).toEqual([]);
   });
 
   it("repairs LOCAL_FAILURE media through a new multipart payload with the same clientRequestId", async () => {
