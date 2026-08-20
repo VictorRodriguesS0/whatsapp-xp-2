@@ -58,16 +58,19 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
   const source = Readable.fromWeb(request.body as unknown as import("node:stream/web").ReadableStream<Uint8Array>);
   let parserError: unknown;
   let filePromise: Promise<StagingOutcome> | undefined;
+  let activeFileStream: BusboyFileStream | undefined;
   let fileTruncated = false;
   let fileCount = 0;
   const fields: Record<string, string> = {};
   let seenBytes = 0;
 
-  const abort = (error: unknown) => {
+  const abort = (error: unknown, options: { skipBusboy?: boolean } = {}) => {
     parserError ??= error;
     const reason = error instanceof Error ? error : new Error("Multipart inválido");
+    if (activeFileStream && !activeFileStream.destroyed) activeFileStream.destroy(reason);
     if (!source.destroyed) source.destroy(reason);
-    if (!busboy.destroyed) busboy.destroy(reason);
+    if (!boundedSource.destroyed) boundedSource.destroy(reason);
+    if (!options.skipBusboy && !busboy.destroyed) busboy.destroy(reason);
   };
   const boundedSource = new Transform({
     transform(chunk: Buffer, _encoding, callback) {
@@ -96,6 +99,7 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
       abort(new HttpError(400, "Arquivo inválido"));
       return;
     }
+    activeFileStream = stream;
     stream.once("limit", () => { fileTruncated = true; });
     filePromise = stageMediaStream({
       root,
@@ -109,7 +113,9 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
         abort(error);
         return { status: "rejected", error };
       },
-    );
+    ).finally(() => {
+      if (activeFileStream === stream) activeFileStream = undefined;
+    });
   });
   busboy.on("partsLimit", () => abort(new HttpError(400, "Multipart inválido")));
   busboy.on("filesLimit", () => abort(new HttpError(400, "Multipart inválido")));
@@ -117,9 +123,9 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
 
   const finished = new Promise<void>((resolve, reject) => {
     busboy.once("finish", resolve);
-    busboy.once("error", reject);
-    source.once("error", reject);
-    boundedSource.once("error", reject);
+    busboy.once("error", (error) => { abort(error, { skipBusboy: true }); reject(error); });
+    source.once("error", (error) => { abort(error); reject(error); });
+    boundedSource.once("error", (error) => { abort(error); reject(error); });
   });
   source.pipe(boundedSource).pipe(busboy);
 

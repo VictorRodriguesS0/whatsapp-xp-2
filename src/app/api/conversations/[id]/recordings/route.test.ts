@@ -78,6 +78,28 @@ describe("conversation recordings route", () => {
     expect(parse).not.toHaveBeenCalled();
   });
 
+  it("rejects an invalid conversation UUID before admission or body access", async () => {
+    let bodyAccessed = false;
+    const request = new Request("http://localhost/recordings", { method: "POST", body: "ignored" });
+    const body = request.body;
+    Object.defineProperty(request, "body", { get() { bodyAccessed = true; return body; } });
+    const parse = vi.fn();
+    const limiter = { tryAcquire: vi.fn() };
+    const handler = createConversationRecordingsRouteHandler({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      getConversation: async () => { throw new Error("must not authorize"); },
+      parseRecordingMultipartRequest: parse,
+      limiter: limiter as any,
+    });
+
+    const response = await handler(request, { params: Promise.resolve({ id: "not-a-uuid" }) });
+    expect(response.status).toBe(400);
+    expect(limiter.tryAcquire).not.toHaveBeenCalled();
+    expect(parse).not.toHaveBeenCalled();
+    expect(bodyAccessed).toBe(false);
+  });
+
   it.each(["BUSY", "RATE_LIMITED"] as const)("returns 429 for %s before reading multipart", async (admission) => {
     const parse = vi.fn();
     const handler = createConversationRecordingsRouteHandler({
@@ -146,6 +168,69 @@ describe("conversation recordings route", () => {
     const response = await handler(new Request("http://localhost/recordings", { method: "POST" }), { params: Promise.resolve({ id: conversationId }) });
     expect(response.status).toBe(422);
     expect(raw.cleanup).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("cleans raw and converted audio and releases admission when sending fails", async () => {
+    const raw = staged();
+    const converted = staged("audio/ogg");
+    const release = vi.fn();
+    const handler = createConversationRecordingsRouteHandler({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      getConversation: async () => ({}) as any,
+      limiter: { tryAcquire: () => ({ release }) } as any,
+      parseRecordingMultipartRequest: async () => ({ fields: { clientRequestId }, file: raw }),
+      convertRecording: async () => converted,
+      sendMessage: async () => { throw new Error("provider unavailable"); },
+    });
+
+    const response = await handler(new Request("http://localhost/recordings", { method: "POST" }), { params: Promise.resolve({ id: conversationId }) });
+    expect(response.status).toBe(500);
+    expect(raw.cleanup).toHaveBeenCalledTimes(1);
+    expect(converted.cleanup).toHaveBeenCalledTimes(1);
+    expect(release).toHaveBeenCalledTimes(1);
+  });
+
+  it("delegates repeated client request ids to sendMessage and cleans both attempts", async () => {
+    const release = vi.fn();
+    const sendMessage = vi.fn().mockResolvedValue(message());
+    const handler = createConversationRecordingsRouteHandler({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      getConversation: async () => ({}) as any,
+      limiter: { tryAcquire: () => ({ release }) } as any,
+      parseRecordingMultipartRequest: async () => ({ fields: { clientRequestId }, file: staged() }),
+      convertRecording: async () => staged("audio/ogg"),
+      sendMessage,
+    });
+
+    await handler(new Request("http://localhost/recordings", { method: "POST" }), { params: Promise.resolve({ id: conversationId }) });
+    await handler(new Request("http://localhost/recordings", { method: "POST" }), { params: Promise.resolve({ id: conversationId }) });
+    expect(sendMessage).toHaveBeenCalledTimes(2);
+    expect(sendMessage.mock.calls.map((call) => call[2].clientRequestId)).toEqual([clientRequestId, clientRequestId]);
+    expect(release).toHaveBeenCalledTimes(2);
+  });
+
+  it("finishes cleanup after the client aborts while delivery is in progress", async () => {
+    const raw = staged();
+    const converted = staged("audio/ogg");
+    const release = vi.fn();
+    const controller = new AbortController();
+    const handler = createConversationRecordingsRouteHandler({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      getConversation: async () => ({}) as any,
+      limiter: { tryAcquire: () => ({ release }) } as any,
+      parseRecordingMultipartRequest: async () => ({ fields: { clientRequestId }, file: raw }),
+      convertRecording: async () => converted,
+      sendMessage: async () => { controller.abort(); return message(); },
+    });
+
+    const response = await handler(new Request("http://localhost/recordings", { method: "POST", signal: controller.signal }), { params: Promise.resolve({ id: conversationId }) });
+    expect(response.status).toBe(201);
+    expect(raw.cleanup).toHaveBeenCalledTimes(1);
+    expect(converted.cleanup).toHaveBeenCalledTimes(1);
     expect(release).toHaveBeenCalledTimes(1);
   });
 
