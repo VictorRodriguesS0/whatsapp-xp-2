@@ -201,25 +201,23 @@ export function createMetaWebhookRouteHandlers(
       }
 
       try {
-        const pendingMediaIds: string[] = [];
         const summary = await dependencies.processWebhookEvents(
           events,
           undefined,
-          (mediaId) => pendingMediaIds.push(mediaId),
+          (mediaId) => {
+            dependencies.scheduleAfter(async () => {
+              try {
+                await dependencies.ensureMediaAvailable(mediaId);
+              } catch (error) {
+                dependencies.logger.error("webhook.media_persistence_failed", {
+                  requestId,
+                  mediaId,
+                  errorType: error instanceof Error ? error.name : "Unknown",
+                });
+              }
+            });
+          },
         );
-        for (const mediaId of pendingMediaIds) {
-          dependencies.scheduleAfter(async () => {
-            try {
-              await dependencies.ensureMediaAvailable(mediaId);
-            } catch (error) {
-              dependencies.logger.error("webhook.media_persistence_failed", {
-                requestId,
-                mediaId,
-                errorType: error instanceof Error ? error.name : "Unknown",
-              });
-            }
-          });
-        }
         dependencies.logger.info("webhook.accepted", {
           requestId,
           eventCount: events.length,

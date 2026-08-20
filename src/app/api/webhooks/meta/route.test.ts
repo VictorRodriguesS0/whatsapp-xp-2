@@ -148,6 +148,28 @@ describe("Meta webhook route", () => {
     expect(ensured).toEqual(["30000000-0000-4000-8000-000000000001"]);
   });
 
+  it("schedules each committed media immediately even when a later batch event fails", async () => {
+    const body = JSON.stringify(inboundTextFixture);
+    const scheduled: Array<() => Promise<void>> = [];
+    const harness = dependencies({
+      processWebhookEvents: async (
+        _events: unknown[],
+        _dependencies: unknown,
+        onMediaCommitted?: (mediaId: string) => void,
+      ) => {
+        onMediaCommitted?.("30000000-0000-4000-8000-000000000001");
+        throw new WebhookProcessingError(true);
+      },
+      scheduleAfter: (work: () => Promise<void>) => scheduled.push(work),
+    });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+
+    const response = await POST(request(body));
+
+    expect(response.status).toBe(500);
+    expect(scheduled).toHaveLength(1);
+  });
+
   it("accepts a body whose byte length is exactly the configured limit", async () => {
     const body = JSON.stringify(inboundTextFixture);
     const byteLength = new TextEncoder().encode(body).byteLength;
