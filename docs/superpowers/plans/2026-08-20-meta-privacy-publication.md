@@ -77,6 +77,22 @@ describe("public legal pages", () => {
     expect(privacyMetadata.title).toBe("Política de Privacidade | XP Eletrônicos");
   });
 
+  it("gives the privacy WhatsApp link a 44px structural touch target", () => {
+    render(<PrivacyPage />);
+
+    expect(screen.getByRole("link", { name: "+55 61 9514-9019" })).toHaveClass("inline-flex", "min-h-11");
+  });
+
+  it("uses the established high-contrast text token for legal supporting copy", () => {
+    render(<PrivacyPage />);
+
+    expect(
+      screen.getByText("Como tratamos as informações usadas no atendimento da XP Eletrônicos pelo WhatsApp."),
+    ).toHaveClass("text-[var(--text)]");
+    expect(screen.getByText("Última atualização: 20 de agosto de 2026")).toHaveClass("text-[var(--text)]");
+    expect(screen.getByText("XP Eletrônicos · Atendimento via WhatsApp")).toHaveClass("text-[var(--text)]");
+  });
+
   it("publishes executable data-deletion instructions on the official channel", () => {
     render(<DataDeletionPage />);
 
@@ -85,6 +101,7 @@ describe("public legal pages", () => {
     expect(screen.getByText(/confirmar sua identidade/i)).toBeInTheDocument();
     expect(screen.getByText(/excluídos ou anonimizados/i)).toBeInTheDocument();
     expect(screen.getByText(/obrigação legal/i)).toBeInTheDocument();
+    expect(screen.getByText("Comunicaremos o resultado da solicitação pelo mesmo canal.")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Enviar solicitação pelo WhatsApp" })).toHaveAttribute(
       "href",
       "https://wa.me/556195149019?text=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados",
@@ -134,8 +151,8 @@ export function LegalDocument({ children, current, description, eyebrow, title }
           </a>
           <p className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">{eyebrow}</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">{title}</h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--muted)]">{description}</p>
-          <p className="mt-4 text-sm text-[var(--muted)]">Última atualização: 20 de agosto de 2026</p>
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text)]">{description}</p>
+          <p className="mt-4 text-sm text-[var(--text)]">Última atualização: 20 de agosto de 2026</p>
         </header>
 
         <div className="space-y-9 py-9 text-[15px] leading-7 text-[var(--text)] [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-bold [&_li]:ml-5 [&_li]:list-disc [&_ul]:space-y-2">
@@ -143,7 +160,7 @@ export function LegalDocument({ children, current, description, eyebrow, title }
         </div>
 
         <footer className="flex flex-col gap-2 border-t border-[var(--border)] pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-[var(--muted)]">XP Eletrônicos · Atendimento via WhatsApp</span>
+          <span className="text-[var(--text)]">XP Eletrônicos · Atendimento via WhatsApp</span>
           {current === "privacy" ? (
             <a className="inline-flex min-h-11 items-center font-semibold text-[var(--accent)]" href="/exclusao-de-dados">
               Solicitar exclusão de dados
@@ -201,7 +218,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Seus direitos</h2>
         <p>Você pode solicitar confirmação do tratamento, acesso, correção ou exclusão de dados elegíveis. Registros cuja conservação seja exigida por lei poderão ser preservados pelo prazo aplicável.</p>
-        <p className="mt-3">Envie sua solicitação para <a className="font-semibold text-[var(--accent)] underline underline-offset-4" href="https://wa.me/556195149019">+55 61 9514-9019</a>.</p>
+        <p className="mt-3">Envie sua solicitação para <a className="inline-flex min-h-11 items-center font-semibold text-[var(--accent)] underline underline-offset-4" href="https://wa.me/556195149019">+55 61 9514-9019</a>.</p>
       </section>
     </LegalDocument>
   );
@@ -245,7 +262,7 @@ export default function DataDeletionPage() {
           <li>Confirmaremos o recebimento pelo mesmo canal.</li>
           <li>Localizaremos e avaliaremos os dados vinculados ao atendimento.</li>
           <li>Os dados elegíveis serão excluídos ou anonimizados.</li>
-          <li>Comunicaremos o resultado da solicitação.</li>
+          <li>Comunicaremos o resultado da solicitação pelo mesmo canal.</li>
         </ul>
       </section>
       <section>
@@ -265,7 +282,7 @@ Run:
 npm test -- src/app/legal-pages.test.tsx
 ```
 
-Expected: 2 tests PASS with no warnings.
+Expected: 4 tests PASS with no warnings.
 
 - [x] **Step 7: Commit Task 1**
 
@@ -357,7 +374,7 @@ Run:
 npm test -- src/app/legal-pages.test.tsx src/app/login/page.test.tsx
 ```
 
-Expected: all focused tests PASS with no warnings.
+Expected: 6 focused tests PASS with no warnings (4 legal-page tests and 2 login-page tests).
 
 - [x] **Step 5: Run complete local gates**
 
