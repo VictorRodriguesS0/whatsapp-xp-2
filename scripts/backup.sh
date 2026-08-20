@@ -36,6 +36,7 @@ esac
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
+. "$SCRIPT_DIR/docker-helper-lib.sh"
 OUTPUT_ROOT=$1
 
 mkdir -p -- "$OUTPUT_ROOT"
@@ -84,10 +85,9 @@ if [ "$MEDIA_PROJECT" != 'xp-whatsapp' ]; then
 fi
 
 TEMP_DATABASE="/tmp/xp-whatsapp-backup-${TIMESTAMP}-$$.dump"
-MEDIA_HELPER="xp-whatsapp-media-backup-$$"
 cleanup() {
   compose exec -T database rm -f -- "$TEMP_DATABASE" >/dev/null 2>&1 || true
-  docker rm -f "$MEDIA_HELPER" >/dev/null 2>&1 || true
+  remove_active_docker_helper || true
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -98,17 +98,18 @@ compose exec -T database sh -ceu '
 ' sh "$TEMP_DATABASE"
 docker cp "$DATABASE_CONTAINER:$TEMP_DATABASE" "$BACKUP_DIR/database.dump"
 
-docker create --name "$MEDIA_HELPER" \
+create_owned_docker_helper media-backup \
   --mount type=volume,source=xp_whatsapp_media,target=/source,readonly \
-  alpine:3.22 sh -ceu 'umask 077; tar -C /source -czf /tmp/media.tar.gz .' >/dev/null
-docker start -a "$MEDIA_HELPER" >/dev/null
-docker cp "$MEDIA_HELPER:/tmp/media.tar.gz" "$BACKUP_DIR/media.tar.gz"
-docker rm -f "$MEDIA_HELPER" >/dev/null
-docker create --name "$MEDIA_HELPER" alpine:3.22 sh /validator /tmp/media.tar.gz >/dev/null
-docker cp "$SCRIPT_DIR/validate-media-archive.sh" "$MEDIA_HELPER:/validator"
-docker cp "$BACKUP_DIR/media.tar.gz" "$MEDIA_HELPER:/tmp/media.tar.gz"
-docker start -a "$MEDIA_HELPER" >/dev/null
-docker rm -f "$MEDIA_HELPER" >/dev/null
+  alpine:3.22 sh -ceu 'umask 077; tar -C /source -czf /tmp/media.tar.gz .'
+docker start -a "$DOCKER_HELPER_ID" >/dev/null
+docker cp "$DOCKER_HELPER_ID:/tmp/media.tar.gz" "$BACKUP_DIR/media.tar.gz"
+remove_active_docker_helper
+
+create_owned_docker_helper media-validation alpine:3.22 sh /validator /tmp/media.tar.gz
+docker cp "$SCRIPT_DIR/validate-media-archive.sh" "$DOCKER_HELPER_ID:/validator"
+docker cp "$BACKUP_DIR/media.tar.gz" "$DOCKER_HELPER_ID:/tmp/media.tar.gz"
+docker start -a "$DOCKER_HELPER_ID" >/dev/null
+remove_active_docker_helper
 
 [ -s "$BACKUP_DIR/database.dump" ]
 [ -s "$BACKUP_DIR/media.tar.gz" ]

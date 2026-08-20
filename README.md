@@ -243,6 +243,8 @@ docker compose ps
 
 O backup cria um subdiretório UTC com `database.dump` em formato custom do `pg_dump`, `media.tar.gz`, sidecars SHA-256 individuais e um manifesto estruturado que também fixa os nomes e hashes dos dois artefatos. O volume de mídia é montado somente leitura no container temporário Alpine. Use um diretório absoluto fora de `/opt/example-app` e copie o diretório completo, sem renomear seus arquivos, para armazenamento externo criptografado.
 
+Os scripts criam helpers Alpine com nome aleatório e label exclusiva por execução. Cada helper é removido somente pelo ID retornado por `docker create`, depois de uma nova confirmação de ID e label; um container preexistente ou com ownership divergente nunca é removido. Tanto o fluxo shell quanto o PowerShell executam o mesmo `scripts/validate-media-archive.sh` antes de gerar hashes e manifesto. A imagem `alpine:3.22` deve estar disponível localmente ou ser obtida do registry antes da janela operacional.
+
 Linux:
 
 ```sh

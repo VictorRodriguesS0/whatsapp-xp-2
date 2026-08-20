@@ -9,6 +9,8 @@ Set-StrictMode -Version Latest
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $ComposeFile = Join-Path $ProjectRoot 'docker-compose.yml'
+$ArchiveValidator = Join-Path $PSScriptRoot 'validate-media-archive.sh'
+. (Join-Path $PSScriptRoot 'docker-helper-lib.ps1')
 $OutputRoot = [IO.Path]::GetFullPath($OutputDirectory)
 $FilesystemRoot = [IO.Path]::GetPathRoot($OutputRoot)
 
@@ -68,16 +70,30 @@ try {
   & docker cp "${DatabaseContainer}:$TemporaryDatabase" (Join-Path $BackupDirectory 'database.dump')
   if ($LASTEXITCODE -ne 0) { throw 'Não foi possível copiar o dump PostgreSQL.' }
 
-  & docker run --rm `
-    --mount 'type=volume,source=xp_whatsapp_media,target=/source,readonly' `
-    --mount "type=bind,source=$BackupDirectory,target=/backup" `
-    alpine:3.22 sh -ceu 'umask 077; tar -C /source -czf /backup/media.tar.gz .'
+  New-OwnedDockerHelper -Purpose 'media-backup' -CreateArguments @(
+    '--mount', 'type=volume,source=xp_whatsapp_media,target=/source,readonly',
+    'alpine:3.22', 'sh', '-ceu', 'umask 077; tar -C /source -czf /tmp/media.tar.gz .'
+  )
+  & docker start -a $DockerHelperId *> $null
   if ($LASTEXITCODE -ne 0) { throw 'Não foi possível arquivar o volume de mídia.' }
+  & docker cp "${DockerHelperId}:/tmp/media.tar.gz" (Join-Path $BackupDirectory 'media.tar.gz')
+  if ($LASTEXITCODE -ne 0) { throw 'Não foi possível copiar o arquivo de mídia.' }
+  Remove-OwnedDockerHelper
 
-  & docker run --rm `
-    --mount "type=bind,source=$BackupDirectory,target=/backup,readonly" `
-    alpine:3.22 sh -ceu 'test -s /backup/database.dump; test -s /backup/media.tar.gz; tar -tzf /backup/media.tar.gz >/dev/null'
-  if ($LASTEXITCODE -ne 0) { throw 'A validação dos artefatos de backup falhou.' }
+  New-OwnedDockerHelper -Purpose 'media-validation' -CreateArguments @(
+    'alpine:3.22', 'sh', '/validator', '/tmp/media.tar.gz'
+  )
+  & docker cp $ArchiveValidator "${DockerHelperId}:/validator"
+  if ($LASTEXITCODE -ne 0) { throw 'Não foi possível copiar o validator estrito.' }
+  & docker cp (Join-Path $BackupDirectory 'media.tar.gz') "${DockerHelperId}:/tmp/media.tar.gz"
+  if ($LASTEXITCODE -ne 0) { throw 'Não foi possível copiar mídia para validação.' }
+  & docker start -a $DockerHelperId
+  if ($LASTEXITCODE -ne 0) { throw 'A mídia não atende à policy estrita do restore.' }
+  Remove-OwnedDockerHelper
+
+  if (-not (Test-Path -LiteralPath (Join-Path $BackupDirectory 'database.dump') -PathType Leaf)) {
+    throw 'Dump PostgreSQL ausente após backup.'
+  }
 
   foreach ($FileName in @('database.dump', 'media.tar.gz')) {
     $Hash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $BackupDirectory $FileName)).Hash.ToLowerInvariant()
@@ -98,7 +114,13 @@ try {
   )
   Write-Utf8LfLines -Path (Join-Path $BackupDirectory 'manifest.txt') -Lines $ManifestLines
 } finally {
-  & docker @ComposeArguments exec -T database rm -f -- $TemporaryDatabase *> $null
+  try {
+    if ($DockerHelperId) {
+      Remove-OwnedDockerHelper
+    }
+  } finally {
+    & docker @ComposeArguments exec -T database rm -f -- $TemporaryDatabase *> $null
+  }
 }
 
 Write-Host "Backup validado em: $BackupDirectory"

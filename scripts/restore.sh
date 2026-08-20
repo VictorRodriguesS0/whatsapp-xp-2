@@ -6,6 +6,7 @@ PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
 ARCHIVE_VALIDATOR="$SCRIPT_DIR/validate-media-archive.sh"
 . "$SCRIPT_DIR/restore-lib.sh"
+. "$SCRIPT_DIR/docker-helper-lib.sh"
 
 usage() {
   printf '%s\n' \
@@ -99,17 +100,13 @@ DATABASE_CONTAINER=$(compose ps -q database)
 
 TEMP_DATABASE="/tmp/xp-whatsapp-restore-$$.dump"
 BACKUP_PATH_FILE=$(mktemp "${TMPDIR:-/tmp}/xp-restore-backup-path.XXXXXX")
-ACTIVE_HELPER=
 MUTATION_STARTED=0
 RESTORE_COMPLETE=0
 PREVIOUS_DATABASE=
 PREVIOUS_MEDIA=
 
 cleanup_runtime() {
-  if [ -n "$ACTIVE_HELPER" ]; then
-    docker rm -f "$ACTIVE_HELPER" >/dev/null 2>&1 || true
-    ACTIVE_HELPER=
-  fi
+  remove_active_docker_helper || true
   compose exec -T database rm -f -- "$TEMP_DATABASE" >/dev/null 2>&1 || true
   case "$BACKUP_PATH_FILE" in
     "${TMPDIR:-/tmp}"/xp-restore-backup-path.*) rm -f -- "$BACKUP_PATH_FILE" ;;
@@ -118,14 +115,14 @@ cleanup_runtime() {
 
 validate_media_archive() {
   archive_path=$1
-  ACTIVE_HELPER="xp-whatsapp-media-validation-$$"
-  docker create --name "$ACTIVE_HELPER" alpine:3.22 sh /validator /tmp/media.tar.gz >/dev/null
-  docker cp "$ARCHIVE_VALIDATOR" "$ACTIVE_HELPER:/validator"
-  docker cp "$archive_path" "$ACTIVE_HELPER:/tmp/media.tar.gz"
+  create_owned_docker_helper media-validation alpine:3.22 sh /validator /tmp/media.tar.gz
+  docker cp "$ARCHIVE_VALIDATOR" "$DOCKER_HELPER_ID:/validator"
+  docker cp "$archive_path" "$DOCKER_HELPER_ID:/tmp/media.tar.gz"
   validation_status=0
-  docker start -a "$ACTIVE_HELPER" || validation_status=$?
-  docker rm -f "$ACTIVE_HELPER" >/dev/null 2>&1 || true
-  ACTIVE_HELPER=
+  docker start -a "$DOCKER_HELPER_ID" || validation_status=$?
+  cleanup_status=0
+  remove_active_docker_helper || cleanup_status=$?
+  [ "$cleanup_status" -eq 0 ] || return "$cleanup_status"
   return "$validation_status"
 }
 
@@ -144,21 +141,21 @@ restore_database_archive() {
 
 restore_media_archive() {
   archive_path=$1
-  ACTIVE_HELPER="xp-whatsapp-media-restore-$$"
-  docker create --name "$ACTIVE_HELPER" \
+  create_owned_docker_helper media-restore \
     --mount type=volume,source=xp_whatsapp_media,target=/target \
     alpine:3.22 sh -ceu '
       sh /validator /tmp/media.tar.gz
       find /target -mindepth 1 -depth -delete
       tar -C /target --no-same-owner -xzf /tmp/media.tar.gz
       find /target -exec chown 1001:1001 {} +
-    ' >/dev/null
-  docker cp "$ARCHIVE_VALIDATOR" "$ACTIVE_HELPER:/validator"
-  docker cp "$archive_path" "$ACTIVE_HELPER:/tmp/media.tar.gz"
+    '
+  docker cp "$ARCHIVE_VALIDATOR" "$DOCKER_HELPER_ID:/validator"
+  docker cp "$archive_path" "$DOCKER_HELPER_ID:/tmp/media.tar.gz"
   restore_status=0
-  docker start -a "$ACTIVE_HELPER" || restore_status=$?
-  docker rm -f "$ACTIVE_HELPER" >/dev/null 2>&1 || true
-  ACTIVE_HELPER=
+  docker start -a "$DOCKER_HELPER_ID" || restore_status=$?
+  cleanup_status=0
+  remove_active_docker_helper || cleanup_status=$?
+  [ "$cleanup_status" -eq 0 ] || return "$cleanup_status"
   return "$restore_status"
 }
 

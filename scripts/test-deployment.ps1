@@ -10,6 +10,38 @@ if ($EnvExample -notmatch '(?m)^NEXT_PUBLIC_APP_URL=https://whatsapp\.xpeletroni
   throw 'NEXT_PUBLIC_APP_URL do ambiente versionado deve usar a origem HTTPS aprovada.'
 }
 
+$BackupShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.sh')
+$RestoreShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/restore.sh')
+$BackupPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.ps1')
+$HelperShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.sh')
+$HelperPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.ps1')
+
+if ($BackupShell -notmatch 'docker-helper-lib\.sh' -or $RestoreShell -notmatch 'docker-helper-lib\.sh') {
+  throw 'Backup/restore shell devem usar o protocolo comum de ownership de helpers.'
+}
+if ($BackupPowerShell -notmatch 'docker-helper-lib\.ps1') {
+  throw 'Backup PowerShell deve usar o protocolo comum de ownership de helpers.'
+}
+if (
+  $BackupPowerShell -notmatch 'validate-media-archive\.sh' -or
+  $BackupPowerShell -notmatch 'docker cp \$ArchiveValidator'
+) {
+  throw 'Backup PowerShell deve executar o validator estrito versionado dentro do helper Alpine.'
+}
+foreach ($HelperLibrary in @($HelperShell, $HelperPowerShell)) {
+  if ($HelperLibrary -notmatch 'com\.xpeletronicos\.xp-whatsapp\.helper-run') {
+    throw 'Helper Docker deve receber label exclusiva de run-id.'
+  }
+  if ($HelperLibrary -notmatch 'docker inspect') {
+    throw 'Cleanup do helper deve reinspecionar ID/label antes da remoção.'
+  }
+}
+foreach ($OperationalScript in @($BackupShell, $RestoreShell, $BackupPowerShell)) {
+  if ($OperationalScript -match '(?m)docker rm -f .*HELPER') {
+    throw 'Scripts operacionais não podem remover helper por nome previsível.'
+  }
+}
+
 $TemporaryRoot = Join-Path ([IO.Path]::GetTempPath()) "xp-whatsapp-compose-tests-$([Guid]::NewGuid().ToString('N'))"
 $null = New-Item -ItemType Directory -Path (Join-Path $TemporaryRoot 'scripts') -Force
 $null = New-Item -ItemType Directory -Path (Join-Path $TemporaryRoot 'deploy/nginx') -Force
