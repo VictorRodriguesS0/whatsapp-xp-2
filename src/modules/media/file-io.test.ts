@@ -2,7 +2,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { readExact, writeAll } from "./file-io";
+import { closeWithCleanup, readExact, writeAll } from "./file-io";
 
 describe("exact file I/O", () => {
   it("loops until a partial-writing handle confirms every byte", async () => {
@@ -44,5 +44,14 @@ describe("exact file I/O", () => {
   it("rejects a truncated exact read", async () => {
     const handle = { async read() { return { bytesRead: 0 }; } };
     await expect(readExact(handle, new Uint8Array(1), 0)).rejects.toThrow(/truncada/i);
+  });
+
+  it("runs partial-file cleanup even when close rejects", async () => {
+    let cleaned = false;
+    await expect(closeWithCleanup(
+      { async close() { throw new Error("close failed"); } },
+      async () => { cleaned = true; },
+    )).rejects.toThrow("close failed");
+    expect(cleaned).toBe(true);
   });
 });

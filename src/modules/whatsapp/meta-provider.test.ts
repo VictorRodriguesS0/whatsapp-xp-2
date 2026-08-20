@@ -41,9 +41,13 @@ describe("Meta WhatsApp provider", () => {
   });
 
   it("uploads multipart media and sends every supported media type", async () => {
+    let uploadedBodyBytes = 0;
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(Response.json({ id: "media-1" }))
+      .mockImplementationOnce(async (_input, init) => {
+        uploadedBodyBytes = (await new Response(init?.body as BodyInit).arrayBuffer()).byteLength;
+        return Response.json({ id: "media-1" });
+      })
       .mockImplementation(async () =>
         Response.json({ messaging_product: "whatsapp", messages: [{ id: "wamid.media" }] }),
       );
@@ -61,6 +65,7 @@ describe("Meta WhatsApp provider", () => {
     const upload = fetchMock.mock.calls[0]!;
     expect(upload[0]).toBe("https://graph.facebook.com/v23.0/123/media");
     expect(upload[1]?.body).toBeInstanceOf(ReadableStream);
+    expect(uploadedBodyBytes).toBeGreaterThan(8);
     expect(upload[1]?.headers).toMatchObject({ Authorization: "Bearer secret-token", "Content-Type": expect.stringContaining("multipart/form-data; boundary=") });
 
     for (const type of ["image", "audio", "video", "document"] as const) {

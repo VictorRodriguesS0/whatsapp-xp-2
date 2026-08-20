@@ -6,7 +6,7 @@ import { chmod, lstat, mkdir, open, realpath, stat, unlink } from "node:fs/promi
 import { isAbsolute, parse, relative, resolve, sep } from "node:path";
 
 import type { MediaStorage, MediaStoragePutInput, MediaStorageStreamInput, StoredMedia } from "./storage";
-import { writeAll } from "./file-io";
+import { closeWithCleanup, writeAll } from "./file-io";
 
 const STORAGE_KEY_PATTERN = /^(\d{4})\/(0[1-9]|1[0-2])\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
@@ -208,10 +208,12 @@ export class LocalMediaStorage implements MediaStorage {
       assertContained(root, physicalTarget);
       completed = true;
     } finally {
-      reader.releaseLock();
-      await handle.close();
-      if (!completed) {
-        await unlink(target).catch(() => undefined);
+      try {
+        reader.releaseLock();
+      } finally {
+        await closeWithCleanup(handle, async () => {
+          if (!completed) await unlink(target).catch(() => undefined);
+        });
       }
     }
 

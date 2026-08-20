@@ -124,26 +124,36 @@ export interface MessageServiceRepository {
   claimFailedForRetry(messageId: string): Promise<MessageServiceRecord | null>;
 }
 
-export class MessageSendRateLimiter {
-  private readonly attempts = new Map<string, number[]>();
+declare const rateLimitReservationBrand: unique symbol;
 
-  consume(userId: string, now = new Date()): boolean {
+export type MessageRateLimitReservation = {
+  readonly id: string;
+  readonly userId: string;
+  readonly [rateLimitReservationBrand]: true;
+};
+
+export class MessageSendRateLimiter {
+  private readonly attempts = new Map<string, Array<{ id: string; time: number }>>();
+
+  consume(userId: string, now = new Date()): MessageRateLimitReservation | null {
     const boundary = now.getTime() - MESSAGE_SEND_RATE_WINDOW_MS;
-    const active = (this.attempts.get(userId) ?? []).filter((time) => time > boundary);
+    const active = (this.attempts.get(userId) ?? []).filter(({ time }) => time > boundary);
     if (active.length >= MESSAGE_SEND_RATE_LIMIT) {
       this.attempts.set(userId, active);
-      return false;
+      return null;
     }
-    active.push(now.getTime());
+    const reservation = { id: randomUUID(), userId } as MessageRateLimitReservation;
+    active.push({ id: reservation.id, time: now.getTime() });
     this.attempts.set(userId, active);
-    return true;
+    return reservation;
   }
 
-  refund(userId: string): void {
-    const attempts = this.attempts.get(userId);
-    if (!attempts?.length) return;
-    attempts.pop();
-    if (attempts.length === 0) this.attempts.delete(userId);
+  refund(reservation: MessageRateLimitReservation): void {
+    const attempts = this.attempts.get(reservation.userId);
+    if (!attempts) return;
+    const remaining = attempts.filter(({ id }) => id !== reservation.id);
+    if (remaining.length === 0) this.attempts.delete(reservation.userId);
+    else this.attempts.set(reservation.userId, remaining);
   }
 }
 
@@ -586,7 +596,8 @@ async function deliverAndCommit(
       return toMessageDto(current);
     }
 
-    if (!dependencies.limiter.consume(message.sentByUserId)) {
+    const rateReservation = dependencies.limiter.consume(message.sentByUserId);
+    if (!rateReservation) {
       const failed = await dependencies.repository.markFailed(
         claimed.id,
         "Limite de envios excedido",
@@ -603,14 +614,14 @@ async function deliverAndCommit(
     try {
       attemptCommit = await dependencies.repository.markProviderAttempt(claimed.id, leaseId, firstOperation, clock());
     } catch {
-      dependencies.limiter.refund(claimed.sentByUserId);
+      dependencies.limiter.refund(rateReservation);
       await dependencies.repository.releaseDeliveryClaim(claimed.id, leaseId).catch(() => undefined);
       const current = (await dependencies.repository.findById(claimed.id).catch(() => null)) ?? claimed;
       publishSafely(dependencies, { type: "message.status", conversationId: current.conversationId, messageId: current.id });
       return toMessageDto(current);
     }
     if (attemptCommit === "CAS_LOST") {
-      dependencies.limiter.refund(claimed.sentByUserId);
+      dependencies.limiter.refund(rateReservation);
       const current = (await dependencies.repository.findById(claimed.id)) ?? claimed;
       return toMessageDto(current);
     }

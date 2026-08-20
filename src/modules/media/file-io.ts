@@ -8,6 +8,18 @@ type ReadableHandle = {
   read(buffer: Uint8Array, offset: number, length: number, position: number): Promise<{ bytesRead: number }>;
 };
 
+type ClosableHandle = {
+  close(): Promise<void>;
+};
+
+export async function closeWithCleanup(handle: ClosableHandle, cleanup: () => Promise<void>): Promise<void> {
+  try {
+    await handle.close();
+  } finally {
+    await cleanup();
+  }
+}
+
 export async function writeAll(handle: WritableHandle, bytes: Uint8Array, position: number | null = null): Promise<void> {
   let offset = 0;
   while (offset < bytes.byteLength) {

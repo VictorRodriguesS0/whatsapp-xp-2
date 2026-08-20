@@ -23,6 +23,7 @@ import {
   type MessageServiceDependencies,
   type MessageServiceRecord,
   type MessageServiceRepository,
+  type MessageRateLimitReservation,
   type PendingMessageInput,
   type StoredMessageMediaInput,
 } from "./service";
@@ -260,13 +261,13 @@ class FakeProvider implements WhatsAppProvider {
 class CountingLimiter extends MessageSendRateLimiter {
   calls = 0;
   refunds = 0;
-  override consume(userId: string, now?: Date): boolean {
+  override consume(userId: string, now?: Date): MessageRateLimitReservation | null {
     this.calls += 1;
     return super.consume(userId, now);
   }
-  refund(userId: string): void {
+  refund(reservation: MessageRateLimitReservation): void {
     this.refunds += 1;
-    super.refund(userId);
+    super.refund(reservation);
   }
 }
 
@@ -289,6 +290,20 @@ function harness() {
 }
 
 describe("outbound message service", () => {
+  it("refunds only the exact concurrent rate-limit reservation once", async () => {
+    const limiter = new MessageSendRateLimiter();
+    const now = new Date("2026-08-20T12:00:00.000Z");
+    const [first, second] = await Promise.all([
+      Promise.resolve(limiter.consume(actor.id, now)),
+      Promise.resolve(limiter.consume(actor.id, now)),
+    ]);
+    expect(first).toEqual(expect.objectContaining({ userId: actor.id }));
+    expect(second).toEqual(expect.objectContaining({ userId: actor.id }));
+    limiter.refund(first!);
+    limiter.refund(first!);
+    for (let index = 0; index < 29; index += 1) expect(limiter.consume(actor.id, now)).not.toBeNull();
+    expect(limiter.consume(actor.id, now)).toBeNull();
+  });
   it("bounds provider concurrency independently per authenticated user", async () => {
     const limiter = new ProviderConcurrencyLimiter(2);
     let active = 0;
@@ -508,7 +523,7 @@ describe("outbound message service", () => {
     state.repository.failAttach = true;
     const failed = await sendMessage(actor, conversationId, input, state.dependencies);
     state.repository.failAttach = false;
-    state.dependencies.limiter = new class extends MessageSendRateLimiter { override consume() { return false; } }();
+    state.dependencies.limiter = new class extends MessageSendRateLimiter { override consume() { return null; } }();
 
     await expect(sendMessage(actor, conversationId, input, state.dependencies)).rejects.toMatchObject({ status: 429 });
 

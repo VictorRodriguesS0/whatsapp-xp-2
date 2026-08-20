@@ -6,7 +6,7 @@ import { open, realpath, unlink } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 
 import { ensurePrivateDirectoryTree, MediaStorageLimitError } from "./local-storage";
-import { writeAll } from "./file-io";
+import { closeWithCleanup, writeAll } from "./file-io";
 
 export type StagedMediaFile = {
   path: string;
@@ -57,9 +57,13 @@ export async function stageMediaStream(input: {
     if (!stagedStat.isFile() || stagedStat.size !== total) throw new Error("Tamanho temporário incompatível");
     completed = true;
   } finally {
-    reader.releaseLock();
-    await handle.close();
-    if (!completed) await unlink(path).catch(() => undefined);
+    try {
+      reader.releaseLock();
+    } finally {
+      await closeWithCleanup(handle, async () => {
+        if (!completed) await unlink(path).catch(() => undefined);
+      });
+    }
   }
 
   let cleaned = false;

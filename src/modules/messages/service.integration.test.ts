@@ -14,7 +14,14 @@ import { DemoWhatsAppProvider } from "@/modules/whatsapp/demo-provider";
 import { LocalMediaStorage } from "@/modules/media/local-storage";
 import type { MediaUploadSource } from "@/modules/whatsapp/provider";
 
-import { MessageSendRateLimiter, prismaMessageRepository, retryMessage, sendMessage, type MessageServiceDependencies } from "./service";
+import {
+  MessageSendRateLimiter,
+  prismaMessageRepository,
+  retryMessage,
+  sendMessage,
+  type MessageRateLimitReservation,
+  type MessageServiceDependencies,
+} from "./service";
 
 const roots: string[] = [];
 
@@ -292,17 +299,25 @@ describe("outbound message PostgreSQL concurrency", () => {
         return prismaMessageRepository.findById(id);
       },
     };
+    let refunds = 0;
+    const limiter = new class extends MessageSendRateLimiter {
+      override refund(reservation: MessageRateLimitReservation): void {
+        refunds += 1;
+        super.refund(reservation);
+      }
+    }();
     const clientRequestId = randomUUID();
 
     await expect(sendMessage(actor, conversation.id, { type: MessageType.TEXT, clientRequestId, body: "Sem chamada" }, {
       repository,
       storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
       provider,
-      limiter: new MessageSendRateLimiter(),
+      limiter,
       publishRealtime: () => undefined,
     })).rejects.toThrow("hydrate unavailable");
 
     expect(providerCalls).toBe(0);
+    expect(refunds).toBe(0);
     await expect(prisma.message.findUnique({ where: { clientRequestId }, select: { status: true, operationalState: true, providerAttemptedAt: true, deliveryLeaseId: true } }))
       .resolves.toMatchObject({ status: MessageStatus.PENDING, operationalState: MessageOperationalState.SEND_IN_FLIGHT, providerAttemptedAt: expect.any(Date), deliveryLeaseId: null });
   });

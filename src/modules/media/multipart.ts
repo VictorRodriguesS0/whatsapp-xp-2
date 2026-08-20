@@ -11,6 +11,10 @@ import { stageMediaStream, type StagedMediaFile } from "./temp-file";
 const MULTIPART_OVERHEAD_MAX_BYTES = 1024 * 1024;
 export const MULTIPART_REQUEST_MAX_BYTES = DOCUMENT_MAX_BYTES + MULTIPART_OVERHEAD_MAX_BYTES;
 
+type StagingOutcome =
+  | { status: "fulfilled"; file: StagedMediaFile }
+  | { status: "rejected"; error: unknown };
+
 export async function parseMediaMultipartRequest(request: Request, root: string): Promise<{
   fields: Record<string, string>;
   file: StagedMediaFile;
@@ -23,7 +27,7 @@ export async function parseMediaMultipartRequest(request: Request, root: string)
   if (!request.body) throw new HttpError(400, "Arquivo inválido");
 
   const fields: Record<string, string> = {};
-  let filePromise: Promise<StagedMediaFile> | undefined;
+  let filePromise: Promise<StagingOutcome> | undefined;
   let parserError: unknown;
   let fileTruncated = false;
   let fileCount = 0;
@@ -68,7 +72,16 @@ export async function parseMediaMultipartRequest(request: Request, root: string)
       mimeType,
       maximumBytes: DOCUMENT_MAX_BYTES,
       stream: Readable.toWeb(stream) as ReadableStream<Uint8Array>,
-    });
+    }).then(
+      (file): StagingOutcome => ({ status: "fulfilled", file }),
+      (error): StagingOutcome => {
+        parserError ??= error;
+        const reason = error instanceof Error ? error : new Error("Falha no staging");
+        if (!source.destroyed) source.destroy(reason);
+        if (!busboy.destroyed) busboy.destroy(reason);
+        return { status: "rejected", error };
+      },
+    );
   });
   busboy.on("partsLimit", () => { parserError = new HttpError(400, "Multipart inválido"); });
   busboy.on("filesLimit", () => { parserError = new HttpError(400, "Multipart inválido"); });
@@ -85,13 +98,16 @@ export async function parseMediaMultipartRequest(request: Request, root: string)
   let file: StagedMediaFile | undefined;
   try {
     await finished;
-    if (filePromise) file = await filePromise;
+    const stagingOutcome = filePromise ? await filePromise : undefined;
+    if (stagingOutcome?.status === "fulfilled") file = stagingOutcome.file;
+    if (stagingOutcome?.status === "rejected") throw stagingOutcome.error;
     if (parserError) throw parserError;
     if (!file || fileTruncated || file.sizeBytes === 0n) throw new HttpError(fileTruncated ? 413 : 400, fileTruncated ? "Arquivo muito grande" : "Arquivo inválido");
     return { fields, file };
   } catch (error) {
     source.destroy();
-    if (filePromise) await filePromise.then((staged) => staged.cleanup()).catch(() => undefined);
+    const stagingOutcome = filePromise ? await filePromise : undefined;
+    if (stagingOutcome?.status === "fulfilled") await stagingOutcome.file.cleanup().catch(() => undefined);
     if (error instanceof HttpError) throw error;
     throw new HttpError(400, "Multipart inválido");
   }
