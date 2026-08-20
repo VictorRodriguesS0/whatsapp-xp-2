@@ -13,6 +13,10 @@ export default async function LoginPage() {
         <h1 className="mt-2 text-2xl font-bold tracking-tight text-[var(--text)]" id="login-heading">Central de atendimento</h1>
         <p className="mt-2 text-sm leading-6 text-[var(--muted)]">Acesse com seu e-mail de funcionário.</p>
         <LoginForm />
+        <nav aria-label="Documentos legais" className="mt-6 flex flex-wrap gap-x-5 gap-y-1 border-t border-[var(--border)] pt-4 text-sm">
+          <a className="inline-flex min-h-11 items-center text-[var(--muted)] underline-offset-4 hover:text-[var(--accent)] hover:underline" href="/privacidade">Privacidade</a>
+          <a className="inline-flex min-h-11 items-center text-[var(--muted)] underline-offset-4 hover:text-[var(--accent)] hover:underline" href="/exclusao-de-dados">Exclusão de dados</a>
+        </nav>
       </section>
     </main>
   );
