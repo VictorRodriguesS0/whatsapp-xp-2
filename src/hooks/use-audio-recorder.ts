@@ -48,6 +48,22 @@ function recordingFilename(mimeType: string) {
   return "gravacao.webm";
 }
 
+function releaseIndependentStream(stream: MediaStream) {
+  let tracks: MediaStreamTrack[];
+  try {
+    tracks = stream.getTracks();
+  } catch {
+    return;
+  }
+  for (const track of tracks) {
+    try {
+      track.stop();
+    } catch {
+      // One failed track must not prevent the remaining microphone tracks from stopping.
+    }
+  }
+}
+
 export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?: number }) {
   const maximumDurationMs = Math.min(
     DEFAULT_MAXIMUM_DURATION_MS,
@@ -86,13 +102,7 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
   const releaseStream = useCallback(() => {
     const stream = streamRef.current;
     streamRef.current = null;
-    for (const track of stream?.getTracks() ?? []) {
-      try {
-        track.stop();
-      } catch {
-        // Releasing the remaining tracks is still safe and necessary.
-      }
-    }
+    if (stream) releaseIndependentStream(stream);
   }, []);
 
   const releasePreview = useCallback(() => {
@@ -162,6 +172,7 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     if (phaseRef.current !== "idle" && phaseRef.current !== "error") return;
     const captureSupported = isCaptureSupported();
     if (!captureSupported) {
+      if (mountedRef.current) setSupported(false);
       resetState("error", "A gravação de áudio não é compatível com este navegador.");
       return;
     }
@@ -187,7 +198,7 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     }
 
     if (generation !== generationRef.current || !mountedRef.current) {
-      for (const track of stream.getTracks()) track.stop();
+      releaseIndependentStream(stream);
       return;
     }
 
@@ -223,7 +234,14 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
         hasInvalidEmittedMimeTypeRef.current = true;
         return;
       }
-      if (emittedMimeType) emittedMimeTypeRef.current ??= emittedMimeType;
+      if (emittedMimeType) {
+        const firstEmittedType = mimeEssence(emittedMimeTypeRef.current ?? "");
+        if (firstEmittedType && firstEmittedType !== emittedType) {
+          hasInvalidEmittedMimeTypeRef.current = true;
+          return;
+        }
+        emittedMimeTypeRef.current ??= emittedMimeType;
+      }
       chunksRef.current.push(event.data);
     };
     recorder.onerror = (_event: RecorderErrorEvent) => {
