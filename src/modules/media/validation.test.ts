@@ -9,6 +9,7 @@ import {
   IMAGE_MAX_BYTES,
   DOCUMENT_MAX_BYTES,
   MediaValidationError,
+  mediaRuleForMime,
   validateMedia,
   validateMediaFile,
 } from "./validation";
@@ -104,6 +105,13 @@ const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const pdf = new TextEncoder().encode("%PDF-1.7\n");
 
 describe("media validation", () => {
+  it("canonicalizes an allowlisted MIME type that includes valid parameters", () => {
+    expect(mediaRuleForMime("audio/ogg; codecs=opus")).toMatchObject({
+      mimeType: "audio/ogg",
+      kind: "audio",
+    });
+  });
+
   it.each([
     ["image/jpeg", "foto.jpg", jpeg],
     ["image/png", "foto.png", png],

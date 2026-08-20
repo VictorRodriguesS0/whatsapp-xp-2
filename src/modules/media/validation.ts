@@ -94,7 +94,7 @@ export type ValidatedMedia = {
 };
 
 export function mediaRuleForMime(mimeType: string): Omit<ValidatedMedia, "sizeBytes"> {
-  const normalized = mimeType.trim().toLowerCase();
+  const normalized = mimeType.split(";", 1)[0]!.trim().toLowerCase();
   const rule = rules[normalized];
   if (!rule) throw new MediaValidationError("Tipo de mídia não permitido");
   return { mimeType: normalized, kind: rule.kind, maximumBytes: rule.maximumBytes };

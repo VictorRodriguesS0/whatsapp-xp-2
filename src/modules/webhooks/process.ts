@@ -355,7 +355,8 @@ async function processStatus(
   const message = await repository.findMessage(event.whatsappMessageId);
 
   if (!message) {
-    throw new WebhookProcessingError(true);
+    await repository.completeEvent(key);
+    return { duplicate: false, realtime: null, pendingMediaId: null };
   }
 
   let realtime: RealtimeEvent | null = null;

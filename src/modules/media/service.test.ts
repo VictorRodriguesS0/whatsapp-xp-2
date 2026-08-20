@@ -103,6 +103,31 @@ describe("received media service", () => {
     expect(state.repository.record).toMatchObject({ status: MediaStatus.AVAILABLE, sizeBytes: 4n, mimeType: "image/jpeg", downloadLeaseId: null });
   });
 
+  it("accepts valid remote content when the provider filename has an incompatible extension", async () => {
+    const state = await harness();
+    state.repository.record = { ...state.repository.record, originalFilename: "provider-name.bin" };
+
+    await ensureMediaAvailable(mediaId, state.dependencies);
+
+    expect(state.repository.record).toMatchObject({
+      status: MediaStatus.AVAILABLE,
+      mimeType: "image/jpeg",
+    });
+  });
+
+  it("canonicalizes parameterized Meta MIME metadata before compatibility checks", async () => {
+    const state = await harness();
+    state.repository.record = { ...state.repository.record, mimeType: "image/jpeg; profile=baseline" };
+    state.provider.mimeType = "image/jpeg; profile=baseline";
+
+    await ensureMediaAvailable(mediaId, state.dependencies);
+
+    expect(state.repository.record).toMatchObject({
+      status: MediaStatus.AVAILABLE,
+      mimeType: "image/jpeg",
+    });
+  });
+
   it("marks a declared MIME mismatch as a permanent failure", async () => {
     const state = await harness();
     state.provider.mimeType = "image/png";

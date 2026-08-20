@@ -317,18 +317,16 @@ describe("webhook event processing", () => {
     expect(harness.state.events.has("status:wamid.text-1:READ:1787133800")).toBe(true);
   });
 
-  it("returns a retryable failure when a status precedes its message", async () => {
+  it("acknowledges a historical status whose message is unknown without retrying forever", async () => {
     const harness = createHarness();
 
-    await expect(
-      processWebhookEvents(
-        normalizeWebhook(statusFixture("sent", "1787133602", "wamid.missing")),
-        harness.dependencies,
-      ),
-    ).rejects.toMatchObject({ retryable: true });
-    expect(harness.state.events.get("status:wamid.missing:SENT:1787133602")?.status).toBe(
-      WebhookStatus.FAILED,
-    );
+    await expect(processWebhookEvents(
+      normalizeWebhook(statusFixture("delivered", "1787133602", "wamid.historical")),
+      harness.dependencies,
+    )).resolves.toEqual({ processed: 1, duplicates: 0 });
+    expect(harness.state.events.get("status:wamid.historical:DELIVERED:1787133602"))
+      .toMatchObject({ status: WebhookStatus.PROCESSED, errorSummary: null });
+    expect(harness.publications).toEqual([]);
   });
 });
 

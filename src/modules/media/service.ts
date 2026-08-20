@@ -213,11 +213,11 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
   try {
     const rule = mediaRuleForMime(media.mimeType);
     const metadata = await dependencies.provider.getMediaMetadata(media.metaMediaId!);
-    if (metadata.id !== media.metaMediaId || metadata.mimeType !== rule.mimeType || metadata.sizeBytes <= 0n || metadata.sizeBytes > BigInt(rule.maximumBytes)) {
+    if (metadata.id !== media.metaMediaId || mediaRuleForMime(metadata.mimeType).mimeType !== rule.mimeType || metadata.sizeBytes <= 0n || metadata.sizeBytes > BigInt(rule.maximumBytes)) {
       throw new MediaValidationError("Metadados remotos incompatíveis");
     }
     const downloaded = await dependencies.provider.downloadMedia({ url: metadata.url, maximumBytes: rule.maximumBytes });
-    if (downloaded.mimeType !== rule.mimeType || (downloaded.sizeBytes !== null && downloaded.sizeBytes !== metadata.sizeBytes)) {
+    if (mediaRuleForMime(downloaded.mimeType).mimeType !== rule.mimeType || (downloaded.sizeBytes !== null && downloaded.sizeBytes !== metadata.sizeBytes)) {
       throw new MediaValidationError("Download remoto incompatível");
     }
     staged = await stageMediaStream({
@@ -230,7 +230,7 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
     if (staged.sizeBytes !== metadata.sizeBytes || !hashesMatch(media.sha256, staged.sha256) || !hashesMatch(metadata.sha256, staged.sha256)) {
       throw new MediaValidationError("Conteúdo remoto incompatível");
     }
-    await validateMediaFile({ path: staged.path, mimeType: rule.mimeType, filename: staged.filename });
+    await validateMediaFile({ path: staged.path, mimeType: rule.mimeType });
     const stored = await dependencies.storage.putStream({
       filename: staged.filename,
       mimeType: staged.mimeType,
