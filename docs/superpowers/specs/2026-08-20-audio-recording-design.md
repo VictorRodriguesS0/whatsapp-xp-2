@@ -105,7 +105,7 @@ Antes da conversão, FFprobe verifica que há uma faixa de áudio e que a duraç
 - no máximo 300 segundos;
 - metadados removidos.
 
-O resultado será validado novamente por tamanho, estrutura OGG e cabeçalho Opus. O MIME canônico será `audio/ogg; codecs=opus`; aliases existentes de áudio OGG/Opus serão normalizados para esse valor antes do upload à Meta. A saída também permanece limitada a 16 MB.
+O resultado será validado novamente por tamanho, estrutura OGG e cabeçalho Opus. O MIME persistido e enviado será o tipo-base canônico `audio/ogg`, coerente com a canonicalização já usada pelo fluxo de mídia; o cabeçalho Opus é comprovado pela inspeção estrutural do arquivo, e não por um parâmetro MIME. A saída também permanece limitada a 16 MB.
 
 O subprocesso roda como o mesmo usuário não privilegiado UID 1001 da aplicação. Falha, timeout, sinal ou saída inválida são tratados como erro local recuperável, sem criar uma mensagem incompleta.
 
@@ -127,7 +127,7 @@ Se a falha ocorrer depois que o áudio convertido foi persistido, a repetição 
 
 ## Docker, operação e HTTPS
 
-A imagem Docker incluirá FFmpeg/FFprobe na etapa de runtime e um smoke test confirmará sua presença. A gravação por microfone exige contexto seguro no navegador: `localhost` é aceito no desenvolvimento e a produção depende do HTTPS do domínio `whatsapp.xpeletronicos.com`, já previsto no Nginx/Certbot.
+A imagem Docker incluirá FFmpeg/FFprobe na etapa de runtime e um smoke test confirmará sua presença. A gravação por microfone exige contexto seguro no navegador: `localhost` é aceito no desenvolvimento e a produção usa o HTTPS do domínio `whatsapp.xpeletronicos.com` pelo gateway Caddy compartilhado já existente na KVM.
 
 O deployment continua de instância única. Os limites de frequência e concorrência são locais ao processo, coerentes com essa topologia; qualquer futura escala horizontal exigirá mover esses controles para um coordenador compartilhado.
 
@@ -169,7 +169,7 @@ Backups não incluem arquivos temporários de conversão. Apenas o OGG/Opus fina
 - suíte completa, lint, tipos, Prisma, build e auditoria;
 - backup e validação do bundle contendo o novo áudio final.
 
-A entrega real à Meta será validada quando as credenciais, o número comercial e o acesso à KVM estiverem disponíveis.
+A entrega real à Meta será validada com o aplicativo publicado, o número comercial `+55 61 9514-9019` e a release isolada já ativos na KVM.
 
 ## Fora de escopo
 
