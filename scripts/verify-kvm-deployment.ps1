@@ -77,6 +77,7 @@ Assert-True ($caddy -match "header_up\s+-X-Forwarded-For") "Cabeçalhos de IP fo
 Assert-True ($caddy -match "header_up\s+X-Real-IP\s+\{remote_host\}") "O Caddy deve fornecer ao app o IP real confiável."
 Assert-True ($caddy -match 'Permissions-Policy\s+"[^\"]*microphone=\(self\)') "O microfone deve ser permitido apenas para a própria aplicação."
 Assert-True ($caddy -match 'Cache-Control\s+"no-store"') "Conteúdo autenticado não pode ser armazenado em cache."
+Assert-True ($caddy -match "(?m)^\s*-X-Powered-By\s*$") "O proxy deve ocultar a tecnologia do servidor de aplicacao."
 Assert-True ($caddy -notmatch "(?i)(password|secret|access[_-]?token)\s+[=:]\s*\S+") "O site do Caddy não pode conter segredos."
 
 Write-Host "KVM deployment verification passed."
