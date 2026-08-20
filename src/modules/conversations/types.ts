@@ -106,6 +106,10 @@ export type ConversationReadRecord = {
   conversationId: string;
   lastReadMessageId: string | null;
   lastReadAt: Date;
+  lastReadMessage: {
+    id: string;
+    externalTimestamp: Date;
+  } | null;
 };
 
 export type ConversationReadDto = {

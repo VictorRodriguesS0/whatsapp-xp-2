@@ -160,12 +160,32 @@ function createRepository(
           (candidate) =>
             candidate.userId === userId && candidate.conversationId === record.id,
         );
-        const unreadCount = messages.filter(
-          (candidate) =>
-            candidate.conversationId === record.id &&
-            candidate.direction === MessageDirection.INBOUND &&
-            (!read || candidate.externalTimestamp > read.lastReadAt),
-        ).length;
+        const readMessage = read
+          ? messages.find((candidate) => candidate.id === read.lastReadMessageId)
+          : null;
+        const unreadCount = messages.filter((candidate) => {
+          if (
+            candidate.conversationId !== record.id ||
+            candidate.direction !== MessageDirection.INBOUND
+          ) {
+            return false;
+          }
+
+          if (!read) {
+            return true;
+          }
+
+          if (!readMessage) {
+            return candidate.externalTimestamp > read.lastReadAt;
+          }
+
+          return (
+            candidate.externalTimestamp > readMessage.externalTimestamp ||
+            (candidate.externalTimestamp.getTime() ===
+              readMessage.externalTimestamp.getTime() &&
+              candidate.id > readMessage.id)
+          );
+        }).length;
 
         return { ...record, unreadCount };
       });
@@ -183,15 +203,32 @@ function createRepository(
       const conversationMessages = messages.filter(
         (candidate) => candidate.conversationId === id,
       );
+      const readMessage = read
+        ? messages.find((candidate) => candidate.id === read.lastReadMessageId)
+        : null;
 
       return {
         ...record,
         messages: conversationMessages,
-        unreadCount: conversationMessages.filter(
-          (candidate) =>
-            candidate.direction === MessageDirection.INBOUND &&
-            (!read || candidate.externalTimestamp > read.lastReadAt),
-        ).length,
+        unreadCount: conversationMessages.filter((candidate) => {
+          if (candidate.direction !== MessageDirection.INBOUND) {
+            return false;
+          }
+
+          if (!read) {
+            return true;
+          }
+
+          if (!readMessage) {
+            return candidate.externalTimestamp > read.lastReadAt;
+          }
+
+          return (
+            candidate.externalTimestamp > readMessage.externalTimestamp ||
+            (candidate.externalTimestamp.getTime() ===
+              readMessage.externalTimestamp.getTime() && candidate.id > readMessage.id)
+          );
+        }).length,
         lastReadMessageId: read?.lastReadMessageId ?? null,
         lastReadAt: read?.lastReadAt ?? null,
       };
@@ -199,10 +236,20 @@ function createRepository(
     findMessage: async (messageId) =>
       messages.find((candidate) => candidate.id === messageId) ?? null,
     findRead: async (userId, conversationId) =>
-      reads.find(
-        (candidate) =>
-          candidate.userId === userId && candidate.conversationId === conversationId,
-      ) ?? null,
+      (() => {
+        const read = reads.find(
+          (candidate) =>
+            candidate.userId === userId && candidate.conversationId === conversationId,
+        );
+        return read
+          ? {
+              ...read,
+              lastReadMessage:
+                messages.find((candidate) => candidate.id === read.lastReadMessageId) ??
+                null,
+            }
+          : null;
+      })(),
     upsertRead: async (userId, conversationId, messageId) => {
       upsertCalls.push([userId, conversationId, messageId]);
       const targetMessage = messages.find((candidate) => candidate.id === messageId)!;
@@ -214,7 +261,7 @@ function createRepository(
       if (existing) {
         existing.lastReadMessageId = messageId;
         existing.lastReadAt = targetMessage.externalTimestamp;
-        return existing;
+        return { ...existing, lastReadMessage: targetMessage };
       }
 
       const created = {
@@ -224,7 +271,7 @@ function createRepository(
         lastReadAt: targetMessage.externalTimestamp,
       };
       reads.push(created);
-      return created;
+      return { ...created, lastReadMessage: targetMessage };
     },
     findActiveUser: async (userId) =>
       users.find((candidate) => candidate.id === userId && candidate.active) ?? null,
@@ -395,6 +442,97 @@ describe("conversation service", () => {
 
     expect(repository.upsertCalls).toEqual([]);
     expect(result.lastReadMessageId).toBe(latest.id);
+  });
+
+  it("counts a higher id at the same timestamp as unread", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const timestamp = new Date("2026-08-19T12:00:00.000Z");
+    const lower = message(
+      "20000000-0000-4000-8000-000000000001",
+      conversationId,
+      timestamp,
+    );
+    const higher = message(
+      "20000000-0000-4000-8000-000000000002",
+      conversationId,
+      timestamp,
+    );
+    const repository = createRepository(
+      [conversation(conversationId, "Carlos", "1", timestamp, null, [lower, higher])],
+      [lower, higher],
+      [{
+        userId: victor.id,
+        conversationId,
+        lastReadMessageId: lower.id,
+        lastReadAt: timestamp,
+      }],
+    );
+
+    await expect(listConversations(victor.id, {}, repository)).resolves.toMatchObject({
+      items: [{ unreadCount: 1 }],
+    });
+  });
+
+  it("advances a read to a higher id at the same timestamp", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const timestamp = new Date("2026-08-19T12:00:00.000Z");
+    const lower = message(
+      "20000000-0000-4000-8000-000000000001",
+      conversationId,
+      timestamp,
+    );
+    const higher = message(
+      "20000000-0000-4000-8000-000000000002",
+      conversationId,
+      timestamp,
+    );
+    const repository = createRepository(
+      [conversation(conversationId, "Carlos", "1", timestamp, null, [lower, higher])],
+      [lower, higher],
+      [{
+        userId: victor.id,
+        conversationId,
+        lastReadMessageId: lower.id,
+        lastReadAt: timestamp,
+      }],
+    );
+
+    const result = await markRead(victor.id, conversationId, higher.id, repository);
+
+    expect(result.lastReadMessageId).toBe(higher.id);
+    expect(repository.upsertCalls).toEqual([[victor.id, conversationId, higher.id]]);
+  });
+
+  it("does not regress equal-timestamp reads during concurrent attempts", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const timestamp = new Date("2026-08-19T12:00:00.000Z");
+    const lower = message(
+      "20000000-0000-4000-8000-000000000001",
+      conversationId,
+      timestamp,
+    );
+    const higher = message(
+      "20000000-0000-4000-8000-000000000002",
+      conversationId,
+      timestamp,
+    );
+    const repository = createRepository(
+      [conversation(conversationId, "Carlos", "1", timestamp, null, [lower, higher])],
+      [lower, higher],
+      [{
+        userId: victor.id,
+        conversationId,
+        lastReadMessageId: lower.id,
+        lastReadAt: timestamp,
+      }],
+    );
+
+    await Promise.all([
+      markRead(victor.id, conversationId, higher.id, repository),
+      markRead(victor.id, conversationId, lower.id, repository),
+    ]);
+
+    expect(repository.reads[0]?.lastReadMessageId).toBe(higher.id);
   });
 
   it("assigns an active employee and returns the committed conversation", async () => {

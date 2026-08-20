@@ -79,7 +79,7 @@ function isPrismaError(error: unknown, code: string): boolean {
   );
 }
 
-async function withSerializableRetry<TTransaction, TResult>(
+export async function runConversationTransaction<TTransaction, TResult>(
   client: {
     $transaction<T>(
       operation: (transaction: TTransaction) => Promise<T>,
@@ -233,20 +233,44 @@ async function unreadCounts(
 
   const reads = await client.conversationRead.findMany({
     where: { userId, conversationId: { in: conversations.map(({ id }) => id) } },
-    select: { conversationId: true, lastReadAt: true },
+    select: {
+      conversationId: true,
+      lastReadAt: true,
+      lastReadMessage: { select: { id: true, externalTimestamp: true } },
+    },
   });
   const readByConversation = new Map(
-    reads.map((read) => [read.conversationId, read.lastReadAt]),
+    reads.map((read) => [read.conversationId, read]),
   );
   const groups = await client.message.groupBy({
     by: ["conversationId"],
     where: {
       direction: MessageDirection.INBOUND,
       OR: conversations.map(({ id }) => {
-        const lastReadAt = readByConversation.get(id);
+        const read = readByConversation.get(id);
+
+        if (!read) {
+          return { conversationId: id };
+        }
+
+        if (!read.lastReadMessage) {
+          return {
+            conversationId: id,
+            externalTimestamp: { gt: read.lastReadAt },
+          };
+        }
+
         return {
           conversationId: id,
-          ...(lastReadAt ? { externalTimestamp: { gt: lastReadAt } } : {}),
+          OR: [
+            {
+              externalTimestamp: { gt: read.lastReadMessage.externalTimestamp },
+            },
+            {
+              externalTimestamp: read.lastReadMessage.externalTimestamp,
+              id: { gt: read.lastReadMessage.id },
+            },
+          ],
         };
       }),
     },
@@ -256,25 +280,7 @@ async function unreadCounts(
   return new Map(groups.map((group) => [group.conversationId, group._count._all]));
 }
 
-async function latestMessages(
-  client: PrismaConversationRepositoryClient,
-  conversationIds: string[],
-): Promise<Map<string, MessageRecord>> {
-  if (conversationIds.length === 0) {
-    return new Map();
-  }
-
-  const messages = await client.message.findMany({
-    where: { conversationId: { in: conversationIds } },
-    orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
-    distinct: ["conversationId"],
-    select: messageSelect,
-  });
-
-  return new Map(messages.map((message) => [message.conversationId, message]));
-}
-
-function createPrismaConversationRepository(
+export function createPrismaConversationRepository(
   client: PrismaConversationRepositoryClient,
 ): ConversationRepository {
   const repository: ConversationRepository = {
@@ -283,16 +289,20 @@ function createPrismaConversationRepository(
         where: { AND: [searchWhere(query.search), cursorWhere(query.cursor)] },
         orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
         take: query.take,
-        select: conversationSelect,
+        select: {
+          ...conversationSelect,
+          messages: {
+            take: 1,
+            orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
+            select: messageSelect,
+          },
+        },
       });
-      const [counts, latest] = await Promise.all([
-        unreadCounts(client, userId, rows),
-        latestMessages(client, rows.map(({ id }) => id)),
-      ]);
+      const counts = await unreadCounts(client, userId, rows);
 
-      return rows.map((row) => ({
+      return rows.map(({ messages, ...row }) => ({
         ...row,
-        latestMessage: latest.get(row.id) ?? null,
+        latestMessage: messages[0] ?? null,
         unreadCount: counts.get(row.id) ?? 0,
       }));
     },
@@ -343,6 +353,9 @@ function createPrismaConversationRepository(
           conversationId: true,
           lastReadMessageId: true,
           lastReadAt: true,
+          lastReadMessage: {
+            select: { id: true, externalTimestamp: true },
+          },
         },
       });
     },
@@ -368,6 +381,9 @@ function createPrismaConversationRepository(
           conversationId: true,
           lastReadMessageId: true,
           lastReadAt: true,
+          lastReadMessage: {
+            select: { id: true, externalTimestamp: true },
+          },
         },
       });
     },
@@ -391,7 +407,7 @@ function createPrismaConversationRepository(
 
 const conversationRepository = createPrismaConversationRepository(prisma);
 conversationRepository.transaction = (operation) =>
-  withSerializableRetry(prisma, (transaction) =>
+  runConversationTransaction(prisma, (transaction) =>
     operation(createPrismaConversationRepository(transaction)),
   );
 
@@ -451,8 +467,17 @@ export async function markRead(
 
     const current = await transaction.findRead(parsedUserId, parsedId);
 
-    if (current && message.externalTimestamp <= current.lastReadAt) {
-      return toReadDto(current);
+    if (current) {
+      const boundary = current.lastReadMessage;
+      const advancesBoundary = boundary
+        ? message.externalTimestamp > boundary.externalTimestamp ||
+          (message.externalTimestamp.getTime() ===
+            boundary.externalTimestamp.getTime() && message.id > boundary.id)
+        : message.externalTimestamp > current.lastReadAt;
+
+      if (!advancesBoundary) {
+        return toReadDto(current);
+      }
     }
 
     return toReadDto(
