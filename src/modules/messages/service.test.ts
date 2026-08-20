@@ -18,6 +18,7 @@ import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import {
   MessageSendRateLimiter,
   ProviderConcurrencyLimiter,
+  createPrismaMessageRepository,
   retryMessage,
   sendMessage,
   type MessageServiceDependencies,
@@ -292,6 +293,24 @@ function harness() {
 }
 
 describe("outbound message service", () => {
+  it("keeps CAS_LOST authoritative when the outer attachment runner rejects", async () => {
+    const repository = createPrismaMessageRepository({
+      attachmentMutation: async () => "CAS_LOST",
+      async runAttachmentTransaction(operation) {
+        await operation({} as never);
+        throw new Error("outer result unavailable");
+      },
+    });
+
+    await expect(repository.attachStoredMedia("20000000-0000-4000-8000-000000000001", {
+      storageKey: "2026/08/123e4567-e89b-42d3-a456-426614174000",
+      originalFilename: "x.jpg",
+      mimeType: "image/jpeg",
+      sizeBytes: 4n,
+      sha256: "0".repeat(64),
+    })).resolves.toBe("CAS_LOST");
+  });
+
   it("refunds only the exact concurrent rate-limit reservation once", async () => {
     const limiter = new MessageSendRateLimiter();
     const now = new Date("2026-08-20T12:00:00.000Z");

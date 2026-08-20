@@ -370,18 +370,21 @@ async function attachStoredMediaWithOutcome(
   const mutation = options.attachmentMutation ?? ((context, mutate) => mutate(context));
   for (let attempt = 1; attempt <= ATTACHMENT_TRANSACTION_MAX_ATTEMPTS; attempt += 1) {
     let callbackCompleted = false;
+    let callbackResult: AttachmentMutationResult | undefined;
     try {
       return await runTransaction(async (transaction) => {
         const result = await mutation({ transaction, messageId, input }, mutateStoredMediaAttachment);
+        callbackResult = result;
         callbackCompleted = true;
         return result;
       });
     } catch (error) {
+      if (callbackResult === "CAS_LOST") return "CAS_LOST";
       if (prismaErrorCode(error) === "P2034") {
         if (attempt < ATTACHMENT_TRANSACTION_MAX_ATTEMPTS) continue;
         return "NO_COMMIT";
       }
-      return callbackCompleted ? "COMMIT_UNKNOWN" : "NO_COMMIT";
+      return callbackCompleted && callbackResult === "ATTACHED" ? "COMMIT_UNKNOWN" : "NO_COMMIT";
     }
   }
   return "NO_COMMIT";

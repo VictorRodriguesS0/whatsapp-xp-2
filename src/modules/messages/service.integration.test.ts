@@ -427,6 +427,85 @@ describe("outbound message PostgreSQL concurrency", () => {
     await expect(countStoredFiles(mediaRoot)).resolves.toBe(0);
   });
 
+  it("keeps the winning attachment and cleans the loser when its outer CAS_LOST result is rejected", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const clientRequestId = randomUUID();
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        clientRequestId,
+        direction: MessageDirection.OUTBOUND,
+        type: MessageType.IMAGE,
+        sentByUserId: victor.id,
+        status: MessageStatus.FAILED,
+        operationalState: MessageOperationalState.LOCAL_FAILURE,
+        failureReason: "Falha local",
+        externalTimestamp: new Date(),
+      },
+    });
+    const mediaRoot = await mkdtemp(join(tmpdir(), "xp-attach-cas-outer-pg-"));
+    roots.push(mediaRoot);
+    let rejectedCasResults = 0;
+    const baseRepository = createPrismaMessageRepository({
+      async runAttachmentTransaction(operation) {
+        const result = await prisma.$transaction(operation);
+        if ((result as unknown) === "CAS_LOST") {
+          rejectedCasResults += 1;
+          throw new Error("outer CAS result unavailable");
+        }
+        return result;
+      },
+    });
+    const staleLoserSnapshot = await baseRepository.findByClientRequestId(clientRequestId);
+    expect(staleLoserSnapshot).toMatchObject({ status: MessageStatus.FAILED, mediaObjectId: null });
+    const attachmentResults: string[] = [];
+    const loserRepository: MessageServiceDependencies["repository"] = {
+      ...baseRepository,
+      async findByClientRequestId() {
+        return staleLoserSnapshot;
+      },
+      async attachStoredMedia(id, input) {
+        const result = await baseRepository.attachStoredMedia(id, input);
+        attachmentResults.push(result);
+        return result;
+      },
+    };
+    const storage = new LocalMediaStorage(mediaRoot);
+    const provider = new DemoWhatsAppProvider();
+    let uploadCalls = 0;
+    let sendCalls = 0;
+    provider.uploadMedia = async () => { uploadCalls += 1; return { mediaId: "meta-winner" }; };
+    provider.sendMedia = async () => { sendCalls += 1; return { whatsappMessageId: "wamid.winner", status: "SENT" }; };
+    const dependencies = (repository: MessageServiceDependencies["repository"]): MessageServiceDependencies => ({
+      repository,
+      storage,
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      idempotencyInFlight: new Map(),
+      publishRealtime: () => undefined,
+    });
+    const input = {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { filename: "foto.jpg", mimeType: "image/jpeg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    } as const;
+
+    const first = await sendMessage(actor, conversation.id, input, dependencies(baseRepository));
+    const second = await sendMessage(actor, conversation.id, input, dependencies(loserRepository));
+
+    expect(first.id).toBe(message.id);
+    expect(second.id).toBe(message.id);
+    await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id }, select: { status: true, operationalState: true, mediaObjectId: true } }))
+      .resolves.toMatchObject({ status: MessageStatus.SENT, operationalState: MessageOperationalState.SENT, mediaObjectId: expect.any(String) });
+    expect(uploadCalls).toBe(1);
+    expect(sendCalls).toBe(1);
+    expect(attachmentResults).toEqual(["CAS_LOST"]);
+    expect(rejectedCasResults).toBe(1);
+    await expect(prisma.mediaObject.count()).resolves.toBe(1);
+    await expect(countStoredFiles(mediaRoot)).resolves.toBe(1);
+  });
+
   it("keeps the conservative provider-attempt boundary when post-CAS hydration fails", async () => {
     const { conversation, victor } = await seedReadFixture();
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
