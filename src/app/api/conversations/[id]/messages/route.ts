@@ -13,6 +13,7 @@ import {
 } from "../../route";
 
 export const runtime = "nodejs";
+export const OUTBOUND_JSON_MAX_BODY_BYTES = 8 * 1024;
 
 type ConversationMessagesRouteDependencies = {
   assertSameOrigin: typeof assertSameOrigin;
@@ -36,7 +37,36 @@ async function parseSendInput(request: Request, mediaRoot: string): Promise<Send
   const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
 
   if (contentType.startsWith("application/json")) {
-    return outboundTextSchema.parse(await request.json());
+    const contentLength = request.headers.get("content-length");
+    if (contentLength !== null) {
+      if (!/^\d+$/.test(contentLength)) throw new HttpError(400, "JSON inválido");
+      if (BigInt(contentLength) > BigInt(OUTBOUND_JSON_MAX_BODY_BYTES)) throw new HttpError(413, "Payload muito grande");
+    }
+    if (!request.body) throw new HttpError(400, "JSON inválido");
+    const reader = request.body.getReader();
+    const bytes = new Uint8Array(OUTBOUND_JSON_MAX_BODY_BYTES);
+    let total = 0;
+    try {
+      while (true) {
+        const result = await reader.read();
+        if (result.done) break;
+        if (total + result.value.byteLength > OUTBOUND_JSON_MAX_BODY_BYTES) {
+          await reader.cancel().catch(() => undefined);
+          throw new HttpError(413, "Payload muito grande");
+        }
+        bytes.set(result.value, total);
+        total += result.value.byteLength;
+      }
+    } finally {
+      reader.releaseLock();
+    }
+    try {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, total));
+      return outboundTextSchema.parse(JSON.parse(text));
+    } catch (error) {
+      if (error instanceof HttpError || (error instanceof Error && error.name === "ZodError")) throw error;
+      throw new HttpError(400, "JSON inválido");
+    }
   }
 
   if (!contentType.startsWith("multipart/form-data")) {
@@ -44,23 +74,28 @@ async function parseSendInput(request: Request, mediaRoot: string): Promise<Send
   }
 
   const form = await parseMediaMultipartRequest(request, mediaRoot);
-  const fields = outboundMediaFieldsSchema.parse({
-    type: form.fields.type,
-    clientRequestId: form.fields.clientRequestId,
-    body: form.fields.body || undefined,
-  });
+  try {
+    const fields = outboundMediaFieldsSchema.parse({
+      type: form.fields.type,
+      clientRequestId: form.fields.clientRequestId,
+      body: form.fields.body || undefined,
+    });
 
-  return {
-    ...fields,
-    file: {
-      filename: form.file.filename,
-      mimeType: form.file.mimeType,
-      path: form.file.path,
-      sizeBytes: form.file.sizeBytes,
-      sha256: form.file.sha256,
-      cleanup: form.file.cleanup,
-    },
-  };
+    return {
+      ...fields,
+      file: {
+        filename: form.file.filename,
+        mimeType: form.file.mimeType,
+        path: form.file.path,
+        sizeBytes: form.file.sizeBytes,
+        sha256: form.file.sha256,
+        cleanup: form.file.cleanup,
+      },
+    };
+  } catch (error) {
+    await form.file.cleanup().catch(() => undefined);
+    throw error;
+  }
 }
 
 export function createConversationMessagesRouteHandlers(

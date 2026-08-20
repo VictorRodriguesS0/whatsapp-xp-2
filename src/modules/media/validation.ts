@@ -5,6 +5,8 @@ import { open, readFile, stat } from "node:fs/promises";
 import { extname } from "node:path";
 import { fileTypeFromFile } from "file-type";
 
+import { readExact } from "./file-io";
+
 export const IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 export const AUDIO_MAX_BYTES = 16 * 1024 * 1024;
 export const VIDEO_MAX_BYTES = 16 * 1024 * 1024;
@@ -201,7 +203,7 @@ async function hasOpenXmlEntries(path: string, size: number, requiredEntry: stri
   try {
     const tailSize = Math.min(size, 65_557);
     const tail = new Uint8Array(tailSize);
-    await handle.read(tail, 0, tailSize, size - tailSize);
+    await readExact(handle, tail, size - tailSize);
     const tailView = new DataView(tail.buffer, tail.byteOffset, tail.byteLength);
     let endOffset = -1;
     for (let offset = tailSize - 22; offset >= 0; offset -= 1) {
@@ -213,7 +215,7 @@ async function hasOpenXmlEntries(path: string, size: number, requiredEntry: stri
     const centralOffset = tailView.getUint32(endOffset + 16, true);
     if (entryCount === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff || entryCount > 10_000 || centralSize > 8 * 1024 * 1024 || centralOffset + centralSize > size) return false;
     const central = new Uint8Array(centralSize);
-    await handle.read(central, 0, centralSize, centralOffset);
+    await readExact(handle, central, centralOffset);
     const view = new DataView(central.buffer, central.byteOffset, central.byteLength);
     const names = new Set<string>();
     let offset = 0;
@@ -246,7 +248,7 @@ async function hasOleStream(path: string, size: number, expectedNames: readonly 
   const handle = await open(path, "r");
   try {
     const header = new Uint8Array(512);
-    await handle.read(header, 0, 512, 0);
+    await readExact(handle, header, 0);
     if (!isOle(header)) return false;
     const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
     if (view.getUint16(28, true) !== 0xfffe) return false;
@@ -257,7 +259,7 @@ async function hasOleStream(path: string, size: number, expectedNames: readonly 
     const directoryOffset = (directorySector + 1) * sectorSize;
     if (directorySector >= 0xfffffffa || directoryOffset + sectorSize > size) return false;
     const directory = new Uint8Array(sectorSize);
-    await handle.read(directory, 0, sectorSize, directoryOffset);
+    await readExact(handle, directory, directoryOffset);
     const directoryView = new DataView(directory.buffer, directory.byteOffset, directory.byteLength);
     for (let offset = 0; offset + 128 <= directory.length; offset += 128) {
       const nameLength = directoryView.getUint16(offset + 64, true);

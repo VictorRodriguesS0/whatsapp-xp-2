@@ -6,6 +6,7 @@ import { chmod, lstat, mkdir, open, realpath, stat, unlink } from "node:fs/promi
 import { isAbsolute, parse, relative, resolve, sep } from "node:path";
 
 import type { MediaStorage, MediaStoragePutInput, MediaStorageStreamInput, StoredMedia } from "./storage";
+import { writeAll } from "./file-io";
 
 const STORAGE_KEY_PATTERN = /^(\d{4})\/(0[1-9]|1[0-2])\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
 
@@ -190,17 +191,17 @@ export class LocalMediaStorage implements MediaStorage {
       while (true) {
         const result = await reader.read();
         if (result.done) break;
-        sizeBytes += result.value.byteLength;
-        if (sizeBytes > input.maximumBytes) {
+        if (sizeBytes + result.value.byteLength > input.maximumBytes) {
           await reader.cancel().catch(() => undefined);
           throw new MediaStorageLimitError();
         }
+        await writeAll(handle, result.value);
+        sizeBytes += result.value.byteLength;
         digest.update(result.value);
-        await handle.write(result.value);
       }
       await handle.sync();
       const targetStat = await handle.stat();
-      if (!targetStat.isFile()) {
+      if (!targetStat.isFile() || targetStat.size !== sizeBytes) {
         throw new InvalidStorageKeyError();
       }
       const physicalTarget = await realpath(target);

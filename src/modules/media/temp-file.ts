@@ -6,6 +6,7 @@ import { open, realpath, unlink } from "node:fs/promises";
 import { relative, resolve } from "node:path";
 
 import { ensurePrivateDirectoryTree, MediaStorageLimitError } from "./local-storage";
+import { writeAll } from "./file-io";
 
 export type StagedMediaFile = {
   path: string;
@@ -43,15 +44,17 @@ export async function stageMediaStream(input: {
     while (true) {
       const result = await reader.read();
       if (result.done) break;
-      total += result.value.byteLength;
-      if (total > input.maximumBytes) {
+      if (total + result.value.byteLength > input.maximumBytes) {
         await reader.cancel().catch(() => undefined);
         throw new MediaStorageLimitError();
       }
+      await writeAll(handle, result.value);
+      total += result.value.byteLength;
       digest.update(result.value);
-      await handle.write(result.value);
     }
     await handle.sync();
+    const stagedStat = await handle.stat();
+    if (!stagedStat.isFile() || stagedStat.size !== total) throw new Error("Tamanho temporário incompatível");
     completed = true;
   } finally {
     reader.releaseLock();

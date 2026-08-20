@@ -1,13 +1,13 @@
 // @vitest-environment node
 
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { MessageDirection, MessageStatus, MessageType, UserRole } from "@/generated/prisma/enums";
 
-import { createConversationMessagesRouteHandlers } from "./route";
+import { createConversationMessagesRouteHandlers, OUTBOUND_JSON_MAX_BODY_BYTES } from "./route";
 
 const id = "10000000-0000-4000-8000-000000000001";
 const actor = {
@@ -160,5 +160,96 @@ describe("conversation history route", () => {
 
     expect(response.status).toBe(413);
     expect(formDataCalled).toBe(false);
+  });
+
+  it.each([
+    ["type", "GIF"],
+    ["clientRequestId", "not-a-uuid"],
+    ["body", "x".repeat(1_025)],
+  ])("cleans staged media when multipart %s validation fails", async (field, invalidValue) => {
+    const root = await mkdtemp(join(tmpdir(), "xp-route-media-"));
+    roots.push(root);
+    const { POST } = createConversationMessagesRouteHandlers({
+      mediaRoot: root,
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      sendMessage: async () => { throw new Error("sendMessage must not run"); },
+    });
+    const form = new FormData();
+    form.set("type", field === "type" ? invalidValue : "DOCUMENT");
+    form.set("clientRequestId", field === "clientRequestId" ? invalidValue : "40000000-0000-4000-8000-000000000001");
+    form.set("body", field === "body" ? invalidValue : "ok");
+    form.set("file", new File([new TextEncoder().encode("%PDF-1.7")], "nota.pdf", { type: "application/pdf" }));
+
+    const response = await POST(new Request(`http://localhost/api/conversations/${id}/messages`, { method: "POST", body: form }), {
+      params: Promise.resolve({ id }),
+    });
+
+    expect(response.status).toBe(400);
+    await expect(readdir(join(root, ".staging"))).resolves.toEqual([]);
+  });
+
+  it("rejects oversized JSON from Content-Length before consuming the body", async () => {
+    let bodyAccessed = false;
+    const { POST } = createConversationMessagesRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+    });
+    const request = new Request(`http://localhost/api/conversations/${id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "content-length": String(OUTBOUND_JSON_MAX_BODY_BYTES + 1) },
+      body: "{}",
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const originalBody = request.body;
+    Object.defineProperty(request, "body", { get() { bodyAccessed = true; return originalBody; } });
+
+    const response = await POST(request, { params: Promise.resolve({ id }) });
+
+    expect(response.status).toBe(413);
+    await expect(response.json()).resolves.toEqual({ data: null, error: { code: "REQUEST_FAILED", message: "Payload muito grande" } });
+    expect(bodyAccessed).toBe(false);
+  });
+
+  it("rejects chunked JSON once the bounded reader reaches its limit", async () => {
+    const chunk = new Uint8Array(OUTBOUND_JSON_MAX_BODY_BYTES / 2 + 1).fill(0x20);
+    let pulls = 0;
+    const { POST } = createConversationMessagesRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+    });
+    const request = new Request(`http://localhost/api/conversations/${id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: new ReadableStream({
+        pull(controller) {
+          pulls += 1;
+          if (pulls <= 2) controller.enqueue(chunk); else controller.close();
+        },
+      }),
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+
+    const response = await POST(request, { params: Promise.resolve({ id }) });
+
+    expect(response.status).toBe(413);
+  });
+
+  it("rejects non-UTF-8 JSON with the stable validation envelope", async () => {
+    const { POST } = createConversationMessagesRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+    });
+    const request = new Request(`http://localhost/api/conversations/${id}/messages`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: new Uint8Array([0xc3, 0x28]),
+    });
+    Object.defineProperty(request, "json", { value: () => { throw new Error("request.json must not be used"); } });
+
+    const response = await POST(request, { params: Promise.resolve({ id }) });
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ data: null, error: { code: "INVALID_INPUT", message: "JSON inválido" } });
   });
 });
