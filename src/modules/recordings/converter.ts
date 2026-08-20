@@ -2,7 +2,7 @@ import "server-only";
 
 import { spawn as nodeSpawn, type ChildProcess } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, readFile, realpath, stat, unlink } from "node:fs/promises";
+import { lstat, mkdir, readFile, realpath, rm, stat, unlink } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { z } from "zod";
 
@@ -41,6 +41,7 @@ const probeSchema = z.object({
 });
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PROCESS_DIAGNOSTIC_LIMIT_BYTES = 8 * 1024;
+const TERMINATION_GRACE_MS = 1_000;
 
 class ProcessFailure extends Error {}
 
@@ -122,7 +123,11 @@ async function outputSnapshot(path: string): Promise<{ sizeBytes: bigint; sha256
   };
 }
 
-export function createRunBoundedProcess(spawn: Spawn = nodeSpawn as Spawn): RunBoundedProcess {
+export function createRunBoundedProcess(
+  spawn: Spawn = nodeSpawn as Spawn,
+  options: { terminationGraceMs?: number } = {},
+): RunBoundedProcess {
+  const terminationGraceMs = options.terminationGraceMs ?? TERMINATION_GRACE_MS;
   return ({ command, args, timeoutMs, diagnosticLimitBytes }) => new Promise<ProcessResult>((resolvePromise, reject) => {
     let child: ChildProcess;
     try {
@@ -132,7 +137,7 @@ export function createRunBoundedProcess(spawn: Spawn = nodeSpawn as Spawn): RunB
       return;
     }
     if (!child.stdout || !child.stderr) {
-      child.kill();
+      try { child.kill("SIGKILL"); } catch { /* process cleanup is best-effort */ }
       reject(new ProcessFailure());
       return;
     }
@@ -140,18 +145,32 @@ export function createRunBoundedProcess(spawn: Spawn = nodeSpawn as Spawn): RunB
     const stderr: Buffer[] = [];
     let total = 0;
     let settled = false;
+    let terminating = false;
+    let escalationTimer: ReturnType<typeof setTimeout> | undefined;
+    let forceTimer: ReturnType<typeof setTimeout> | undefined;
     const clean = () => {
       clearTimeout(timer);
+      if (escalationTimer) clearTimeout(escalationTimer);
+      if (forceTimer) clearTimeout(forceTimer);
       child.removeListener("error", onError);
       child.removeListener("close", onClose);
       child.stdout?.removeListener("data", onStdout);
       child.stderr?.removeListener("data", onStderr);
     };
     const fail = () => {
+      if (settled || terminating) return;
+      terminating = true;
+      try { child.kill("SIGTERM"); } catch { /* escalation still proceeds */ }
+      escalationTimer = setTimeout(() => {
+        if (settled) return;
+        try { child.kill("SIGKILL"); } catch { /* hard deadline prevents a hang */ }
+        forceTimer = setTimeout(completeFailure, terminationGraceMs);
+      }, terminationGraceMs);
+    };
+    const completeFailure = () => {
       if (settled) return;
       settled = true;
       clean();
-      child.kill();
       reject(new ProcessFailure());
     };
     const add = (target: Buffer[], value: Buffer | string) => {
@@ -165,6 +184,7 @@ export function createRunBoundedProcess(spawn: Spawn = nodeSpawn as Spawn): RunB
     const onError = () => fail();
     const onClose = (code: number | null) => {
       if (settled) return;
+      if (terminating) { completeFailure(); return; }
       settled = true;
       clean();
       if (code !== 0) { reject(new ProcessFailure()); return; }
@@ -180,9 +200,9 @@ export function createRunBoundedProcess(spawn: Spawn = nodeSpawn as Spawn): RunB
 
 export function runBoundedProcess(
   input: Parameters<RunBoundedProcess>[0],
-  dependencies: { spawn?: Spawn } = {},
+  dependencies: { spawn?: Spawn; terminationGraceMs?: number } = {},
 ): Promise<ProcessResult> {
-  return createRunBoundedProcess(dependencies.spawn)(input);
+  return createRunBoundedProcess(dependencies.spawn, { terminationGraceMs: dependencies.terminationGraceMs })(input);
 }
 
 const defaultRunner = createRunBoundedProcess();
@@ -200,7 +220,8 @@ export async function convertRecording(
   const id = createUuid();
   if (!UUID_PATTERN.test(id)) throw new HttpError(500, "Erro ao converter gravação");
   let outputPath: string | undefined;
-  let ownsOutput = false;
+  let outputDirectory: string | undefined;
+  let ownsOutputDirectory = false;
   try {
     const configuredRoot = resolve(input.root);
     await ensurePrivateDirectoryTree(configuredRoot, true);
@@ -212,19 +233,17 @@ export async function convertRecording(
     await ensurePrivateDirectoryTree(recordingsRoot, true);
     const physicalRecordingsRoot = await realpath(recordingsRoot);
     if (!contained(mediaRoot, physicalRecordingsRoot)) throw new ProcessFailure();
-    outputPath = resolve(physicalRecordingsRoot, `${id}.ogg`);
-    if (!contained(physicalRecordingsRoot, outputPath)) throw new ProcessFailure();
-    try {
-      await lstat(outputPath);
-      throw new ProcessFailure();
-    } catch (error) {
-      if (error instanceof ProcessFailure) throw error;
-      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
-    }
+    outputDirectory = resolve(physicalRecordingsRoot, id);
+    if (!contained(physicalRecordingsRoot, outputDirectory)) throw new ProcessFailure();
+    await mkdir(outputDirectory, { mode: 0o700 });
+    ownsOutputDirectory = true;
+    outputDirectory = await realpath(outputDirectory);
+    if (!contained(physicalRecordingsRoot, outputDirectory)) throw new ProcessFailure();
+    outputPath = resolve(outputDirectory, `${id}.ogg`);
+    if (!contained(outputDirectory, outputPath)) throw new ProcessFailure();
 
     const sourceProbe = await runProcess({ command: "ffprobe", args: probeArgs(input.source.path), timeoutMs: 10_000, diagnosticLimitBytes: PROCESS_DIAGNOSTIC_LIMIT_BYTES });
     assertSourceProbe(sourceProbe.stdout);
-    ownsOutput = true;
     await runProcess({ command: "ffmpeg", args: convertArgs(input.source.path, outputPath), timeoutMs: 60_000, diagnosticLimitBytes: PROCESS_DIAGNOSTIC_LIMIT_BYTES });
     const converted = await outputSnapshot(outputPath);
     const outputProbe = await runProcess({ command: "ffprobe", args: probeArgs(outputPath), timeoutMs: 10_000, diagnosticLimitBytes: PROCESS_DIAGNOSTIC_LIMIT_BYTES });
@@ -245,10 +264,11 @@ export async function convertRecording(
         await unlink(outputPath!).catch((error: unknown) => {
           if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
         });
+        await rm(outputDirectory!, { recursive: true, force: true });
       },
     };
   } catch (error) {
-    if (outputPath && ownsOutput) await unlink(outputPath).catch(() => undefined);
+    if (outputDirectory && ownsOutputDirectory) await rm(outputDirectory, { recursive: true, force: true }).catch(() => undefined);
     if (error instanceof HttpError) throw error;
     throw new HttpError(422, "Não foi possível converter a gravação");
   }

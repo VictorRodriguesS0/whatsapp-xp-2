@@ -43,6 +43,10 @@ async function source(rootPath: string, mimeType = "audio/webm", bytes = Buffer.
   };
 }
 
+function outputPath(rootPath: string): string {
+  return join(rootPath, ".recordings", outputId, `${outputId}.ogg`);
+}
+
 function probe(overrides: Record<string, unknown> = {}): string {
   return JSON.stringify({
     streams: [{ codec_type: "audio", codec_name: "opus", channels: 1, sample_rate: "48000" }],
@@ -88,7 +92,7 @@ describe("recording conversion", () => {
       "-application", "voip", "-b:a", "24k", "-t", "300", "-f", "ogg",
     ]));
     expect(result).toMatchObject({ mimeType: "audio/ogg", filename: "gravacao.ogg" });
-    expect(result.path).toBe(join(rootPath, ".recordings", `${outputId}.ogg`));
+    expect(result.path).toBe(outputPath(rootPath));
     expect(await readFile(result.path)).toEqual(validOgg);
     await result.cleanup();
   });
@@ -121,7 +125,7 @@ describe("recording conversion", () => {
     const rootPath = await root();
     const runner: RunBoundedProcess = async ({ command }) => ({ stdout: command === "ffprobe" ? stdout : "", stderr: "" });
     await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 400 });
-    await expect(stat(join(rootPath, ".recordings", `${outputId}.ogg`))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(outputPath(rootPath))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it.each(["timeout", "crash"]) ("maps ffprobe %s to a short public error", async (kind) => {
@@ -139,20 +143,21 @@ describe("recording conversion", () => {
       throw new Error(`${kind}: stderr secret`);
     };
     await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 422 });
-    await expect(stat(join(rootPath, ".recordings", `${outputId}.ogg`))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(outputPath(rootPath))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("never removes a pre-existing colliding output after conversion failure", async () => {
     const rootPath = await root();
-    const outputPath = join(rootPath, ".recordings", `${outputId}.ogg`);
-    await mkdir(join(rootPath, ".recordings"));
-    await writeFile(outputPath, Buffer.from("pre-existing"));
+    const collisionDirectory = join(rootPath, ".recordings", outputId);
+    const collisionOutput = outputPath(rootPath);
+    await mkdir(collisionDirectory, { recursive: true });
+    await writeFile(collisionOutput, Buffer.from("pre-existing"));
     const runner: RunBoundedProcess = async ({ command }) => {
       if (command === "ffprobe") return { stdout: probe(), stderr: "" };
       throw new Error("ffmpeg failed");
     };
     await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 422 });
-    await expect(readFile(outputPath, "utf8")).resolves.toBe("pre-existing");
+    await expect(readFile(collisionOutput, "utf8")).resolves.toBe("pre-existing");
   });
 
   it.each([
@@ -169,7 +174,7 @@ describe("recording conversion", () => {
       return { stdout: "", stderr: "" };
     };
     await expect(convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 422 });
-    await expect(stat(join(rootPath, ".recordings", `${outputId}.ogg`))).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(stat(outputPath(rootPath))).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("rejects output changed after validation", async () => {
@@ -192,13 +197,51 @@ describe("bounded process runner", () => {
     expect(child.stdout.listenerCount("data")).toBe(0);
   });
 
-  it.each(["timeout", "diagnostic overflow"]) ("terminates the child on %s", async (reason) => {
+  it("escalates an ignored timeout from SIGTERM to SIGKILL and rejects only after close", async () => {
+    const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: (signal?: string) => boolean };
+    child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+    const signals: string[] = [];
+    child.kill = (signal = "SIGTERM") => {
+      signals.push(signal);
+      if (signal === "SIGKILL") setTimeout(() => child.emit("close", null, signal), 0);
+      return true;
+    };
+    const promise = runBoundedProcess({ command: "ffmpeg", args: [], timeoutMs: 1, diagnosticLimitBytes: 4 }, { spawn: () => child as never, terminationGraceMs: 1 });
+    await expect(promise).rejects.toThrow();
+    expect(signals).toEqual(["SIGTERM", "SIGKILL"]);
+    expect(child.listenerCount("close")).toBe(0);
+    expect(child.stdout.listenerCount("data")).toBe(0);
+  });
+
+  it("does not hang when termination fails and close is late", async () => {
+    const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: (signal?: string) => boolean };
+    child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+    const signals: string[] = [];
+    child.kill = (signal = "SIGTERM") => { signals.push(signal); return false; };
+    const promise = runBoundedProcess({ command: "ffmpeg", args: [], timeoutMs: 1, diagnosticLimitBytes: 4 }, { spawn: () => child as never, terminationGraceMs: 1 });
+    setTimeout(() => child.emit("close", null, null), 30);
+    await expect(promise).rejects.toThrow();
+    expect(signals).toEqual(["SIGTERM", "SIGKILL"]);
+    expect(child.listenerCount("close")).toBe(0);
+  });
+
+  it("continues bounded shutdown when kill throws and close is late", async () => {
+    const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: () => boolean };
+    child.stdout = new EventEmitter(); child.stderr = new EventEmitter();
+    child.kill = () => { throw new Error("kill failed"); };
+    const promise = runBoundedProcess({ command: "ffmpeg", args: [], timeoutMs: 1, diagnosticLimitBytes: 4 }, { spawn: () => child as never, terminationGraceMs: 1 });
+    setTimeout(() => child.emit("close", null, null), 30);
+    await expect(promise).rejects.toThrow();
+    expect(child.listenerCount("close")).toBe(0);
+  });
+
+  it.each(["timeout", "diagnostic overflow"]) ("forces a bounded termination on %s", async (reason) => {
     const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter; kill: () => boolean };
     child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); let killed = 0; child.kill = () => { killed += 1; return true; };
-    const promise = runBoundedProcess({ command: "ffmpeg", args: [], timeoutMs: reason === "timeout" ? 1 : 10_000, diagnosticLimitBytes: 4 }, { spawn: () => child as never });
+    const promise = runBoundedProcess({ command: "ffmpeg", args: [], timeoutMs: reason === "timeout" ? 1 : 10_000, diagnosticLimitBytes: 4 }, { spawn: () => child as never, terminationGraceMs: 1 });
     if (reason === "diagnostic overflow") child.stderr.emit("data", Buffer.from("12345"));
     await expect(promise).rejects.toThrow();
-    expect(killed).toBe(1);
+    expect(killed).toBeGreaterThanOrEqual(2);
     expect(child.listenerCount("close")).toBe(0);
   });
 });

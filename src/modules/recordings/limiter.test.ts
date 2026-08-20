@@ -61,4 +61,16 @@ describe("recording admission limiter", () => {
       if (typeof admission !== "string") admission.release();
     }
   });
+
+  it("prunes expired attempt histories for inactive users", () => {
+    const limiter = new RecordingAdmissionLimiter();
+    const start = new Date("2026-08-20T12:00:00.000Z");
+    const first = limiter.tryAcquire("expired-user", start);
+    if (typeof first !== "string") first.release();
+    const current = limiter.tryAcquire("current-user", new Date(start.getTime() + 600_000));
+    if (typeof current !== "string") current.release();
+
+    const attempts = Reflect.get(limiter, "attempts") as Map<string, number[]>;
+    expect([...attempts.keys()]).toEqual(["current-user"]);
+  });
 });
