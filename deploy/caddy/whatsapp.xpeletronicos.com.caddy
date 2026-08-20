@@ -1,0 +1,26 @@
+whatsapp.xpeletronicos.com {
+	request_body {
+		max_size 105MB
+	}
+
+	encode zstd gzip
+
+	header {
+		-Server
+		Cache-Control "no-store"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(self), geolocation=()"
+		Content-Security-Policy "base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
+	}
+
+	reverse_proxy xp-whatsapp-app:3000 {
+		flush_interval -1
+		header_up -X-Forwarded-For
+		header_up -X-Real-IP
+		header_up -Forwarded
+		header_up X-Caddy-Client-IP {remote_host}
+	}
+}
