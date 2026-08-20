@@ -37,6 +37,8 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     verifyMetaSignature,
     verifyMetaToken,
     maxBodyBytes: 1024 * 1024,
+    scheduleAfter: (_work: () => Promise<void>) => undefined,
+    ensureMediaAvailable: async (_mediaId: string) => undefined,
     logger: {
       info: (event: string, fields?: Record<string, unknown>) =>
         logs.push({ level: "info", event, fields }),
@@ -117,6 +119,33 @@ describe("Meta webhook route", () => {
       processed: 1,
       duplicates: 0,
     });
+  });
+
+  it("schedules pending media persistence after returning the signed webhook response", async () => {
+    const body = JSON.stringify(inboundTextFixture);
+    const scheduled: Array<() => Promise<void>> = [];
+    const ensured: string[] = [];
+    const harness = dependencies({
+      processWebhookEvents: async (
+        _events: unknown[],
+        _dependencies: unknown,
+        onMediaCommitted?: (mediaId: string) => void,
+      ) => {
+        onMediaCommitted?.("30000000-0000-4000-8000-000000000001");
+        return { processed: 1, duplicates: 0 };
+      },
+      scheduleAfter: (work: () => Promise<void>) => scheduled.push(work),
+      ensureMediaAvailable: async (mediaId: string) => { ensured.push(mediaId); },
+    });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+
+    const response = await POST(request(body));
+
+    expect(response.status).toBe(200);
+    expect(ensured).toEqual([]);
+    expect(scheduled).toHaveLength(1);
+    await scheduled[0]!();
+    expect(ensured).toEqual(["30000000-0000-4000-8000-000000000001"]);
   });
 
   it("accepts a body whose byte length is exactly the configured limit", async () => {

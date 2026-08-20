@@ -180,8 +180,9 @@ describe("webhook event processing", () => {
   it("atomically creates contact, conversation, inbound message and pending media before publishing", async () => {
     const harness = createHarness();
     const events = normalizeWebhook(inboundMediaFixture("document"));
+    const pendingMedia: string[] = [];
 
-    await expect(processWebhookEvents(events, harness.dependencies)).resolves.toEqual({
+    await expect(processWebhookEvents(events, harness.dependencies, (id) => pendingMedia.push(id))).resolves.toEqual({
       processed: 1,
       duplicates: 0,
     });
@@ -194,6 +195,7 @@ describe("webhook event processing", () => {
       metaMediaId: "meta-document-1",
       status: "PENDING",
     });
+    expect(pendingMedia).toEqual(["media-1"]);
     expect(harness.publications).toEqual([
       {
         afterCommit: true,
@@ -204,6 +206,17 @@ describe("webhook event processing", () => {
         },
       },
     ]);
+  });
+
+  it("does not schedule a second media download for a duplicate webhook", async () => {
+    const harness = createHarness();
+    const events = normalizeWebhook(inboundMediaFixture("image"));
+    const pendingMedia: string[] = [];
+
+    await processWebhookEvents(events, harness.dependencies, (id) => pendingMedia.push(id));
+    await processWebhookEvents(events, harness.dependencies, (id) => pendingMedia.push(id));
+
+    expect(pendingMedia).toEqual(["media-1"]);
   });
 
   it("ignores a processed message event and does not publish twice", async () => {

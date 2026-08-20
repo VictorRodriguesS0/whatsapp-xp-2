@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
 
 import type { ServerEnv } from "@/lib/env";
 import { getServerEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { ensureMediaAvailable } from "@/modules/media/service";
 import { normalizeWebhook, WebhookPayloadError } from "@/modules/webhooks/normalize";
 import {
   processWebhookEvents,
@@ -30,6 +32,8 @@ type MetaWebhookRouteDependencies = {
   verifyMetaSignature: typeof verifyMetaSignature;
   verifyMetaToken: typeof verifyMetaToken;
   maxBodyBytes: number;
+  scheduleAfter(work: () => Promise<void>): void;
+  ensureMediaAvailable(mediaId: string): Promise<void>;
   logger: WebhookLogger;
 };
 
@@ -40,6 +44,8 @@ const defaultDependencies: MetaWebhookRouteDependencies = {
   verifyMetaSignature,
   verifyMetaToken,
   maxBodyBytes: META_WEBHOOK_MAX_BODY_BYTES,
+  scheduleAfter: (work) => after(work),
+  ensureMediaAvailable,
   logger,
 };
 
@@ -195,7 +201,25 @@ export function createMetaWebhookRouteHandlers(
       }
 
       try {
-        const summary = await dependencies.processWebhookEvents(events);
+        const pendingMediaIds: string[] = [];
+        const summary = await dependencies.processWebhookEvents(
+          events,
+          undefined,
+          (mediaId) => pendingMediaIds.push(mediaId),
+        );
+        for (const mediaId of pendingMediaIds) {
+          dependencies.scheduleAfter(async () => {
+            try {
+              await dependencies.ensureMediaAvailable(mediaId);
+            } catch (error) {
+              dependencies.logger.error("webhook.media_persistence_failed", {
+                requestId,
+                mediaId,
+                errorType: error instanceof Error ? error.name : "Unknown",
+              });
+            }
+          });
+        }
         dependencies.logger.info("webhook.accepted", {
           requestId,
           eventCount: events.length,

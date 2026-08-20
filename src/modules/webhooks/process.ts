@@ -311,12 +311,12 @@ async function processMessage(
   event: NormalizedMessageEvent,
   key: string,
   repository: WebhookRepository,
-): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null }> {
+): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null; pendingMediaId: string | null }> {
   const existing = await repository.findMessage(event.whatsappMessageId);
 
   if (existing) {
     await repository.completeEvent(key);
-    return { duplicate: true, realtime: null };
+    return { duplicate: true, realtime: null, pendingMediaId: null };
   }
 
   const contact = await repository.upsertContact({
@@ -338,6 +338,7 @@ async function processMessage(
 
   return {
     duplicate: false,
+    pendingMediaId: media?.id ?? null,
     realtime: {
       type: "message.created",
       conversationId: message.conversationId,
@@ -350,7 +351,7 @@ async function processStatus(
   event: NormalizedStatusEvent,
   key: string,
   repository: WebhookRepository,
-): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null }> {
+): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null; pendingMediaId: string | null }> {
   const message = await repository.findMessage(event.whatsappMessageId);
 
   if (!message) {
@@ -373,25 +374,30 @@ async function processStatus(
   }
 
   await repository.completeEvent(key);
-  return { duplicate: false, realtime };
+  return { duplicate: false, realtime, pendingMediaId: null };
 }
 
 export async function processWebhookEvents(
   events: readonly NormalizedWebhookEvent[],
   dependencies: WebhookProcessDependencies = defaultDependencies,
+  onMediaCommitted?: (mediaId: string) => void,
 ): Promise<ProcessSummary> {
   const summary: ProcessSummary = { processed: 0, duplicates: 0 };
 
   for (const event of events) {
     const key = deduplicationKey(event);
-    let outcome: { duplicate: boolean; realtime: RealtimeEvent | null };
+    let outcome: {
+      duplicate: boolean;
+      realtime: RealtimeEvent | null;
+      pendingMediaId: string | null;
+    };
 
     try {
       outcome = await dependencies.transaction(async (repository) => {
         const reservation = await repository.reserveEvent(key, event.kind);
 
         if (reservation === WebhookStatus.PROCESSED) {
-          return { duplicate: true, realtime: null };
+          return { duplicate: true, realtime: null, pendingMediaId: null };
         }
 
         if (reservation === WebhookStatus.PROCESSING) {
@@ -425,6 +431,14 @@ export async function processWebhookEvents(
     }
 
     summary.processed += 1;
+
+    if (outcome.pendingMediaId && onMediaCommitted) {
+      try {
+        onMediaCommitted(outcome.pendingMediaId);
+      } catch {
+        // The committed media record remains available for on-demand recovery.
+      }
+    }
 
     if (outcome.realtime) {
       try {
