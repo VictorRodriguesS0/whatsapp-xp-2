@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, Info } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,12 @@ function prefersReducedMotion() {
 
 function ConversationHeader({
   conversation,
+  detailsTriggerRef,
   onBack,
   onOpenDetails,
 }: {
   conversation: InboxConversation | null;
+  detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
   onBack: () => void;
   onOpenDetails: () => void;
 }) {
@@ -47,13 +49,16 @@ function ConversationHeader({
           <div className="min-w-0 flex-1"><h2 className="truncate font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>{conversation.contact.name}</h2><p className="truncate text-xs text-[var(--muted)]">{conversation.contact.phone}</p></div>
         </>
       ) : <h2 className="min-w-0 flex-1 font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>Conversa</h2>}
-      <Button aria-label="Abrir dados do cliente" className="details-trigger" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost"><Info aria-hidden="true" className="size-5" /></Button>
+      <Button asChild aria-label="Abrir dados do cliente" className="details-trigger" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost">
+        <button ref={detailsTriggerRef} type="button"><Info aria-hidden="true" className="size-5" /></button>
+      </Button>
     </header>
   );
 }
 
 export function ConversationView({
   conversation,
+  detailsTriggerRef,
   loading,
   error,
   onBack,
@@ -65,6 +70,7 @@ export function ConversationView({
   onRetryMessage,
 }: {
   conversation: InboxConversation | null;
+  detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
   loading: boolean;
   error: string | null;
   onBack: () => void;
@@ -132,7 +138,7 @@ export function ConversationView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ConversationHeader conversation={conversation} onBack={onBack} onOpenDetails={onOpenDetails} />
+      <ConversationHeader conversation={conversation} detailsTriggerRef={detailsTriggerRef} onBack={onBack} onOpenDetails={onOpenDetails} />
 
       {loading && !conversation ? <div className="flex flex-1 items-center justify-center"><Spinner label="Carregando histórico" /></div> : null}
 

@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionUser } from "@/modules/auth/session";
@@ -81,6 +82,30 @@ describe("InboxShell", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(conversationButton).toHaveFocus();
     vi.unstubAllGlobals();
+  });
+
+  it("restores focus to the mobile details trigger when the dialog closes", async () => {
+    const userEventController = userEvent.setup();
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+    const trigger = screen.getByRole("button", { name: "Abrir dados do cliente" });
+
+    await userEventController.click(trigger);
+    expect(screen.getByRole("dialog", { name: "Dados do cliente" })).toBeVisible();
+    await userEventController.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("prefers fresh selected conversation metadata over a stale list row", () => {

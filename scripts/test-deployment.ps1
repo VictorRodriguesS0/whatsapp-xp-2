@@ -22,6 +22,11 @@ if ($BackupShell -notmatch 'docker-helper-lib\.sh' -or $RestoreShell -notmatch '
 if ($BackupPowerShell -notmatch 'docker-helper-lib\.ps1') {
   throw 'Backup PowerShell deve usar o protocolo comum de ownership de helpers.'
 }
+foreach ($BackupScript in @($BackupShell, $BackupPowerShell)) {
+  if ($BackupScript -notmatch "--exclude='\./\.staging'") {
+    throw 'Backup deve excluir o diretório transitório .staging do arquivo restaurável.'
+  }
+}
 if (
   $BackupPowerShell -notmatch 'validate-media-archive\.sh' -or
   $BackupPowerShell -notmatch 'docker cp \$ArchiveValidator'

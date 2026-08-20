@@ -32,6 +32,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
+  const detailsTrigger = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
   const cancelScheduledFocus = useRef<(() => void) | null>(null);
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
@@ -115,6 +116,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
           <section aria-label="Conversa ativa" className="thread-pane min-h-0 bg-[var(--panel)]">
             <ConversationView
               conversation={inbox.conversation}
+              detailsTriggerRef={detailsTrigger}
               error={inbox.conversationError}
               loading={inbox.loadingConversation}
               onBack={backToList}
@@ -136,7 +138,13 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
       </div>
 
       <Dialog onOpenChange={setDetailsOpen} open={detailsOpen}>
-        <DialogContent className="customer-dialog">
+        <DialogContent
+          className="customer-dialog"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            detailsTrigger.current?.focus();
+          }}
+        >
           <DialogTitle className="pr-12 text-lg font-bold text-[var(--text)]">Dados do cliente</DialogTitle>
           <DialogDescription className="sr-only">Contato e responsável pela conversa selecionada.</DialogDescription>
           <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} pending={inbox.responsiblePending} users={inbox.users} />

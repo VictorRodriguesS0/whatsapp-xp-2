@@ -17,6 +17,7 @@ describe("realtime hub", () => {
     const controller = new AbortController();
     const reader = subscribeRealtime(controller.signal).getReader();
 
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(": connected\n\n");
     publishRealtime({ type: "conversation.updated", conversationId: "c1" });
 
     expect(new TextDecoder().decode((await reader.read()).value)).toBe(
@@ -33,6 +34,7 @@ describe("realtime hub", () => {
     const controller = new AbortController();
     const reader = subscribeRealtime(controller.signal).getReader();
 
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(": connected\n\n");
     await vi.advanceTimersByTimeAsync(20_000);
 
     expect(new TextDecoder().decode((await reader.read()).value)).toBe(": heartbeat\n\n");
@@ -41,6 +43,25 @@ describe("realtime hub", () => {
     await vi.advanceTimersByTimeAsync(20_000);
 
     expect(realtimeSubscriberCount()).toBe(0);
+  });
+
+  it("emits an initial comment immediately so EventSource can open", async () => {
+    const controller = new AbortController();
+    const reader = subscribeRealtime(controller.signal).getReader();
+
+    const initial = await Promise.race([
+      reader.read(),
+      new Promise<"timeout">((resolve) => setTimeout(() => resolve("timeout"), 50)),
+    ]);
+
+    try {
+      expect(initial).not.toBe("timeout");
+      expect(new TextDecoder().decode((initial as ReadableStreamReadResult<Uint8Array>).value)).toBe(
+        ": connected\n\n",
+      );
+    } finally {
+      controller.abort();
+    }
   });
 
   it("closes a subscriber when its user's session is invalidated", () => {

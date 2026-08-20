@@ -94,6 +94,7 @@ export function subscribeRealtime(
       }
 
       getHub().subscribers.add(subscriber);
+      controller.enqueue(frame(": connected\n\n"));
       heartbeat = setInterval(() => {
         try {
           controller.enqueue(frame(": heartbeat\n\n"));
