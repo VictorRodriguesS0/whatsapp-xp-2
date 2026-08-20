@@ -5,12 +5,32 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { parseMediaMultipartRequest } from "./multipart";
+import { parseMediaMultipartRequest, parseMultipartFileRequest } from "./multipart";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
 
 describe("streaming media multipart", () => {
+  it("uses configurable fields and limits without changing media defaults", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-multipart-config-"));
+    roots.push(root);
+    const form = new FormData();
+    form.set("request", "one");
+    form.set("file", new File([new Uint8Array([1])], "x.bin", { type: "application/octet-stream" }));
+
+    const parsed = await parseMultipartFileRequest({
+      request: new Request("http://localhost/upload", { method: "POST", body: form }),
+      root,
+      maximumFileBytes: 1,
+      maximumRequestBytes: 64 * 1024,
+      allowedFields: ["request"],
+    });
+
+    expect(parsed.fields).toEqual({ request: "one" });
+    expect(parsed.file.sizeBytes).toBe(1n);
+    await parsed.file.cleanup();
+  });
+
   it("handles an early staging rejection immediately without an unhandled rejection", async () => {
     const directory = await mkdtemp(join(tmpdir(), "xp-multipart-reject-"));
     roots.push(directory);
