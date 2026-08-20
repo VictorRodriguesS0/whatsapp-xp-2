@@ -254,7 +254,13 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         throw new WebhookPayloadError();
       }
 
-      if (change.field !== "messages") {
+      const field = cleanString(change.field, 128);
+
+      if (!field) {
+        throw new WebhookPayloadError();
+      }
+
+      if (field !== "messages") {
         continue;
       }
 

@@ -44,6 +44,18 @@ describe("Meta webhook normalization", () => {
     expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
 
+  it.each([
+    {},
+    { field: 42, value: null },
+    { field: "", value: null },
+    { field: "   ", value: null },
+  ])("rejects a change without a non-empty string field: %j", (change) => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry[0].changes = [change];
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
   it.each([null, [], "invalid"])(
     "rejects an invalid messages change value: %j",
     (value) => {
