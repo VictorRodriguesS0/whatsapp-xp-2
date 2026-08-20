@@ -24,6 +24,10 @@ export class LoginRateLimiter {
   isAllowed(attempt: LoginAttempt, now = new Date()): boolean {
     this.prune(now);
 
+    if (!this.hasCapacityFor(attempt)) {
+      return false;
+    }
+
     return (
       this.isKeyAllowed(this.emailKey(attempt)) &&
       this.isKeyAllowed(this.ipKey(attempt))
@@ -32,9 +36,13 @@ export class LoginRateLimiter {
 
   recordFailure(attempt: LoginAttempt, now = new Date()): void {
     this.prune(now);
+
+    if (!this.hasCapacityFor(attempt)) {
+      return;
+    }
+
     this.recordKeyFailure(this.emailKey(attempt), now);
     this.recordKeyFailure(this.ipKey(attempt), now);
-    this.enforceCapacity();
   }
 
   reset(attempt: LoginAttempt, now = new Date()): void {
@@ -66,16 +74,16 @@ export class LoginRateLimiter {
     }
   }
 
-  private enforceCapacity(): void {
-    while (this.attempts.size > LOGIN_RATE_LIMIT_MAX_IDENTITIES) {
-      const oldestKey = this.attempts.keys().next().value;
+  private hasCapacityFor(attempt: LoginAttempt): boolean {
+    const keys = [this.emailKey(attempt), this.ipKey(attempt)];
+    const missingIdentityCount = keys.filter(
+      (key) => !this.attempts.has(key),
+    ).length;
 
-      if (!oldestKey) {
-        return;
-      }
-
-      this.attempts.delete(oldestKey);
-    }
+    return (
+      this.attempts.size + missingIdentityCount <=
+      LOGIN_RATE_LIMIT_MAX_IDENTITIES
+    );
   }
 
   private emailKey({ email }: LoginAttempt): string {

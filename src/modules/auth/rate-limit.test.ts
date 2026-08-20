@@ -73,12 +73,16 @@ describe("login rate limiter", () => {
     ).toBe(2);
   });
 
-  it("caps tracked identities and deterministically evicts the oldest entry", () => {
+  it("keeps a five-failure lockout while newer identities fill capacity", () => {
     const limiter = new LoginRateLimiter();
     const now = new Date("2026-08-19T12:00:00.000Z");
-    const first = { email: "user-0@example.test", ip: "198.51.100.0" };
+    const locked = { email: "locked@example.test", ip: "192.0.2.250" };
 
-    for (let count = 0; count <= LOGIN_RATE_LIMIT_MAX_IDENTITIES; count += 1) {
+    for (let count = 0; count < 5; count += 1) {
+      limiter.recordFailure(locked, now);
+    }
+
+    for (let count = 0; count < LOGIN_RATE_LIMIT_MAX_IDENTITIES; count += 1) {
       limiter.recordFailure(
         {
           email: `user-${count}@example.test`,
@@ -88,10 +92,50 @@ describe("login rate limiter", () => {
       );
     }
 
-    expect(
-      (limiter as unknown as { trackedIdentityCount: number })
-        .trackedIdentityCount,
-    ).toBeLessThanOrEqual(LOGIN_RATE_LIMIT_MAX_IDENTITIES);
-    expect(limiter.isAllowed(first, now)).toBe(true);
+    expect(limiter.trackedIdentityCount).toBe(LOGIN_RATE_LIMIT_MAX_IDENTITIES);
+    expect(limiter.isAllowed(locked, now)).toBe(false);
+  });
+
+  it("denies an untracked identity when capacity is full without evicting one", () => {
+    const limiter = new LoginRateLimiter();
+    const now = new Date("2026-08-19T12:00:00.000Z");
+
+    for (let count = 0; count < LOGIN_RATE_LIMIT_MAX_IDENTITIES; count += 1) {
+      limiter.recordFailure(
+        {
+          email: `user-${count}@example.test`,
+          ip: `198.51.100.${count}`,
+        },
+        now,
+      );
+    }
+
+    const untracked = { email: "untracked@example.test", ip: "203.0.113.1" };
+    expect(limiter.isAllowed(untracked, now)).toBe(false);
+
+    limiter.recordFailure(untracked, now);
+    expect(limiter.trackedIdentityCount).toBe(LOGIN_RATE_LIMIT_MAX_IDENTITIES);
+  });
+
+  it("accepts a new identity after expiry pruning frees capacity", () => {
+    const limiter = new LoginRateLimiter();
+    const now = new Date("2026-08-19T12:00:00.000Z");
+
+    for (let count = 0; count < LOGIN_RATE_LIMIT_MAX_IDENTITIES; count += 1) {
+      limiter.recordFailure(
+        {
+          email: `user-${count}@example.test`,
+          ip: `198.51.100.${count}`,
+        },
+        now,
+      );
+    }
+
+    const later = new Date("2026-08-19T12:15:00.001Z");
+    const untracked = { email: "untracked@example.test", ip: "203.0.113.1" };
+
+    expect(limiter.isAllowed(untracked, later)).toBe(true);
+    limiter.recordFailure(untracked, later);
+    expect(limiter.trackedIdentityCount).toBe(2);
   });
 });
