@@ -20,6 +20,7 @@ whatsapp.xpeletronicos.com {
 		flush_interval -1
 		header_up -X-Forwarded-For
 		header_up -X-Real-IP
+		header_up X-Real-IP {remote_host}
 		header_up -Forwarded
 		header_up X-Caddy-Client-IP {remote_host}
 	}

@@ -74,6 +74,7 @@ Assert-True ($caddy -match "reverse_proxy\s+xp-whatsapp-app:3000") "O Caddy deve
 Assert-True ($caddy -match "max_size\s+105MB") "O limite de upload deve ser 105 MB."
 Assert-True ($caddy -match "flush_interval\s+-1") "O proxy deve entregar SSE sem buffering."
 Assert-True ($caddy -match "header_up\s+-X-Forwarded-For") "Cabeçalhos de IP forjáveis devem ser removidos."
+Assert-True ($caddy -match "header_up\s+X-Real-IP\s+\{remote_host\}") "O Caddy deve fornecer ao app o IP real confiável."
 Assert-True ($caddy -match 'Permissions-Policy\s+"[^\"]*microphone=\(self\)') "O microfone deve ser permitido apenas para a própria aplicação."
 Assert-True ($caddy -match 'Cache-Control\s+"no-store"') "Conteúdo autenticado não pode ser armazenado em cache."
 Assert-True ($caddy -notmatch "(?i)(password|secret|access[_-]?token)\s+[=:]\s*\S+") "O site do Caddy não pode conter segredos."
