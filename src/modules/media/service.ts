@@ -45,6 +45,7 @@ export interface MediaServiceRepository {
   findById(id: string): Promise<MediaObjectRecord | null>;
   findVisibleById(id: string, actorId: string): Promise<MediaObjectRecord | null>;
   claimPending(id: string, input: { leaseId: string; now: Date; leaseUntil: Date }): Promise<MediaObjectRecord | null>;
+  finalizeExhausted(id: string, now: Date, reason: string): Promise<boolean>;
   renewLease(id: string, leaseId: string, leaseUntil: Date): Promise<boolean>;
   markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }): Promise<boolean>;
   markPermanentFailure(id: string, leaseId: string, reason: string): Promise<void>;
@@ -103,6 +104,24 @@ export const prismaMediaRepository: MediaServiceRepository = {
       },
     });
     return claimed.count === 1 ? this.findById(id) : null;
+  },
+  async finalizeExhausted(id, now, reason) {
+    const finalized = await prisma.mediaObject.updateMany({
+      where: {
+        id,
+        status: MediaStatus.PENDING,
+        downloadAttempts: { gte: MAX_MEDIA_DOWNLOAD_ATTEMPTS },
+        OR: [{ downloadLeaseUntil: null }, { downloadLeaseUntil: { lte: now } }],
+      },
+      data: {
+        status: MediaStatus.FAILED,
+        failureReason: reason,
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+        downloadNextAttemptAt: null,
+      },
+    });
+    return finalized.count === 1;
   },
   async renewLease(id, leaseId, leaseUntil) {
     const renewed = await prisma.mediaObject.updateMany({
@@ -171,6 +190,10 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
 
   const clock = dependencies.now ?? (() => new Date());
   const now = clock();
+  if (initial.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
+    await dependencies.repository.finalizeExhausted(id, now, "Falha ao obter mídia; intervenção necessária");
+    return;
+  }
   const leaseId = (dependencies.createUuid ?? randomUUID)();
   const leaseMs = dependencies.leaseMs ?? DOWNLOAD_LEASE_MS;
   const renewEveryMs = dependencies.leaseRenewIntervalMs ?? Math.max(1_000, Math.floor(leaseMs / 3));

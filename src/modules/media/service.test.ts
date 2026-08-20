@@ -36,6 +36,12 @@ class MemoryMediaRepository implements MediaServiceRepository {
     this.record = { ...this.record, downloadLeaseId: input.leaseId, downloadLeaseUntil: input.leaseUntil, downloadAttempts: this.record.downloadAttempts + 1 };
     return this.record;
   }
+  async finalizeExhausted(id: string, now: Date, reason: string) {
+    if (id !== this.record.id || this.record.status !== MediaStatus.PENDING || this.record.downloadAttempts < 5 ||
+      (this.record.downloadLeaseUntil && this.record.downloadLeaseUntil > now)) return false;
+    this.record = { ...this.record, status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
+    return true;
+  }
   async markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }) {
     if (id !== this.record.id || this.record.downloadLeaseId !== leaseId || this.record.status !== MediaStatus.PENDING) return false;
     this.record = { ...this.record, ...input, status: MediaStatus.AVAILABLE, failureReason: null, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
@@ -149,6 +155,21 @@ describe("received media service", () => {
     expect(state.repository.record).toMatchObject({ status: MediaStatus.FAILED, downloadAttempts: 5, downloadLeaseId: null });
     await ensureMediaAvailable(mediaId, state.dependencies).catch(() => undefined);
     expect(state.provider.metadataCalls).toBe(1);
+  });
+
+  it("finalizes an abandoned fifth attempt after its lease expires without another provider call", async () => {
+    const state = await harness();
+    state.repository.record = {
+      ...state.repository.record,
+      downloadAttempts: 5,
+      downloadLeaseId: randomUUID(),
+      downloadLeaseUntil: new Date("2026-08-20T11:59:59.000Z"),
+    };
+
+    await ensureMediaAvailable(mediaId, state.dependencies);
+
+    expect(state.repository.record).toMatchObject({ status: MediaStatus.FAILED, downloadLeaseId: null });
+    expect(state.provider.metadataCalls).toBe(0);
   });
 
   it("renews a slow download lease so an independent worker cannot duplicate provider work", async () => {

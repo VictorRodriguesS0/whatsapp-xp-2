@@ -168,6 +168,51 @@ describe("Meta WhatsApp provider", () => {
     await expect(unknown.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "unknown" });
   });
 
+  it.each([408, 429, 500, 503])("classifies retryable Graph HTTP %s as unknown for outbound send", async (status) => {
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => Response.json({ error: { code: status, message: "retry later" } }, { status }),
+    );
+
+    await expect(provider.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "unknown" });
+  });
+
+  it("keeps a definitive allowlisted Graph 4xx as rejected", async () => {
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => Response.json({ error: { code: 400, message: "bad request" } }, { status: 400 }),
+    );
+    await expect(provider.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "rejected" });
+  });
+
+  it("classifies retryable HTTP failures in upload, metadata and download as unknown", async () => {
+    const upload = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async (_url, init) => {
+        await (init?.body as ReadableStream<Uint8Array>).cancel();
+        return Response.json({ error: { code: 503 } }, { status: 503 });
+      },
+    );
+    const metadata = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => Response.json({ error: { code: 429 } }, { status: 429 }),
+    );
+    const download = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => new Response("retry", { status: 500 }),
+    );
+
+    await expect(upload.uploadMedia({
+      sizeBytes: 1n,
+      open: async () => new ReadableStream({ start(controller) { controller.enqueue(Uint8Array.of(1)); controller.close(); } }),
+      filename: "x.jpg",
+      mimeType: "image/jpeg",
+    })).rejects.toMatchObject({ kind: "unknown" });
+    await expect(metadata.getMediaMetadata("media-1")).rejects.toMatchObject({ kind: "unknown" });
+    await expect(download.downloadMedia({ url: "https://lookaside.fbsbx.com/file", maximumBytes: 10 }))
+      .rejects.toMatchObject({ kind: "unknown" });
+  });
+
   it("rejects oversized or truncated JSON as unknown without buffering an unbounded body", async () => {
     let cancelled = false;
     const body = new ReadableStream<Uint8Array>({

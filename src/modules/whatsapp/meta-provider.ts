@@ -31,6 +31,14 @@ function unknownProviderError(): WhatsAppProviderError {
   return new WhatsAppProviderError("unknown");
 }
 
+const DEFINITIVE_GRAPH_CLIENT_STATUSES = new Set([400, 401, 403, 404, 409, 410, 413, 415, 422]);
+
+function providerErrorKindForStatus(status: number): WhatsAppProviderErrorKind {
+  if (status === 408 || status === 429 || status >= 500) return "unknown";
+  if (DEFINITIVE_GRAPH_CLIENT_STATUSES.has(status) || (status >= 300 && status < 400)) return "rejected";
+  return "unknown";
+}
+
 function raceWithAbort<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const abort = () => reject(unknownProviderError());
@@ -113,7 +121,7 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
         .replace(/[\u0000-\u001f\u007f]/g, " ")
         .trim()
         .slice(0, 160);
-      throw new WhatsAppProviderError("rejected", `Graph ${code}: ${message || "request_failed"}`);
+      throw new WhatsAppProviderError(providerErrorKindForStatus(response.status), `Graph ${code}: ${message || "request_failed"}`);
     }
 
     if (!isRecord(payload)) throw unknownProviderError();
@@ -271,8 +279,11 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
       throw unknownProviderError();
     }
     if (!response.ok || response.status >= 300 || !response.body) {
+      await response.body?.cancel().catch(() => undefined);
       clearTimeout(timer);
-      throw new WhatsAppProviderError("rejected");
+      throw new WhatsAppProviderError(
+        response.status >= 300 && response.status < 400 ? "rejected" : providerErrorKindForStatus(response.status),
+      );
     }
     const contentLength = response.headers.get("content-length");
     if (contentLength && (!/^\d+$/.test(contentLength) || BigInt(contentLength) > BigInt(input.maximumBytes))) {
