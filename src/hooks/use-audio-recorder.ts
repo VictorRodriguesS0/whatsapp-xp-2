@@ -54,6 +54,7 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     Math.max(1, Math.floor(options.maximumDurationMs ?? DEFAULT_MAXIMUM_DURATION_MS)),
   );
   const [phase, setPhaseState] = useState<AudioRecorderPhase>("idle");
+  const [supported, setSupported] = useState(false);
   const [durationMs, setDurationMs] = useState(0);
   const [recording, setRecording] = useState<AudioRecording | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -63,6 +64,8 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
   const recorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
+  const emittedMimeTypeRef = useRef<string | null>(null);
+  const hasInvalidEmittedMimeTypeRef = useRef(false);
   const startedAtRef = useRef<number | null>(null);
   const tickTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -83,13 +86,25 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
   const releaseStream = useCallback(() => {
     const stream = streamRef.current;
     streamRef.current = null;
-    for (const track of stream?.getTracks() ?? []) track.stop();
+    for (const track of stream?.getTracks() ?? []) {
+      try {
+        track.stop();
+      } catch {
+        // Releasing the remaining tracks is still safe and necessary.
+      }
+    }
   }, []);
 
   const releasePreview = useCallback(() => {
     const previewUrl = previewUrlRef.current;
     previewUrlRef.current = null;
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    if (previewUrl) {
+      try {
+        URL.revokeObjectURL(previewUrl);
+      } catch {
+        // Ownership is cleared before this call, so a failed browser revoke cannot be retried twice.
+      }
+    }
   }, []);
 
   const resetState = useCallback((nextPhase: AudioRecorderPhase = "idle", nextError: string | null = null) => {
@@ -107,6 +122,8 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     const recorder = recorderRef.current;
     recorderRef.current = null;
     chunksRef.current = [];
+    emittedMimeTypeRef.current = null;
+    hasInvalidEmittedMimeTypeRef.current = false;
     if (recorder) {
       recorder.ondataavailable = null;
       recorder.onstop = null;
@@ -142,16 +159,20 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
   }, [abandonCapture, clearTimers]);
 
   const start = useCallback(async () => {
-    if (phaseRef.current === "requesting" || phaseRef.current === "recording") return;
-    if (!isCaptureSupported()) {
+    if (phaseRef.current !== "idle" && phaseRef.current !== "error") return;
+    const captureSupported = isCaptureSupported();
+    if (!captureSupported) {
       resetState("error", "A gravação de áudio não é compatível com este navegador.");
       return;
     }
+    if (mountedRef.current) setSupported(true);
 
     const generation = generationRef.current + 1;
     generationRef.current = generation;
     clearTimers();
     chunksRef.current = [];
+    emittedMimeTypeRef.current = null;
+    hasInvalidEmittedMimeTypeRef.current = false;
     setDurationMs(0);
     setRecording(null);
     setError(null);
@@ -171,7 +192,16 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     }
 
     streamRef.current = stream;
-    const mimeType = PREFERRED_MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
+    let mimeType: string | undefined;
+    try {
+      mimeType = PREFERRED_MIME_TYPES.find((type) => (
+        typeof MediaRecorder.isTypeSupported === "function" && MediaRecorder.isTypeSupported(type)
+      ));
+    } catch {
+      releaseStream();
+      resetState("error", "Não foi possível iniciar a gravação de áudio.");
+      return;
+    }
     let recorder: MediaRecorder;
     try {
       recorder = mimeType
@@ -186,6 +216,14 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     recorderRef.current = recorder;
     recorder.ondataavailable = (event) => {
       if (generation !== generationRef.current || !event.data || event.data.size === 0) return;
+      const emittedMimeType = event.data.type;
+      const emittedType = mimeEssence(emittedMimeType);
+      const expectedType = mimeEssence(recorder.mimeType);
+      if (emittedType && (!ALLOWED_MIME_TYPES.has(emittedType) || (expectedType && emittedType !== expectedType))) {
+        hasInvalidEmittedMimeTypeRef.current = true;
+        return;
+      }
+      if (emittedMimeType) emittedMimeTypeRef.current ??= emittedMimeType;
       chunksRef.current.push(event.data);
     };
     recorder.onerror = (_event: RecorderErrorEvent) => {
@@ -202,29 +240,52 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
       startedAtRef.current = null;
       recorderRef.current = null;
       releaseStream();
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || chunksRef.current[0]?.type || "" });
+      const emittedMimeType = emittedMimeTypeRef.current;
+      const finalMimeType = emittedMimeType || recorder.mimeType || "";
+      const blob = new Blob(chunksRef.current, { type: finalMimeType });
       chunksRef.current = [];
+      emittedMimeTypeRef.current = null;
       recorder.ondataavailable = null;
       recorder.onstop = null;
       recorder.onerror = null;
       const mimeType = blob.type;
       const type = mimeEssence(mimeType);
-      if (blob.size === 0 || blob.size > MAXIMUM_RECORDING_BYTES || !ALLOWED_MIME_TYPES.has(type)) {
+      if (
+        hasInvalidEmittedMimeTypeRef.current
+        || blob.size === 0
+        || blob.size > MAXIMUM_RECORDING_BYTES
+        || !ALLOWED_MIME_TYPES.has(type)
+      ) {
+        hasInvalidEmittedMimeTypeRef.current = false;
         resetState("error", "Não foi possível preparar o áudio gravado.");
         return;
       }
-      const previewUrl = URL.createObjectURL(blob);
-      previewUrlRef.current = previewUrl;
-      const file = new File([blob], recordingFilename(type), { type: mimeType });
-      setDurationMs(elapsed);
-      setRecording({
-        clientRequestId: crypto.randomUUID(),
-        durationMs: elapsed,
-        file,
-        previewUrl,
-      });
-      setError(null);
-      setPhase("preview");
+      hasInvalidEmittedMimeTypeRef.current = false;
+      let previewUrl: string | null = null;
+      try {
+        previewUrl = URL.createObjectURL(blob);
+        const file = new File([blob], recordingFilename(type), { type: mimeType });
+        const clientRequestId = crypto.randomUUID();
+        previewUrlRef.current = previewUrl;
+        setDurationMs(elapsed);
+        setRecording({
+          clientRequestId,
+          durationMs: elapsed,
+          file,
+          previewUrl,
+        });
+        setError(null);
+        setPhase("preview");
+      } catch {
+        if (previewUrl) {
+          try {
+            URL.revokeObjectURL(previewUrl);
+          } catch {
+            // The URL is local and was never retained by hook state.
+          }
+        }
+        resetState("error", "Não foi possível preparar o áudio gravado.");
+      }
     };
 
     const startedAt = Date.now();
@@ -238,7 +299,13 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
     }, maximumDurationMs);
     try {
       recorder.start();
-      setPhase("recording");
+      if (
+        generation === generationRef.current
+        && recorderRef.current === recorder
+        && (phaseRef.current as AudioRecorderPhase) === "requesting"
+      ) {
+        setPhase("recording");
+      }
     } catch {
       abandonCapture("error", "Não foi possível iniciar a gravação de áudio.");
     }
@@ -246,8 +313,14 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
 
   useEffect(() => {
     mountedRef.current = true;
+    setSupported(isCaptureSupported());
     return () => {
       mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
       abandonCapture();
       releasePreview();
     };
@@ -255,7 +328,7 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
 
   return {
     phase,
-    supported: isCaptureSupported(),
+    supported,
     durationMs,
     recording,
     error,

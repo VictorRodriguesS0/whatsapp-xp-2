@@ -23,18 +23,23 @@ class FakeMediaRecorder {
   static supported = new Set<string>();
   static instances: FakeMediaRecorder[] = [];
   static finalBlob = new Blob(["audio"], { type: "audio/webm" });
+  static mimeType = "";
+  static isTypeSupportedError: Error | null = null;
+  static onStart: ((recorder: FakeMediaRecorder) => void) | null = null;
 
   static isTypeSupported(type: string) {
+    if (this.isTypeSupportedError) throw this.isTypeSupportedError;
     return this.supported.has(type);
   }
 
-  readonly start = vi.fn();
+  readonly start = vi.fn(() => FakeMediaRecorder.onStart?.(this));
   readonly stop = vi.fn(() => {
     this.ondataavailable?.({ data: FakeMediaRecorder.finalBlob } as BlobEvent);
     this.onstop?.(new Event("stop"));
   });
   readonly stream: MediaStream;
   readonly options?: RecorderOptions;
+  readonly mimeType = FakeMediaRecorder.mimeType;
   ondataavailable: ((event: BlobEvent) => void) | null = null;
   onstop: ((event: Event) => void) | null = null;
   onerror: ((event: Event) => void) | null = null;
@@ -84,6 +89,9 @@ describe("useAudioRecorder", () => {
     FakeMediaRecorder.supported = new Set();
     FakeMediaRecorder.instances = [];
     FakeMediaRecorder.finalBlob = new Blob(["audio"], { type: "audio/webm" });
+    FakeMediaRecorder.mimeType = "";
+    FakeMediaRecorder.isTypeSupportedError = null;
+    FakeMediaRecorder.onStart = null;
   });
 
   afterEach(() => {
@@ -133,6 +141,23 @@ describe("useAudioRecorder", () => {
     expect(hook.result.current.phase).toBe("preview");
   });
 
+  it("blocks a new recording while an owned preview is awaiting a user decision", async () => {
+    const stream = new FakeStream();
+    installRecorderEnvironment(vi.fn(async () => stream as unknown as MediaStream));
+    const revoke = vi.spyOn(URL, "revokeObjectURL");
+    const hook = renderHook(() => useAudioRecorder({ scopeKey: "one" }));
+
+    await act(() => hook.result.current.start());
+    await act(() => hook.result.current.stop());
+    await act(() => hook.result.current.start());
+
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+    expect(hook.result.current.phase).toBe("preview");
+    expect(hook.result.current.recording?.previewUrl).toBe("blob:preview");
+    act(() => hook.result.current.discard());
+    expect(revoke).toHaveBeenCalledOnce();
+  });
+
   it("requests one stream only after start and protects repeated starts", async () => {
     const request = deferred<MediaStream>();
     const getUserMedia = installRecorderEnvironment(vi.fn(() => request.promise));
@@ -148,6 +173,21 @@ describe("useAudioRecorder", () => {
 
     expect(getUserMedia).toHaveBeenCalledOnce();
     expect(hook.result.current.phase).toBe("recording");
+  });
+
+  it("revalidates browser support when the user starts a recording", async () => {
+    const stream = new FakeStream();
+    const getUserMedia = vi.fn(async () => stream as unknown as MediaStream);
+    Object.defineProperty(navigator, "mediaDevices", { configurable: true, value: { getUserMedia } });
+    vi.stubGlobal("MediaRecorder", undefined);
+    const hook = renderHook(() => useAudioRecorder({ scopeKey: "one" }));
+    expect(hook.result.current.supported).toBe(false);
+
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
+    await act(() => hook.result.current.start());
+
+    expect(getUserMedia).toHaveBeenCalledWith({ audio: true });
+    expect(hook.result.current.supported).toBe(true);
   });
 
   it.each([
@@ -240,6 +280,71 @@ describe("useAudioRecorder", () => {
     expect(stream.track.stop).toHaveBeenCalledOnce();
   });
 
+  it("rejects a disallowed emitted MIME even when the selected recorder MIME is allowed", async () => {
+    const stream = new FakeStream();
+    installRecorderEnvironment(vi.fn(async () => stream as unknown as MediaStream));
+    FakeMediaRecorder.supported = new Set(["audio/webm;codecs=opus"]);
+    FakeMediaRecorder.mimeType = "audio/webm;codecs=opus";
+    FakeMediaRecorder.finalBlob = new Blob(["audio"], { type: "audio/wav" });
+    const hook = renderHook(() => useAudioRecorder({ scopeKey: "one" }));
+
+    await act(() => hook.result.current.start());
+    await act(() => hook.result.current.stop());
+
+    expect(hook.result.current).toMatchObject({
+      phase: "error",
+      recording: null,
+      error: "Não foi possível preparar o áudio gravado.",
+    });
+    expect(URL.createObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("contains browser factory failures and releases the stream or preview", async () => {
+    const stream = new FakeStream();
+    installRecorderEnvironment(vi.fn(async () => stream as unknown as MediaStream));
+    FakeMediaRecorder.isTypeSupportedError = new Error("unsupported query");
+    const hook = renderHook(() => useAudioRecorder({ scopeKey: "one" }));
+
+    await act(() => hook.result.current.start());
+    expect(stream.track.stop).toHaveBeenCalledOnce();
+    expect(hook.result.current.error).toBe("Não foi possível iniciar a gravação de áudio.");
+
+    FakeMediaRecorder.isTypeSupportedError = null;
+    vi.spyOn(URL, "createObjectURL").mockImplementationOnce(() => { throw new Error("URL failed"); });
+    await act(() => hook.result.current.start());
+    await act(() => hook.result.current.stop());
+    expect(hook.result.current).toMatchObject({ phase: "error", recording: null });
+
+    await act(() => hook.result.current.start());
+    Object.defineProperty(crypto, "randomUUID", { configurable: true, value: vi.fn(() => { throw new Error("UUID failed"); }) });
+    await act(() => hook.result.current.stop());
+    expect(URL.revokeObjectURL).toHaveBeenCalledOnce();
+    expect(hook.result.current).toMatchObject({ phase: "error", recording: null });
+
+    Object.defineProperty(crypto, "randomUUID", { configurable: true, value: vi.fn(() => "recording-id") });
+    vi.stubGlobal("File", class {
+      constructor() {
+        throw new Error("File failed");
+      }
+    });
+    await act(() => hook.result.current.start());
+    await act(() => hook.result.current.stop());
+    expect(URL.revokeObjectURL).toHaveBeenCalledTimes(2);
+    expect(hook.result.current).toMatchObject({ phase: "error", recording: null });
+  });
+
+  it("keeps a synchronous recorder terminal callback from being overwritten as recording", async () => {
+    const stream = new FakeStream();
+    installRecorderEnvironment(vi.fn(async () => stream as unknown as MediaStream));
+    FakeMediaRecorder.onStart = (recorder) => recorder.emitStop();
+    const hook = renderHook(() => useAudioRecorder({ scopeKey: "one" }));
+
+    await act(() => hook.result.current.start());
+
+    expect(hook.result.current.phase).toBe("preview");
+    expect(hook.result.current.recording).not.toBeNull();
+  });
+
   it("rejects zero-byte and unsupported final blobs without creating a preview", async () => {
     const stream = new FakeStream();
     installRecorderEnvironment(vi.fn(async () => stream as unknown as MediaStream));
@@ -279,6 +384,12 @@ describe("useAudioRecorder", () => {
     await act(() => hook.result.current.stop());
     hook.rerender({ scopeKey: "two" });
     expect(revoke).toHaveBeenCalledTimes(2);
+    expect(hook.result.current).toMatchObject({
+      phase: "idle",
+      recording: null,
+      durationMs: 0,
+      error: null,
+    });
     hook.unmount();
     expect(revoke).toHaveBeenCalledTimes(2);
   });
