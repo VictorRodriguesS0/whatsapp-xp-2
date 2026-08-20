@@ -143,7 +143,9 @@ describe("received media service", () => {
     expect(state.repository.record.status).toBe(MediaStatus.PENDING);
     state.advance(1_000);
     state.provider.failure = null;
-    await expect(getMediaForDownload(actorId, mediaId, state.dependencies)).resolves.toMatchObject({ mimeType: "image/jpeg" });
+    const downloadable = await getMediaForDownload(actorId, mediaId, state.dependencies);
+    expect(downloadable).toMatchObject({ mimeType: "image/jpeg" });
+    await downloadable.stream.cancel();
   });
 
   it("stops transient retries after five attempts and requires intervention", async () => {
