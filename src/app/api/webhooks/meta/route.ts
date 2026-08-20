@@ -63,7 +63,7 @@ function validateContentLength(headers: Headers, maximumBytes: number): void {
   }
 }
 
-async function readLimitedBody(
+export async function readLimitedBody(
   request: Request,
   maximumBytes: number,
 ): Promise<Uint8Array> {
@@ -74,7 +74,7 @@ async function readLimitedBody(
   }
 
   const reader = request.body.getReader();
-  const chunks: Uint8Array[] = [];
+  const body = new Uint8Array(maximumBytes);
   let totalBytes = 0;
 
   try {
@@ -102,21 +102,13 @@ async function readLimitedBody(
         throw new WebhookBodyTooLargeError();
       }
 
-      chunks.push(result.value);
+      body.set(result.value, totalBytes - result.value.byteLength);
     }
   } finally {
     reader.releaseLock();
   }
 
-  const body = new Uint8Array(totalBytes);
-  let offset = 0;
-
-  for (const chunk of chunks) {
-    body.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
-
-  return body;
+  return body.slice(0, totalBytes);
 }
 
 export function createMetaWebhookRouteHandlers(

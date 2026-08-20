@@ -8,7 +8,7 @@ import { normalizeWebhook } from "@/modules/webhooks/normalize";
 import { WebhookProcessingError } from "@/modules/webhooks/process";
 import { verifyMetaSignature, verifyMetaToken } from "@/modules/webhooks/signature";
 
-import { createMetaWebhookRouteHandlers } from "./route";
+import { createMetaWebhookRouteHandlers, readLimitedBody } from "./route";
 
 const appSecret = "app-secret-marker";
 const verifyToken = "verify-token-marker";
@@ -51,6 +51,31 @@ function dependencies(overrides: Record<string, unknown> = {}) {
 }
 
 describe("Meta webhook route", () => {
+  it("reads thousands of small chunks into the exact original byte sequence", async () => {
+    const expected = Uint8Array.from({ length: 4096 }, (_, index) => index % 251);
+    let offset = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (offset === expected.byteLength) {
+          controller.close();
+          return;
+        }
+
+        controller.enqueue(expected.slice(offset, offset + 1));
+        offset += 1;
+      },
+    });
+    const chunkedRequest = {
+      headers: new Headers(),
+      body: stream,
+    } as unknown as Request;
+
+    const result = await readLimitedBody(chunkedRequest, expected.byteLength);
+
+    expect(result).toEqual(expected);
+    expect(result.byteLength).toBe(expected.byteLength);
+  });
+
   it("returns the challenge only for subscribe mode and the configured verify token", async () => {
     const harness = dependencies();
     const { GET } = createMetaWebhookRouteHandlers(harness.dependencies as never);

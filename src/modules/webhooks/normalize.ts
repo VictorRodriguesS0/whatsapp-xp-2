@@ -240,12 +240,21 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
 
   for (const entryCandidate of root.entry) {
     const entry = record(entryCandidate);
-    const changes = Array.isArray(entry?.changes) ? entry.changes : [];
+
+    if (!entry || !Array.isArray(entry.changes)) {
+      throw new WebhookPayloadError();
+    }
+
+    const changes = entry.changes;
 
     for (const changeCandidate of changes) {
       const change = record(changeCandidate);
 
-      if (change?.field !== "messages") {
+      if (!change) {
+        throw new WebhookPayloadError();
+      }
+
+      if (change.field !== "messages") {
         continue;
       }
 

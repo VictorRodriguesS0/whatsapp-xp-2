@@ -12,6 +12,58 @@ import {
 import { normalizeWebhook, WebhookPayloadError } from "./normalize";
 
 describe("Meta webhook normalization", () => {
+  it.each([
+    null,
+    {},
+    { object: "whatsapp_business_account", entry: {} },
+  ])("rejects a payload without a valid entry array: %j", (payload) => {
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it("rejects a null entry element", () => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry = [null];
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([undefined, null, {}])(
+    "rejects a missing or non-array changes collection: %j",
+    (changes) => {
+      const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+      payload.entry[0].changes = changes;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it("rejects a null change element", () => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry[0].changes = [null];
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([null, [], "invalid"])(
+    "rejects an invalid messages change value: %j",
+    (value) => {
+      const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+      payload.entry[0].changes[0].value = value;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it("ignores a structurally valid change for an unknown field", () => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry[0].changes = [
+      { field: "account_update", value: null },
+      payload.entry[0].changes[0],
+    ];
+
+    expect(normalizeWebhook(payload)).toHaveLength(1);
+  });
+
   it("normalizes the documented inbound text payload", () => {
     expect(normalizeWebhook(inboundTextFixture)[0]).toMatchObject({
       kind: "message",
