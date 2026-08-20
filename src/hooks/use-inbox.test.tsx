@@ -609,6 +609,53 @@ describe("useInbox", () => {
     expect(hook.result.current.conversationError).not.toMatch(/Graph|OAuthException|190/i);
   });
 
+  it("clears a previous assignment error after a successful retry while realtime is offline", async () => {
+    const successfulResponsible = { id: "successful-user", name: "Atendente final" };
+    let listFetches = 0;
+    let patchAttempts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        const item = listItem("conversation-id", "Carlos");
+        return response({
+          data: {
+            items: [{ ...item, responsible: listFetches > 1 ? successfulResponsible : null }],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      }
+      if (url.endsWith("/messages")) return response({ data: conversationDetail(), error: null });
+      if (url.endsWith("/responsible") && init?.method === "PATCH") {
+        patchAttempts += 1;
+        if (patchAttempts === 1) {
+          return response({ data: null, error: { message: "Graph code 190" } }, false, 502);
+        }
+        return response({
+          data: { ...conversationDetail(), responsible: successfulResponsible },
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+    expect(hook.result.current.connected).toBe(false);
+
+    await act(() => hook.result.current.setResponsible("failed-user"));
+    expect(hook.result.current.conversationError).toBe("Não foi possível alterar o responsável.");
+
+    await act(() => hook.result.current.setResponsible(successfulResponsible.id));
+
+    expect(hook.result.current.conversationError).toBeNull();
+    expect(hook.result.current.conversation?.responsible).toEqual(successfulResponsible);
+    await waitFor(() => expect(hook.result.current.conversations[0]?.responsible).toEqual(successfulResponsible));
+    expect(patchAttempts).toBe(2);
+  });
+
   it("never exposes a network Error message in list state", async () => {
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       if (String(input) === "/api/conversations") return Promise.reject(new Error("Failed to fetch"));

@@ -49,6 +49,12 @@ type PendingMedia = {
 
 type PendingSend = PendingText | PendingMedia;
 
+type ConversationErrorState = {
+  conversationId: string;
+  operation: "conversation" | "responsible";
+  message: string;
+};
+
 class ApiRequestError extends Error {
   constructor(public status: number) {
     super("API request failed");
@@ -173,7 +179,7 @@ export function useInbox(initialUser: SessionUser) {
   const [loadingConversation, setLoadingConversation] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
-  const [conversationError, setConversationError] = useState<string | null>(null);
+  const [conversationErrorState, setConversationErrorState] = useState<ConversationErrorState | null>(null);
   const [responsiblePending, setResponsiblePending] = useState(false);
   const searchRef = useRef(search);
   const selectedIdRef = useRef(selectedId);
@@ -313,7 +319,7 @@ export function useInbox(initialUser: SessionUser) {
     const controller = new AbortController();
     conversationRequest.current = { sequence, controller };
     if (announceLoading) setLoadingConversation(true);
-    setConversationError(null);
+    setConversationErrorState(null);
     try {
       const response = await fetch(`/api/conversations/${id}/messages`, {
         signal: controller.signal,
@@ -349,7 +355,11 @@ export function useInbox(initialUser: SessionUser) {
     } catch (error) {
       if (controller.signal.aborted) return;
       if (conversationRequest.current?.sequence === sequence) {
-        setConversationError(publicErrorMessage("conversation", errorStatus(error)));
+        setConversationErrorState({
+          conversationId: id,
+          operation: "conversation",
+          message: publicErrorMessage("conversation", errorStatus(error)),
+        });
       }
     } finally {
       if (conversationRequest.current?.sequence === sequence) setLoadingConversation(false);
@@ -368,7 +378,7 @@ export function useInbox(initialUser: SessionUser) {
     selectedIdRef.current = null;
     setSelectedId(null);
     setConversation(null);
-    setConversationError(null);
+    setConversationErrorState(null);
     conversationRequest.current?.controller.abort();
   }, []);
 
@@ -533,13 +543,20 @@ export function useInbox(initialUser: SessionUser) {
         setConversation((current) => current?.id === id
           ? { ...current, responsible: detail.responsible, updatedAt: detail.updatedAt }
           : detail);
+        setConversationErrorState((current) => (
+          current?.conversationId === id && current.operation === "responsible" ? null : current
+        ));
       }
       void refreshList();
     } catch (error) {
       if (selectedIdRef.current === id) {
         await fetchConversation(id, false);
         if (selectedIdRef.current === id) {
-          setConversationError(publicErrorMessage("responsible", errorStatus(error)));
+          setConversationErrorState({
+            conversationId: id,
+            operation: "responsible",
+            message: publicErrorMessage("responsible", errorStatus(error)),
+          });
         }
       }
     } finally {
@@ -603,7 +620,7 @@ export function useInbox(initialUser: SessionUser) {
     loadingConversation,
     listError,
     loadMoreError,
-    conversationError,
+    conversationError: conversationErrorState?.message ?? null,
     responsiblePending,
     connected: realtime.connected,
     setSearch: changeSearch,
