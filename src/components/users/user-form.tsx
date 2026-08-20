@@ -23,11 +23,18 @@ export type UserFormValues = {
   password?: string;
 };
 
+export type UserFormPatch = Partial<Pick<UserFormValues, "name" | "email" | "role">>;
+
 type UserFormProps = {
-  mode: "create" | "edit";
-  initialUser?: EditableUser;
+  mode: "create";
+  initialUser?: never;
   busy?: boolean;
   onSubmit(values: UserFormValues): void;
+} | {
+  mode: "edit";
+  initialUser: EditableUser;
+  busy?: boolean;
+  onSubmit(values: UserFormPatch): void;
 };
 
 type Errors = Partial<Record<"name" | "email" | "password", string>>;
@@ -38,12 +45,14 @@ function FieldError({ children, id }: { children?: string; id: string }) {
   return children ? <p className="mt-1.5 text-sm text-[var(--danger)]" id={id} role="alert">{children}</p> : null;
 }
 
-export function UserForm({ mode, initialUser, busy = false, onSubmit }: UserFormProps) {
+export function UserForm(props: UserFormProps) {
+  const { mode, initialUser, busy = false } = props;
   const [name, setName] = useState(initialUser?.name ?? "");
   const [email, setEmail] = useState(initialUser?.email ?? "");
   const [role, setRole] = useState<UserRole>(initialUser?.role ?? "ATTENDANT");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const [unchanged, setUnchanged] = useState(false);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,12 +67,20 @@ export function UserForm({ mode, initialUser, busy = false, onSubmit }: UserForm
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;
 
-    onSubmit({
-      name: normalizedName,
-      email: normalizedEmail,
-      role,
-      ...(mode === "create" ? { password } : {}),
-    });
+    if (props.mode === "edit") {
+      const patch: UserFormPatch = {};
+      if (normalizedName !== props.initialUser.name.trim()) patch.name = normalizedName;
+      if (normalizedEmail !== props.initialUser.email.trim().toLowerCase()) patch.email = normalizedEmail;
+      if (role !== props.initialUser.role) patch.role = role;
+      if (Object.keys(patch).length === 0) {
+        setUnchanged(true);
+        return;
+      }
+      props.onSubmit(patch);
+      return;
+    }
+
+    props.onSubmit({ name: normalizedName, email: normalizedEmail, role, password });
   }
 
   return (
@@ -78,7 +95,7 @@ export function UserForm({ mode, initialUser, busy = false, onSubmit }: UserForm
           disabled={busy}
           id={`${mode}-user-name`}
           maxLength={120}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => { setName(event.target.value); setUnchanged(false); }}
           value={name}
         />
         <FieldError id={`${mode}-user-name-error`}>{errors.name}</FieldError>
@@ -93,7 +110,7 @@ export function UserForm({ mode, initialUser, busy = false, onSubmit }: UserForm
           id={`${mode}-user-email`}
           inputMode="email"
           maxLength={320}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => { setEmail(event.target.value); setUnchanged(false); }}
           type="email"
           value={email}
         />
@@ -101,7 +118,7 @@ export function UserForm({ mode, initialUser, busy = false, onSubmit }: UserForm
       </div>
       <div>
         <span className="mb-1.5 block text-sm font-semibold" id={`${mode}-user-role-label`}>Perfil</span>
-        <Select disabled={busy} onValueChange={(value) => setRole(value as UserRole)} value={role}>
+        <Select disabled={busy} onValueChange={(value) => { setRole(value as UserRole); setUnchanged(false); }} value={role}>
           <SelectTrigger aria-labelledby={`${mode}-user-role-label`}>
             <SelectValue />
           </SelectTrigger>
@@ -129,6 +146,7 @@ export function UserForm({ mode, initialUser, busy = false, onSubmit }: UserForm
           <FieldError id="create-user-password-error">{errors.password}</FieldError>
         </div>
       ) : null}
+      {unchanged ? <p className="text-sm text-[var(--muted)]" role="status">Nenhuma alteração para salvar.</p> : null}
       <div className="flex justify-end border-t border-[var(--border)] pt-4">
         <Button disabled={busy} type="submit">
           {busy ? <Spinner className="text-white" label="Salvando" /> : mode === "create" ? "Criar usuário" : "Salvar alterações"}

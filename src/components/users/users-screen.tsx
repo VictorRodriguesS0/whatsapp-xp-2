@@ -2,7 +2,7 @@
 
 import { ArrowLeft, KeyRound, LogOut, Pencil, Plus, Power, PowerOff, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 import {
   AlertDialog,
@@ -19,7 +19,7 @@ import type { SessionUser } from "@/modules/auth/session";
 import type { PublicUser } from "@/modules/users/types";
 
 import { ResetPasswordForm } from "./reset-password-form";
-import { UserForm, type UserFormValues } from "./user-form";
+import { UserForm, type UserFormPatch, type UserFormValues } from "./user-form";
 
 type MutationKind = "create" | "edit" | "password" | "activate" | "deactivate";
 type BusyKind = MutationKind | "logout";
@@ -29,8 +29,9 @@ function roleLabel(role: ManagedUser["role"]) {
   return role === "ADMIN" ? "Administrador" : "Atendente";
 }
 
-function mutationError(kind: MutationKind, status?: number, network = false) {
-  if (network) return "Sem conexão. Confira sua rede e tente novamente.";
+function mutationError(kind: MutationKind, status?: number, failure?: "network" | "unexpected") {
+  if (failure === "network") return "Sem conexão. Confira sua rede e tente novamente.";
+  if (failure === "unexpected") return "Resposta inesperada do servidor. Tente novamente.";
   if (status === 429) return "Muitas solicitações. Aguarde um momento e tente novamente.";
   if (status === 409 && kind === "deactivate") {
     return "Não foi possível alterar esse acesso. Mantenha pelo menos um administrador ativo.";
@@ -71,6 +72,9 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
   const busyRef = useRef(false);
   const requestSequence = useRef(0);
   const mounted = useRef(true);
+  const editTrigger = useRef<HTMLButtonElement | null>(null);
+  const resetTrigger = useRef<HTMLButtonElement | null>(null);
+  const accessTrigger = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -87,17 +91,33 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
       : [...current, user]));
   }
 
+  function restoreFocus(trigger: RefObject<HTMLButtonElement | null>, event: { preventDefault(): void }) {
+    event.preventDefault();
+    const element = trigger.current;
+    trigger.current = null;
+    if (element?.isConnected) element.focus();
+  }
+
   async function mutate(url: string, method: "POST" | "PATCH", body: object, kind: MutationKind): Promise<ManagedUser | null> {
     if (busyRef.current) return null;
     busyRef.current = true;
     const sequence = ++requestSequence.current;
     setBusy(kind);
+    let response: Response;
     try {
-      const response = await fetch(url, {
+      response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
+    } catch {
+      if (mounted.current && sequence === requestSequence.current) notify(mutationError(kind, undefined, "network"));
+      if (mounted.current && sequence === requestSequence.current) setBusy(null);
+      busyRef.current = false;
+      return null;
+    }
+
+    try {
       if (response.status === 401) {
         router.replace("/login?motivo=sessao-expirada");
         return null;
@@ -106,16 +126,19 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
         if (mounted.current && sequence === requestSequence.current) notify(mutationError(kind, response.status));
         return null;
       }
-      const payload = await response.json() as { user?: unknown };
+      let payload: { user?: unknown };
+      try {
+        payload = await response.json() as { user?: unknown };
+      } catch {
+        if (mounted.current && sequence === requestSequence.current) notify(mutationError(kind, undefined, "unexpected"));
+        return null;
+      }
       if (!isManagedUser(payload.user)) {
-        if (mounted.current && sequence === requestSequence.current) notify(mutationError(kind));
+        if (mounted.current && sequence === requestSequence.current) notify(mutationError(kind, undefined, "unexpected"));
         return null;
       }
       if (!mounted.current || sequence !== requestSequence.current) return null;
       return payload.user;
-    } catch {
-      if (mounted.current && sequence === requestSequence.current) notify(mutationError(kind, undefined, true));
-      return null;
     } finally {
       if (mounted.current && sequence === requestSequence.current) setBusy(null);
       busyRef.current = false;
@@ -130,12 +153,17 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
     notify("Usuário criado.");
   }
 
-  async function updateUser(values: UserFormValues) {
+  async function updateUser(values: UserFormPatch) {
     if (!editUser) return;
     const user = await mutate(`/api/users/${editUser.id}`, "PATCH", values, "edit");
     if (!user) return;
     mergeUser(user);
     setEditUser(null);
+    if (user.id === currentUser.id && user.role === "ATTENDANT") {
+      router.replace("/conversas");
+      router.refresh();
+      return;
+    }
     notify("Alterações salvas.");
   }
 
@@ -145,6 +173,11 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
     if (!user) return;
     mergeUser(user);
     setResetUser(null);
+    if (user.id === currentUser.id) {
+      router.replace("/login");
+      router.refresh();
+      return;
+    }
     notify("Senha redefinida. As sessões anteriores foram encerradas.");
   }
 
@@ -236,13 +269,13 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
                       </td>
                       <td className="px-4 py-2">
                         <div className="flex justify-end gap-1">
-                          <Button aria-label={`Editar ${user.name}`} disabled={Boolean(busy)} onClick={() => setEditUser(user)} size="icon" variant="ghost"><Pencil aria-hidden="true" className="size-4" /></Button>
-                          <Button aria-label={`Redefinir senha de ${user.name}`} disabled={Boolean(busy)} onClick={() => setResetUser(user)} size="icon" variant="ghost"><KeyRound aria-hidden="true" className="size-4" /></Button>
+                          <Button aria-label={`Editar ${user.name}`} disabled={Boolean(busy)} onClick={(event) => { editTrigger.current = event.currentTarget; setEditUser(user); }} size="icon" variant="ghost"><Pencil aria-hidden="true" className="size-4" /></Button>
+                          <Button aria-label={`Redefinir senha de ${user.name}`} disabled={Boolean(busy)} onClick={(event) => { resetTrigger.current = event.currentTarget; setResetUser(user); }} size="icon" variant="ghost"><KeyRound aria-hidden="true" className="size-4" /></Button>
                           {isCurrent ? <span className="inline-flex min-h-11 items-center px-3 text-xs font-semibold text-[var(--muted)]">Sua conta atual</span> : (
                             <Button
                               aria-label={`${user.active ? "Desativar" : "Ativar"} ${user.name}`}
                               disabled={Boolean(busy)}
-                              onClick={() => setAccessUser(user)}
+                              onClick={(event) => { accessTrigger.current = event.currentTarget; setAccessUser(user); }}
                               size="icon"
                               variant={user.active ? "ghost" : "secondary"}
                             >
@@ -261,7 +294,7 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
       </div>
 
       <Dialog onOpenChange={(open) => { if (!open && !busy) setEditUser(null); }} open={Boolean(editUser)}>
-        <DialogContent className={dialogClasses}>
+        <DialogContent className={dialogClasses} onCloseAutoFocus={(event) => restoreFocus(editTrigger, event)}>
           <DialogTitle className="pr-12 text-xl font-bold">Editar usuário</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--muted)]">Altere nome, e-mail ou perfil.</DialogDescription>
           {editUser ? <UserForm busy={busy === "edit"} initialUser={editUser} key={editUser.id} mode="edit" onSubmit={(values) => void updateUser(values)} /> : null}
@@ -269,7 +302,7 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
       </Dialog>
 
       <Dialog onOpenChange={(open) => { if (!open && !busy) setResetUser(null); }} open={Boolean(resetUser)}>
-        <DialogContent className={dialogClasses}>
+        <DialogContent className={dialogClasses} onCloseAutoFocus={(event) => restoreFocus(resetTrigger, event)}>
           <DialogTitle className="pr-12 text-xl font-bold">Redefinir senha</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--muted)]">{resetUser ? `Crie uma nova senha para ${resetUser.name}. As sessões atuais serão encerradas.` : ""}</DialogDescription>
           {resetUser ? <ResetPasswordForm busy={busy === "password"} key={resetUser.id} onSubmit={(password) => void resetPassword(password)} /> : null}
@@ -277,7 +310,7 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
       </Dialog>
 
       <AlertDialog onOpenChange={(open) => { if (!open && !busy) setAccessUser(null); }} open={Boolean(accessUser)}>
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={(event) => restoreFocus(accessTrigger, event)}>
           <AlertDialogTitle className="text-xl font-bold">{accessUser?.active ? "Desativar usuário?" : "Ativar usuário?"}</AlertDialogTitle>
           <AlertDialogDescription className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {accessUser?.active

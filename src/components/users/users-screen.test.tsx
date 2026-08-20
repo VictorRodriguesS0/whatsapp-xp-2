@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,7 +8,8 @@ import type { SessionUser } from "@/modules/auth/session";
 import { UsersScreen } from "./users-screen";
 
 const routerReplaceMock = vi.hoisted(() => vi.fn());
-vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
+const routerRefreshMock = vi.hoisted(() => vi.fn());
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: routerRefreshMock, replace: routerReplaceMock }) }));
 
 const admin: SessionUser = { id: "admin-1", name: "Victor", email: "victor@xp.test", role: "ADMIN" };
 const marcos = {
@@ -27,7 +29,10 @@ function deferredResponse() {
 }
 
 describe("UsersScreen", () => {
-  beforeEach(() => routerReplaceMock.mockClear());
+  beforeEach(() => {
+    routerReplaceMock.mockClear();
+    routerRefreshMock.mockClear();
+  });
 
   afterEach(() => {
     vi.restoreAllMocks();
@@ -60,6 +65,62 @@ describe("UsersScreen", () => {
     await waitFor(() => expect(trigger).toHaveFocus());
   });
 
+  it("restores each state-driven dialog trigger after keyboard and close-button dismissal", async () => {
+    const user = userEvent.setup();
+    render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
+
+    const editTrigger = screen.getByRole("button", { name: "Editar Marcos" });
+    editTrigger.focus();
+    await user.keyboard("{Enter}");
+    await screen.findByRole("dialog", { name: "Editar usuário" });
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(editTrigger).toHaveFocus());
+
+    const resetTrigger = screen.getByRole("button", { name: "Redefinir senha de Marcos" });
+    await user.click(resetTrigger);
+    await user.click(await screen.findByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(resetTrigger).toHaveFocus());
+  });
+
+  it("restores the access trigger after Cancelar and after a successful confirmation", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, active: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
+
+    const trigger = screen.getByRole("button", { name: "Desativar Marcos" });
+    trigger.focus();
+    await user.keyboard("{Enter}");
+    const cancel = within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancelar" });
+    cancel.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    await user.keyboard("{Enter}");
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    const activateTrigger = screen.getByRole("button", { name: "Ativar Marcos" });
+    await user.keyboard("{Enter}");
+    const activateCancel = within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancelar" });
+    activateCancel.focus();
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(activateTrigger).toHaveFocus());
+  });
+
+  it("restores the access trigger when an error is dismissed with Escape", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 500 }));
+    render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
+
+    const trigger = screen.getByRole("button", { name: "Desativar Marcos" });
+    await user.click(trigger);
+    await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
+    await screen.findByRole("status");
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
   it("creates a user with the validated form values", async () => {
     const created = { ...marcos, id: "user-3", name: "Ana Souza", email: "ana@xp.test" };
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: created }), { status: 201, headers: { "Content-Type": "application/json" } }));
@@ -83,7 +144,8 @@ describe("UsersScreen", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: marcos }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Redefinir senha de Marcos" }));
+    const trigger = screen.getByRole("button", { name: "Redefinir senha de Marcos" });
+    fireEvent.click(trigger);
     fireEvent.change(await screen.findByLabelText("Nova senha"), { target: { value: "Nova-senha-2026!" } });
     fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Nova-senha-2026!" } });
     fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
@@ -93,6 +155,7 @@ describe("UsersScreen", () => {
       body: JSON.stringify({ password: "Nova-senha-2026!" }),
     })));
     expect(await screen.findByRole("status")).toHaveTextContent("As sessões anteriores foram encerradas");
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("confirms deactivation, blocks duplicate submits and applies the committed response", async () => {
@@ -139,12 +202,58 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "P2002 raw database detail" }), { status: 409 }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar Marcos" }));
+    const trigger = screen.getByRole("button", { name: "Editar Marcos" });
+    fireEvent.click(trigger);
     fireEvent.change(await screen.findByLabelText("E-mail"), { target: { value: "existente@xp.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
     expect(await screen.findByText(/e-mail já está em uso/i)).toBeVisible();
     expect(screen.queryByText(/P2002|database detail/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("patches only the changed edit field so stale modal values cannot clobber newer data", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, name: "Marcos Lima" } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
+
+    const trigger = screen.getByRole("button", { name: "Editar Marcos" });
+    fireEvent.click(trigger);
+    fireEvent.change(await screen.findByLabelText("Nome"), { target: { value: "Marcos Lima" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith("/api/users/user-2", expect.objectContaining({
+      method: "PATCH",
+      body: JSON.stringify({ name: "Marcos Lima" }),
+    })));
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("leaves the admin screen after the signed-in user becomes an attendant", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, id: admin.id, email: admin.email, role: "ATTENDANT" } }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<UsersScreen currentUser={admin} initialUsers={[{ ...marcos, id: admin.id, name: admin.name, email: admin.email, role: "ADMIN" }]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Editar Victor" }));
+    fireEvent.change(await screen.findByLabelText("Nome"), { target: { value: "Victor Silva" } });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    await waitFor(() => expect(routerReplaceMock).toHaveBeenCalledWith("/conversas"));
+    expect(routerRefreshMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns to login after resetting the signed-in user's own password", async () => {
+    const ownUser = { ...marcos, id: admin.id, name: admin.name, email: admin.email, role: "ADMIN" as const };
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: ownUser }), { status: 200, headers: { "Content-Type": "application/json" } }));
+    render(<UsersScreen currentUser={admin} initialUsers={[ownUser]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Redefinir senha de Victor" }));
+    fireEvent.change(await screen.findByLabelText("Nova senha"), { target: { value: "Nova-senha-2026!" } });
+    fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Nova-senha-2026!" } });
+    fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
+
+    await waitFor(() => expect(routerReplaceMock).toHaveBeenCalledWith("/login"));
+    expect(routerRefreshMock).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Senha redefinida. As sessões anteriores foram encerradas.")).not.toBeInTheDocument();
   });
 
   it("rejects a malformed successful response without corrupting the directory", async () => {
@@ -157,9 +266,28 @@ describe("UsersScreen", () => {
     fireEvent.change(screen.getByLabelText("Senha inicial"), { target: { value: "Senha-2026!" } });
     fireEvent.click(screen.getByRole("button", { name: "Criar usuário" }));
 
-    expect(await screen.findByText("Não foi possível criar o usuário.")).toBeVisible();
+    expect(await screen.findByText("Resposta inesperada do servidor. Tente novamente.")).toBeVisible();
     expect(screen.getByText("Marcos")).toBeVisible();
     expect(screen.queryByText("Ana Souza")).not.toBeInTheDocument();
+  });
+
+  it("distinguishes a rejected request from a non-JSON server response without exposing raw data", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockRejectedValueOnce(new TypeError("secret network detail"))
+      .mockResolvedValueOnce(new Response("GraphAPI raw response", { status: 200 }));
+    render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Sem conexão. Confira sua rede e tente novamente.");
+    expect(screen.queryByText(/secret network detail/i)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
+    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Resposta inesperada do servidor. Tente novamente.");
+    expect(screen.queryByText(/GraphAPI raw response/i)).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("keeps mutation responses active through the Strict Mode effect cycle", async () => {

@@ -34,7 +34,7 @@ describe("UserForm", () => {
     });
   });
 
-  it("edits only name, email and profile", () => {
+  it("submits only the edited fields compared with the initial snapshot", () => {
     const onSubmit = vi.fn();
     render(
       <UserForm
@@ -48,7 +48,23 @@ describe("UserForm", () => {
     fireEvent.change(screen.getByLabelText("Nome"), { target: { value: "Marcos Lima" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
-    expect(onSubmit).toHaveBeenCalledWith({ name: "Marcos Lima", email: "marcos@xp.test", role: "ATTENDANT" });
+    expect(onSubmit).toHaveBeenCalledWith({ name: "Marcos Lima" });
+  });
+
+  it("keeps the edit open and explains when there is nothing to save", () => {
+    const onSubmit = vi.fn();
+    render(
+      <UserForm
+        initialUser={{ id: "user-1", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT", active: true }}
+        mode="edit"
+        onSubmit={onSubmit}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
+
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.getByRole("status")).toHaveTextContent("Nenhuma alteração para salvar.");
   });
 });
 
