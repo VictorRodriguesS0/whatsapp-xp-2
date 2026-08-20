@@ -10,6 +10,7 @@ import { MediaStatus } from "@/generated/prisma/enums";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { MediaUploadSource, WhatsAppProvider } from "@/modules/whatsapp/provider";
 import { LocalMediaStorage } from "./local-storage";
+import { MediaTaskLimiter } from "./task-limiter";
 import { ensureMediaAvailable, getMediaForDownload, type MediaObjectRecord, type MediaServiceDependencies, type MediaServiceRepository } from "./service";
 
 const mediaId = "30000000-0000-4000-8000-000000000001";
@@ -40,6 +41,11 @@ class MemoryMediaRepository implements MediaServiceRepository {
     this.record = { ...this.record, ...input, status: MediaStatus.AVAILABLE, failureReason: null, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
     return true;
   }
+  async renewLease(id: string, leaseId: string, leaseUntil: Date) {
+    if (id !== this.record.id || this.record.downloadLeaseId !== leaseId || this.record.status !== MediaStatus.PENDING) return false;
+    this.record = { ...this.record, downloadLeaseUntil: leaseUntil };
+    return true;
+  }
   async markPermanentFailure(id: string, leaseId: string, reason: string) {
     if (id === this.record.id && this.record.downloadLeaseId === leaseId && this.record.status === MediaStatus.PENDING)
       this.record = { ...this.record, status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null };
@@ -55,8 +61,10 @@ class InboundProvider implements WhatsAppProvider {
   downloadCalls = 0;
   mimeType = "image/jpeg";
   failure: WhatsAppProviderError | null = null;
+  metadataGate: Promise<void> | null = null;
   async getMediaMetadata() {
     this.metadataCalls += 1;
+    if (this.metadataGate) await this.metadataGate;
     if (this.failure) throw this.failure;
     return { id: "meta-1", url: "https://lookaside.fbsbx.com/file", mimeType: this.mimeType, sha256: sha256Base64, sizeBytes: BigInt(bytes.byteLength) };
   }
@@ -98,6 +106,16 @@ describe("received media service", () => {
     expect(state.repository.record.failureReason).toBe("Mídia remota inválida");
   });
 
+  it("marks a definitive Meta rejection as permanent immediately", async () => {
+    const state = await harness();
+    state.provider.failure = new WhatsAppProviderError("rejected");
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toBeInstanceOf(WhatsAppProviderError);
+
+    expect(state.repository.record).toMatchObject({ status: MediaStatus.FAILED, downloadAttempts: 1, downloadLeaseId: null });
+    expect(state.repository.record.failureReason).not.toContain("Meta");
+  });
+
   it("releases transient Meta failures back to PENDING with bounded backoff and retries later", async () => {
     const state = await harness();
     state.provider.failure = new WhatsAppProviderError("unknown");
@@ -120,6 +138,41 @@ describe("received media service", () => {
     state.advance(1_000);
     state.provider.failure = null;
     await expect(getMediaForDownload(actorId, mediaId, state.dependencies)).resolves.toMatchObject({ mimeType: "image/jpeg" });
+  });
+
+  it("stops transient retries after five attempts and requires intervention", async () => {
+    const state = await harness();
+    state.repository.record = { ...state.repository.record, downloadAttempts: 4 };
+    state.provider.failure = new WhatsAppProviderError("unknown");
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toBeInstanceOf(WhatsAppProviderError);
+    expect(state.repository.record).toMatchObject({ status: MediaStatus.FAILED, downloadAttempts: 5, downloadLeaseId: null });
+    await ensureMediaAvailable(mediaId, state.dependencies).catch(() => undefined);
+    expect(state.provider.metadataCalls).toBe(1);
+  });
+
+  it("renews a slow download lease so an independent worker cannot duplicate provider work", async () => {
+    const state = await harness();
+    let release!: () => void;
+    state.provider.metadataGate = new Promise<void>((resolve) => { release = resolve; });
+    const worker = (): MediaServiceDependencies => ({
+      ...state.dependencies,
+      inFlight: new Map(),
+      taskLimiter: new MediaTaskLimiter(4, 2),
+      leaseMs: 100,
+      leaseRenewIntervalMs: 10,
+    });
+
+    const first = ensureMediaAvailable(mediaId, worker());
+    while (!state.repository.record.downloadLeaseId) await new Promise((resolve) => setImmediate(resolve));
+    state.advance(3 * 60_000);
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    const second = ensureMediaAvailable(mediaId, worker());
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(state.provider.metadataCalls).toBe(1);
+    release();
+    await Promise.all([first, second]);
   });
 
   it("recovers an expired lease left by a crashed worker", async () => {
