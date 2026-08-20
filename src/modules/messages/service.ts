@@ -106,15 +106,18 @@ export type StoredMessageMediaInput = {
   sha256: string;
 };
 
+export type AttachmentCommitResult = "ATTACHED" | "CAS_LOST" | "NO_COMMIT";
+export type ProviderAttemptCommitResult = "MARKED" | "CAS_LOST";
+
 export interface MessageServiceRepository {
   findByClientRequestId(clientRequestId: string): Promise<MessageServiceRecord | null>;
   createPending(input: PendingMessageInput): Promise<{ message: MessageServiceRecord; created: boolean }>;
-  attachStoredMedia(messageId: string, input: StoredMessageMediaInput): Promise<MessageServiceRecord | null>;
+  attachStoredMedia(messageId: string, input: StoredMessageMediaInput): Promise<AttachmentCommitResult>;
   setMediaMetaId(messageId: string, metaMediaId: string): Promise<MessageServiceRecord>;
   markOperation(messageId: string, operationalState: MessageOperationalState, attemptedAt?: Date | null): Promise<MessageServiceRecord>;
   claimReadyForDelivery(messageId: string, input: { leaseId: string; now: Date; leaseUntil: Date }): Promise<MessageServiceRecord | null>;
   releaseDeliveryClaim(messageId: string, leaseId: string): Promise<void>;
-  markProviderAttempt(messageId: string, leaseId: string, operationalState: MessageOperationalState, attemptedAt: Date): Promise<MessageServiceRecord | null>;
+  markProviderAttempt(messageId: string, leaseId: string, operationalState: MessageOperationalState, attemptedAt: Date): Promise<ProviderAttemptCommitResult>;
   markSent(messageId: string, whatsappMessageId: string): Promise<MessageServiceRecord>;
   markFailed(messageId: string, failureReason: string, operationalState: MessageOperationalState): Promise<MessageServiceRecord>;
   findById(messageId: string): Promise<MessageServiceRecord | null>;
@@ -375,7 +378,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
       }
       return true;
     });
-    return attached ? this.findById(messageId) : null;
+    return attached ? "ATTACHED" : "CAS_LOST";
   },
   async setMediaMetaId(messageId, metaMediaId) {
     const current = await prisma.message.findUniqueOrThrow({ where: { id: messageId }, select: { mediaObjectId: true } });
@@ -433,7 +436,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
         deliveryLeaseUntil: null,
       },
     });
-    return marked.count === 1 ? this.findById(messageId) : null;
+    return marked.count === 1 ? "MARKED" : "CAS_LOST";
   },
   async markSent(messageId, whatsappMessageId) {
     const row = await prisma.message.update({
@@ -596,9 +599,9 @@ async function deliverAndCommit(
     const firstOperation = claimed.type === MessageType.TEXT
       ? MessageOperationalState.SEND_IN_FLIGHT
       : MessageOperationalState.UPLOAD_IN_FLIGHT;
-    let attempted: MessageServiceRecord | null;
+    let attemptCommit: ProviderAttemptCommitResult;
     try {
-      attempted = await dependencies.repository.markProviderAttempt(claimed.id, leaseId, firstOperation, clock());
+      attemptCommit = await dependencies.repository.markProviderAttempt(claimed.id, leaseId, firstOperation, clock());
     } catch {
       dependencies.limiter.refund(claimed.sentByUserId);
       await dependencies.repository.releaseDeliveryClaim(claimed.id, leaseId).catch(() => undefined);
@@ -606,11 +609,13 @@ async function deliverAndCommit(
       publishSafely(dependencies, { type: "message.status", conversationId: current.conversationId, messageId: current.id });
       return toMessageDto(current);
     }
-    if (!attempted) {
+    if (attemptCommit === "CAS_LOST") {
       dependencies.limiter.refund(claimed.sentByUserId);
       const current = (await dependencies.repository.findById(claimed.id)) ?? claimed;
       return toMessageDto(current);
     }
+    const attempted = await dependencies.repository.findById(claimed.id);
+    if (!attempted) throw new Error("Committed provider attempt could not be hydrated");
 
     let final: MessageServiceRecord;
     try {
@@ -694,24 +699,35 @@ async function sendMessageOnce(
     if (repairableMedia) {
       const validatedFile = await validateOutboundFile(input);
       let storedKey: string | undefined;
+      let attachStarted = false;
       try {
         const stored = await storeOutboundFile(validatedFile, dependencies);
         storedKey = stored.key;
         assertStoredMatchesStaging(validatedFile, stored);
-        const repaired = await dependencies.repository.attachStoredMedia(existing.id, {
+        attachStarted = true;
+        const attachment = await dependencies.repository.attachStoredMedia(existing.id, {
           storageKey: stored.key,
           originalFilename: validatedFile.filename,
           mimeType: validatedFile.mimeType,
           sizeBytes: stored.sizeBytes,
           sha256: stored.sha256,
         });
-        if (!repaired) {
+        if (attachment === "CAS_LOST") {
           await dependencies.storage.remove(stored.key).catch(() => undefined);
           return toMessageDto((await dependencies.repository.findById(existing.id)) ?? existing);
         }
+        if (attachment === "NO_COMMIT") {
+          await dependencies.storage.remove(stored.key).catch(() => undefined);
+          storedKey = undefined;
+          attachStarted = false;
+          throw new Error("Media attachment was not committed");
+        }
+        const repaired = await dependencies.repository.findById(existing.id);
+        if (!repaired) throw new Error("Committed media attachment could not be hydrated");
         return deliverAndCommit(repaired, dependencies);
       } catch (error) {
-        if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
+        if (storedKey && !attachStarted) await dependencies.storage.remove(storedKey).catch(() => undefined);
+        if (attachStarted) throw error;
         return toMessageDto((await dependencies.repository.findById(existing.id)) ?? existing);
       }
     }
@@ -737,24 +753,35 @@ async function sendMessageOnce(
   publishSafely(dependencies, { type: "message.created", conversationId: message.conversationId, messageId: message.id });
   if (validatedFile) {
     let storedKey: string | undefined;
+    let attachStarted = false;
     try {
       const stored = await storeOutboundFile(validatedFile, dependencies);
       storedKey = stored.key;
       assertStoredMatchesStaging(validatedFile, stored);
-      const attached = await dependencies.repository.attachStoredMedia(message.id, {
+      attachStarted = true;
+      const attachment = await dependencies.repository.attachStoredMedia(message.id, {
         storageKey: stored.key,
         originalFilename: validatedFile.filename,
         mimeType: validatedFile.mimeType,
         sizeBytes: stored.sizeBytes,
         sha256: stored.sha256,
       });
-      if (!attached) {
+      if (attachment === "CAS_LOST") {
         await dependencies.storage.remove(stored.key).catch(() => undefined);
         return toMessageDto((await dependencies.repository.findById(message.id)) ?? message);
       }
+      if (attachment === "NO_COMMIT") {
+        await dependencies.storage.remove(stored.key).catch(() => undefined);
+        storedKey = undefined;
+        attachStarted = false;
+        throw new Error("Media attachment was not committed");
+      }
+      const attached = await dependencies.repository.findById(message.id);
+      if (!attached) throw new Error("Committed media attachment could not be hydrated");
       message = attached;
     } catch (error) {
-      if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
+      if (storedKey && !attachStarted) await dependencies.storage.remove(storedKey).catch(() => undefined);
+      if (attachStarted) throw error;
       const failed = await dependencies.repository.markFailed(
         message.id,
         safeFailureReason(error),

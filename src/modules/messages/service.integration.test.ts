@@ -243,4 +243,67 @@ describe("outbound message PostgreSQL concurrency", () => {
     await expect(prisma.message.count({ where: { clientRequestId } })).resolves.toBe(1);
     await expect(prisma.mediaObject.count()).resolves.toBe(1);
   });
+
+  it("keeps a committed media attachment when post-CAS hydration fails", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const mediaRoot = await mkdtemp(join(tmpdir(), "xp-attach-hydrate-pg-"));
+    roots.push(mediaRoot);
+    const storage = new LocalMediaStorage(mediaRoot);
+    const provider = new DemoWhatsAppProvider();
+    let providerCalls = 0;
+    provider.uploadMedia = async () => { providerCalls += 1; return { mediaId: "unused" }; };
+    const repository = {
+      ...prismaMessageRepository,
+      async findById() { throw new Error("hydrate unavailable after attachment commit"); },
+    };
+    const clientRequestId = randomUUID();
+
+    await expect(sendMessage(actor, conversation.id, {
+      type: MessageType.IMAGE,
+      clientRequestId,
+      file: { filename: "foto.jpg", mimeType: "image/jpeg", bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]) },
+    }, {
+      repository, storage, provider, limiter: new MessageSendRateLimiter(), publishRealtime: () => undefined,
+    })).rejects.toThrow("hydrate unavailable");
+
+    expect(providerCalls).toBe(0);
+    const committed = await prisma.message.findUniqueOrThrow({
+      where: { clientRequestId },
+      select: { status: true, operationalState: true, mediaObject: { select: { storageKey: true } } },
+    });
+    expect(committed).toMatchObject({ status: MessageStatus.PENDING, operationalState: MessageOperationalState.READY, mediaObject: { storageKey: expect.any(String) } });
+    const stream = await storage.open(committed.mediaObject!.storageKey!);
+    expect((await new Response(stream).arrayBuffer()).byteLength).toBe(4);
+  });
+
+  it("keeps the conservative provider-attempt boundary when post-CAS hydration fails", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const provider = new DemoWhatsAppProvider();
+    let providerCalls = 0;
+    provider.sendText = async () => { providerCalls += 1; return { whatsappMessageId: "unused", status: "SENT" }; };
+    let findCalls = 0;
+    const repository = {
+      ...prismaMessageRepository,
+      async findById(id: string) {
+        findCalls += 1;
+        if (findCalls === 2) throw new Error("hydrate unavailable after attempt commit");
+        return prismaMessageRepository.findById(id);
+      },
+    };
+    const clientRequestId = randomUUID();
+
+    await expect(sendMessage(actor, conversation.id, { type: MessageType.TEXT, clientRequestId, body: "Sem chamada" }, {
+      repository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    })).rejects.toThrow("hydrate unavailable");
+
+    expect(providerCalls).toBe(0);
+    await expect(prisma.message.findUnique({ where: { clientRequestId }, select: { status: true, operationalState: true, providerAttemptedAt: true, deliveryLeaseId: true } }))
+      .resolves.toMatchObject({ status: MessageStatus.PENDING, operationalState: MessageOperationalState.SEND_IN_FLIGHT, providerAttemptedAt: expect.any(Date), deliveryLeaseId: null });
+  });
 });

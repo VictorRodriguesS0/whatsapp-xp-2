@@ -99,9 +99,9 @@ class MemoryRepository implements MessageServiceRepository {
   }
 
   async attachStoredMedia(messageId: string, input: StoredMessageMediaInput) {
-    if (this.failAttach) throw new Error("attach failed");
+    if (this.failAttach) return "NO_COMMIT" as const;
     const current = this.records.get(messageId)!;
-    if (current.mediaObjectId) return null;
+    if (current.mediaObjectId) return "CAS_LOST" as const;
     const updated: MessageServiceRecord = {
       ...current,
       mediaObjectId: `30000000-0000-4000-8000-${String(this.sequence).padStart(12, "0")}`,
@@ -120,7 +120,7 @@ class MemoryRepository implements MessageServiceRepository {
     };
     this.records.set(messageId, updated);
     this.history.push("attach-media");
-    return updated;
+    return "ATTACHED" as const;
   }
 
   async setMediaMetaId(messageId: string, metaMediaId: string) {
@@ -181,11 +181,11 @@ class MemoryRepository implements MessageServiceRepository {
 
   async markProviderAttempt(messageId: string, leaseId: string, operationalState: MessageOperationalState, attemptedAt: Date) {
     const current = this.records.get(messageId);
-    if (!current || current.deliveryLeaseId !== leaseId || current.operationalState !== MessageOperationalState.READY) return null;
+    if (!current || current.deliveryLeaseId !== leaseId || current.operationalState !== MessageOperationalState.READY) return "CAS_LOST" as const;
     const marked = await this.markOperation(messageId, operationalState, attemptedAt);
     const updated = { ...marked, deliveryLeaseId: null, deliveryLeaseUntil: null };
     this.records.set(messageId, updated);
-    return updated;
+    return "MARKED" as const;
   }
 
   async claimFailedForRetry(messageId: string) {
