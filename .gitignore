@@ -1,2 +1,9 @@
 .worktrees/
 .superpowers/
+.env
+.env.local
+.next/
+node_modules/
+coverage/
+data/
+*.tsbuildinfo
