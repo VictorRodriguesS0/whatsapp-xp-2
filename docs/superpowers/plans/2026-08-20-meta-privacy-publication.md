@@ -414,15 +414,15 @@ git commit -m "feat: link legal documents from login"
 - Consumes: production image built from the two preceding commits and existing isolated Compose/Caddy deployment at `/opt/apps/example-app`.
 - Produces: public legal URLs accepted by the Meta application `1960774534600444`.
 
-- [ ] **Step 1: Build the exact production image**
+- [x] **Step 1: Build the exact production image**
 
 Build from the committed worktree using the existing multi-stage Dockerfile and tag it with the new Git commit. Expected: build exit 0 and no secret embedded in build arguments or layers.
 
-- [ ] **Step 2: Deploy only the XP Atendimento app**
+- [x] **Step 2: Deploy only the XP Atendimento app**
 
 Transfer the committed release to `/opt/apps/example-app/releases/<git-commit>`, update `/opt/apps/example-app/current`, and run the existing Compose command with `/opt/apps/example-app/.env.production`. Recreate only `app`; leave the PostgreSQL volume and all unrelated KVM systems untouched.
 
-- [ ] **Step 3: Verify production URLs**
+- [x] **Step 3: Verify production URLs**
 
 Run external checks for:
 
@@ -435,11 +435,11 @@ https://whatsapp.xpeletronicos.com/login
 
 Expected: all return HTTP 200; legal pages are available without a session; app container is healthy; webhook GET verification is 200; invalid webhook signature remains 401.
 
-- [ ] **Step 4: Run post-deployment browser QA**
+- [x] **Step 4: Run post-deployment browser QA**
 
 Verify the three public pages at desktop and mobile dimensions over HTTPS. Expected: correct XP Eletrônicos copy and phone, no overflow, no console error, legal links work both directions, login continues to work.
 
-- [ ] **Step 5: Register the public URLs in Meta**
+- [x] **Step 5: Register the public URLs in Meta**
 
 In Meta app settings for app `1960774534600444`, set:
 
@@ -450,17 +450,30 @@ Data Deletion Instructions URL: https://whatsapp.xpeletronicos.com/exclusao-de-d
 
 Save the settings, return to `/go_live/`, and verify that the publication prerequisite is satisfied. Do not click the final `Publicar` action yet.
 
-- [ ] **Step 6: Request the final publication confirmation**
+- [x] **Step 6: Request the final publication confirmation**
 
 Tell the user that publication will allow real WhatsApp traffic for the subscribed WABA and number. Ask for an explicit confirmation immediately before clicking `Publicar`.
 
-- [ ] **Step 7: Publish and test a real inbound message**
+- [x] **Step 7: Publish and test a real inbound message**
 
 After confirmation, publish the Meta app. Ask the user to send a message from another phone to `+55 61 9514-9019`. Verify the signed webhook is processed, the conversation appears once in the inbox, and no token, phone payload or customer message body is emitted in application error logs.
 
-- [ ] **Step 8: Record evidence and final status**
+- [x] **Step 8: Record evidence and final status**
 
 Mark this plan's checkboxes, record the Git commit, image identifier, production HTTP results, Meta publication status and the real-message result. Commit those evidence records explicitly, then run `git status --short` and require a clean worktree before reporting completion.
+
+### Production evidence — 20 August 2026
+
+- final application release: `7019c2b9f8475b76506de51914e7a8539d925b22`;
+- production image: `xp-whatsapp:7019c2b`, image ID beginning `sha256:f2712725`;
+- deployment: application service only, through the canonical KVM Compose, with the database, Caddy, volumes and unrelated containers preserved;
+- Compose configuration hash: expected and actual `eec91ce4...`;
+- public health, privacy, data-deletion and login routes: HTTP 200 after deployment and after Meta publication;
+- Meta application `1960774534600444`: privacy and data-deletion URLs saved; publication confirmed by Meta and final status `Publicado`;
+- live WhatsApp number: `+55 61 9514-9019`;
+- real inbound acceptance: one new text message persisted once as `INBOUND/TEXT/RECEIVED`, with one distinct provider message ID and one matching `message/PROCESSED` webhook event;
+- post-message health: application `running/healthy`, no media persistence failure, invalid signature or duplicate inbound message;
+- logging boundary: no customer message body, phone payload, token, app secret or webhook signature was printed during verification.
 
 ---
 
