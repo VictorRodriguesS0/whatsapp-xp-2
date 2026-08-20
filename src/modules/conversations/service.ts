@@ -32,6 +32,7 @@ export const CONVERSATION_PAGE_SIZE = 50;
 const userSelect = { id: true, name: true, active: true } as const;
 const messageSelect = {
   id: true,
+  clientRequestId: true,
   conversationId: true,
   direction: true,
   type: true,
@@ -113,6 +114,7 @@ function messageOrder(left: MessageRecord, right: MessageRecord): number {
 function toMessageDto(message: MessageRecord): MessageDto {
   return {
     id: message.id,
+    clientRequestId: message.clientRequestId ?? null,
     direction: message.direction,
     type: message.type,
     body: message.body,

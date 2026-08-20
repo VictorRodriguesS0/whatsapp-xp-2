@@ -18,6 +18,8 @@ export type UserRecord = {
 
 export type PublicUser = Omit<UserRecord, "passwordHash">;
 
+export type AssignableUser = Pick<UserRecord, "id" | "name">;
+
 export type CreateUserData = Omit<CreateUserInput, "password"> & {
   passwordHash: string;
 };

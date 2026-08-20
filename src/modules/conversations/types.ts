@@ -21,6 +21,7 @@ export type ResponsibleUserDto = Pick<ConversationUserRecord, "id" | "name">;
 
 export type MessageRecord = {
   id: string;
+  clientRequestId?: string | null;
   conversationId: string;
   direction: MessageDirection;
   type: MessageType;
@@ -35,6 +36,7 @@ export type MessageRecord = {
 
 export type MessageDto = {
   id: string;
+  clientRequestId?: string | null;
   direction: MessageDirection;
   type: MessageType;
   body: string | null;

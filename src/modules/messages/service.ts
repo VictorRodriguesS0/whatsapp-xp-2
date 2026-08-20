@@ -568,6 +568,7 @@ const defaultDependencies: MessageServiceDependencies = {
 function toMessageDto(message: MessageServiceRecord): MessageDto {
   return {
     id: message.id,
+    clientRequestId: message.clientRequestId,
     direction: message.direction,
     type: message.type,
     body: message.body,

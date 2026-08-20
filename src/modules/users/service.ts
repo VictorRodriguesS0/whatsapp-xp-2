@@ -16,6 +16,7 @@ import {
 } from "./schemas";
 import type {
   CreateUserData,
+  AssignableUser,
   PublicUser,
   UpdateUserData,
   UserRecord,
@@ -163,6 +164,15 @@ export async function listUsers(
 ): Promise<PublicUser[]> {
   await requireAdmin(async () => actor);
   return (await repository.list()).map(toPublicUser);
+}
+
+export async function listAssignableUsers(
+  _actor: SessionUser,
+  repository: UserRepository = userRepository,
+): Promise<AssignableUser[]> {
+  return (await repository.list())
+    .filter((user) => user.active)
+    .map(({ id, name }) => ({ id, name }));
 }
 
 export async function createUser(

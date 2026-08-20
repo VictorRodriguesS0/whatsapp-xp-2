@@ -1,0 +1,90 @@
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+
+import type { ConversationListItem } from "@/modules/conversations/types";
+
+import { ConversationList } from "./conversation-list";
+
+const fixture: ConversationListItem = {
+  id: "10000000-0000-4000-8000-000000000001",
+  contact: {
+    id: "20000000-0000-4000-8000-000000000001",
+    name: "Carlos Lima",
+    phone: "+55 61 99999-0001",
+    profilePictureUrl: null,
+  },
+  responsible: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
+  lastMessageAt: "2026-08-20T14:30:00.000Z",
+  latestMessage: {
+    id: "40000000-0000-4000-8000-000000000001",
+    direction: "INBOUND",
+    type: "TEXT",
+    body: "Vocês têm esse modelo em estoque?",
+    mediaObjectId: null,
+    sentBy: null,
+    status: "RECEIVED",
+    failureReason: null,
+    externalTimestamp: "2026-08-20T14:30:00.000Z",
+    createdAt: "2026-08-20T14:30:00.000Z",
+  },
+  unreadCount: 3,
+};
+
+describe("ConversationList", () => {
+  it("shows unread count and the responsible employee", () => {
+    render(<ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} />);
+
+    expect(screen.getByText("3")).toBeVisible();
+    expect(screen.getByText("Marcos")).toBeVisible();
+  });
+
+  it("exposes the selected conversation and a 44px interaction target", () => {
+    const onSelect = vi.fn();
+    render(<ConversationList items={[fixture]} selectedId={fixture.id} onSelect={onSelect} />);
+
+    const conversation = screen.getByRole("button", { name: /Carlos Lima/i });
+    expect(conversation).toHaveAttribute("aria-current", "true");
+    expect(conversation).toHaveClass("min-h-11");
+    fireEvent.click(conversation);
+    expect(onSelect).toHaveBeenCalledWith(fixture.id);
+  });
+
+  it("renders useful loading, empty and error states", () => {
+    const { rerender } = render(
+      <ConversationList items={[]} selectedId={null} onSelect={vi.fn()} loading />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Carregando conversas");
+
+    rerender(
+      <ConversationList items={[]} selectedId={null} onSelect={vi.fn()} search="Carlos" />,
+    );
+    expect(screen.getByText("Nenhuma conversa encontrada")).toBeVisible();
+
+    rerender(
+      <ConversationList
+        items={[]}
+        selectedId={null}
+        onSelect={vi.fn()}
+        error="Não foi possível carregar as conversas."
+        onRetry={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível carregar");
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeVisible();
+  });
+
+  it("keeps existing conversations visible when a refresh fails", () => {
+    render(
+      <ConversationList
+        error="Conexão interrompida."
+        items={[fixture]}
+        onRetry={vi.fn()}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Conexão interrompida.");
+    expect(screen.getByRole("button", { name: /Carlos Lima/i })).toBeVisible();
+  });
+});
