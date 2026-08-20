@@ -8,11 +8,7 @@ import { authenticate, createSession, loginSchema } from "@/modules/auth/session
 export const runtime = "nodejs";
 
 function requestIp(request: Request): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",", 1)[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+  return request.headers.get("x-real-ip") || "direct";
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -39,7 +35,7 @@ export async function POST(request: Request): Promise<Response> {
       throw error;
     }
   } catch (error) {
-    if (error instanceof ZodError) {
+    if (error instanceof ZodError || error instanceof SyntaxError) {
       return toErrorResponse(new HttpError(400, "Dados inválidos"));
     }
 

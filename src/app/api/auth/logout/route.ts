@@ -4,12 +4,20 @@ import { revokeCurrentSession } from "@/modules/auth/session";
 
 export const runtime = "nodejs";
 
-export async function POST(request: Request): Promise<Response> {
-  try {
-    assertSameOrigin(request);
-    await revokeCurrentSession();
-    return clearSessionCookieResponse();
-  } catch (error) {
-    return toErrorResponse(error);
-  }
+type RevokeCurrentSession = () => Promise<void>;
+
+export function createLogoutHandler(
+  revokeSession: RevokeCurrentSession = revokeCurrentSession,
+) {
+  return async function logoutHandler(request: Request): Promise<Response> {
+    try {
+      assertSameOrigin(request);
+      await revokeSession();
+      return clearSessionCookieResponse();
+    } catch (error) {
+      return toErrorResponse(error);
+    }
+  };
 }
+
+export const POST = createLogoutHandler();

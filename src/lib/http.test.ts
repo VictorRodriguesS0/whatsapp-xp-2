@@ -19,6 +19,7 @@ describe("HTTP helpers", () => {
     expect(response.headers.get("set-cookie")).toContain("SameSite=lax");
     expect(response.headers.get("set-cookie")).toContain("Path=/");
     expect(response.headers.get("set-cookie")).toContain("Secure");
+    expect(response.headers.get("set-cookie")).toContain("Max-Age=604800");
   });
 
   it("returns a sanitized public error", async () => {

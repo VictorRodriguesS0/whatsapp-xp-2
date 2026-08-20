@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { LoginRateLimiter } from "./rate-limit";
+import {
+  LOGIN_RATE_LIMIT_MAX_IDENTITIES,
+  LoginRateLimiter,
+} from "./rate-limit";
 
 describe("login rate limiter", () => {
   it("blocks the sixth failed attempt for the same email and IP", () => {
@@ -49,5 +52,46 @@ describe("login rate limiter", () => {
     expect(limiter.isAllowed(attempt, new Date("2026-08-19T12:15:00.001Z"))).toBe(
       true,
     );
+  });
+
+  it("prunes every expired identity during a later limiter operation", () => {
+    const limiter = new LoginRateLimiter();
+    const beforeExpiry = new Date("2026-08-19T12:00:00.000Z");
+
+    limiter.recordFailure(
+      { email: "expired@example.test", ip: "192.0.2.1" },
+      beforeExpiry,
+    );
+    limiter.recordFailure(
+      { email: "fresh@example.test", ip: "192.0.2.2" },
+      new Date("2026-08-19T12:15:00.001Z"),
+    );
+
+    expect(
+      (limiter as unknown as { trackedIdentityCount: number })
+        .trackedIdentityCount,
+    ).toBe(2);
+  });
+
+  it("caps tracked identities and deterministically evicts the oldest entry", () => {
+    const limiter = new LoginRateLimiter();
+    const now = new Date("2026-08-19T12:00:00.000Z");
+    const first = { email: "user-0@example.test", ip: "198.51.100.0" };
+
+    for (let count = 0; count <= LOGIN_RATE_LIMIT_MAX_IDENTITIES; count += 1) {
+      limiter.recordFailure(
+        {
+          email: `user-${count}@example.test`,
+          ip: `198.51.100.${count}`,
+        },
+        now,
+      );
+    }
+
+    expect(
+      (limiter as unknown as { trackedIdentityCount: number })
+        .trackedIdentityCount,
+    ).toBeLessThanOrEqual(LOGIN_RATE_LIMIT_MAX_IDENTITIES);
+    expect(limiter.isAllowed(first, now)).toBe(true);
   });
 });

@@ -42,6 +42,7 @@ describe("database sessions", () => {
     });
 
     expect(token).toMatch(/^[A-Za-z0-9_-]+$/);
+    expect(Buffer.from(token, "base64url")).toHaveLength(32);
     expect(token).not.toBe(session.tokenHash);
     expect(session.expiresAt.getTime()).toBeGreaterThanOrEqual(
       before + SESSION_DURATION_MS - 1_000,
