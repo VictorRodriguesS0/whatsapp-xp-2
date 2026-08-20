@@ -27,8 +27,8 @@ CREATE TABLE "users" (
     "password_hash" TEXT NOT NULL,
     "role" "UserRole" NOT NULL,
     "active" BOOLEAN NOT NULL DEFAULT true,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
@@ -38,9 +38,9 @@ CREATE TABLE "sessions" (
     "id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "token_hash" TEXT NOT NULL,
-    "expires_at" TIMESTAMP(3) NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "last_seen_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expires_at" TIMESTAMPTZ(3) NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "last_seen_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "sessions_pkey" PRIMARY KEY ("id")
 );
@@ -52,8 +52,8 @@ CREATE TABLE "contacts" (
     "phone" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "profile_picture_url" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "contacts_pkey" PRIMARY KEY ("id")
 );
@@ -63,9 +63,9 @@ CREATE TABLE "conversations" (
     "id" UUID NOT NULL,
     "contact_id" UUID NOT NULL,
     "responsible_user_id" UUID,
-    "last_message_at" TIMESTAMP(3) NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "last_message_at" TIMESTAMPTZ(3) NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "conversations_pkey" PRIMARY KEY ("id")
 );
@@ -83,9 +83,9 @@ CREATE TABLE "messages" (
     "sent_by_user_id" UUID,
     "status" "MessageStatus" NOT NULL,
     "failure_reason" TEXT,
-    "external_timestamp" TIMESTAMP(3) NOT NULL,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "external_timestamp" TIMESTAMPTZ(3) NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "messages_pkey" PRIMARY KEY ("id")
 );
@@ -102,8 +102,8 @@ CREATE TABLE "media_objects" (
     "meta_media_id" TEXT,
     "status" "MediaStatus" NOT NULL,
     "failure_reason" TEXT,
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updated_at" TIMESTAMP(3) NOT NULL,
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "media_objects_pkey" PRIMARY KEY ("id")
 );
@@ -114,7 +114,7 @@ CREATE TABLE "conversation_reads" (
     "conversation_id" UUID NOT NULL,
     "user_id" UUID NOT NULL,
     "last_read_message_id" UUID,
-    "last_read_at" TIMESTAMP(3) NOT NULL,
+    "last_read_at" TIMESTAMPTZ(3) NOT NULL,
 
     CONSTRAINT "conversation_reads_pkey" PRIMARY KEY ("id")
 );
@@ -126,8 +126,8 @@ CREATE TABLE "webhook_events" (
     "event_type" TEXT NOT NULL,
     "status" "WebhookStatus" NOT NULL,
     "error_summary" TEXT,
-    "processed_at" TIMESTAMP(3),
-    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "processed_at" TIMESTAMPTZ(3),
+    "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "webhook_events_pkey" PRIMARY KEY ("id")
 );

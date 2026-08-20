@@ -6,6 +6,7 @@ const P = 1;
 const KEY_LENGTH = 64;
 const MAX_MEMORY = 64 * 1024 * 1024;
 const MINIMUM_PASSWORD_LENGTH = 10;
+const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
 
 function deriveKey(
   password: string,
@@ -28,6 +29,26 @@ function deriveKey(
       },
     );
   });
+}
+
+function decodeCanonicalBase64Url(
+  encoded: string,
+  expectedLength: number,
+): Buffer | undefined {
+  if (!BASE64URL_PATTERN.test(encoded)) {
+    return undefined;
+  }
+
+  const decoded = Buffer.from(encoded, "base64url");
+
+  if (
+    decoded.length !== expectedLength ||
+    decoded.toString("base64url") !== encoded
+  ) {
+    return undefined;
+  }
+
+  return decoded;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -74,10 +95,10 @@ export async function verifyPassword(
   }
 
   try {
-    const salt = Buffer.from(encodedSalt, "base64url");
-    const expectedKey = Buffer.from(encodedKey, "base64url");
+    const salt = decodeCanonicalBase64Url(encodedSalt, 16);
+    const expectedKey = decodeCanonicalBase64Url(encodedKey, KEY_LENGTH);
 
-    if (salt.length !== 16 || expectedKey.length !== KEY_LENGTH) {
+    if (!salt || !expectedKey) {
       return false;
     }
 

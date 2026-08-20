@@ -69,4 +69,34 @@ describe("database", () => {
       }),
     ).rejects.toThrow();
   });
+
+  it("stores every application timestamp as a UTC-aware PostgreSQL instant", async () => {
+    const temporalColumns = await prisma.$queryRaw<
+      Array<{ tableName: string; columnName: string; dataType: string }>
+    >`
+      SELECT
+        table_name AS "tableName",
+        column_name AS "columnName",
+        data_type AS "dataType"
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name IN (
+          'users',
+          'sessions',
+          'contacts',
+          'conversations',
+          'messages',
+          'media_objects',
+          'conversation_reads',
+          'webhook_events'
+        )
+        AND data_type LIKE 'timestamp%'
+      ORDER BY table_name, column_name
+    `;
+
+    expect(temporalColumns).toHaveLength(18);
+    expect(new Set(temporalColumns.map((column) => column.dataType))).toEqual(
+      new Set(["timestamp with time zone"]),
+    );
+  });
 });

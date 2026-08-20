@@ -54,8 +54,8 @@ model User {
   passwordHash          String             @map("password_hash")
   role                  UserRole
   active                Boolean            @default(true)
-  createdAt             DateTime           @default(now()) @map("created_at")
-  updatedAt             DateTime           @updatedAt @map("updated_at")
+  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
   sessions              Session[]
   assignedConversations Conversation[]     @relation("ResponsibleUser")
   sentMessages          Message[]          @relation("SentByUser")
@@ -68,9 +68,9 @@ model Session {
   id         String   @id @default(uuid()) @db.Uuid
   userId     String   @map("user_id") @db.Uuid
   tokenHash  String   @unique @map("token_hash")
-  expiresAt  DateTime @map("expires_at")
-  createdAt  DateTime @default(now()) @map("created_at")
-  lastSeenAt DateTime @default(now()) @map("last_seen_at")
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(3)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  lastSeenAt DateTime @default(now()) @map("last_seen_at") @db.Timestamptz(3)
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([expiresAt])
@@ -83,8 +83,8 @@ model Contact {
   phone             String        @unique
   name              String
   profilePictureUrl String?       @map("profile_picture_url")
-  createdAt         DateTime      @default(now()) @map("created_at")
-  updatedAt         DateTime      @updatedAt @map("updated_at")
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
   conversation      Conversation?
 
   @@map("contacts")
@@ -94,9 +94,9 @@ model Conversation {
   id                String             @id @default(uuid()) @db.Uuid
   contactId         String             @unique @map("contact_id") @db.Uuid
   responsibleUserId String?            @map("responsible_user_id") @db.Uuid
-  lastMessageAt     DateTime           @map("last_message_at")
-  createdAt         DateTime           @default(now()) @map("created_at")
-  updatedAt         DateTime           @updatedAt @map("updated_at")
+  lastMessageAt     DateTime           @map("last_message_at") @db.Timestamptz(3)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
   contact           Contact            @relation(fields: [contactId], references: [id], onDelete: Restrict)
   responsibleUser   User?              @relation("ResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
   messages          Message[]
@@ -118,9 +118,9 @@ model Message {
   sentByUserId        String?             @map("sent_by_user_id") @db.Uuid
   status              MessageStatus
   failureReason       String?             @map("failure_reason")
-  externalTimestamp   DateTime            @map("external_timestamp")
-  createdAt           DateTime            @default(now()) @map("created_at")
-  updatedAt           DateTime            @updatedAt @map("updated_at")
+  externalTimestamp   DateTime            @map("external_timestamp") @db.Timestamptz(3)
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
   conversation        Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   mediaObject         MediaObject?        @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
   sentByUser          User?               @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
@@ -141,8 +141,8 @@ model MediaObject {
   metaMediaId      String?     @map("meta_media_id")
   status           MediaStatus
   failureReason    String?     @map("failure_reason")
-  createdAt        DateTime    @default(now()) @map("created_at")
-  updatedAt        DateTime    @updatedAt @map("updated_at")
+  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
   message          Message?
 
   @@map("media_objects")
@@ -153,7 +153,7 @@ model ConversationRead {
   conversationId    String       @map("conversation_id") @db.Uuid
   userId            String       @map("user_id") @db.Uuid
   lastReadMessageId String?      @map("last_read_message_id") @db.Uuid
-  lastReadAt        DateTime     @map("last_read_at")
+  lastReadAt        DateTime     @map("last_read_at") @db.Timestamptz(3)
   conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user              User         @relation(fields: [userId], references: [id], onDelete: Restrict)
   lastReadMessage   Message?      @relation("LastReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
@@ -168,8 +168,8 @@ model WebhookEvent {
   eventType        String        @map("event_type")
   status           WebhookStatus
   errorSummary     String?       @map("error_summary")
-  processedAt      DateTime?     @map("processed_at")
-  createdAt        DateTime      @default(now()) @map("created_at")
+  processedAt      DateTime?     @map("processed_at") @db.Timestamptz(3)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@map("webhook_events")
 }
