@@ -343,12 +343,16 @@ O entrypoint aplica migrations antes do servidor. Nunca atualize simultaneamente
 
 Uma migration que recalcula dados derivados a partir de tabelas ainda escritas pelo app não deve executar enquanto o runtime anterior aceita mensagens. Um único `UPDATE` é transacional e pode ser idempotente, mas seu snapshot pode anteceder um writer concorrente que já inseriu uma mensagem e ainda aguarda o lock da conversa. Para esse tipo de release, use uma janela curta com a única instância de `app` parada. Caddy, PostgreSQL, volumes, redes, outros containers e a assinatura Meta permanecem intactos; callbacks recebidos na janela devem ser recuperados pelos retries da Meta.
 
-Antes da janela, fixe os nomes imutáveis das imagens candidata e de rollback, valide um backup novo e confirme que existe somente uma instância de `xp-whatsapp-app`. Não carregue `.env.production` como script de shell e não imprima o Compose resolvido, porque valores com espaços não são shell-safe e a configuração contém segredos.
+Use uma sessão POSIX administrativa dedicada. Cada bloco usa `set -eu`: em um script, qualquer falha encerra o bloco antes do próximo passo; em um shell interativo, pare e investigue antes de colar o bloco seguinte. Não carregue, copie ou imprima `.env.production`; o Compose recebe apenas seu caminho. Nunca execute `docker compose config` nesta janela, pois a configuração resolvida contém segredos.
+
+Primeiro declare os valores imutáveis, valide os caminhos e carregue as funções de verificação. A candidata é o commit que contém tanto a migration 004 quanto o parser de backup endurecido.
 
 ```sh
+set -eu
+
 APP_ROOT='/opt/apps/example-app'
 ENV_FILE="$APP_ROOT/.env.production"
-CANDIDATE_REVISION='b638f187fd325c88936c6a351f91ddd91304de73'
+CANDIDATE_REVISION='8f4967a12c1af29367862c4bf8919c71cf04bf58'
 ROLLBACK_REVISION='ef61c05'
 CANDIDATE_RELEASE="$APP_ROOT/releases/$CANDIDATE_REVISION"
 CANDIDATE_IMAGE="xp-whatsapp:$CANDIDATE_REVISION"
@@ -356,23 +360,27 @@ ROLLBACK_IMAGE="xp-whatsapp:$ROLLBACK_REVISION"
 MIGRATION_NAME='202608210004_backfill_response_state'
 COMPOSE_FILE="$CANDIDATE_RELEASE/deploy/kvm/docker-compose.yml"
 
-# Não carregue, copie ou imprima ENV_FILE. O Compose o lê diretamente.
-[ -f "$ENV_FILE" ] && [ ! -L "$ENV_FILE" ]
-[ -f "$COMPOSE_FILE" ]
+require_regular_file() {
+  [ "$#" -eq 1 ]
+  case "$1" in /*) ;; *) return 64 ;; esac
+  [ -f "$1" ] && [ ! -L "$1" ]
+}
+
+require_regular_file "$ENV_FILE"
+[ -f "$COMPOSE_FILE" ] && [ ! -L "$COMPOSE_FILE" ]
+cd "$CANDIDATE_RELEASE/deploy/kvm"
+
 compose() {
   docker compose --project-directory "$CANDIDATE_RELEASE" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
 }
-cd "$CANDIDATE_RELEASE/deploy/kvm"
 
-# O backup deve terminar e validar antes do drain.
-"$CANDIDATE_RELEASE/scripts/backup.sh" /srv/backups/example-app --env-file "$ENV_FILE"
+assert_app_exited() {
+  app_status=$(docker inspect --format '{{.State.Status}}' xp-whatsapp-app)
+  [ "$app_status" = 'exited' ]
+}
 
-# Drene somente o app e falhe fechado se outro writer continuar conectado.
-compose stop app
-test "$(docker inspect --format '{{.State.Status}}' xp-whatsapp-app)" = 'exited'
-
-app_db_sessions=$(
-  compose exec -T database sh -lc \
+assert_app_sessions_drained() {
+  app_db_sessions=$(compose exec -T database sh -ceu \
     'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atq' <<'SQL'
 SELECT count(*)
 FROM pg_stat_activity
@@ -381,40 +389,99 @@ WHERE datname = current_database()
   AND pid <> pg_backend_pid();
 SQL
 )
-test "$app_db_sessions" = '0'
+  [ "$app_db_sessions" = '0' ]
+}
 
-# O entrypoint da candidata executa migrate deploy antes de iniciar o servidor.
-XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
-  compose up -d --no-deps --force-recreate app
-```
-
-Não execute uma migration one-off enquanto o app anterior estiver ativo. Após o `up`, acompanhe imediatamente estado, health e logs sanitizados. Se o entrypoint falhar, pare `app` para encerrar o restart loop e consulte somente o estado agregado da migration alvo:
-
-```sql
-SELECT
-  count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS applied,
-  count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS failed_or_incomplete,
-  count(*) FILTER (WHERE rolled_back_at IS NOT NULL) AS resolved_rolled_back
+migration_state() {
+  compose exec -T database sh -ceu \
+    'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atq' <<SQL
+SELECT count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL)
+       || ' ' || count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL)
+       || ' ' || count(*) FILTER (WHERE rolled_back_at IS NOT NULL)
 FROM _prisma_migrations
-WHERE migration_name = '202608210004_backfill_response_state';
+WHERE migration_name = '$MIGRATION_NAME';
+SQL
+}
+
+read_migration_state() {
+  raw_migration_state=$(migration_state)
+  IFS=' ' read -r MIGRATION_APPLIED MIGRATION_FAILED MIGRATION_ROLLED_BACK <<EOF
+$raw_migration_state
+EOF
+  for migration_count in "$MIGRATION_APPLIED" "$MIGRATION_FAILED" "$MIGRATION_ROLLED_BACK"; do
+    case "$migration_count" in ''|*[!0-9]*) return 65 ;; esac
+  done
+}
+
+assert_failed_or_incomplete_zero() {
+  read_migration_state
+  [ "$MIGRATION_FAILED" = '0' ]
+}
+
+migration_failed_or_incomplete_present() {
+  read_migration_state
+  [ "$MIGRATION_FAILED" -gt 0 ]
+}
+
+assert_migration_applied_clean() {
+  read_migration_state
+  [ "$MIGRATION_APPLIED" = '1' ]
+  [ "$MIGRATION_FAILED" = '0' ]
+  [ "$MIGRATION_ROLLED_BACK" = '0' ]
+}
 ```
 
-Se a migration alvo estiver falha ou incompleta, mantenha o app parado e use a CLI Prisma **da imagem candidata**, com o entrypoint sobrescrito, para resolver o registro como rolled back. Confirme `failed_or_incomplete=0` e tente iniciar a candidata exatamente mais uma vez:
+Com as funções ainda presentes na mesma sessão, crie e valide o backup, drene somente o app e inicie a candidata. O `--wait` é obrigatório: falha de migration, healthcheck ou timeout interrompe o bloco e não promove nada.
 
 ```sh
+set -eu
+
+"$CANDIDATE_RELEASE/scripts/backup.sh" /srv/backups/example-app --env-file "$ENV_FILE"
 compose stop app
+assert_app_exited
+assert_app_sessions_drained
+
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
+assert_migration_applied_clean
+```
+
+Não execute migration one-off enquanto o app anterior estiver ativo. Se o primeiro start candidato falhar, mantenha o app parado. Rode somente o primeiro ramo P3009 abaixo, depois de repetir o bloco de preparação acima caso esteja em uma nova sessão. Ele exige uma linha realmente falha/incompleta, resolve-a com a imagem candidata, confirma `failed_or_incomplete=0` e tenta a candidata **uma única vez** com health wait.
+
+```sh
+set -eu
+
+compose stop app
+assert_app_exited
+assert_app_sessions_drained
+migration_failed_or_incomplete_present
+
 XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
   compose run --rm --no-deps --entrypoint node app \
   node_modules/prisma/build/index.js migrate resolve --rolled-back "$MIGRATION_NAME"
+assert_failed_or_incomplete_zero
 
-# Repita a consulta agregada e exija failed_or_incomplete=0.
+# Única tentativa de retry após resolve; não repita este comando automaticamente.
 XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
-  compose up -d --no-deps --force-recreate app
+  compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
+assert_migration_applied_clean
 ```
 
-Se essa única repetição falhar, pare o app, resolva novamente qualquer linha falha com a imagem candidata e confirme que não resta P3009. Em seguida rode `migrate deploy` e `migrate status` com a imagem de rollback, que não contém a migration nova, antes de reativá-la. Deixe a divergência histórica explicitamente registrada; não faça `UPDATE` manual.
+Se essa única repetição falhar, não inicie a candidata de novo. O segundo ramo resolve de novo somente se ainda houver linha incompleta, prova estado limpo, executa `migrate deploy` e `migrate status` com a imagem de rollback e só então sobe o rollback com health wait. Não faça `UPDATE` manual.
 
 ```sh
+set -eu
+
+compose stop app
+assert_app_exited
+assert_app_sessions_drained
+if migration_failed_or_incomplete_present; then
+  XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+    compose run --rm --no-deps --entrypoint node app \
+    node_modules/prisma/build/index.js migrate resolve --rolled-back "$MIGRATION_NAME"
+fi
+assert_failed_or_incomplete_zero
+
 XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
   compose run --rm --no-deps --entrypoint node app \
   node_modules/prisma/build/index.js migrate deploy
@@ -422,10 +489,27 @@ XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
   compose run --rm --no-deps --entrypoint node app \
   node_modules/prisma/build/index.js migrate status
 XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
-  compose up -d --no-deps --force-recreate app
+  compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
 ```
 
-Se a migration tiver concluído e somente o servidor candidato falhar, não resolva nem reverta a migration: confirme `migrate status` limpo com a imagem candidata e inicie diretamente a imagem anterior compatível. Em nenhum ramo reverta dados já aplicados. Só encerre a janela depois de health local/público, revisão/digest/UID/redes, migrations, auditoria exata dos dados, logs, Meta e snapshot de todos os containers non-app estarem aprovados.
+Se a migration 004 tiver concluído e somente o servidor candidato falhar, não resolva nem reverta a migration. O ramo abaixo exige a migration concluída e limpa, confirma `migrate status` com a candidata e inicia diretamente a imagem de rollback compatível com health wait.
+
+```sh
+set -eu
+
+compose stop app
+assert_app_exited
+assert_app_sessions_drained
+assert_migration_applied_clean
+
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  compose run --rm --no-deps --entrypoint node app \
+  node_modules/prisma/build/index.js migrate status
+XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
+  compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
+```
+
+Em nenhum ramo reverta dados já aplicados, execute restore, faça escrita Meta ou altere container non-app. Só encerre a janela depois de health local/público, revisão/digest/UID/redes, migrations, auditoria exata dos dados, logs, Meta e snapshot de todos os containers non-app estarem aprovados.
 
 ## Rollback
 
