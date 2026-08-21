@@ -51,4 +51,31 @@ describe("secure staged media", () => {
       .rejects.toThrow(/limite/i);
     expect(cancelled).toBe(true);
   });
+
+  it("does not wait forever for a source cancel that never settles on overflow", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-stage-"));
+    roots.push(root);
+    let cancelCalls = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) { controller.enqueue(new Uint8Array(9)); },
+      cancel() {
+        cancelCalls += 1;
+        return new Promise<void>(() => undefined);
+      },
+    });
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      stageMediaStream({ root, filename: "x", mimeType: "x", maximumBytes: 8, stream }).then(
+        () => "resolved",
+        () => "rejected",
+      ),
+      new Promise<string>((resolve) => {
+        timeout = setTimeout(() => resolve("timed-out"), 500);
+      }),
+    ]).finally(() => clearTimeout(timeout));
+
+    expect(result).toBe("rejected");
+    expect(cancelCalls).toBe(1);
+  });
 });

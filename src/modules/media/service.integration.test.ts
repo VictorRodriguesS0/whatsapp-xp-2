@@ -148,6 +148,78 @@ describe("received media PostgreSQL leases", () => {
       .resolves.toEqual({ status: MediaStatus.FAILED, downloadAttempts: 5 });
   });
 
+  it("reconciles a real AVAILABLE commit when the repository response is lost", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-ambiguous-"));
+    roots.push(root);
+    const provider = new Provider();
+    const storage = new LocalMediaStorage(root);
+    const contact = await prisma.contact.create({
+      data: { name: "Contato ambíguo", whatsappId: "5511999990011" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: new Date() },
+    });
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local",
+        originalFilename: "foto.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 0n,
+        sha256: sha,
+        metaMediaId: "meta-pg-ambiguous",
+        status: MediaStatus.PENDING,
+      },
+    });
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date(),
+      },
+    });
+    let committedBeforeFault = false;
+    const faultingRepository = {
+      ...prismaMediaRepository,
+      async markAvailable(
+        id: string,
+        leaseId: string,
+        input: Parameters<typeof prismaMediaRepository.markAvailable>[2],
+      ) {
+        committedBeforeFault = await prismaMediaRepository.markAvailable(id, leaseId, input);
+        throw new Error("simulated database response loss after commit");
+      },
+    };
+    const events: unknown[] = [];
+
+    await expect(ensureMediaAvailable(media.id, {
+      repository: faultingRepository,
+      storage,
+      provider,
+      mediaRoot: root,
+      inFlight: new Map(),
+      publishRealtime: (event) => events.push(event),
+    })).resolves.toBeUndefined();
+
+    expect(committedBeforeFault).toBe(true);
+    const persisted = await prisma.mediaObject.findUniqueOrThrow({
+      where: { id: media.id },
+      select: { status: true, storageKey: true },
+    });
+    expect(persisted.status).toBe(MediaStatus.AVAILABLE);
+    expect(persisted.storageKey).not.toBeNull();
+    const stream = await storage.open(persisted.storageKey!);
+    expect(new Uint8Array(await new Response(stream).arrayBuffer())).toEqual(bytes);
+    expect(events).toEqual([{
+      type: "media.updated",
+      conversationId: conversation.id,
+      messageId: message.id,
+      mediaId: media.id,
+    }]);
+  });
+
   it("atomically resets a visible failed object and coalesces simultaneous manual recoveries", async () => {
     const root = await mkdtemp(join(tmpdir(), "xp-media-pg-manual-"));
     roots.push(root);
@@ -264,6 +336,27 @@ describe("received media PostgreSQL leases", () => {
         downloadAttempts: 5,
       },
     });
+    const contact = await prisma.contact.create({
+      data: { name: "Contato inativo", whatsappId: "5511999990012" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: new Date() },
+    });
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date(),
+      },
+    });
+
+    await expect(prismaMediaRepository.findVisibleById(media.id, user.id)).resolves.toBeNull();
+    await prisma.user.update({ where: { id: user.id }, data: { active: true } });
+    await expect(prismaMediaRepository.findVisibleById(media.id, user.id)).resolves.toMatchObject({ id: media.id });
+    await prisma.user.update({ where: { id: user.id }, data: { active: false } });
 
     await expect(recoverMedia(user.id, media.id, true, {
       repository: prismaMediaRepository,

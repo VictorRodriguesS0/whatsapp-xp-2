@@ -256,6 +256,9 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
 
   let staged: StagedMediaFile | undefined;
   let storedKey: string | undefined;
+  let storedFileMayBeCommitted = false;
+  let downloadedStream: ReadableStream<Uint8Array> | undefined;
+  let downloadedStreamConsumed = false;
   let renewal = Promise.resolve();
   let leaseLost = false;
   const renewalTimer = setInterval(() => {
@@ -271,6 +274,7 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
       throw new MediaValidationError("Metadados remotos incompatíveis");
     }
     const downloaded = await dependencies.provider.downloadMedia({ url: metadata.url, maximumBytes: rule.maximumBytes });
+    downloadedStream = downloaded.stream;
     if (mediaRuleForMime(downloaded.mimeType).mimeType !== rule.mimeType || (downloaded.sizeBytes !== null && downloaded.sizeBytes !== metadata.sizeBytes)) {
       throw new MediaValidationError("Download remoto incompatível");
     }
@@ -281,6 +285,7 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
       maximumBytes: rule.maximumBytes,
       stream: downloaded.stream,
     });
+    downloadedStreamConsumed = true;
     if (staged.sizeBytes !== metadata.sizeBytes || !hashesMatch(media.sha256, staged.sha256) || !hashesMatch(metadata.sha256, staged.sha256)) {
       throw new MediaValidationError("Conteúdo remoto incompatível");
     }
@@ -295,13 +300,52 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
     if (stored.sizeBytes !== staged.sizeBytes || stored.sha256 !== staged.sha256) throw new Error("Stored media mismatch");
     await renewal;
     if (leaseLost) throw new Error("Media download lease lost");
-    const committed = await dependencies.repository.markAvailable(id, leaseId, {
-      storageKey: stored.key, sizeBytes: stored.sizeBytes, sha256: stored.sha256, mimeType: rule.mimeType,
-    });
-    if (!committed) await dependencies.storage.remove(stored.key).catch(() => undefined);
-    else await publishTerminalUpdate(id, dependencies);
+    const availableInput = {
+      storageKey: stored.key,
+      sizeBytes: stored.sizeBytes,
+      sha256: stored.sha256,
+      mimeType: rule.mimeType,
+    };
+    try {
+      const committed = await dependencies.repository.markAvailable(id, leaseId, availableInput);
+      if (!committed) {
+        await dependencies.storage.remove(stored.key).catch(() => undefined);
+      } else {
+        storedKey = undefined;
+        await publishTerminalUpdate(id, dependencies);
+      }
+    } catch (error) {
+      storedFileMayBeCommitted = true;
+      let reconciliationFailed = false;
+      let reconciled: MediaObjectRecord | null = null;
+      try {
+        reconciled = await dependencies.repository.findById(id);
+      } catch {
+        reconciliationFailed = true;
+      }
+      if (
+        reconciled?.status === MediaStatus.AVAILABLE &&
+        reconciled.storageKey === availableInput.storageKey &&
+        reconciled.sizeBytes === availableInput.sizeBytes &&
+        reconciled.sha256 === availableInput.sha256 &&
+        reconciled.mimeType === availableInput.mimeType
+      ) {
+        storedKey = undefined;
+        await publishTerminalUpdate(id, dependencies);
+        return;
+      }
+      if (!reconciliationFailed) {
+        storedFileMayBeCommitted = false;
+      }
+      throw error;
+    }
   } catch (error) {
-    if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
+    if (downloadedStream && !downloadedStreamConsumed) {
+      void downloadedStream.cancel().catch(() => undefined);
+    }
+    if (storedKey && !storedFileMayBeCommitted) {
+      await dependencies.storage.remove(storedKey).catch(() => undefined);
+    }
     if (error instanceof MediaValidationError || (error instanceof WhatsAppProviderError && error.kind === "rejected")) {
       if (await dependencies.repository.markPermanentFailure(id, leaseId, "Mídia remota inválida")) {
         await publishTerminalUpdate(id, dependencies);

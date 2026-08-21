@@ -45,7 +45,7 @@ export async function stageMediaStream(input: {
       const result = await reader.read();
       if (result.done) break;
       if (total + result.value.byteLength > input.maximumBytes) {
-        await reader.cancel().catch(() => undefined);
+        void reader.cancel().catch(() => undefined);
         throw new MediaStorageLimitError();
       }
       await writeAll(handle, result.value);

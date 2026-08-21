@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { createHash, randomUUID } from "node:crypto";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -174,6 +174,46 @@ describe("received media service", () => {
     expect(state.provider.downloadCalls).toBe(0);
     expect(state.repository.record.status).toBe(MediaStatus.FAILED);
     expect(state.repository.record.failureReason).toBe("Mídia remota inválida");
+  });
+
+  it.each([
+    ["MIME", "image/png", BigInt(bytes.byteLength)],
+    ["declared size", "image/jpeg", BigInt(bytes.byteLength + 1)],
+  ])("cancels the unconsumed provider stream once on incompatible %s", async (_case, mimeType, sizeBytes) => {
+    const state = await harness();
+    let cancelCalls = 0;
+    state.provider.downloadMedia = async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        cancel() { cancelCalls += 1; },
+      }),
+      mimeType,
+      sizeBytes,
+    });
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toThrow("Download remoto incompatível");
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(cancelCalls).toBe(1);
+  });
+
+  it("cancels the provider stream once when staging fails before acquiring its reader", async () => {
+    const state = await harness();
+    const invalidRoot = join(state.dependencies.mediaRoot, "not-a-directory");
+    await writeFile(invalidRoot, "blocking file");
+    state.dependencies.mediaRoot = invalidRoot;
+    let cancelCalls = 0;
+    state.provider.downloadMedia = async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        cancel() { cancelCalls += 1; },
+      }),
+      mimeType: "image/jpeg",
+      sizeBytes: BigInt(bytes.byteLength),
+    });
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toThrow();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(cancelCalls).toBe(1);
   });
 
   it("marks a definitive Meta rejection as permanent immediately", async () => {
@@ -394,6 +434,120 @@ describe("received media service", () => {
     expect(state.repository.record.status).toBe(MediaStatus.AVAILABLE);
     const downloadable = await getMediaForDownload(actorId, mediaId, state.dependencies);
     await expect(new Response(downloadable.stream).arrayBuffer()).resolves.toBeInstanceOf(ArrayBuffer);
+  });
+
+  it("removes its stored file when markAvailable fails before the PENDING commit", async () => {
+    const state = await harness();
+    let storedKey: string | undefined;
+    state.repository.markAvailable = async (_id, _leaseId, input) => {
+      storedKey = input.storageKey;
+      throw new Error("database rejected before commit");
+    };
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toThrow("database rejected before commit");
+
+    expect(storedKey).toBeDefined();
+    await expect(state.dependencies.storage.open(storedKey!)).rejects.toThrow();
+    expect(state.repository.record).toMatchObject({
+      status: MediaStatus.PENDING,
+      downloadLeaseId: null,
+      downloadNextAttemptAt: new Date("2026-08-20T12:00:01.000Z"),
+    });
+  });
+
+  it("preserves its stored file when AVAILABLE commit reconciliation cannot query the database", async () => {
+    const state = await harness();
+    const markAvailable = state.repository.markAvailable.bind(state.repository);
+    const findById = state.repository.findById.bind(state.repository);
+    let reconciliationPending = false;
+    let storedKey: string | undefined;
+    state.repository.markAvailable = async (id, leaseId, input) => {
+      storedKey = input.storageKey;
+      await markAvailable(id, leaseId, input);
+      reconciliationPending = true;
+      throw new Error("database response lost after commit");
+    };
+    state.repository.findById = async (id) => {
+      if (reconciliationPending) {
+        reconciliationPending = false;
+        throw new Error("database unavailable during reconciliation");
+      }
+      return findById(id);
+    };
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toThrow("database response lost after commit");
+
+    expect(state.repository.record.status).toBe(MediaStatus.AVAILABLE);
+    const stream = await state.dependencies.storage.open(storedKey!);
+    expect(new Uint8Array(await new Response(stream).arrayBuffer())).toEqual(bytes);
+  });
+
+  it("removes its unreferenced file after reconciling a competing AVAILABLE key", async () => {
+    const state = await harness();
+    let storedKey: string | undefined;
+    state.repository.markAvailable = async (_id, _leaseId, input) => {
+      storedKey = input.storageKey;
+      state.repository.record = {
+        ...state.repository.record,
+        status: MediaStatus.AVAILABLE,
+        storageKey: "different-worker-key",
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+      };
+      throw new Error("database response lost to this worker");
+    };
+
+    await expect(ensureMediaAvailable(mediaId, state.dependencies)).rejects.toThrow("database response lost to this worker");
+
+    expect(storedKey).toBeDefined();
+    await expect(state.dependencies.storage.open(storedKey!)).rejects.toThrow();
+    expect(state.repository.record).toMatchObject({
+      status: MediaStatus.AVAILABLE,
+      storageKey: "different-worker-key",
+    });
+  });
+
+  it("does not wait forever for provider cancellation before stopping lease renewal", async () => {
+    const state = await harness();
+    const invalidRoot = join(state.dependencies.mediaRoot, "cancel-never-settles");
+    await writeFile(invalidRoot, "blocking file");
+    state.dependencies.mediaRoot = invalidRoot;
+    state.dependencies.leaseMs = 20;
+    state.dependencies.leaseRenewIntervalMs = 5;
+    let cancelCalls = 0;
+    let renewCalls = 0;
+    const renewLease = state.repository.renewLease.bind(state.repository);
+    state.repository.renewLease = async (...args) => {
+      renewCalls += 1;
+      return renewLease(...args);
+    };
+    state.provider.downloadMedia = async () => ({
+      stream: new ReadableStream<Uint8Array>({
+        cancel() {
+          cancelCalls += 1;
+          return new Promise<void>(() => undefined);
+        },
+      }),
+      mimeType: "image/jpeg",
+      sizeBytes: BigInt(bytes.byteLength),
+    });
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      ensureMediaAvailable(mediaId, state.dependencies).then(
+        () => "resolved",
+        () => "rejected",
+      ),
+      new Promise<string>((resolve) => {
+        timeout = setTimeout(() => resolve("timed-out"), 500);
+      }),
+    ]).finally(() => clearTimeout(timeout));
+
+    expect(result).toBe("rejected");
+    expect(cancelCalls).toBe(1);
+    const callsAfterSettlement = renewCalls;
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(renewCalls).toBe(callsAfterSettlement);
   });
 
   it("rejects recovery when the active actor cannot see a linked conversation", async () => {
