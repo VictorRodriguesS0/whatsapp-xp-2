@@ -223,7 +223,7 @@ Se a assinatura não convergir ou se a release apresentar falha, execute o rollb
 
 A imagem genérica anterior às identidades de contato anuláveis não é um alvo válido de rollback. Registre antes do deploy o digest da imagem de compatibilidade aprovada; não recrie PostgreSQL, Caddy, volumes, redes ou outros serviços durante esse procedimento.
 
-O registro sanitizado da tentativa de produção de 21 de agosto de 2026 está em `docs/verification/2026-08-21-whatsapp-business-app-message-echoes.md`. Essa tentativa terminou no rollback de segurança previsto; o documento não autoriza reativar a assinatura sem uma nova janela controlada.
+O registro sanitizado da implantação e do aceite de produção de 21 de agosto de 2026 está em `docs/verification/2026-08-21-whatsapp-business-app-message-echoes.md`. O registro inclui o rollback intermediário, sua investigação causal e a reativação final controlada.
 
 ### Janela de atendimento de 24 horas
 

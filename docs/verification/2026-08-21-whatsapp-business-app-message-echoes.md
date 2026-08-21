@@ -2,7 +2,7 @@
 
 Data: 2026-08-21
 
-Resultado: **rollback de segurança concluído; funcionalidade não ativada em produção**.
+Resultado: **aceite de produção concluído; candidata e assinatura ativas**.
 
 Este relatório contém somente contagens, hashes, timestamps e status. Não registra credenciais, identificadores Meta, telefones, conteúdo de mensagens, nomes de arquivos, payloads ou outros dados pessoais.
 
@@ -77,7 +77,7 @@ Antes de qualquer mensagem de teste do usuário, o monitor registrou uma ocorrê
 
 Não foi possível atribuir a ocorrência a um echo específico: na janela da candidata houve zero novos registros agregados em `webhook_events`, zero novas mensagens agregadas e zero linhas 500 preservadas no recorte sanitizado do proxy. O evento de aplicação foi suficiente para acionar a política fail-safe, mas sua causa permanece indeterminada.
 
-## Restauração e estado final
+## Restauração intermediária
 
 A restauração removeu seletivamente somente `smb_message_echoes`; o objeto inteiro nunca foi removido.
 
@@ -102,10 +102,34 @@ Depois do readback, somente `xp-whatsapp-app` foi recriado com a imagem de compa
 
 O banco migrado, o backup validado, as imagens candidata/rollback/baseline e a stack saudável foram preservados. PostgreSQL, Caddy, volumes, redes, DNS, número, revisão do app e outros serviços não foram alterados.
 
-## Aceite pendente
+## Investigação causal
 
-- Texto real pelo WhatsApp Business App: **pendente; não executar enquanto a assinatura estiver restaurada e a release candidata estiver desativada**.
-- Correlação agregada, ator `WhatsApp`, realtime, estado de resposta e duplicidade: **pendentes do texto estável**.
-- Mídia: **pendente de estabilidade do texto e nova concordância do usuário**.
+O readback posterior foi feito pela conexão server-side efetivamente usada pelo app. O evento que acionou o primeiro rollback era enum `status/DELIVERED`, sem mensagem local, recebido 261,827 segundos depois de seu timestamp externo. O hash do resumo correspondeu ao `WebhookProcessingError` intencional usado pelo grace period de 300 segundos para status que pode anteceder a mensagem local.
 
-Uma nova tentativa exige investigação do `WebhookProcessingError`, nova autorização operacional, repetição dos gates afetados e outra janela controlada. Este relatório não autoriza reativação automática.
+O mesmo padrão existia antes da candidata e continuou no rollback, inclusive para outros estados normalizados. O código já diferencia o status recente, que recebe retry bounded, do status histórico, que é reconhecido sem retry infinito. A causa operacional do rollback foi o monitor inicial não classificar o enum do evento e atribuir qualquer `webhook.processing_failed` à feature de echo.
+
+O monitor causal corrigido mantém status órfão recente como contagem separada. Falha `messageEcho`/`messageEchoControl`, rejeição estrutural correlacionada, health, endpoint essencial, digest ou revisão continuam acionáveis.
+
+## Reativação e aceite real
+
+Com autorização explícita, a candidata foi reativada por recreate app-only e `smb_message_echoes` foi acrescentado novamente de forma append-only. O readback independente confirmou:
+
+- 11 campos únicos e exatamente uma ocorrência de `smb_message_echoes`;
+- SHA-256 do conjunto ordenado: `b60043f2797332ff1937aab7e08c47f07772c20565832ab334c16e3e09ec075e`;
+- campos anteriores, callback e estado ativo preservados;
+- candidata saudável, digest/revisão aprovados, UID 1001 e redes 3/1;
+- health, login e páginas legais local/público HTTP 200; webhook GET HTTP 200; assinatura inválida HTTP 401;
+- 34 containers antes e depois, com mudança somente no app.
+
+O usuário executou o fluxo manual durante a janela controlada e confirmou que funcionou. A correlação sanitizada encontrou quatro envios distintos, não uma entrega duplicada:
+
+- 4 eventos `messageEcho`, todos `PROCESSED`, entre `2026-08-21T18:15:51Z` e `2026-08-21T18:16:23Z`;
+- 4 mensagens locais distintas em correspondência 1:1; zero duplicatas;
+- todas `OUTBOUND`, sem ator interno e sem client request; uma ainda `SENT` e três já `DELIVERED` no readback;
+- todas na mesma conversa do inbound imediatamente anterior;
+- `awaitingResponseSince` limpo e atividade da conversa igual à mensagem mais recente em todos os quatro casos;
+- zero `messageEcho` ou `messageEchoControl` em estado `FAILED`.
+
+A ausência de ator interno aciona o label **WhatsApp** implementado e testado na UI; a confirmação manual foi registrada sem screenshot ou conteúdo. Um teste de mídia não foi necessário para aceitar o texto e permanece opcional mediante nova concordância do usuário.
+
+Na ativação final, iniciada em `2026-08-21T18:20:47Z`, o baseline causal foi registrado em `2026-08-21T18:22:02Z`. A janela final de 328 segundos manteve health/endpoints e readback Meta aprovados, com seis callbacks aceitos e sem nova falha de echo/control, payload ou normalização. A imagem de rollback compatível e o backup validado permanecem disponíveis.
