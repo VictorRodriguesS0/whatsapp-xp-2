@@ -252,7 +252,7 @@ async function hydrateServiceRecord(row: PrismaMessageRow): Promise<MessageServi
         },
       })
     : null;
-  if (!contact) throw new Error("Invalid outbound conversation contact");
+  if (!contact?.phone) throw new Error("Invalid outbound conversation contact");
   return {
     id: row.id,
     conversationId: row.conversationId,

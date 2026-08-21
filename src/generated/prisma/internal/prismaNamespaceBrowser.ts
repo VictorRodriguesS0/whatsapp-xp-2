@@ -107,6 +107,7 @@ export type SessionScalarFieldEnum = (typeof SessionScalarFieldEnum)[keyof typeo
 export const ContactScalarFieldEnum = {
   id: 'id',
   whatsappId: 'whatsappId',
+  whatsappUserId: 'whatsappUserId',
   phone: 'phone',
   name: 'name',
   profilePictureUrl: 'profilePictureUrl',

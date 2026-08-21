@@ -2,7 +2,11 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { MessageStatus, WebhookStatus } from "@/generated/prisma/enums";
+import {
+  MessageDirection,
+  MessageStatus,
+  WebhookStatus,
+} from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { inboundMediaFixture, inboundTextFixture, statusFixture } from "@/test/fixtures/meta-webhooks";
 import { resetTestDatabase } from "@/test/database";
@@ -21,15 +25,35 @@ import {
 
 type State = {
   events: Map<string, { eventType: string; status: WebhookStatus; errorSummary: string | null }>;
-  contacts: Map<string, { id: string; whatsappId: string; phone: string; name: string }>;
-  conversations: Map<string, { id: string; contactId: string; lastMessageAt: Date }>;
+  contacts: Map<
+    string,
+    {
+      id: string;
+      whatsappId: string | null;
+      whatsappUserId: string | null;
+      phone: string | null;
+      name: string;
+    }
+  >;
+  conversations: Map<
+    string,
+    {
+      id: string;
+      contactId: string;
+      lastMessageAt: Date;
+      awaitingResponseSince: Date | null;
+    }
+  >;
   messages: Map<
     string,
     {
       id: string;
       conversationId: string;
       whatsappMessageId: string;
+      direction: MessageDirection;
       status: MessageStatus;
+      body: string | null;
+      sentByUserId: string | null;
       externalTimestamp: Date;
       mediaObjectId: string | null;
     }
@@ -95,10 +119,35 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
         const created = {
           id: `contact-${target.contacts.size + 1}`,
           whatsappId,
+          whatsappUserId: null,
           phone,
           name: name ?? phone,
         };
         target.contacts.set(whatsappId, created);
+        return { id: created.id };
+      },
+      resolveEchoContact: async ({ phone, whatsappUserId }) => {
+        const existing = [...target.contacts.values()].find(
+          (contact) =>
+            (phone !== null &&
+              (contact.phone === phone || contact.whatsappId === phone)) ||
+            (whatsappUserId !== null &&
+              contact.whatsappUserId === whatsappUserId),
+        );
+        if (existing) {
+          existing.phone ??= phone;
+          existing.whatsappId ??= phone;
+          existing.whatsappUserId ??= whatsappUserId;
+          return { id: existing.id };
+        }
+        const created = {
+          id: `contact-${target.contacts.size + 1}`,
+          whatsappId: phone,
+          whatsappUserId,
+          phone,
+          name: phone ?? "WhatsApp",
+        };
+        target.contacts.set(created.id, created);
         return { id: created.id };
       },
       upsertConversation: async (contactId, timestamp) => {
@@ -113,6 +162,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
           id: `conversation-${target.conversations.size + 1}`,
           contactId,
           lastMessageAt: timestamp,
+          awaitingResponseSince: null,
         };
         target.conversations.set(created.id, created);
         return { id: created.id };
@@ -134,12 +184,31 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
           id: `message-${target.messages.size + 1}`,
           conversationId: message.conversationId,
           whatsappMessageId: message.whatsappMessageId,
-          status: MessageStatus.RECEIVED,
+          direction: message.direction,
+          status: message.status,
+          body: message.body,
+          sentByUserId: message.sentByUserId,
           externalTimestamp: message.externalTimestamp,
           mediaObjectId: message.mediaObjectId,
         };
         target.messages.set(message.whatsappMessageId, created);
         return { id: created.id, conversationId: created.conversationId };
+      },
+      refreshResponseState: async (conversationId) => {
+        const conversation = target.conversations.get(conversationId);
+        if (!conversation) throw new Error("missing conversation");
+        const latest = [...target.messages.values()]
+          .filter((message) => message.conversationId === conversationId)
+          .sort(
+            (left, right) =>
+              right.externalTimestamp.getTime() -
+                left.externalTimestamp.getTime() ||
+              right.id.localeCompare(left.id),
+          )[0];
+        conversation.awaitingResponseSince =
+          latest?.direction === MessageDirection.INBOUND
+            ? (conversation.awaitingResponseSince ?? latest.externalTimestamp)
+            : null;
       },
       updateMessageStatus: async (messageId, status, failureReason) => {
         const message = [...target.messages.values()].find(({ id }) => id === messageId);
@@ -181,8 +250,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
 }
 
 describe("webhook event processing", () => {
-  it.each([
-    {
+  const echo = {
       kind: "messageEcho",
       whatsappMessageId: "wamid.echo-pending-task-2",
       to: "5511999990001",
@@ -194,8 +262,8 @@ describe("webhook event processing", () => {
       body: "synthetic echo",
       media: null,
       origin: "WHATSAPP_BUSINESS_APP",
-    } satisfies NormalizedMessageEchoEvent,
-    {
+    } satisfies NormalizedMessageEchoEvent;
+  const control = {
       kind: "messageEchoControl",
       action: "EDIT",
       whatsappMessageId: "wamid.echo-control-pending-task-2",
@@ -206,19 +274,83 @@ describe("webhook event processing", () => {
       timestamp: new Date("2026-08-21T12:00:00.000Z"),
       timestampRaw: "1787313600",
       origin: "WHATSAPP_BUSINESS_APP",
-    } satisfies NormalizedMessageEchoControlEvent,
-  ])("fails closed for $kind until Task 2 implements persistence", async (event) => {
+    } satisfies NormalizedMessageEchoControlEvent;
+
+  it("persists an echo as actorless outbound SENT and publishes only after commit", async () => {
     const harness = createHarness();
+    const scheduled: string[] = [];
 
     await expect(
-      processWebhookEvents([event], harness.dependencies),
-    ).rejects.toMatchObject({ retryable: true, recordFailure: false });
+      processWebhookEvents([echo], harness.dependencies, (id) => scheduled.push(id)),
+    ).resolves.toEqual({ processed: 1, duplicates: 0 });
 
-    expect(harness.state.events).toHaveLength(0);
+    expect(harness.state.events.get("message-echo:wamid.echo-pending-task-2"))
+      .toMatchObject({ status: WebhookStatus.PROCESSED });
+    expect(harness.state.contacts).toHaveLength(1);
+    expect(harness.state.conversations).toHaveLength(1);
+    expect([...harness.state.messages.values()][0]).toMatchObject({
+      direction: MessageDirection.OUTBOUND,
+      status: MessageStatus.SENT,
+      sentByUserId: null,
+      body: "synthetic echo",
+    });
+    expect(harness.state.media).toHaveLength(0);
+    expect(scheduled).toEqual([]);
+    expect(harness.publications).toEqual([
+      {
+        afterCommit: true,
+        event: {
+          type: "message.created",
+          conversationId: "conversation-1",
+          messageId: "message-1",
+        },
+      },
+    ]);
+  });
+
+  it("deduplicates controls without creating domain state", async () => {
+    const harness = createHarness();
+
+    await expect(processWebhookEvents([control], harness.dependencies)).resolves.toEqual({
+      processed: 1,
+      duplicates: 0,
+    });
+    await expect(processWebhookEvents([control], harness.dependencies)).resolves.toEqual({
+      processed: 0,
+      duplicates: 1,
+    });
+
+    expect(
+      harness.state.events.get(
+        "message-echo-control:EDIT:wamid.echo-control-pending-task-2:wamid.echo-original-pending-task-2",
+      ),
+    ).toMatchObject({ status: WebhookStatus.PROCESSED });
     expect(harness.state.contacts).toHaveLength(0);
     expect(harness.state.conversations).toHaveLength(0);
     expect(harness.state.messages).toHaveLength(0);
     expect(harness.state.media).toHaveLength(0);
+    expect(harness.publications).toEqual([]);
+  });
+
+  it("rolls back an echo and publishes or schedules nothing on transaction failure", async () => {
+    const harness = createHarness({ failCreateMessage: true });
+    const scheduled: string[] = [];
+
+    await expect(
+      processWebhookEvents([echo], harness.dependencies, (id) => scheduled.push(id)),
+    ).rejects.toBeInstanceOf(WebhookProcessingError);
+
+    expect(harness.state.contacts).toHaveLength(0);
+    expect(harness.state.conversations).toHaveLength(0);
+    expect(harness.state.messages).toHaveLength(0);
+    expect(harness.state.media).toHaveLength(0);
+    expect(
+      harness.state.events.get("message-echo:wamid.echo-pending-task-2"),
+    ).toMatchObject({
+      status: WebhookStatus.FAILED,
+      errorSummary: "processing_error:Error",
+    });
+    expect(scheduled).toEqual([]);
     expect(harness.publications).toEqual([]);
   });
 
@@ -394,7 +526,10 @@ describe("webhook event processing", () => {
       id: "message-racing",
       conversationId: "conversation-racing",
       whatsappMessageId: "wamid.racing",
+      direction: MessageDirection.OUTBOUND,
       status: MessageStatus.SENT,
+      body: "racing message",
+      sentByUserId: null,
       externalTimestamp: now,
       mediaObjectId: null,
     });

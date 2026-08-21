@@ -96,8 +96,9 @@ model Session {
 
 model Contact {
   id                String        @id @default(uuid()) @db.Uuid
-  whatsappId        String        @unique @map("whatsapp_id")
-  phone             String        @unique
+  whatsappId        String?       @unique @map("whatsapp_id")
+  whatsappUserId    String?       @unique @map("whatsapp_user_id")
+  phone             String?       @unique
   name              String
   profilePictureUrl String?       @map("profile_picture_url")
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)

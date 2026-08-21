@@ -1,6 +1,6 @@
 import "server-only";
 
-import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { Prisma } from "@/generated/prisma/client";
 import {
   MediaStatus,
   MessageDirection,
@@ -9,11 +9,17 @@ import {
   type MessageStatus as MessageStatusValue,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import {
+  compareBoundary,
+  refreshResponseState,
+} from "@/modules/conversations/shared-state";
 import { publishRealtime } from "@/modules/realtime/hub";
 import type { RealtimeEvent } from "@/modules/realtime/events";
 
 import type {
   NormalizedMedia,
+  NormalizedMessageEchoControlEvent,
+  NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
   NormalizedStatusEvent,
   NormalizedWebhookEvent,
@@ -37,6 +43,10 @@ export type WebhookRepository = {
     phone: string;
     name: string | null;
   }): Promise<{ id: string }>;
+  resolveEchoContact(input: {
+    phone: string | null;
+    whatsappUserId: string | null;
+  }): Promise<{ id: string }>;
   upsertConversation(contactId: string, timestamp: Date): Promise<{ id: string }>;
   findMessage(whatsappMessageId: string): Promise<MessageRecord | null>;
   createMedia(media: NormalizedMedia): Promise<{ id: string }>;
@@ -46,8 +56,12 @@ export type WebhookRepository = {
     type: NormalizedMessageEvent["type"];
     body: string | null;
     mediaObjectId: string | null;
+    direction: MessageDirection;
+    status: MessageStatusValue;
+    sentByUserId: string | null;
     externalTimestamp: Date;
   }): Promise<{ id: string; conversationId: string }>;
+  refreshResponseState(conversationId: string): Promise<void>;
   updateMessageStatus(
     messageId: string,
     status: NormalizedStatusEvent["status"],
@@ -66,10 +80,7 @@ export type WebhookProcessDependencies = {
   now?(): Date;
 };
 
-type PrismaWebhookClient = Pick<
-  PrismaClient,
-  "webhookEvent" | "contact" | "conversation" | "message" | "mediaObject"
->;
+type PrismaWebhookClient = Prisma.TransactionClient;
 
 type TransactionClient = {
   $transaction<T>(
@@ -116,6 +127,255 @@ async function runWebhookTransaction<T>(
 export function createPrismaWebhookRepository(
   client: PrismaWebhookClient,
 ): WebhookRepository {
+  async function mergeConversations(
+    targetConversation: {
+      id: string;
+      responsibleUserId: string | null;
+      lastMessageAt: Date;
+      teamLastReadMessageId: string | null;
+      teamLastReadAt: Date | null;
+      manualUnreadAt: Date | null;
+      manualUnreadByUserId: string | null;
+    },
+    sourceConversation: {
+      id: string;
+      responsibleUserId: string | null;
+      lastMessageAt: Date;
+      teamLastReadMessageId: string | null;
+      teamLastReadAt: Date | null;
+      manualUnreadAt: Date | null;
+      manualUnreadByUserId: string | null;
+    },
+  ): Promise<void> {
+    const [sourceReads, targetReads, boundaryMessages] = await Promise.all([
+      client.conversationRead.findMany({
+        where: { conversationId: sourceConversation.id },
+        select: {
+          userId: true,
+          lastReadAt: true,
+          lastReadMessageId: true,
+          lastReadMessage: {
+            select: { id: true, externalTimestamp: true },
+          },
+        },
+      }),
+      client.conversationRead.findMany({
+        where: { conversationId: targetConversation.id },
+        select: {
+          userId: true,
+          lastReadAt: true,
+          lastReadMessageId: true,
+          lastReadMessage: {
+            select: { id: true, externalTimestamp: true },
+          },
+        },
+      }),
+      client.message.findMany({
+        where: {
+          id: {
+            in: [
+              targetConversation.teamLastReadMessageId,
+              sourceConversation.teamLastReadMessageId,
+            ].filter((id): id is string => id !== null),
+          },
+        },
+        select: { id: true, externalTimestamp: true },
+      }),
+    ]);
+    const targetReadsByUser = new Map(
+      targetReads.map((read) => [read.userId, read]),
+    );
+
+    await client.message.updateMany({
+      where: { conversationId: sourceConversation.id },
+      data: { conversationId: targetConversation.id },
+    });
+
+    for (const sourceRead of sourceReads) {
+      const targetRead = targetReadsByUser.get(sourceRead.userId);
+      const sourceBoundary = sourceRead.lastReadMessage ?? {
+        id: "",
+        externalTimestamp: sourceRead.lastReadAt,
+      };
+      const targetBoundary = targetRead?.lastReadMessage ??
+        (targetRead
+          ? { id: "", externalTimestamp: targetRead.lastReadAt }
+          : null);
+      const winner =
+        !targetBoundary || compareBoundary(sourceBoundary, targetBoundary) > 0
+          ? sourceRead
+          : targetRead!;
+
+      await client.conversationRead.upsert({
+        where: {
+          conversationId_userId: {
+            conversationId: targetConversation.id,
+            userId: sourceRead.userId,
+          },
+        },
+        create: {
+          conversationId: targetConversation.id,
+          userId: sourceRead.userId,
+          lastReadMessageId: winner.lastReadMessageId,
+          lastReadAt: winner.lastReadAt,
+        },
+        update: {
+          lastReadMessageId: winner.lastReadMessageId,
+          lastReadAt: winner.lastReadAt,
+        },
+      });
+    }
+
+    await client.conversationRead.deleteMany({
+      where: { conversationId: sourceConversation.id },
+    });
+    await client.conversationAuditEvent.updateMany({
+      where: { conversationId: sourceConversation.id },
+      data: { conversationId: targetConversation.id },
+    });
+
+    const boundary = boundaryMessages.sort(compareBoundary).at(-1) ?? null;
+    const manualUnreadSourceIsNewer =
+      sourceConversation.manualUnreadAt !== null &&
+      (targetConversation.manualUnreadAt === null ||
+        sourceConversation.manualUnreadAt > targetConversation.manualUnreadAt);
+
+    await client.conversation.update({
+      where: { id: targetConversation.id },
+      data: {
+        responsibleUserId:
+          targetConversation.responsibleUserId ??
+          sourceConversation.responsibleUserId,
+        lastMessageAt:
+          targetConversation.lastMessageAt > sourceConversation.lastMessageAt
+            ? targetConversation.lastMessageAt
+            : sourceConversation.lastMessageAt,
+        teamLastReadMessageId: boundary?.id ?? null,
+        teamLastReadAt:
+          boundary?.externalTimestamp ??
+          (targetConversation.teamLastReadAt &&
+          sourceConversation.teamLastReadAt
+            ? targetConversation.teamLastReadAt >
+              sourceConversation.teamLastReadAt
+              ? targetConversation.teamLastReadAt
+              : sourceConversation.teamLastReadAt
+            : (targetConversation.teamLastReadAt ??
+              sourceConversation.teamLastReadAt)),
+        manualUnreadAt: manualUnreadSourceIsNewer
+          ? sourceConversation.manualUnreadAt
+          : targetConversation.manualUnreadAt,
+        manualUnreadByUserId: manualUnreadSourceIsNewer
+          ? sourceConversation.manualUnreadByUserId
+          : targetConversation.manualUnreadByUserId,
+      },
+    });
+    await client.conversation.delete({
+      where: { id: sourceConversation.id },
+    });
+  }
+
+  async function resolveEchoContact(input: {
+    phone: string | null;
+    whatsappUserId: string | null;
+  }): Promise<{ id: string }> {
+    const identities: Prisma.ContactWhereInput[] = [];
+    if (input.phone) {
+      identities.push({ phone: input.phone }, { whatsappId: input.phone });
+    }
+    if (input.whatsappUserId) {
+      identities.push({ whatsappUserId: input.whatsappUserId });
+    }
+
+    const select = {
+      id: true,
+      whatsappId: true,
+      whatsappUserId: true,
+      phone: true,
+      conversation: {
+        select: {
+          id: true,
+          responsibleUserId: true,
+          lastMessageAt: true,
+          teamLastReadMessageId: true,
+          teamLastReadAt: true,
+          manualUnreadAt: true,
+          manualUnreadByUserId: true,
+        },
+      },
+    } as const;
+    const contacts = await client.contact.findMany({
+      where: { OR: identities },
+      select,
+    });
+    const phoneContact = input.phone
+      ? contacts.find(
+          (contact) =>
+            contact.phone === input.phone || contact.whatsappId === input.phone,
+        )
+      : undefined;
+    const bsuidContact = input.whatsappUserId
+      ? contacts.find(
+          (contact) => contact.whatsappUserId === input.whatsappUserId,
+        )
+      : undefined;
+
+    if (!phoneContact && !bsuidContact) {
+      return client.contact.create({
+        data: {
+          whatsappId: input.phone,
+          whatsappUserId: input.whatsappUserId,
+          phone: input.phone,
+          name: input.phone ?? "WhatsApp",
+        },
+        select: { id: true },
+      });
+    }
+
+    const target = phoneContact ?? bsuidContact!;
+    const source =
+      phoneContact && bsuidContact && phoneContact.id !== bsuidContact.id
+        ? bsuidContact
+        : null;
+
+    if (
+      input.phone &&
+      target.phone &&
+      target.phone !== input.phone &&
+      target.whatsappId !== input.phone
+    ) {
+      throw new Error("Conflicting echo contact identities");
+    }
+    if (
+      input.whatsappUserId &&
+      target.whatsappUserId &&
+      target.whatsappUserId !== input.whatsappUserId
+    ) {
+      throw new Error("Conflicting echo contact identities");
+    }
+
+    if (source) {
+      if (target.conversation && source.conversation) {
+        await mergeConversations(target.conversation, source.conversation);
+      } else if (source.conversation) {
+        await client.conversation.update({
+          where: { id: source.conversation.id },
+          data: { contactId: target.id },
+        });
+      }
+      await client.contact.delete({ where: { id: source.id } });
+    }
+
+    return client.contact.update({
+      where: { id: target.id },
+      data: {
+        whatsappId: target.whatsappId ?? input.phone,
+        phone: target.phone ?? input.phone,
+        whatsappUserId: target.whatsappUserId ?? input.whatsappUserId,
+      },
+      select: { id: true },
+    });
+  }
+
   return {
     async reserveEvent(key, eventType) {
       const existing = await client.webhookEvent.findUnique({
@@ -166,6 +426,7 @@ export function createPrismaWebhookRepository(
         select: { id: true },
       });
     },
+    resolveEchoContact,
     async upsertConversation(contactId, timestamp) {
       const conversation = await client.conversation.upsert({
         where: { contactId },
@@ -207,16 +468,19 @@ export function createPrismaWebhookRepository(
         data: {
           conversationId: input.conversationId,
           whatsappMessageId: input.whatsappMessageId,
-          direction: MessageDirection.INBOUND,
           type: input.type,
           body: input.body,
           mediaObjectId: input.mediaObjectId,
-          sentByUserId: null,
-          status: MessageStatus.RECEIVED,
+          sentByUserId: input.sentByUserId,
+          status: input.status,
+          direction: input.direction,
           externalTimestamp: input.externalTimestamp,
         },
         select: { id: true, conversationId: true },
       });
+    },
+    refreshResponseState(conversationId) {
+      return refreshResponseState(client, conversationId);
     },
     updateMessageStatus(messageId, status, failureReason) {
       return client.message.update({
@@ -269,18 +533,19 @@ const defaultDependencies: WebhookProcessDependencies = {
   publishRealtime,
 };
 
-function isCurrentlyProcessableEvent(
-  event: NormalizedWebhookEvent,
-): event is NormalizedMessageEvent | NormalizedStatusEvent {
-  return event.kind === "message" || event.kind === "status";
-}
-
 function deduplicationKey(
-  event: NormalizedMessageEvent | NormalizedStatusEvent,
+  event: NormalizedWebhookEvent,
 ): string {
-  return event.kind === "message"
-    ? `message:${event.whatsappMessageId}`
-    : `status:${event.whatsappMessageId}:${event.status}:${event.timestampRaw}`;
+  switch (event.kind) {
+    case "message":
+      return `message:${event.whatsappMessageId}`;
+    case "status":
+      return `status:${event.whatsappMessageId}:${event.status}:${event.timestampRaw}`;
+    case "messageEcho":
+      return `message-echo:${event.whatsappMessageId}`;
+    case "messageEchoControl":
+      return `message-echo-control:${event.action}:${event.whatsappMessageId}:${event.originalWhatsappMessageId}`;
+  }
 }
 
 function safeErrorSummary(error: unknown): string {
@@ -342,8 +607,12 @@ async function processMessage(
     type: event.type,
     body: event.body,
     mediaObjectId: media?.id ?? null,
+    direction: MessageDirection.INBOUND,
+    status: MessageStatus.RECEIVED,
+    sentByUserId: null,
     externalTimestamp: event.timestamp,
   });
+  await repository.refreshResponseState(conversation.id);
   await repository.completeEvent(key);
 
   return {
@@ -355,6 +624,69 @@ async function processMessage(
       messageId: message.id,
     },
   };
+}
+
+async function processMessageEcho(
+  event: NormalizedMessageEchoEvent,
+  key: string,
+  repository: WebhookRepository,
+): Promise<{
+  duplicate: boolean;
+  realtime: RealtimeEvent | null;
+  pendingMediaId: string | null;
+}> {
+  const existing = await repository.findMessage(event.whatsappMessageId);
+
+  if (existing) {
+    await repository.completeEvent(key);
+    return { duplicate: true, realtime: null, pendingMediaId: null };
+  }
+
+  const contact = await repository.resolveEchoContact({
+    phone: event.to,
+    whatsappUserId: event.toUserId,
+  });
+  const conversation = await repository.upsertConversation(
+    contact.id,
+    event.timestamp,
+  );
+  const media = event.media ? await repository.createMedia(event.media) : null;
+  const message = await repository.createMessage({
+    conversationId: conversation.id,
+    whatsappMessageId: event.whatsappMessageId,
+    type: event.type,
+    body: event.body,
+    mediaObjectId: media?.id ?? null,
+    direction: MessageDirection.OUTBOUND,
+    status: MessageStatus.SENT,
+    sentByUserId: null,
+    externalTimestamp: event.timestamp,
+  });
+  await repository.refreshResponseState(conversation.id);
+  await repository.completeEvent(key);
+
+  return {
+    duplicate: false,
+    pendingMediaId: media?.id ?? null,
+    realtime: {
+      type: "message.created",
+      conversationId: message.conversationId,
+      messageId: message.id,
+    },
+  };
+}
+
+async function processMessageEchoControl(
+  _event: NormalizedMessageEchoControlEvent,
+  key: string,
+  repository: WebhookRepository,
+): Promise<{
+  duplicate: boolean;
+  realtime: RealtimeEvent | null;
+  pendingMediaId: string | null;
+}> {
+  await repository.completeEvent(key);
+  return { duplicate: false, realtime: null, pendingMediaId: null };
 }
 
 async function processStatus(
@@ -400,10 +732,6 @@ export async function processWebhookEvents(
   const summary: ProcessSummary = { processed: 0, duplicates: 0 };
 
   for (const event of events) {
-    if (!isCurrentlyProcessableEvent(event)) {
-      throw new WebhookProcessingError(true, false);
-    }
-
     const key = deduplicationKey(event);
     const now = dependencies.now?.() ?? new Date();
     let outcome: {
@@ -424,9 +752,16 @@ export async function processWebhookEvents(
           throw new WebhookProcessingError(true, false);
         }
 
-        return event.kind === "message"
-          ? processMessage(event, key, repository)
-          : processStatus(event, key, repository, now);
+        switch (event.kind) {
+          case "message":
+            return processMessage(event, key, repository);
+          case "status":
+            return processStatus(event, key, repository, now);
+          case "messageEcho":
+            return processMessageEcho(event, key, repository);
+          case "messageEchoControl":
+            return processMessageEchoControl(event, key, repository);
+        }
       });
     } catch (error) {
       const processingError =

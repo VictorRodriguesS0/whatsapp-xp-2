@@ -148,7 +148,9 @@ function createRepository(
           (record) =>
             !normalizedSearch ||
             record.contact.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch) ||
-            record.contact.phone.toLocaleLowerCase("pt-BR").includes(normalizedSearch),
+            record.contact.phone
+              ?.toLocaleLowerCase("pt-BR")
+              .includes(normalizedSearch),
         )
         .filter(
           (record) =>

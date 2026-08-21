@@ -13,7 +13,7 @@ export type ConversationUserRecord = {
 export type ContactDto = {
   id: string;
   name: string;
-  phone: string;
+  phone: string | null;
   profilePictureUrl: string | null;
 };
 
