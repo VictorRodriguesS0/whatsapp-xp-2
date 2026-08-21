@@ -26,6 +26,14 @@ expect_failure() {
   fi
 }
 
+expect_parser_failure() {
+  description=$1
+  shift
+  rm -f -- "$TEST_ROOT/docker-args"
+  expect_failure "$description" "$@"
+  [ ! -e "$TEST_ROOT/docker-args" ] || fail "$description acionou Docker antes de rejeitar a entrada"
+}
+
 mkdir -p "$TEST_ROOT/bin" "$TEST_ROOT/env files" "$TEST_ROOT/out with spaces"
 cat > "$TEST_ROOT/bin/docker" <<'DOCKER'
 #!/bin/sh
@@ -80,6 +88,15 @@ if grep -F 'never-print-this-secret' "$TEST_ROOT/command-output" >/dev/null; the
   fail 'backup imprimiu o conteúdo do arquivo de ambiente'
 fi
 
+# Both accepted flag orders must resolve to exactly the same Compose command.
+unset backup_status
+run_backup "$TEST_ROOT/reversed-option-output" \
+  --env-file "$TEST_ROOT/env files/canonical.env" \
+  --path-file "$TEST_ROOT/xp-restore-backup-path.XXXXXX" || backup_status=$?
+[ "${backup_status:-0}" -eq 69 ] || fail "backup com flags invertidas deveria alcançar Compose e parar sem database, saiu ${backup_status:-0}"
+ACTUAL_ARGS=$(cat "$TEST_ROOT/docker-args")
+[ "$ACTUAL_ARGS" = "$EXPECTED_ARGS" ] || fail 'flags invertidas alteraram a ordem determinística do Compose'
+
 # The historical one-argument call remains usable without an env-file.
 unset backup_status
 run_backup "$TEST_ROOT/one-argument-output" || backup_status=$?
@@ -96,19 +113,45 @@ if grep -Fx -- '--env-file' "$TEST_ROOT/docker-args" >/dev/null; then
   fail 'backup legado adicionou --env-file sem solicitação'
 fi
 
-expect_failure 'backup aceitou env-file relativo' \
+expect_parser_failure 'backup aceitou env-file relativo' \
   env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
   "$BACKUP_SCRIPT" "$TEST_ROOT/relative-output" --env-file relative.env
 grep -F 'caminho absoluto' "$TEST_ROOT/command-output" >/dev/null || fail 'rejeição de env-file relativo não explicou o requisito absoluto'
 
-expect_failure 'backup aceitou env-file ausente' \
+expect_parser_failure 'backup aceitou env-file ausente' \
   env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
   "$BACKUP_SCRIPT" "$TEST_ROOT/missing-output" --env-file "$TEST_ROOT/missing.env"
 grep -F 'arquivo regular existente' "$TEST_ROOT/command-output" >/dev/null || fail 'rejeição de env-file ausente não falhou fechada'
 
+mkdir -p "$TEST_ROOT/env-directory"
+expect_parser_failure 'backup aceitou diretório como env-file' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/directory-output" --env-file "$TEST_ROOT/env-directory"
+grep -F 'arquivo regular existente' "$TEST_ROOT/command-output" >/dev/null || fail 'rejeição de diretório não falhou fechada'
+
+expect_parser_failure 'backup aceitou env-file vazio' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/empty-env-output" --env-file ''
+
+expect_parser_failure 'backup aceitou path-file vazio' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/empty-path-output" --path-file ''
+
+expect_parser_failure 'backup aceitou env-file duplicado após valor vazio' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/duplicate-env-output" --env-file '' --env-file "$TEST_ROOT/env files/canonical.env"
+
+expect_parser_failure 'backup aceitou path-file duplicado após valor vazio' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/duplicate-path-output" --path-file '' --path-file "$TEST_ROOT/xp-restore-backup-path.XXXXXX"
+
+expect_parser_failure 'backup aceitou opção desconhecida' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/unknown-output" --unexpected
+
 ln -s "$TEST_ROOT/env files/canonical.env" "$TEST_ROOT/env-link"
 if [ -L "$TEST_ROOT/env-link" ]; then
-  expect_failure 'backup aceitou env-file symlink' \
+  expect_parser_failure 'backup aceitou env-file symlink' \
     env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
     "$BACKUP_SCRIPT" "$TEST_ROOT/symlink-output" --env-file "$TEST_ROOT/env-link"
   grep -F 'arquivo regular existente' "$TEST_ROOT/command-output" >/dev/null || fail 'rejeição de env-file symlink não falhou fechada'

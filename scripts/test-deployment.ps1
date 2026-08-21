@@ -34,6 +34,13 @@ $BackupPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scrip
 $HelperShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.sh')
 $HelperPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.ps1')
 $Readme = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'README.md')
+$MigrationHeading = '### Migration de dados com writers drenados'
+$MigrationStart = $Readme.IndexOf($MigrationHeading, [StringComparison]::Ordinal)
+$RollbackStart = $Readme.IndexOf("`n## Rollback", $MigrationStart, [StringComparison]::Ordinal)
+if ($MigrationStart -lt 0 -or $RollbackStart -lt 0) {
+  throw 'Runbook de migration/rollback não pôde ser delimitado para verificação.'
+}
+$MigrationRunbook = $Readme.Substring($MigrationStart, $RollbackStart - $MigrationStart)
 
 if (
   $BackupShell -notmatch 'docker compose --project-directory "\$PROJECT_ROOT" --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE"' -or
@@ -42,13 +49,49 @@ if (
   throw 'backup.sh deve encaminhar somente o caminho de ENV_FILE como opção global do Compose, sem carregar o segredo no shell.'
 }
 if (
-  $Readme -notmatch "APP_ROOT='/opt/apps/example-app'" -or
-  $Readme -notmatch 'ENV_FILE="\$APP_ROOT/\.env\.production"' -or
-  $Readme -notmatch 'COMPOSE_FILE="\$CANDIDATE_RELEASE/deploy/kvm/docker-compose\.yml"' -or
-  $Readme -notmatch '"\$CANDIDATE_RELEASE/scripts/backup\.sh" /srv/backups/example-app --env-file "\$ENV_FILE"' -or
-  $Readme -match 'docker compose --env-file \.env\.production'
+  $MigrationRunbook -notmatch '(?m)^set -eu$' -or
+  $MigrationRunbook -notmatch "APP_ROOT='/opt/apps/example-app'" -or
+  $MigrationRunbook -notmatch 'ENV_FILE="\$APP_ROOT/\.env\.production"' -or
+  $MigrationRunbook -notmatch 'COMPOSE_FILE="\$CANDIDATE_RELEASE/deploy/kvm/docker-compose\.yml"' -or
+  $MigrationRunbook -notmatch '"\$CANDIDATE_RELEASE/scripts/backup\.sh" /srv/backups/example-app --env-file "\$ENV_FILE"' -or
+  $MigrationRunbook -match 'docker compose --env-file \.env\.production' -or
+  $MigrationRunbook -match '(?m)^\s*\.\s+.*ENV_FILE|(?m)^\s*(?:source|eval|cp|cat)\s+.*ENV_FILE'
 ) {
-  throw 'O runbook de migration deve usar APP_ROOT/ENV_FILE/COMPOSE_FILE absolutos e não pode depender de .env.production relativo.'
+  throw 'O runbook de migration deve falhar fechada com paths absolutos e não pode carregar, copiar ou expor ENV_FILE.'
+}
+
+$DirectComposeCalls = [regex]::Matches($MigrationRunbook, 'docker compose').Count
+if (
+  $DirectComposeCalls -ne 1 -or
+  $MigrationRunbook -notmatch 'docker compose --project-directory "\$CANDIDATE_RELEASE" --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE" "\$@"' -or
+  $MigrationRunbook -notmatch 'compose stop app' -or
+  $MigrationRunbook -notmatch 'compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app' -or
+  $MigrationRunbook -notmatch 'migration_state\(\)' -or
+  $MigrationRunbook -notmatch 'assert_failed_or_incomplete_zero' -or
+  $MigrationRunbook -notmatch 'migrate resolve --rolled-back "\$MIGRATION_NAME"' -or
+  $MigrationRunbook -notmatch 'migrate deploy' -or
+  $MigrationRunbook -notmatch 'migrate status'
+) {
+  throw 'O runbook precisa usar somente o wrapper Compose e validar backup/drain/P3009/rollback em cada ramo.'
+}
+
+$CandidateMatch = [regex]::Match($MigrationRunbook, "(?m)^CANDIDATE_REVISION='([0-9a-f]{7,40})'$")
+if (-not $CandidateMatch.Success -or $CandidateMatch.Groups[1].Value -eq 'b638f187fd325c88936c6a351f91ddd91304de73') {
+  throw 'CANDIDATE_REVISION deve ser um commit novo, explícito e diferente do HEAD documental b638.'
+}
+$CandidateRevision = $CandidateMatch.Groups[1].Value
+$CandidateBackup = & git -C $ProjectRoot show "$CandidateRevision:scripts/backup.sh" 2>$null
+$CandidateMigration = & git -C $ProjectRoot show "$CandidateRevision:prisma/migrations/202608210004_backfill_response_state/migration.sql" 2>$null
+if (
+  $LASTEXITCODE -ne 0 -or
+  $CandidateBackup -notmatch 'ENV_FILE_SEEN=0' -or
+  $CandidateBackup -notmatch 'PATH_FILE_SEEN=0' -or
+  $CandidateMigration -notmatch 'awaiting_response_since'
+) {
+  throw 'CANDIDATE_REVISION deve conter a migration 004 e o parser --env-file endurecido.'
+}
+if ($MigrationRunbook -match '<[^>]+>') {
+  throw 'O runbook de migration não pode conter placeholders executáveis.'
 }
 
 if ($BackupShell -notmatch 'docker-helper-lib\.sh' -or $RestoreShell -notmatch 'docker-helper-lib\.sh') {

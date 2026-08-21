@@ -12,25 +12,31 @@ shift
 
 PATH_FILE=
 ENV_FILE=
+PATH_FILE_SEEN=0
+ENV_FILE_SEEN=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --path-file)
       [ "$#" -ge 2 ] || usage
-      [ -z "$PATH_FILE" ] || usage
+      [ "$PATH_FILE_SEEN" -eq 0 ] || usage
+      PATH_FILE_SEEN=1
       PATH_FILE=$2
+      [ -n "$PATH_FILE" ] || usage
       shift 2
       ;;
     --env-file)
       [ "$#" -ge 2 ] || usage
-      [ -z "$ENV_FILE" ] || usage
+      [ "$ENV_FILE_SEEN" -eq 0 ] || usage
+      ENV_FILE_SEEN=1
       ENV_FILE=$2
+      [ -n "$ENV_FILE" ] || usage
       shift 2
       ;;
     *) usage ;;
   esac
 done
 
-if [ -n "$PATH_FILE" ]; then
+if [ "$PATH_FILE_SEEN" -eq 1 ]; then
   case "$PATH_FILE" in
     /*) ;;
     *) echo 'O arquivo de retorno deve usar caminho absoluto.' >&2; exit 64 ;;
@@ -50,7 +56,7 @@ if [ -n "$PATH_FILE" ]; then
   fi
 fi
 
-if [ -n "$ENV_FILE" ]; then
+if [ "$ENV_FILE_SEEN" -eq 1 ]; then
   case "$ENV_FILE" in
     /*) ;;
     *) echo 'O arquivo de ambiente deve usar caminho absoluto.' >&2; exit 64 ;;
@@ -90,7 +96,7 @@ fi
 mkdir -m 0700 -- "$BACKUP_DIR"
 
 compose() {
-  if [ -n "$ENV_FILE" ]; then
+  if [ "$ENV_FILE_SEEN" -eq 1 ]; then
     docker compose --project-directory "$PROJECT_ROOT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
   else
     docker compose --project-directory "$PROJECT_ROOT" -f "$COMPOSE_FILE" "$@"
@@ -177,7 +183,7 @@ chmod 0600 \
 trap - EXIT HUP INT TERM
 cleanup
 
-if [ -n "$PATH_FILE" ]; then
+if [ "$PATH_FILE_SEEN" -eq 1 ]; then
   printf '%s\n' "$BACKUP_DIR" > "$PATH_FILE"
   chmod 0600 "$PATH_FILE"
 fi
