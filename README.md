@@ -352,7 +352,7 @@ set -eu
 
 APP_ROOT='/opt/apps/example-app'
 ENV_FILE="$APP_ROOT/.env.production"
-CANDIDATE_REVISION='8f4967a12c1af29367862c4bf8919c71cf04bf58'
+CANDIDATE_REVISION='a2ffb74e3ac7c7e932d0fb2d99b3f0100f3a452d'
 ROLLBACK_REVISION='ef61c05'
 CANDIDATE_RELEASE="$APP_ROOT/releases/$CANDIDATE_REVISION"
 CANDIDATE_IMAGE="xp-whatsapp:$CANDIDATE_REVISION"
@@ -368,7 +368,9 @@ require_regular_file() {
 
 require_regular_file "$ENV_FILE"
 [ -f "$COMPOSE_FILE" ] && [ ! -L "$COMPOSE_FILE" ]
+[ -f "$CANDIDATE_RELEASE/scripts/migration-runbook-state.sh" ] && [ ! -L "$CANDIDATE_RELEASE/scripts/migration-runbook-state.sh" ]
 cd "$CANDIDATE_RELEASE/deploy/kvm"
+. "$CANDIDATE_RELEASE/scripts/migration-runbook-state.sh"
 
 compose() {
   docker compose --project-directory "$CANDIDATE_RELEASE" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
@@ -423,6 +425,16 @@ migration_failed_or_incomplete_present() {
   [ "$MIGRATION_FAILED" -gt 0 ]
 }
 
+migration_recovery_state_name() {
+  read_migration_state
+  migration_recovery_state "$MIGRATION_APPLIED" "$MIGRATION_FAILED" "$MIGRATION_ROLLED_BACK"
+}
+
+assert_recovery_state() {
+  expected_recovery_state=$1
+  [ "$(migration_recovery_state_name)" = "$expected_recovery_state" ]
+}
+
 assert_migration_applied_clean() {
   read_migration_state
   [ "$MIGRATION_APPLIED" = '1' ]
@@ -430,10 +442,11 @@ assert_migration_applied_clean() {
   [ "$MIGRATION_ROLLED_BACK" = '0' ]
 }
 
-assert_migration_applied_no_failed() {
+assert_migration_applied_resolved_clean() {
   read_migration_state
   [ "$MIGRATION_APPLIED" = '1' ]
   [ "$MIGRATION_FAILED" = '0' ]
+  [ "$MIGRATION_ROLLED_BACK" = '1' ]
 }
 ```
 
@@ -460,7 +473,7 @@ set -eu
 compose stop app
 assert_app_exited
 assert_app_sessions_drained
-migration_failed_or_incomplete_present
+assert_recovery_state 'failed-or-incomplete'
 
 XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
   compose run --rm --no-deps --entrypoint node app \
@@ -470,10 +483,10 @@ assert_failed_or_incomplete_zero
 # Única tentativa de retry após resolve; não repita este comando automaticamente.
 XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
   compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
-assert_migration_applied_no_failed
+assert_migration_applied_resolved_clean
 ```
 
-Se essa única repetição falhar, não inicie a candidata de novo. O segundo ramo resolve de novo somente se ainda houver linha incompleta, prova estado limpo, executa `migrate deploy` e `migrate status` com a imagem de rollback e só então sobe o rollback com health wait. Não faça `UPDATE` manual.
+Se essa única repetição falhar, primeiro classifique o estado agregado. O estado `1/0/1` significa que a migration foi aplicada e somente o servidor/health falhou após o `resolve`; ele deve usar o ramo imediatamente abaixo e **não** pode cair no ramo de resolve/deploy secundário.
 
 ```sh
 set -eu
@@ -481,11 +494,44 @@ set -eu
 compose stop app
 assert_app_exited
 assert_app_sessions_drained
-if migration_failed_or_incomplete_present; then
-  XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
-    compose run --rm --no-deps --entrypoint node app \
-    node_modules/prisma/build/index.js migrate resolve --rolled-back "$MIGRATION_NAME"
-fi
+assert_recovery_state 'retry-server-only'
+assert_migration_applied_resolved_clean
+
+# A candidata contém a migration 004; status limpo prova compatibilidade antes do rollback.
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  compose run --rm --no-deps --entrypoint node app \
+  node_modules/prisma/build/index.js migrate status
+
+# ef61 é compatível com o schema/dados já aplicados: não rode migrate deploy/status nela.
+XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
+  compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
+```
+
+Para estados `0/1/0` (ou outra linha falha/incompleta) ou `0/0/1` (retry não aplicado), use o segundo ramo abaixo. Ele resolve novamente somente quando a classificação confirma falha/incompletude, prova estado sem falha, executa `migrate deploy` e `migrate status` com a imagem de rollback e só então sobe o rollback com health wait. Um `1/0/1` é recusado antes de qualquer resolve. Não faça `UPDATE` manual.
+
+```sh
+set -eu
+
+compose stop app
+assert_app_exited
+assert_app_sessions_drained
+recovery_state=$(migration_recovery_state_name)
+case "$recovery_state" in
+  failed-or-incomplete)
+    XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+      compose run --rm --no-deps --entrypoint node app \
+      node_modules/prisma/build/index.js migrate resolve --rolled-back "$MIGRATION_NAME"
+    ;;
+  retry-not-applied) ;;
+  retry-server-only)
+    echo 'Use o ramo 1/0/1: migration aplicada, somente o servidor falhou.' >&2
+    exit 65
+    ;;
+  *)
+    echo "Estado de migration inesperado: $recovery_state" >&2
+    exit 65
+    ;;
+esac
 assert_failed_or_incomplete_zero
 
 XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
@@ -498,7 +544,7 @@ XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
   compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
 ```
 
-Se a migration 004 tiver concluído e somente o servidor candidato falhar, não resolva nem reverta a migration. O ramo abaixo exige a migration concluída e limpa, confirma `migrate status` com a candidata e inicia diretamente a imagem de rollback compatível com health wait.
+Se a migration 004 tiver concluído e somente o servidor candidato falhar **sem** um `resolve` anterior, o estado deve ser exatamente `1/0/0`. Não resolva nem reverta a migration. O ramo abaixo exige esse estado inicial concluído/limpo, confirma `migrate status` com a candidata e inicia diretamente a imagem de rollback compatível com health wait.
 
 ```sh
 set -eu

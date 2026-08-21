@@ -67,7 +67,10 @@ if (
   $MigrationRunbook -notmatch 'compose stop app' -or
   $MigrationRunbook -notmatch 'compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app' -or
   $MigrationRunbook -notmatch 'migration_state\(\)' -or
+  $MigrationRunbook -notmatch 'migration_recovery_state_name\(\)' -or
+  $MigrationRunbook -notmatch 'migration-runbook-state\.sh' -or
   $MigrationRunbook -notmatch 'assert_failed_or_incomplete_zero' -or
+  $MigrationRunbook -notmatch 'assert_migration_applied_resolved_clean' -or
   $MigrationRunbook -notmatch 'migrate resolve --rolled-back "\$MIGRATION_NAME"' -or
   $MigrationRunbook -notmatch 'migrate deploy' -or
   $MigrationRunbook -notmatch 'migrate status'
@@ -75,16 +78,31 @@ if (
   throw 'O runbook precisa usar somente o wrapper Compose e validar backup/drain/P3009/rollback em cada ramo.'
 }
 if (
-  ([regex]::Matches($MigrationRunbook, '(?m)^set -eu$').Count -lt 5) -or
-  ([regex]::Matches($MigrationRunbook, '(?m)^compose stop app$').Count -ne 4) -or
-  ([regex]::Matches($MigrationRunbook, '(?m)^assert_app_exited$').Count -ne 4) -or
-  ([regex]::Matches($MigrationRunbook, '(?m)^assert_app_sessions_drained$').Count -ne 4) -or
-  ([regex]::Matches($MigrationRunbook, '--wait --wait-timeout 120 app').Count -ne 4) -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^set -eu$').Count -lt 6) -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^compose stop app$').Count -ne 5) -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^assert_app_exited$').Count -ne 5) -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^assert_app_sessions_drained$').Count -ne 5) -or
+  ([regex]::Matches($MigrationRunbook, '--wait --wait-timeout 120 app').Count -ne 5) -or
   ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_clean$').Count -ne 2) -or
-  ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_no_failed$').Count -ne 1) -or
-  $MigrationRunbook -notmatch '(?ms)if migration_failed_or_incomplete_present; then.*?migrate resolve --rolled-back "\$MIGRATION_NAME".*?fi'
+  ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_resolved_clean$').Count -ne 2) -or
+  $MigrationRunbook -notmatch "assert_recovery_state 'failed-or-incomplete'" -or
+  $MigrationRunbook -notmatch "assert_recovery_state 'retry-server-only'" -or
+  $MigrationRunbook -notmatch '(?ms)case "\$recovery_state" in.*?failed-or-incomplete\).*?migrate resolve --rolled-back "\$MIGRATION_NAME".*?retry-server-only\).*?exit 65.*?esac'
 ) {
   throw 'Cada ramo deve falhar fechado: stop, estado de sessões, migration e start --wait precisam estar completos.'
+}
+$ResolvedServerOnlyBlock = [regex]::Match(
+  $MigrationRunbook,
+  '(?ms)assert_recovery_state ''retry-server-only''.*?```'
+)
+if (-not $ResolvedServerOnlyBlock.Success) {
+  throw 'O estado 1/0/1 deve validar status somente com a candidata e subir ef61 sem migration extra.'
+}
+if ($ResolvedServerOnlyBlock.Value -notmatch '(?s)CANDIDATE_IMAGE.*?migrate status') {
+  throw 'O estado 1/0/1 precisa executar migrate status com a candidata.'
+}
+if ($ResolvedServerOnlyBlock.Value -match '(?s)ROLLBACK_IMAGE.*?migrate (?:deploy|status)') {
+  throw 'O estado 1/0/1 não pode executar migration com a imagem de rollback.'
 }
 
 $CandidateMatch = [regex]::Match($MigrationRunbook, "(?m)^CANDIDATE_REVISION='([0-9a-f]{7,40})'$")
@@ -96,14 +114,18 @@ $CandidateBackup = (& git -C $ProjectRoot show "$($CandidateRevision):scripts/ba
 $CandidateBackupStatus = $LASTEXITCODE
 $CandidateMigration = (& git -C $ProjectRoot show "$($CandidateRevision):prisma/migrations/202608210004_backfill_response_state/migration.sql" 2>$null) -join [Environment]::NewLine
 $CandidateMigrationStatus = $LASTEXITCODE
+$CandidateStateLibrary = (& git -C $ProjectRoot show "$($CandidateRevision):scripts/migration-runbook-state.sh" 2>$null) -join [Environment]::NewLine
+$CandidateStateLibraryStatus = $LASTEXITCODE
 if (
   $CandidateBackupStatus -ne 0 -or
   $CandidateMigrationStatus -ne 0 -or
+  $CandidateStateLibraryStatus -ne 0 -or
   $CandidateBackup -notmatch 'ENV_FILE_SEEN=0' -or
   $CandidateBackup -notmatch 'PATH_FILE_SEEN=0' -or
-  $CandidateMigration -notmatch 'awaiting_response_since'
+  $CandidateMigration -notmatch 'awaiting_response_since' -or
+  $CandidateStateLibrary -notmatch 'retry-server-only'
 ) {
-  throw 'CANDIDATE_REVISION deve conter a migration 004 e o parser --env-file endurecido.'
+  throw 'CANDIDATE_REVISION deve conter migration 004, parser --env-file endurecido e classificador P3009.'
 }
 if ($MigrationRunbook -match '<(?:commit|migration|release|tag|image)[^>]*>') {
   throw 'O runbook de migration não pode conter placeholders executáveis.'

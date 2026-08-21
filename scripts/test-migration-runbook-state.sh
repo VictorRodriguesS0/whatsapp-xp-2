@@ -29,6 +29,7 @@ expect_failure() {
 
 expect_state initial-server-only 1 0 0
 expect_state failed-or-incomplete 0 1 0
+expect_state failed-or-incomplete 0 1 1
 expect_state retry-not-applied 0 0 1
 expect_state retry-server-only 1 0 1
 expect_failure 1 0 2
