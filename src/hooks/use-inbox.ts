@@ -50,6 +50,16 @@ type PendingMedia = {
 
 type PendingSend = PendingText | PendingMedia;
 
+type ConfirmedSend = {
+  confirmed: true;
+  conversationId: string;
+  messageId: string;
+};
+
+type SendResult = InboxMessage | ConfirmedSend;
+
+const MAX_CONFIRMED_SENDS = 256;
+
 type ConversationErrorState = {
   conversationId: string;
   operation: "conversation" | "responsible";
@@ -154,6 +164,20 @@ function retainPendingAlias(pendingSends: Map<string, PendingSend>, rowId: strin
   pendingSends.set(rowId, pending);
 }
 
+function rememberConfirmedSend(
+  confirmedSends: Map<string, Omit<ConfirmedSend, "confirmed">>,
+  clientRequestId: string,
+  confirmation: Omit<ConfirmedSend, "confirmed">,
+) {
+  confirmedSends.delete(clientRequestId);
+  confirmedSends.set(clientRequestId, confirmation);
+  while (confirmedSends.size > MAX_CONFIRMED_SENDS) {
+    const oldest = confirmedSends.keys().next().value;
+    if (!oldest) break;
+    confirmedSends.delete(oldest);
+  }
+}
+
 function releasePending(pendingSends: Map<string, PendingSend>, pending: PendingSend) {
   const wasRetained = pendingEntryByClientRequestId(pendingSends, pending.clientRequestId) !== null;
   removePendingAliases(pendingSends, pending.clientRequestId);
@@ -193,7 +217,10 @@ export function useInbox(initialUser: SessionUser) {
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const pageRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const conversationRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
+  const conversationRef = useRef<InboxConversation | null>(conversation);
   const pendingSends = useRef(new Map<string, PendingSend>());
+  const inFlightSends = useRef(new Map<string, Promise<SendResult | null>>());
+  const confirmedSends = useRef(new Map<string, Omit<ConfirmedSend, "confirmed">>());
   const mounted = useRef(true);
   const lastReadRequest = useRef<string | null>(null);
   const nextCursorRef = useRef(nextCursor);
@@ -203,6 +230,20 @@ export function useInbox(initialUser: SessionUser) {
   searchRef.current = search;
   selectedIdRef.current = selectedId;
   nextCursorRef.current = nextCursor;
+  conversationRef.current = conversation;
+
+  const confirmedResult = useCallback((pending: PendingSend): SendResult | null => {
+    const confirmation = confirmedSends.current.get(pending.clientRequestId);
+    if (!confirmation || confirmation.conversationId !== pending.conversationId) return null;
+    const current = conversationRef.current;
+    const message = current?.id === confirmation.conversationId
+      ? current.messages.find((item) => (
+        item.id === confirmation.messageId
+        || item.clientRequestId === pending.clientRequestId
+      ))
+      : null;
+    return message ?? { confirmed: true, ...confirmation };
+  }, []);
 
   const refreshList = useCallback(async () => {
     listRequest.current?.controller.abort();
@@ -346,19 +387,28 @@ export function useInbox(initialUser: SessionUser) {
           retainPendingAlias(pendingSends.current, message.id, pending);
           return withPendingMedia(message, pending);
         }
+        rememberConfirmedSend(confirmedSends.current, pending.clientRequestId, {
+          conversationId: id,
+          messageId: message.id,
+        });
         releasePending(pendingSends.current, pending);
         return message;
       });
       const reconciledDetail = { ...detail, messages: reconciledMessages };
       setConversation((current) => {
-        if (!current || current.id !== id) return reconciledDetail;
+        if (!current || current.id !== id) {
+          conversationRef.current = reconciledDetail;
+          return reconciledDetail;
+        }
         const optimistic = current.messages.filter(
           (message) => message.id.startsWith("optimistic:")
             && (!message.clientRequestId || !confirmedRequestIds.has(message.clientRequestId)),
         );
-        return optimistic.length > 0
+        const next = optimistic.length > 0
           ? { ...reconciledDetail, messages: [...reconciledMessages, ...optimistic] }
           : reconciledDetail;
+        conversationRef.current = next;
+        return next;
       });
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -395,94 +445,114 @@ export function useInbox(initialUser: SessionUser) {
     if (id) await fetchConversation(id, false);
   }, [fetchConversation]);
 
-  const performSend = useCallback(async (pending: PendingSend, rowId: string) => {
-    if (!mounted.current) return null;
-    setConversation((current) => updateMessage(current, rowId, (message) => ({
-      ...message,
-      status: "PENDING",
-      failureReason: null,
-    })));
-    try {
-      let body: BodyInit;
-      let headers: HeadersInit | undefined;
-      if (pending.kind === "text") {
-        headers = { "Content-Type": "application/json" };
-        body = JSON.stringify({
-          type: "TEXT",
-          clientRequestId: pending.clientRequestId,
-          body: pending.body,
-        });
-      } else {
-        const form = new FormData();
-        form.set("clientRequestId", pending.clientRequestId);
-        if (pending.source === "attachment") {
-          form.set("type", pending.type);
-          if (pending.body) form.set("body", pending.body);
-        }
-        form.set("file", pending.file);
-        body = form;
-      }
-      const endpoint = pending.kind === "media" && pending.source === "recording"
-        ? `/api/conversations/${pending.conversationId}/recordings`
-        : `/api/conversations/${pending.conversationId}/messages`;
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers,
-        body,
-      });
-      const message = await readEnvelope<MessageDto>(response);
-      if (!mounted.current) return null;
-      const resolvedMessage = pending.kind === "media" && !message.mediaObjectId
-        ? withPendingMedia(message, pending)
-        : message;
-      setConversation((current) => {
-        if (!current || current.id !== pending.conversationId) return current;
-        let replaced = false;
-        const messages: InboxMessage[] = [];
-        for (const item of current.messages) {
-          const matchesRequest = item.id === rowId
-            || item.id === message.id
-            || item.clientRequestId === pending.clientRequestId;
-          if (matchesRequest) {
-            if (!replaced) messages.push(resolvedMessage);
-            replaced = true;
-          } else {
-            messages.push(item);
+  const performSend = useCallback((pending: PendingSend, rowId: string): Promise<SendResult | null> => {
+    const existing = inFlightSends.current.get(pending.clientRequestId);
+    if (existing) return existing;
+    if (!mounted.current) return Promise.resolve(null);
+    const operation = (async (): Promise<SendResult | null> => {
+      setConversation((current) => updateMessage(current, rowId, (message) => ({
+        ...message,
+        status: "PENDING",
+        failureReason: null,
+      })));
+      try {
+        let body: BodyInit;
+        let headers: HeadersInit | undefined;
+        if (pending.kind === "text") {
+          headers = { "Content-Type": "application/json" };
+          body = JSON.stringify({
+            type: "TEXT",
+            clientRequestId: pending.clientRequestId,
+            body: pending.body,
+          });
+        } else {
+          const form = new FormData();
+          form.set("clientRequestId", pending.clientRequestId);
+          if (pending.source === "attachment") {
+            form.set("type", pending.type);
+            if (pending.body) form.set("body", pending.body);
           }
+          form.set("file", pending.file);
+          body = form;
         }
-        if (!replaced) messages.push(resolvedMessage);
-        return {
-          ...current,
-          messages,
-        };
-      });
-      if (pending.kind === "media" && !message.mediaObjectId) {
-        retainPendingAlias(pendingSends.current, message.id, pending);
-      } else {
-        releasePending(pendingSends.current, pending);
+        const endpoint = pending.kind === "media" && pending.source === "recording"
+          ? `/api/conversations/${pending.conversationId}/recordings`
+          : `/api/conversations/${pending.conversationId}/messages`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers,
+          body,
+        });
+        const message = await readEnvelope<MessageDto>(response);
+        if (!mounted.current) return null;
+        const resolvedMessage = pending.kind === "media" && !message.mediaObjectId
+          ? withPendingMedia(message, pending)
+          : message;
+        setConversation((current) => {
+          if (!current || current.id !== pending.conversationId) return current;
+          let replaced = false;
+          const messages: InboxMessage[] = [];
+          for (const item of current.messages) {
+            const matchesRequest = item.id === rowId
+              || item.id === message.id
+              || item.clientRequestId === pending.clientRequestId;
+            if (matchesRequest) {
+              if (!replaced) messages.push(resolvedMessage);
+              replaced = true;
+            } else {
+              messages.push(item);
+            }
+          }
+          if (!replaced) messages.push(resolvedMessage);
+          const next = {
+            ...current,
+            messages,
+          };
+          conversationRef.current = next;
+          return next;
+        });
+        if (pending.kind === "media" && !message.mediaObjectId) {
+          retainPendingAlias(pendingSends.current, message.id, pending);
+        } else {
+          rememberConfirmedSend(confirmedSends.current, pending.clientRequestId, {
+            conversationId: pending.conversationId,
+            messageId: message.id,
+          });
+          releasePending(pendingSends.current, pending);
+        }
+        void refreshList();
+        return resolvedMessage;
+      } catch (error) {
+        if (!mounted.current) return null;
+        const confirmed = confirmedResult(pending);
+        if (confirmed) return confirmed;
+        const retained = pendingEntryByClientRequestId(pendingSends.current, pending.clientRequestId);
+        if (!retained) return null;
+        const failureRowId = retained[0];
+        setConversation((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            messages: current.messages.map((message) => (
+              message.id === failureRowId || message.clientRequestId === pending.clientRequestId
+                ? { ...message, status: "FAILED", failureReason: publicErrorMessage("send", errorStatus(error)) }
+                : message
+            )),
+          };
+        });
+        retainPendingAlias(pendingSends.current, failureRowId, pending);
+        return null;
       }
-      void refreshList();
-      return resolvedMessage;
-    } catch (error) {
-      if (!mounted.current) return null;
-      const retained = pendingEntryByClientRequestId(pendingSends.current, pending.clientRequestId);
-      if (!retained) return null;
-      const failureRowId = retained[0];
-      setConversation((current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          messages: current.messages.map((message) => (
-            message.id === failureRowId || message.clientRequestId === pending.clientRequestId
-              ? { ...message, status: "FAILED", failureReason: publicErrorMessage("send", errorStatus(error)) }
-              : message
-          )),
-        };
-      });
-      retainPendingAlias(pendingSends.current, failureRowId, pending);
-      return null;
-    }
-  }, [refreshList]);
+    })();
+    inFlightSends.current.set(pending.clientRequestId, operation);
+    const clear = () => {
+      if (inFlightSends.current.get(pending.clientRequestId) === operation) {
+        inFlightSends.current.delete(pending.clientRequestId);
+      }
+    };
+    void operation.then(clear, clear);
+    return operation;
+  }, [confirmedResult, refreshList]);
 
   const sendText = useCallback(async (conversationId: string, body: string) => {
     const pending: PendingText = {
@@ -525,6 +595,16 @@ export function useInbox(initialUser: SessionUser) {
     file: File,
     clientRequestId: string,
   ) => {
+    const confirmed = confirmedSends.current.get(clientRequestId);
+    if (confirmed?.conversationId === conversationId) {
+      const current = conversationRef.current;
+      const message = current?.id === conversationId
+        ? current.messages.find((item) => (
+          item.id === confirmed.messageId || item.clientRequestId === clientRequestId
+        ))
+        : null;
+      return Promise.resolve(message ?? { confirmed: true as const, ...confirmed });
+    }
     const existing = pendingEntryByClientRequestId(pendingSends.current, clientRequestId);
     if (existing) {
       const [rowId, pending] = existing;
@@ -558,28 +638,30 @@ export function useInbox(initialUser: SessionUser) {
     return performSend(pending, optimistic.id);
   }, [initialUser, performSend]);
 
-  const retryMessage = useCallback(async (messageId: string) => {
+  const retryMessage = useCallback((messageId: string) => {
     const pending = pendingSends.current.get(messageId);
     if (pending) return performSend(pending, messageId);
-    setConversation((current) => updateMessage(current, messageId, (message) => ({ ...message, status: "PENDING", failureReason: null })));
-    try {
-      const response = await fetch(`/api/messages/${messageId}/retry`, { method: "POST" });
-      const payload = (await response.json()) as { data?: MessageDto; error?: string | { message?: string } };
-      if (!response.ok || !payload.data) {
-        handleUnauthorized(response.status);
-        throw new ApiRequestError(response.status);
+    return (async () => {
+      setConversation((current) => updateMessage(current, messageId, (message) => ({ ...message, status: "PENDING", failureReason: null })));
+      try {
+        const response = await fetch(`/api/messages/${messageId}/retry`, { method: "POST" });
+        const payload = (await response.json()) as { data?: MessageDto; error?: string | { message?: string } };
+        if (!response.ok || !payload.data) {
+          handleUnauthorized(response.status);
+          throw new ApiRequestError(response.status);
+        }
+        setConversation((current) => updateMessage(current, messageId, () => payload.data!));
+        void refreshList();
+        return payload.data;
+      } catch (error) {
+        setConversation((current) => updateMessage(current, messageId, (message) => ({
+          ...message,
+          status: "FAILED",
+          failureReason: publicErrorMessage("retry", errorStatus(error)),
+        })));
+        return null;
       }
-      setConversation((current) => updateMessage(current, messageId, () => payload.data!));
-      void refreshList();
-      return payload.data;
-    } catch (error) {
-      setConversation((current) => updateMessage(current, messageId, (message) => ({
-        ...message,
-        status: "FAILED",
-        failureReason: publicErrorMessage("retry", errorStatus(error)),
-      })));
-      return null;
-    }
+    })();
   }, [performSend, refreshList]);
 
   const setResponsible = useCallback(async (userId: string | null): Promise<void> => {
@@ -672,6 +754,8 @@ export function useInbox(initialUser: SessionUser) {
         }
       }
       pendingSends.current.clear();
+      inFlightSends.current.clear();
+      confirmedSends.current.clear();
       for (const previewUrl of previewUrls) {
         try {
           URL.revokeObjectURL?.(previewUrl);

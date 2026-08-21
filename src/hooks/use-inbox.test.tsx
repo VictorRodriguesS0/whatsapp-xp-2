@@ -668,6 +668,127 @@ describe("useInbox", () => {
     expect(consoleError).not.toHaveBeenCalled();
   });
 
+  it("shares one in-flight recording operation across send and bubble retry callers", async () => {
+    const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    const createPreview = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:shared-recording");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const requestId = "44444444-4444-4444-8444-444444444444";
+    let resolveSend!: (value: Response) => void;
+    let recordingFetches = 0;
+    const confirmed = {
+      id: "shared-recording-message",
+      clientRequestId: requestId,
+      direction: "OUTBOUND",
+      type: "AUDIO",
+      body: null,
+      mediaObjectId: "audio-media",
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+      failureReason: null,
+      externalTimestamp: "2026-08-20T14:30:00.000Z",
+      createdAt: "2026-08-20T14:30:00.000Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages") && !init?.method) return response({ data: conversationDetail(), error: null });
+      if (url.endsWith("/recordings") && init?.method === "POST") {
+        recordingFetches += 1;
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let first!: Promise<unknown>;
+    let second!: Promise<unknown>;
+    let retry!: Promise<unknown>;
+    act(() => {
+      first = hook.result.current.sendRecording("conversation-id", sourceFile, requestId);
+      second = hook.result.current.sendRecording("conversation-id", sourceFile, requestId);
+      retry = hook.result.current.retryMessage(`optimistic:${requestId}`);
+    });
+
+    expect(second).toBe(first);
+    expect(retry).toBe(first);
+    expect(recordingFetches).toBe(1);
+    expect(createPreview).toHaveBeenCalledOnce();
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    resolveSend(await response({ data: confirmed, error: null }, true, 201));
+    const results = await act(() => Promise.all([first, second, retry]));
+
+    expect(results[0]).toEqual(confirmed);
+    expect(results[1]).toEqual(confirmed);
+    expect(results[2]).toEqual(confirmed);
+    expect(recordingFetches).toBe(1);
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(revokePreview).toHaveBeenCalledOnce();
+  });
+
+  it("treats an SSE-confirmed recording as successful when its HTTP response is lost", async () => {
+    const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    const createPreview = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:sse-recording");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const requestId = "55555555-5555-4555-8555-555555555555";
+    let rejectSend!: (reason?: unknown) => void;
+    let detailFetches = 0;
+    let recordingFetches = 0;
+    const confirmed = {
+      id: "sse-recording-message",
+      clientRequestId: requestId,
+      direction: "OUTBOUND",
+      type: "AUDIO",
+      body: null,
+      mediaObjectId: "audio-media",
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+      failureReason: null,
+      externalTimestamp: "2026-08-20T14:30:00.000Z",
+      createdAt: "2026-08-20T14:30:00.000Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/recordings") && init?.method === "POST") {
+        recordingFetches += 1;
+        return new Promise<Response>((_resolve, reject) => { rejectSend = reject; });
+      }
+      if (url.endsWith("/messages")) {
+        detailFetches += 1;
+        return response({
+          data: conversationDetail("conversation-id", detailFetches > 1 ? [confirmed] : []),
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let sendPromise!: Promise<unknown>;
+    act(() => { sendPromise = hook.result.current.sendRecording("conversation-id", sourceFile, requestId); });
+    await act(() => hook.result.current.refreshConversation());
+    expect(hook.result.current.conversation?.messages).toEqual([confirmed]);
+    expect(revokePreview).toHaveBeenCalledOnce();
+
+    rejectSend(new Error("lost response"));
+    const result = await act(() => sendPromise);
+    expect(result).toBeTruthy();
+    expect(hook.result.current.conversation?.messages).toEqual([confirmed]);
+
+    const repeated = await act(() => hook.result.current.sendRecording("conversation-id", sourceFile, requestId));
+    expect(repeated).toBeTruthy();
+    expect(recordingFetches).toBe(1);
+    expect(createPreview).toHaveBeenCalledOnce();
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(revokePreview).toHaveBeenCalledOnce();
+  });
+
   it("deduplicates a recording when SSE wins and ignores its late response after navigation", async () => {
     const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:owned-recording");
