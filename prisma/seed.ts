@@ -45,7 +45,9 @@ const date = (value: string): Date => new Date(value);
 
 export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
-  const createdConversationIds = new Set<string>();
+
+  await prisma.$transaction(async (prisma) => {
+    const initialSharedStateConversationIds = new Set<string>();
 
   const users = [
     {
@@ -69,10 +71,9 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const user of users) {
-    await prisma.user.upsert({
-      where: { email: user.email },
-      update: { name: user.name, role: user.role, active: true },
-      create: { ...user, passwordHash, active: true },
+    await prisma.user.createMany({
+      data: [{ ...user, passwordHash, active: true }],
+      skipDuplicates: true,
     });
   }
 
@@ -98,11 +99,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const contact of contacts) {
-    await prisma.contact.upsert({
-      where: { whatsappId: contact.whatsappId },
-      update: { name: contact.name, phone: contact.phone },
-      create: contact,
-    });
+    await prisma.contact.createMany({ data: [contact], skipDuplicates: true });
   }
 
   const conversations = [
@@ -129,20 +126,35 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   for (const conversation of conversations) {
     const existingConversation = await prisma.conversation.findUnique({
       where: { contactId: conversation.contactId },
-      select: { id: true },
-    });
-    await prisma.conversation.upsert({
-      where: { contactId: conversation.contactId },
-      update: {
-        responsibleUserId: conversation.responsibleUserId,
-        lastMessageAt: conversation.lastMessageAt,
+      select: {
+        id: true,
+        teamLastReadMessageId: true,
+        teamLastReadAt: true,
+        manualUnreadAt: true,
+        manualUnreadByUserId: true,
+        awaitingResponseSince: true,
+        _count: { select: { messages: true, reads: true } },
       },
-      create: conversation,
     });
-    if (!existingConversation) {
-      createdConversationIds.add(conversation.id);
+
+    if (
+      !existingConversation ||
+      (existingConversation._count.messages === 0 &&
+        existingConversation._count.reads === 0 &&
+        existingConversation.teamLastReadMessageId === null &&
+        existingConversation.teamLastReadAt === null &&
+        existingConversation.manualUnreadAt === null &&
+        existingConversation.manualUnreadByUserId === null &&
+        existingConversation.awaitingResponseSince === null)
+    ) {
+      initialSharedStateConversationIds.add(conversation.id);
     }
   }
+
+  await prisma.conversation.createMany({
+    data: conversations,
+    skipDuplicates: true,
+  });
 
   const media = [
     {
@@ -181,10 +193,9 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const mediaObject of media) {
-    await prisma.mediaObject.upsert({
-      where: { id: mediaObject.id },
-      update: mediaObject,
-      create: mediaObject,
+    await prisma.mediaObject.createMany({
+      data: [mediaObject],
+      skipDuplicates: true,
     });
   }
 
@@ -197,7 +208,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       type: MessageType.TEXT,
       body: "Minha TV 4K chegou, mas a tela está com uma faixa escura.",
       status: MessageStatus.RECEIVED,
-      externalTimestamp: date("2026-08-18T14:05:00.000Z"),
+      externalTimestamp: date("2026-08-18T14:08:00.000Z"),
     },
     {
       id: ids.carlosReply,
@@ -290,10 +301,9 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const message of messages) {
-    await prisma.message.upsert({
-      where: { id: message.id },
-      update: message,
-      create: message,
+    await prisma.message.createMany({
+      data: [message],
+      skipDuplicates: true,
     });
   }
 
@@ -301,14 +311,14 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     {
       conversationId: ids.carlosConversation,
       userId: ids.victor,
-      lastReadMessageId: ids.carlosReply,
+      lastReadMessageId: ids.carlosImage,
       lastReadAt: date("2026-08-18T14:13:00.000Z"),
     },
     {
       conversationId: ids.carlosConversation,
       userId: ids.marcos,
       lastReadMessageId: ids.carlosText,
-      lastReadAt: date("2026-08-18T14:13:00.000Z"),
+      lastReadAt: date("2026-08-18T14:06:00.000Z"),
     },
     {
       conversationId: ids.mariaConversation,
@@ -325,25 +335,16 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const read of reads) {
-    await prisma.conversationRead.upsert({
-      where: {
-        conversationId_userId: {
-          conversationId: read.conversationId,
-          userId: read.userId,
-        },
-      },
-      update: {
-        lastReadMessageId: read.lastReadMessageId,
-        lastReadAt: read.lastReadAt,
-      },
-      create: read,
+    await prisma.conversationRead.createMany({
+      data: [read],
+      skipDuplicates: true,
     });
   }
 
   const initialSharedState = [
     {
       conversationId: ids.carlosConversation,
-      teamLastReadMessageId: ids.carlosReply,
+      teamLastReadMessageId: ids.carlosImage,
       teamLastReadAt: date("2026-08-18T14:13:00.000Z"),
       awaitingResponseSince: date("2026-08-18T14:12:00.000Z"),
     },
@@ -362,12 +363,19 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const sharedState of initialSharedState) {
-    if (!createdConversationIds.has(sharedState.conversationId)) {
+    if (!initialSharedStateConversationIds.has(sharedState.conversationId)) {
       continue;
     }
 
-    await prisma.conversation.update({
-      where: { id: sharedState.conversationId },
+    await prisma.conversation.updateMany({
+      where: {
+        id: sharedState.conversationId,
+        teamLastReadMessageId: null,
+        teamLastReadAt: null,
+        manualUnreadAt: null,
+        manualUnreadByUserId: null,
+        awaitingResponseSince: null,
+      },
       data: {
         teamLastReadMessageId: sharedState.teamLastReadMessageId,
         teamLastReadAt: sharedState.teamLastReadAt,
@@ -375,6 +383,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       },
     });
   }
+  });
 }
 
 async function main(): Promise<void> {
