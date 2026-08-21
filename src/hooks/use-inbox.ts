@@ -39,6 +39,7 @@ type PendingText = {
 
 type PendingMedia = {
   kind: "media";
+  source: "attachment" | "recording";
   conversationId: string;
   clientRequestId: string;
   body: string;
@@ -405,13 +406,18 @@ export function useInbox(initialUser: SessionUser) {
         });
       } else {
         const form = new FormData();
-        form.set("type", pending.type);
         form.set("clientRequestId", pending.clientRequestId);
-        if (pending.body) form.set("body", pending.body);
+        if (pending.source === "attachment") {
+          form.set("type", pending.type);
+          if (pending.body) form.set("body", pending.body);
+        }
         form.set("file", pending.file);
         body = form;
       }
-      const response = await fetch(`/api/conversations/${pending.conversationId}/messages`, {
+      const endpoint = pending.kind === "media" && pending.source === "recording"
+        ? `/api/conversations/${pending.conversationId}/recordings`
+        : `/api/conversations/${pending.conversationId}/messages`;
+      const response = await fetch(endpoint, {
         method: "POST",
         headers,
         body,
@@ -488,11 +494,40 @@ export function useInbox(initialUser: SessionUser) {
     const previewUrl = typeof URL.createObjectURL === "function" ? URL.createObjectURL(file) : undefined;
     const pending: PendingMedia = {
       kind: "media",
+      source: "attachment",
       conversationId,
       clientRequestId: crypto.randomUUID(),
       body: caption.trim(),
       file,
       type: mediaType(file),
+      previewUrl,
+    };
+    const optimistic = optimisticMessage(initialUser, pending);
+    pendingSends.current.set(optimistic.id, pending);
+    setConversation((current) => current?.id === conversationId
+      ? { ...current, messages: [...current.messages, optimistic] }
+      : current);
+    return performSend(pending, optimistic.id);
+  }, [initialUser, performSend]);
+
+  const sendRecording = useCallback((
+    conversationId: string,
+    file: File,
+    clientRequestId: string,
+  ) => {
+    const ownedFile = new File([file], file.name, {
+      type: file.type,
+      lastModified: file.lastModified,
+    });
+    const previewUrl = typeof URL.createObjectURL === "function" ? URL.createObjectURL(ownedFile) : undefined;
+    const pending: PendingMedia = {
+      kind: "media",
+      source: "recording",
+      conversationId,
+      clientRequestId,
+      body: "",
+      file: ownedFile,
+      type: "AUDIO",
       previewUrl,
     };
     const optimistic = optimisticMessage(initialUser, pending);
@@ -631,6 +666,7 @@ export function useInbox(initialUser: SessionUser) {
     refreshConversation,
     sendText,
     sendMedia,
+    sendRecording,
     retryMessage,
     markRead,
     setResponsible,

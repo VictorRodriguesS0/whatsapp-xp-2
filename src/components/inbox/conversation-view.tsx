@@ -67,6 +67,7 @@ export function ConversationView({
   onVisibleMessage,
   onSendText,
   onSendMedia,
+  onSendRecording,
   onRetryMessage,
 }: {
   conversation: InboxConversation | null;
@@ -79,6 +80,7 @@ export function ConversationView({
   onVisibleMessage: (messageId: string) => void;
   onSendText: (body: string) => Promise<unknown>;
   onSendMedia: (file: File, caption: string) => Promise<unknown>;
+  onSendRecording: (file: File, clientRequestId: string) => Promise<unknown>;
   onRetryMessage: (id: string) => void;
 }) {
   const historyRef = useRef<HTMLDivElement>(null);
@@ -168,7 +170,15 @@ export function ConversationView({
         {conversation.messages.length === 0 ? <p className="py-12 text-center text-sm text-[var(--muted)]">Ainda não há mensagens nesta conversa.</p> : null}
         {conversation.messages.map((message) => <MessageBubble key={message.id} message={message} onRetry={onRetryMessage} />)}
       </div> : null}
-      {conversation ? <MessageComposer disabled={loading} onSendMedia={onSendMedia} onSendText={onSendText} /> : null}
+      {conversation ? (
+        <MessageComposer
+          conversationId={conversation.id}
+          disabled={loading}
+          onSendMedia={onSendMedia}
+          onSendRecording={onSendRecording}
+          onSendText={onSendText}
+        />
+      ) : null}
     </div>
   );
 }

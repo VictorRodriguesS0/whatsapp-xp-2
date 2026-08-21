@@ -551,6 +551,133 @@ describe("useInbox", () => {
     expect(hook.result.current.conversation?.messages).toHaveLength(1);
   });
 
+  it("owns and retries a recording through its dedicated multipart endpoint", async () => {
+    const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm", lastModified: 123 });
+    const createPreview = vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:inbox-recording");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const requestId = "11111111-1111-4111-8111-111111111111";
+    const sentForms: FormData[] = [];
+    let attempts = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages") && !init?.method) {
+        return response({ data: conversationDetail(), error: null });
+      }
+      if (url === "/api/conversations/conversation-id/recordings" && init?.method === "POST") {
+        attempts += 1;
+        sentForms.push(init.body as FormData);
+        if (attempts === 1) return Promise.reject(new Error("offline"));
+        return response({ data: {
+          id: "recording-message",
+          clientRequestId: requestId,
+          direction: "OUTBOUND",
+          type: "AUDIO",
+          body: null,
+          mediaObjectId: "audio-media",
+          sentBy: { id: user.id, name: user.name },
+          status: "SENT",
+          failureReason: null,
+          externalTimestamp: "2026-08-20T14:30:00.000Z",
+          createdAt: "2026-08-20T14:30:00.000Z",
+        }, error: null }, true, 201);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.sendRecording("conversation-id", sourceFile, requestId));
+
+    const failed = hook.result.current.conversation?.messages[0];
+    expect(failed).toMatchObject({
+      id: `optimistic:${requestId}`,
+      clientRequestId: requestId,
+      type: "AUDIO",
+      body: null,
+      status: "FAILED",
+      localFileName: "gravacao.webm",
+    });
+    const firstFile = sentForms[0].get("file");
+    expect([...sentForms[0].keys()].sort()).toEqual(["clientRequestId", "file"]);
+    expect(sentForms[0].get("clientRequestId")).toBe(requestId);
+    expect(firstFile).toBeInstanceOf(File);
+    expect(firstFile).not.toBe(sourceFile);
+    expect(createPreview).toHaveBeenCalledWith(firstFile);
+
+    await act(() => hook.result.current.retryMessage(failed!.id));
+
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/recordings"))).toHaveLength(2);
+    expect(sentForms[1].get("clientRequestId")).toBe(requestId);
+    expect(sentForms[1].get("file")).toBe(firstFile);
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(hook.result.current.conversation?.messages[0]).toMatchObject({
+      id: "recording-message",
+      type: "AUDIO",
+      status: "SENT",
+      mediaObjectId: "audio-media",
+    });
+    expect(revokePreview).toHaveBeenCalledOnce();
+  });
+
+  it("deduplicates a recording when SSE wins and ignores its late response after navigation", async () => {
+    const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:owned-recording");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const requestId = "22222222-2222-4222-8222-222222222222";
+    let resolveSend!: (value: Response) => void;
+    let detailFetches = 0;
+    const confirmed = {
+      id: "recording-message",
+      clientRequestId: requestId,
+      direction: "OUTBOUND",
+      type: "AUDIO",
+      body: null,
+      mediaObjectId: "audio-media",
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+      failureReason: null,
+      externalTimestamp: "2026-08-20T14:30:00.000Z",
+      createdAt: "2026-08-20T14:30:00.000Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/recordings") && init?.method === "POST") {
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail("conversation-id", detailFetches > 1 ? [confirmed] : []), error: null });
+      }
+      if (url === "/api/conversations/other/messages") {
+        return response({ data: conversationDetail("other"), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let sendPromise!: Promise<unknown>;
+    act(() => { sendPromise = hook.result.current.sendRecording("conversation-id", sourceFile, requestId); });
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    await act(() => hook.result.current.refreshConversation());
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(revokePreview).toHaveBeenCalledOnce();
+
+    await act(() => hook.result.current.openConversation("other"));
+    resolveSend(await response({ data: confirmed, error: null }, true, 201));
+    await act(() => sendPromise);
+
+    expect(hook.result.current.conversation?.id).toBe("other");
+    expect(hook.result.current.conversation?.messages).toHaveLength(0);
+    expect(revokePreview).toHaveBeenCalledOnce();
+  });
+
   it("blocks overlapping responsible updates so an older response cannot win", async () => {
     let resolvePatch!: (response: Response) => void;
     const patchCalls: Array<string | null> = [];

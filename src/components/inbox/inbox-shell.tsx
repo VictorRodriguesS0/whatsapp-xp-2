@@ -124,6 +124,11 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
               onSendMedia={(file, caption) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendMedia(inbox.selectedId, file, caption) : Promise.resolve(null)}
+              onSendRecording={(file, clientRequestId) => (
+                inbox.selectedId && inbox.conversation?.id === inbox.selectedId
+                  ? inbox.sendRecording(inbox.selectedId, file, clientRequestId)
+                  : Promise.resolve(null)
+              )}
               onSendText={(body) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendText(inbox.selectedId, body) : Promise.resolve(null)}
               onVisibleMessage={(messageId) => {
                 if (inbox.selectedId && inbox.conversation?.id === inbox.selectedId) void inbox.markRead(inbox.selectedId, messageId);

@@ -5,6 +5,25 @@ import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
 
 import { ConversationView } from "./conversation-view";
 
+const audioRecorder = vi.hoisted(() => ({
+  phase: "idle",
+  supported: true,
+  durationMs: 0,
+  recording: null as null | {
+    clientRequestId: string;
+    durationMs: number;
+    file: File;
+    previewUrl: string;
+  },
+  error: null,
+  start: vi.fn(),
+  stop: vi.fn(),
+  cancel: vi.fn(),
+  discard: vi.fn(),
+}));
+const useAudioRecorderMock = vi.hoisted(() => vi.fn(() => audioRecorder));
+vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: useAudioRecorderMock }));
+
 const message: InboxMessage = {
   id: "message-1",
   direction: "INBOUND",
@@ -41,11 +60,16 @@ const handlers = {
   onVisibleMessage: vi.fn(),
   onSendText: vi.fn().mockResolvedValue(null),
   onSendMedia: vi.fn().mockResolvedValue(null),
+  onSendRecording: vi.fn().mockResolvedValue(null),
   onRetryMessage: vi.fn(),
 };
 
 describe("ConversationView", () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    audioRecorder.phase = "idle";
+    audioRecorder.recording = null;
+  });
 
   it("scrolls new conversations to the end without pulling a reader away from older messages", () => {
     const { rerender, getByRole } = render(<ConversationView {...handlers} conversation={null} />);
@@ -118,5 +142,24 @@ describe("ConversationView", () => {
 
     expect(scrollTo).toHaveBeenCalledWith({ top: 1_000, behavior: "auto" });
     vi.unstubAllGlobals();
+  });
+
+  it("scopes the recorder to the active conversation and propagates recorded sends", async () => {
+    const file = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    audioRecorder.phase = "preview";
+    audioRecorder.durationMs = 2_000;
+    audioRecorder.recording = {
+      clientRequestId: "11111111-1111-4111-8111-111111111111",
+      durationMs: 2_000,
+      file,
+      previewUrl: "blob:recording",
+    };
+    handlers.onSendRecording.mockResolvedValueOnce({ id: "sent" });
+
+    render(<ConversationView {...handlers} conversation={conversation} />);
+    fireEvent.click(screen.getByRole("button", { name: "Enviar gravação" }));
+
+    expect(useAudioRecorderMock).toHaveBeenLastCalledWith({ scopeKey: "conversation-id" });
+    expect(handlers.onSendRecording).toHaveBeenCalledWith(file, audioRecorder.recording.clientRequestId);
   });
 });
