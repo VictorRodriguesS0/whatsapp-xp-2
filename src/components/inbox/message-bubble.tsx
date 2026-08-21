@@ -32,6 +32,7 @@ function StatusIcon({ status }: { status: MessageDto["status"] }) {
 
 export function MessageBubble({ message, onRetry }: { message: InboxMessage; onRetry?: (id: string) => void }) {
   const outbound = message.direction === "OUTBOUND";
+  const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
   return (
     <article className={cn("message-row flex", outbound ? "justify-end" : "justify-start")}>
@@ -47,7 +48,7 @@ export function MessageBubble({ message, onRetry }: { message: InboxMessage; onR
         {message.status === "FAILED" ? (
           <div className="mt-2 border-t border-[color-mix(in_srgb,var(--danger)_22%,transparent)] pt-2">
             <p className="text-xs text-[var(--danger)]">Não foi possível enviar esta mensagem.</p>
-            {onRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
+            {onRetry && canRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
           </div>
         ) : null}
       </div>

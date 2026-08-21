@@ -54,7 +54,12 @@ describe("MessageBubble", () => {
     const retry = vi.fn();
     render(
       <MessageBubble
-        message={{ ...outboundFixture, status: "FAILED", failureReason: "Falha temporária" }}
+        message={{
+          ...outboundFixture,
+          clientRequestId: "11111111-1111-4111-8111-111111111111",
+          status: "FAILED",
+          failureReason: "Falha temporária",
+        }}
         onRetry={retry}
       />,
     );
@@ -62,6 +67,18 @@ describe("MessageBubble", () => {
     expect(screen.getByText("Falha ao enviar")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Tentar enviar novamente" }));
     expect(retry).toHaveBeenCalledWith(outboundFixture.id);
+  });
+
+  it("keeps an actorless external failure safe without offering retry", () => {
+    render(
+      <MessageBubble
+        message={{ ...outboundFixture, clientRequestId: null, sentBy: null, status: "FAILED" }}
+        onRetry={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Não foi possível enviar esta mensagem.")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Tentar enviar novamente" })).not.toBeInTheDocument();
   });
 
   it("does not expose provider failure details", () => {

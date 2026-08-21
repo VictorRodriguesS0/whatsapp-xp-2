@@ -139,6 +139,10 @@ function mergeRefreshedPage(firstPage: ConversationListItem[], current: Conversa
   return [...firstPage, ...current.filter((item) => !refreshedIds.has(item.id))];
 }
 
+function withoutMergedConversations(items: ConversationListItem[], mergedConversationIds: Set<string>) {
+  return items.filter((item) => !mergedConversationIds.has(item.id));
+}
+
 function pendingEntryByClientRequestId(
   pendingSends: Map<string, PendingSend>,
   clientRequestId?: string | null,
@@ -197,6 +201,20 @@ function releasePending(pendingSends: Map<string, PendingSend>, pending: Pending
   }
 }
 
+function moveConversationSends(
+  pendingSends: Map<string, PendingSend>,
+  confirmedSends: Map<string, ConfirmedSend>,
+  sourceConversationId: string,
+  targetConversationId: string,
+) {
+  for (const pending of pendingSends.values()) {
+    if (pending.conversationId === sourceConversationId) pending.conversationId = targetConversationId;
+  }
+  for (const confirmation of confirmedSends.values()) {
+    if (confirmation.conversationId === sourceConversationId) confirmation.conversationId = targetConversationId;
+  }
+}
+
 function withPendingMedia(message: MessageDto, pending: PendingMedia): InboxMessage {
   return {
     ...message,
@@ -232,6 +250,8 @@ export function useInbox(initialUser: SessionUser) {
   const nextCursorRef = useRef(nextCursor);
   const hasLoadedAdditionalPages = useRef(false);
   const responsibleRequestPending = useRef(false);
+  const mergedConversationIds = useRef(new Set<string>());
+  const handledMerges = useRef(new Set<string>());
 
   searchRef.current = search;
   selectedIdRef.current = selectedId;
@@ -260,9 +280,13 @@ export function useInbox(initialUser: SessionUser) {
       });
       const result = await readEnvelope<ConversationListResult>(response);
       if (listRequest.current?.sequence === sequence) {
-        setConversations((current) => hasLoadedAdditionalPages.current
-          ? mergeRefreshedPage(result.items, current)
-          : result.items);
+        const items = withoutMergedConversations(result.items, mergedConversationIds.current);
+        setConversations((current) => {
+          const visibleCurrent = withoutMergedConversations(current, mergedConversationIds.current);
+          return hasLoadedAdditionalPages.current
+            ? mergeRefreshedPage(items, visibleCurrent)
+            : items;
+        });
         if (!hasLoadedAdditionalPages.current) {
           nextCursorRef.current = result.nextCursor;
           setNextCursor(result.nextCursor);
@@ -298,7 +322,11 @@ export function useInbox(initialUser: SessionUser) {
       });
       const result = await readEnvelope<ConversationListResult>(response);
       if (pageRequest.current?.sequence !== sequence || searchRef.current.trim() !== searchAtRequest) return;
-      setConversations((current) => appendConversationPage(current, result.items));
+      const items = withoutMergedConversations(result.items, mergedConversationIds.current);
+      setConversations((current) => appendConversationPage(
+        withoutMergedConversations(current, mergedConversationIds.current),
+        items,
+      ));
       hasLoadedAdditionalPages.current = true;
       nextCursorRef.current = result.nextCursor;
       setNextCursor(result.nextCursor);
@@ -703,6 +731,34 @@ export function useInbox(initialUser: SessionUser) {
   }, [loadUsers, refreshConversation, refreshList]);
 
   const onRealtimeEvent = useCallback((event: RealtimeEvent) => {
+    if (event.type === "conversation.merged") {
+      const mergeKey = `${event.sourceConversationId}:${event.targetConversationId}`;
+      if (event.sourceConversationId === event.targetConversationId || handledMerges.current.has(mergeKey)) return;
+      handledMerges.current.add(mergeKey);
+      mergedConversationIds.current.add(event.sourceConversationId);
+      moveConversationSends(
+        pendingSends.current,
+        confirmedSends.current,
+        event.sourceConversationId,
+        event.targetConversationId,
+      );
+      setConversations((current) => withoutMergedConversations(current, mergedConversationIds.current));
+      setConversationErrorState((current) => (
+        current?.conversationId === event.sourceConversationId ? null : current
+      ));
+      if (selectedIdRef.current !== event.sourceConversationId) {
+        void refreshList();
+        return;
+      }
+      selectedIdRef.current = event.targetConversationId;
+      setSelectedId(event.targetConversationId);
+      setConversation(null);
+      setConversationErrorState(null);
+      lastReadRequest.current = null;
+      void refreshList();
+      void fetchConversation(event.targetConversationId, true);
+      return;
+    }
     if (event.type === "message.created" || event.type === "message.status") {
       void refreshList();
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
@@ -720,7 +776,7 @@ export function useInbox(initialUser: SessionUser) {
     if (event.type === "user.updated") {
       void Promise.all([loadUsers(), refreshList(), refreshConversation()]);
     }
-  }, [loadUsers, refreshConversation, refreshList]);
+  }, [fetchConversation, loadUsers, refreshConversation, refreshList]);
 
   const realtime = useRealtime({ onSync: onRealtimeSync, onEvent: onRealtimeEvent });
 

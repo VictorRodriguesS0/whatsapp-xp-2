@@ -311,6 +311,154 @@ describe("useInbox", () => {
     hook.unmount();
   });
 
+  it("moves a selected merged source to its target across paginated state and ignores stale source responses", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let resolveSource!: (value: Response) => void;
+    let listFetches = 0;
+    let targetFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations?cursor=page-2") {
+        return response({ data: { items: [listItem("source"), listItem("page-item")], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [listItem("target"), listItem("first-page")], nextCursor: "page-2" }, error: null });
+      }
+      if (url === "/api/conversations/source/messages") {
+        return new Promise<Response>((resolve) => { resolveSource = resolve; });
+      }
+      if (url === "/api/conversations/target/messages") {
+        targetFetches += 1;
+        return response({ data: conversationDetail("target"), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.nextCursor).toBe("page-2"));
+    await act(() => hook.result.current.loadMore());
+    expect(hook.result.current.conversations.map((item) => item.id)).toEqual(["target", "first-page", "source", "page-item"]);
+
+    act(() => { void hook.result.current.openConversation("source"); });
+    await waitFor(() => expect(hook.result.current.selectedId).toBe("source"));
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.merged",
+        sourceConversationId: "source",
+        targetConversationId: "target",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.merged",
+        sourceConversationId: "source",
+        targetConversationId: "target",
+      });
+    });
+    await waitFor(() => expect(hook.result.current.conversation?.id).toBe("target"));
+    resolveSource(await response({ data: conversationDetail("source"), error: null }));
+    await waitFor(() => expect(hook.result.current.loadingConversation).toBe(false));
+
+    expect(hook.result.current.selectedId).toBe("target");
+    expect(hook.result.current.conversationError).toBeNull();
+    expect(hook.result.current.conversations.map((item) => item.id)).toEqual(["target", "first-page", "page-item"]);
+    expect(listFetches).toBe(2);
+    expect(targetFetches).toBe(1);
+    hook.unmount();
+  });
+
+  it("removes an unselected merged source without stealing another active selection", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let listFetches = 0;
+    let activeFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [listItem("active"), listItem("target"), listItem("source")], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/active/messages") {
+        activeFetches += 1;
+        return response({ data: conversationDetail("active"), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("active"));
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.merged",
+        sourceConversationId: "source",
+        targetConversationId: "target",
+      });
+    });
+    await waitFor(() => expect(listFetches).toBe(2));
+
+    expect(hook.result.current.selectedId).toBe("active");
+    expect(hook.result.current.conversation?.id).toBe("active");
+    expect(hook.result.current.conversations.map((item) => item.id)).toEqual(["active", "target"]);
+    expect(activeFetches).toBe(1);
+    hook.unmount();
+  });
+
+  it("moves a pending source send to the merge target without duplicating it", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let resolveSend!: (value: Response) => void;
+    let requestId = "";
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("target"), listItem("source")], nextCursor: null }, error: null });
+      if (url === "/api/conversations/source/messages" && !init?.method) return response({ data: conversationDetail("source"), error: null });
+      if (url === "/api/conversations/source/messages" && init?.method === "POST") {
+        requestId = (JSON.parse(String(init.body)) as { clientRequestId: string }).clientRequestId;
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      if (url === "/api/conversations/target/messages") return response({ data: conversationDetail("target"), error: null });
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("source"));
+
+    let sendPromise!: Promise<InboxMessage | null>;
+    act(() => { sendPromise = hook.result.current.sendText("source", "Mensagem pendente"); });
+    await waitFor(() => expect(hook.result.current.conversation?.messages).toHaveLength(1));
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.merged",
+        sourceConversationId: "source",
+        targetConversationId: "target",
+      });
+    });
+    await waitFor(() => expect(hook.result.current.conversation?.id).toBe("target"));
+    await waitFor(() => expect(hook.result.current.conversation?.messages).toHaveLength(1));
+
+    expect(hook.result.current.conversation?.messages[0]?.clientRequestId).toBe(requestId);
+    await act(async () => {
+      resolveSend(await response({ data: {
+        id: "confirmed-message",
+        clientRequestId: requestId,
+        direction: "OUTBOUND",
+        type: "TEXT",
+        body: "Mensagem pendente",
+        mediaObjectId: null,
+        sentBy: { id: user.id, name: user.name },
+        status: "SENT",
+        failureReason: null,
+        externalTimestamp: "2026-08-21T14:30:00.000Z",
+        createdAt: "2026-08-21T14:30:00.000Z",
+      }, error: null }, true, 201));
+      await expect(sendPromise).resolves.toMatchObject({ id: "confirmed-message" });
+    });
+
+    expect(hook.result.current.conversation?.messages).toEqual([
+      expect.objectContaining({ id: "confirmed-message", clientRequestId: requestId }),
+    ]);
+    hook.unmount();
+  });
+
   it("refreshes the unread list after the read acknowledgement", async () => {
     let listFetches = 0;
     const receivedAt = new Date().toISOString();
