@@ -67,6 +67,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
     verifyMetaSignature,
     verifyMetaToken,
     maxBodyBytes: 1024 * 1024,
+    bodyReadTimeoutMs: 1_000,
     scheduleAfter: (_work: () => Promise<void>) => undefined,
     ensureMediaAvailable: async (_mediaId: string) => undefined,
     logger: {
@@ -176,6 +177,34 @@ describe("Meta webhook route", () => {
         origin: "WHATSAPP_BUSINESS_APP",
       }),
     ]);
+    expect(JSON.stringify(harness.logs)).not.toContain(body);
+  });
+
+  it("returns 200 and logs the safe quarantined count when a batch contains an identity conflict", async () => {
+    const body = JSON.stringify(messageEchoPayload());
+    const harness = dependencies({
+      processWebhookEvents: async () => ({
+        processed: 0,
+        duplicates: 0,
+        quarantined: 1,
+      }),
+    });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+
+    const response = await POST(request(body));
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      received: true,
+      processed: 0,
+      duplicates: 0,
+      quarantined: 1,
+    });
+    expect(harness.logs).toContainEqual({
+      level: "info",
+      event: "webhook.accepted",
+      fields: expect.objectContaining({ quarantined: 1 }),
+    });
     expect(JSON.stringify(harness.logs)).not.toContain(body);
   });
 
@@ -445,6 +474,82 @@ describe("Meta webhook route", () => {
     expect(response.status).toBe(400);
     expect(await response.text()).not.toContain(secretMarker);
     expect(JSON.stringify(harness.logs)).not.toContain(secretMarker);
+  });
+
+  it("times out and cancels a body stream that never closes before signature verification", async () => {
+    let cancelled = false;
+    let signatureChecked = false;
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandled);
+    const stream = new ReadableStream<Uint8Array>({
+      pull: () => new Promise<void>(() => undefined),
+      cancel() {
+        cancelled = true;
+        return new Promise<void>(() => undefined);
+      },
+    });
+    const harness = dependencies({
+      bodyReadTimeoutMs: 10,
+      verifyMetaSignature: () => {
+        signatureChecked = true;
+        return true;
+      },
+    });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+    const hangingRequest = {
+      headers: new Headers({ "x-hub-signature-256": sign("") }),
+      body: stream,
+      signal: new AbortController().signal,
+    } as unknown as Request;
+
+    try {
+      const response = await Promise.race([
+        POST(hangingRequest),
+        new Promise<never>((_resolve, reject) =>
+          setTimeout(() => reject(new Error("deadline guard elapsed")), 250),
+        ),
+      ]);
+
+      expect(response.status).toBe(408);
+      expect(cancelled).toBe(true);
+      expect(signatureChecked).toBe(false);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+      expect(JSON.stringify(harness.logs)).not.toContain(appSecret);
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
+  });
+
+  it("cancels a pending body reader when the request is aborted", async () => {
+    let cancelled = false;
+    const abortController = new AbortController();
+    const stream = new ReadableStream<Uint8Array>({
+      pull: () => new Promise<void>(() => undefined),
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const harness = dependencies({ bodyReadTimeoutMs: 1_000 });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+    const abortedRequest = {
+      headers: new Headers({ "x-hub-signature-256": sign("") }),
+      body: stream,
+      signal: abortController.signal,
+    } as unknown as Request;
+
+    const responsePromise = POST(abortedRequest);
+    abortController.abort();
+    const response = await Promise.race([
+      responsePromise,
+      new Promise<never>((_resolve, reject) =>
+        setTimeout(() => reject(new Error("abort guard elapsed")), 250),
+      ),
+    ]);
+
+    expect(response.status).toBe(400);
+    expect(cancelled).toBe(true);
   });
 
   it("returns 500 with redacted logs for retryable processing failures", async () => {

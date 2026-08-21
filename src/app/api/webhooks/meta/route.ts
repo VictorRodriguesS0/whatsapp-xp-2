@@ -14,9 +14,11 @@ import { verifyMetaSignature, verifyMetaToken } from "@/modules/webhooks/signatu
 
 export const runtime = "nodejs";
 export const META_WEBHOOK_MAX_BODY_BYTES = 1024 * 1024;
+export const META_WEBHOOK_BODY_TIMEOUT_MS = 10_000;
 
 class WebhookBodyTooLargeError extends Error {}
 class WebhookBodyReadError extends Error {}
+class WebhookBodyTimeoutError extends Error {}
 
 type WebhookEnvironment = Pick<
   ServerEnv,
@@ -32,6 +34,7 @@ type MetaWebhookRouteDependencies = {
   verifyMetaSignature: typeof verifyMetaSignature;
   verifyMetaToken: typeof verifyMetaToken;
   maxBodyBytes: number;
+  bodyReadTimeoutMs: number;
   scheduleAfter(work: () => Promise<void>): void;
   ensureMediaAvailable(mediaId: string): Promise<void>;
   logger: WebhookLogger;
@@ -44,6 +47,7 @@ const defaultDependencies: MetaWebhookRouteDependencies = {
   verifyMetaSignature,
   verifyMetaToken,
   maxBodyBytes: META_WEBHOOK_MAX_BODY_BYTES,
+  bodyReadTimeoutMs: META_WEBHOOK_BODY_TIMEOUT_MS,
   scheduleAfter: (work) => after(work),
   ensureMediaAvailable,
   logger,
@@ -72,6 +76,7 @@ function validateContentLength(headers: Headers, maximumBytes: number): void {
 export async function readLimitedBody(
   request: Request,
   maximumBytes: number,
+  timeoutMs: number = META_WEBHOOK_BODY_TIMEOUT_MS,
 ): Promise<Uint8Array> {
   validateContentLength(request.headers, maximumBytes);
 
@@ -82,6 +87,29 @@ export async function readLimitedBody(
   const reader = request.body.getReader();
   const body = new Uint8Array(maximumBytes);
   let totalBytes = 0;
+  let timedOut = false;
+  let requestAborted = false;
+
+  const cancelReader = () => {
+    try {
+      void reader.cancel().catch(() => undefined);
+    } catch {
+      // The public timeout/read error remains authoritative.
+    }
+  };
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    cancelReader();
+  }, timeoutMs);
+  const onAbort = () => {
+    requestAborted = true;
+    cancelReader();
+  };
+  if (request.signal?.aborted) {
+    onAbort();
+  } else {
+    request.signal?.addEventListener("abort", onAbort, { once: true });
+  }
 
   try {
     while (true) {
@@ -90,8 +118,13 @@ export async function readLimitedBody(
       try {
         result = await reader.read();
       } catch {
+        if (timedOut) throw new WebhookBodyTimeoutError();
+        if (requestAborted) throw new WebhookBodyReadError();
         throw new WebhookBodyReadError();
       }
+
+      if (timedOut) throw new WebhookBodyTimeoutError();
+      if (requestAborted) throw new WebhookBodyReadError();
 
       if (result.done) {
         break;
@@ -100,18 +133,20 @@ export async function readLimitedBody(
       totalBytes += result.value.byteLength;
 
       if (totalBytes > maximumBytes) {
-        try {
-          await reader.cancel();
-        } catch {
-          // The size error remains authoritative even when cancellation fails.
-        }
+        cancelReader();
         throw new WebhookBodyTooLargeError();
       }
 
       body.set(result.value, totalBytes - result.value.byteLength);
     }
   } finally {
-    reader.releaseLock();
+    clearTimeout(timeout);
+    request.signal?.removeEventListener("abort", onAbort);
+    try {
+      reader.releaseLock();
+    } catch {
+      // Cancellation owns the pending read; no error escapes cleanup.
+    }
   }
 
   return body.slice(0, totalBytes);
@@ -149,11 +184,20 @@ export function createMetaWebhookRouteHandlers(
       let rawBodyBytes: Uint8Array;
 
       try {
-        rawBodyBytes = await readLimitedBody(request, dependencies.maxBodyBytes);
+        rawBodyBytes = await readLimitedBody(
+          request,
+          dependencies.maxBodyBytes,
+          dependencies.bodyReadTimeoutMs,
+        );
       } catch (error) {
         if (error instanceof WebhookBodyTooLargeError) {
           dependencies.logger.warn("webhook.body_too_large", { requestId });
           return safeJsonError("Payload muito grande", 413);
+        }
+
+        if (error instanceof WebhookBodyTimeoutError) {
+          dependencies.logger.warn("webhook.body_timeout", { requestId });
+          return safeJsonError("Tempo de leitura esgotado", 408);
         }
 
         dependencies.logger.warn("webhook.body_rejected", { requestId });
@@ -223,6 +267,7 @@ export function createMetaWebhookRouteHandlers(
           eventCount: events.length,
           processed: summary.processed,
           duplicates: summary.duplicates,
+          quarantined: summary.quarantined ?? 0,
         });
         return Response.json({ received: true, ...summary });
       } catch (error) {

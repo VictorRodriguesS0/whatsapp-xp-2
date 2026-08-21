@@ -64,4 +64,5 @@ export type NormalizedWebhookEvent =
 export type ProcessSummary = {
   processed: number;
   duplicates: number;
+  quarantined?: number;
 };
