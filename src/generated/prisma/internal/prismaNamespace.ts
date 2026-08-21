@@ -404,6 +404,7 @@ export const ModelName = {
   Message: 'Message',
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
+  ConversationAuditEvent: 'ConversationAuditEvent',
   WebhookEvent: 'WebhookEvent'
 } as const
 
@@ -420,7 +421,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "conversation" | "message" | "mediaObject" | "conversationRead" | "webhookEvent"
+    modelProps: "user" | "session" | "contact" | "conversation" | "message" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -942,6 +943,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ConversationAuditEvent: {
+      payload: Prisma.$ConversationAuditEventPayload<ExtArgs>
+      fields: Prisma.ConversationAuditEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ConversationAuditEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ConversationAuditEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>
+        }
+        findFirst: {
+          args: Prisma.ConversationAuditEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ConversationAuditEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>
+        }
+        findMany: {
+          args: Prisma.ConversationAuditEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>[]
+        }
+        create: {
+          args: Prisma.ConversationAuditEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>
+        }
+        createMany: {
+          args: Prisma.ConversationAuditEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ConversationAuditEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>[]
+        }
+        delete: {
+          args: Prisma.ConversationAuditEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>
+        }
+        update: {
+          args: Prisma.ConversationAuditEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.ConversationAuditEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ConversationAuditEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ConversationAuditEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.ConversationAuditEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ConversationAuditEventPayload>
+        }
+        aggregate: {
+          args: Prisma.ConversationAuditEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateConversationAuditEvent>
+        }
+        groupBy: {
+          args: Prisma.ConversationAuditEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ConversationAuditEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ConversationAuditEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ConversationAuditEventCountAggregateOutputType> | number
+        }
+      }
+    }
     WebhookEvent: {
       payload: Prisma.$WebhookEventPayload<ExtArgs>
       fields: Prisma.WebhookEventFieldRefs
@@ -1100,7 +1175,12 @@ export const ConversationScalarFieldEnum = {
   responsibleUserId: 'responsibleUserId',
   lastMessageAt: 'lastMessageAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  teamLastReadMessageId: 'teamLastReadMessageId',
+  teamLastReadAt: 'teamLastReadAt',
+  manualUnreadAt: 'manualUnreadAt',
+  manualUnreadByUserId: 'manualUnreadByUserId',
+  awaitingResponseSince: 'awaitingResponseSince'
 } as const
 
 export type ConversationScalarFieldEnum = (typeof ConversationScalarFieldEnum)[keyof typeof ConversationScalarFieldEnum]
@@ -1161,6 +1241,18 @@ export const ConversationReadScalarFieldEnum = {
 } as const
 
 export type ConversationReadScalarFieldEnum = (typeof ConversationReadScalarFieldEnum)[keyof typeof ConversationReadScalarFieldEnum]
+
+
+export const ConversationAuditEventScalarFieldEnum = {
+  id: 'id',
+  conversationId: 'conversationId',
+  actorUserId: 'actorUserId',
+  action: 'action',
+  messageId: 'messageId',
+  createdAt: 'createdAt'
+} as const
+
+export type ConversationAuditEventScalarFieldEnum = (typeof ConversationAuditEventScalarFieldEnum)[keyof typeof ConversationAuditEventScalarFieldEnum]
 
 
 export const WebhookEventScalarFieldEnum = {
@@ -1301,14 +1393,14 @@ export type ListEnumMessageStatusFieldRefInput<$PrismaModel> = FieldRefInputType
  * Reference to a field of type 'MessageOperationalState'
  */
 export type EnumMessageOperationalStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MessageOperationalState'>
-
+    
 
 
 /**
  * Reference to a field of type 'MessageOperationalState[]'
  */
 export type ListEnumMessageOperationalStateFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MessageOperationalState[]'>
-
+    
 
 
 /**
@@ -1350,6 +1442,20 @@ export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'In
  * Reference to a field of type 'Int[]'
  */
 export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ConversationAuditAction'
+ */
+export type EnumConversationAuditActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ConversationAuditAction'>
+    
+
+
+/**
+ * Reference to a field of type 'ConversationAuditAction[]'
+ */
+export type ListEnumConversationAuditActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ConversationAuditAction[]'>
     
 
 
@@ -1538,6 +1644,7 @@ export type GlobalOmitConfig = {
   message?: Prisma.MessageOmit
   mediaObject?: Prisma.MediaObjectOmit
   conversationRead?: Prisma.ConversationReadOmit
+  conversationAuditEvent?: Prisma.ConversationAuditEventOmit
   webhookEvent?: Prisma.WebhookEventOmit
 }
 
@@ -1601,3 +1708,4 @@ export type PrismaAction =
  * `PrismaClient` proxy available in interactive transactions.
  */
 export type TransactionClient = Omit<DefaultPrismaClient, runtime.ITXClientDenyList>
+

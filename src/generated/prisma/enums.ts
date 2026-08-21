@@ -78,3 +78,11 @@ export const WebhookStatus = {
 } as const
 
 export type WebhookStatus = (typeof WebhookStatus)[keyof typeof WebhookStatus]
+
+
+export const ConversationAuditAction = {
+  READ: 'READ',
+  MARKED_UNREAD: 'MARKED_UNREAD'
+} as const
+
+export type ConversationAuditAction = (typeof ConversationAuditAction)[keyof typeof ConversationAuditAction]

@@ -77,6 +77,11 @@ export type MediaObject = Prisma.MediaObjectModel
  */
 export type ConversationRead = Prisma.ConversationReadModel
 /**
+ * Model ConversationAuditEvent
+ * 
+ */
+export type ConversationAuditEvent = Prisma.ConversationAuditEventModel
+/**
  * Model WebhookEvent
  * 
  */

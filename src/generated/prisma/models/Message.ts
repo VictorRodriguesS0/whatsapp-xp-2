@@ -290,6 +290,7 @@ export type MessageWhereInput = {
   mediaObject?: Prisma.XOR<Prisma.MediaObjectNullableScalarRelationFilter, Prisma.MediaObjectWhereInput> | null
   sentByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   lastReadFor?: Prisma.ConversationReadListRelationFilter
+  teamLastReadFor?: Prisma.ConversationListRelationFilter
 }
 
 export type MessageOrderByWithRelationInput = {
@@ -315,6 +316,7 @@ export type MessageOrderByWithRelationInput = {
   mediaObject?: Prisma.MediaObjectOrderByWithRelationInput
   sentByUser?: Prisma.UserOrderByWithRelationInput
   lastReadFor?: Prisma.ConversationReadOrderByRelationAggregateInput
+  teamLastReadFor?: Prisma.ConversationOrderByRelationAggregateInput
 }
 
 export type MessageWhereUniqueInput = Prisma.AtLeast<{
@@ -343,6 +345,7 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   mediaObject?: Prisma.XOR<Prisma.MediaObjectNullableScalarRelationFilter, Prisma.MediaObjectWhereInput> | null
   sentByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   lastReadFor?: Prisma.ConversationReadListRelationFilter
+  teamLastReadFor?: Prisma.ConversationListRelationFilter
 }, "id" | "whatsappMessageId" | "clientRequestId" | "mediaObjectId">
 
 export type MessageOrderByWithAggregationInput = {
@@ -413,6 +416,7 @@ export type MessageCreateInput = {
   mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
   sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageUncheckedCreateInput = {
@@ -435,6 +439,7 @@ export type MessageUncheckedCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageUpdateInput = {
@@ -457,6 +462,7 @@ export type MessageUpdateInput = {
   mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
   sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateInput = {
@@ -479,6 +485,7 @@ export type MessageUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageCreateManyInput = {
@@ -551,6 +558,11 @@ export type MessageOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type MessageNullableScalarRelationFilter = {
+  is?: Prisma.MessageWhereInput | null
+  isNot?: Prisma.MessageWhereInput | null
+}
+
 export type MessageCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
@@ -614,11 +626,6 @@ export type MessageMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
-export type MessageNullableScalarRelationFilter = {
-  is?: Prisma.MessageWhereInput | null
-  isNot?: Prisma.MessageWhereInput | null
-}
-
 export type MessageCreateNestedManyWithoutSentByUserInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutSentByUserInput, Prisma.MessageUncheckedCreateWithoutSentByUserInput> | Prisma.MessageCreateWithoutSentByUserInput[] | Prisma.MessageUncheckedCreateWithoutSentByUserInput[]
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutSentByUserInput | Prisma.MessageCreateOrConnectWithoutSentByUserInput[]
@@ -661,6 +668,12 @@ export type MessageUncheckedUpdateManyWithoutSentByUserNestedInput = {
   deleteMany?: Prisma.MessageScalarWhereInput | Prisma.MessageScalarWhereInput[]
 }
 
+export type MessageCreateNestedOneWithoutTeamLastReadForInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutTeamLastReadForInput, Prisma.MessageUncheckedCreateWithoutTeamLastReadForInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutTeamLastReadForInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
 export type MessageCreateNestedManyWithoutConversationInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutConversationInput, Prisma.MessageUncheckedCreateWithoutConversationInput> | Prisma.MessageCreateWithoutConversationInput[] | Prisma.MessageUncheckedCreateWithoutConversationInput[]
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutConversationInput | Prisma.MessageCreateOrConnectWithoutConversationInput[]
@@ -673,6 +686,16 @@ export type MessageUncheckedCreateNestedManyWithoutConversationInput = {
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutConversationInput | Prisma.MessageCreateOrConnectWithoutConversationInput[]
   createMany?: Prisma.MessageCreateManyConversationInputEnvelope
   connect?: Prisma.MessageWhereUniqueInput | Prisma.MessageWhereUniqueInput[]
+}
+
+export type MessageUpdateOneWithoutTeamLastReadForNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutTeamLastReadForInput, Prisma.MessageUncheckedCreateWithoutTeamLastReadForInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutTeamLastReadForInput
+  upsert?: Prisma.MessageUpsertWithoutTeamLastReadForInput
+  disconnect?: Prisma.MessageWhereInput | boolean
+  delete?: Prisma.MessageWhereInput | boolean
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutTeamLastReadForInput, Prisma.MessageUpdateWithoutTeamLastReadForInput>, Prisma.MessageUncheckedUpdateWithoutTeamLastReadForInput>
 }
 
 export type MessageUpdateManyWithoutConversationNestedInput = {
@@ -717,10 +740,6 @@ export type EnumMessageStatusFieldUpdateOperationsInput = {
 
 export type EnumMessageOperationalStateFieldUpdateOperationsInput = {
   set?: $Enums.MessageOperationalState
-}
-
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
 }
 
 export type MessageCreateNestedOneWithoutMediaObjectInput = {
@@ -790,6 +809,7 @@ export type MessageCreateWithoutSentByUserInput = {
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageUncheckedCreateWithoutSentByUserInput = {
@@ -811,6 +831,7 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageCreateOrConnectWithoutSentByUserInput = {
@@ -863,6 +884,55 @@ export type MessageScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"Message"> | Date | string
 }
 
+export type MessageCreateWithoutTeamLastReadForInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+}
+
+export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+}
+
+export type MessageCreateOrConnectWithoutTeamLastReadForInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutTeamLastReadForInput, Prisma.MessageUncheckedCreateWithoutTeamLastReadForInput>
+}
+
 export type MessageCreateWithoutConversationInput = {
   id?: string
   whatsappMessageId?: string | null
@@ -882,6 +952,7 @@ export type MessageCreateWithoutConversationInput = {
   mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
   sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageUncheckedCreateWithoutConversationInput = {
@@ -903,6 +974,7 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageCreateOrConnectWithoutConversationInput = {
@@ -913,6 +985,61 @@ export type MessageCreateOrConnectWithoutConversationInput = {
 export type MessageCreateManyConversationInputEnvelope = {
   data: Prisma.MessageCreateManyConversationInput | Prisma.MessageCreateManyConversationInput[]
   skipDuplicates?: boolean
+}
+
+export type MessageUpsertWithoutTeamLastReadForInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutTeamLastReadForInput, Prisma.MessageUncheckedUpdateWithoutTeamLastReadForInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutTeamLastReadForInput, Prisma.MessageUncheckedCreateWithoutTeamLastReadForInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutTeamLastReadForInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutTeamLastReadForInput, Prisma.MessageUncheckedUpdateWithoutTeamLastReadForInput>
+}
+
+export type MessageUpdateWithoutTeamLastReadForInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
 }
 
 export type MessageUpsertWithWhereUniqueWithoutConversationInput = {
@@ -950,6 +1077,7 @@ export type MessageCreateWithoutMediaObjectInput = {
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageUncheckedCreateWithoutMediaObjectInput = {
@@ -971,6 +1099,7 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageCreateOrConnectWithoutMediaObjectInput = {
@@ -1008,6 +1137,7 @@ export type MessageUpdateWithoutMediaObjectInput = {
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutMediaObjectInput = {
@@ -1029,6 +1159,7 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageCreateWithoutLastReadForInput = {
@@ -1050,6 +1181,7 @@ export type MessageCreateWithoutLastReadForInput = {
   conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
   mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
   sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageUncheckedCreateWithoutLastReadForInput = {
@@ -1071,6 +1203,7 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   externalTimestamp: Date | string
   createdAt?: Date | string
   updatedAt?: Date | string
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
 }
 
 export type MessageCreateOrConnectWithoutLastReadForInput = {
@@ -1108,6 +1241,7 @@ export type MessageUpdateWithoutLastReadForInput = {
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
   sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutLastReadForInput = {
@@ -1129,6 +1263,7 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageCreateManySentByUserInput = {
@@ -1170,6 +1305,7 @@ export type MessageUpdateWithoutSentByUserInput = {
   conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
   mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutSentByUserInput = {
@@ -1191,6 +1327,7 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
@@ -1252,6 +1389,7 @@ export type MessageUpdateWithoutConversationInput = {
   mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
   sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutConversationInput = {
@@ -1273,6 +1411,7 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutConversationInput = {
@@ -1302,10 +1441,12 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
 
 export type MessageCountOutputType = {
   lastReadFor: number
+  teamLastReadFor: number
 }
 
 export type MessageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   lastReadFor?: boolean | MessageCountOutputTypeCountLastReadForArgs
+  teamLastReadFor?: boolean | MessageCountOutputTypeCountTeamLastReadForArgs
 }
 
 /**
@@ -1323,6 +1464,13 @@ export type MessageCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Exte
  */
 export type MessageCountOutputTypeCountLastReadForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ConversationReadWhereInput
+}
+
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountTeamLastReadForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ConversationWhereInput
 }
 
 
@@ -1349,6 +1497,7 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   mediaObject?: boolean | Prisma.Message$mediaObjectArgs<ExtArgs>
   sentByUser?: boolean | Prisma.Message$sentByUserArgs<ExtArgs>
   lastReadFor?: boolean | Prisma.Message$lastReadForArgs<ExtArgs>
+  teamLastReadFor?: boolean | Prisma.Message$teamLastReadForArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
@@ -1427,6 +1576,7 @@ export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   mediaObject?: boolean | Prisma.Message$mediaObjectArgs<ExtArgs>
   sentByUser?: boolean | Prisma.Message$sentByUserArgs<ExtArgs>
   lastReadFor?: boolean | Prisma.Message$lastReadForArgs<ExtArgs>
+  teamLastReadFor?: boolean | Prisma.Message$teamLastReadForArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type MessageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1447,6 +1597,7 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     mediaObject: Prisma.$MediaObjectPayload<ExtArgs> | null
     sentByUser: Prisma.$UserPayload<ExtArgs> | null
     lastReadFor: Prisma.$ConversationReadPayload<ExtArgs>[]
+    teamLastReadFor: Prisma.$ConversationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1865,6 +2016,7 @@ export interface Prisma__MessageClient<T, Null = never, ExtArgs extends runtime.
   mediaObject<T extends Prisma.Message$mediaObjectArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$mediaObjectArgs<ExtArgs>>): Prisma.Prisma__MediaObjectClient<runtime.Types.Result.GetResult<Prisma.$MediaObjectPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   sentByUser<T extends Prisma.Message$sentByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$sentByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   lastReadFor<T extends Prisma.Message$lastReadForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$lastReadForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationReadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  teamLastReadFor<T extends Prisma.Message$teamLastReadForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$teamLastReadForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2372,6 +2524,30 @@ export type Message$lastReadForArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.ConversationReadScalarFieldEnum | Prisma.ConversationReadScalarFieldEnum[]
+}
+
+/**
+ * Message.teamLastReadFor
+ */
+export type Message$teamLastReadForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Conversation
+   */
+  select?: Prisma.ConversationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Conversation
+   */
+  omit?: Prisma.ConversationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationInclude<ExtArgs> | null
+  where?: Prisma.ConversationWhereInput
+  orderBy?: Prisma.ConversationOrderByWithRelationInput | Prisma.ConversationOrderByWithRelationInput[]
+  cursor?: Prisma.ConversationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ConversationScalarFieldEnum | Prisma.ConversationScalarFieldEnum[]
 }
 
 /**

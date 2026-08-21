@@ -75,5 +75,14 @@ describe("demonstration seed", () => {
     expect(carlosReads[0]!.lastReadMessageId).not.toBe(
       carlosReads[1]!.lastReadMessageId,
     );
+
+    const sharedState = await prisma.conversation.findUniqueOrThrow({
+      where: { id: conversations[0]!.id },
+    });
+    expect(sharedState).toMatchObject({
+      teamLastReadMessageId: "00000000-0000-4000-8000-000000000302",
+      teamLastReadAt: new Date("2026-08-18T14:13:00.000Z"),
+      awaitingResponseSince: new Date("2026-08-18T14:12:00.000Z"),
+    });
   });
 });

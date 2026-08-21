@@ -45,6 +45,7 @@ const date = (value: string): Date => new Date(value);
 
 export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   const passwordHash = await hashPassword(DEMO_PASSWORD);
+  const createdConversationIds = new Set<string>();
 
   const users = [
     {
@@ -126,6 +127,10 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
   ];
 
   for (const conversation of conversations) {
+    const existingConversation = await prisma.conversation.findUnique({
+      where: { contactId: conversation.contactId },
+      select: { id: true },
+    });
     await prisma.conversation.upsert({
       where: { contactId: conversation.contactId },
       update: {
@@ -134,6 +139,9 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       },
       create: conversation,
     });
+    if (!existingConversation) {
+      createdConversationIds.add(conversation.id);
+    }
   }
 
   const media = [
@@ -201,7 +209,7 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
       body: "Olá, Carlos. Pode nos enviar uma foto para avaliarmos a troca?",
       sentByUserId: ids.marcos,
       status: MessageStatus.DELIVERED,
-      externalTimestamp: date("2026-08-18T14:08:00.000Z"),
+      externalTimestamp: date("2026-08-18T14:05:00.000Z"),
     },
     {
       id: ids.carlosImage,
@@ -293,14 +301,14 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
     {
       conversationId: ids.carlosConversation,
       userId: ids.victor,
-      lastReadMessageId: ids.carlosImage,
+      lastReadMessageId: ids.carlosReply,
       lastReadAt: date("2026-08-18T14:13:00.000Z"),
     },
     {
       conversationId: ids.carlosConversation,
       userId: ids.marcos,
       lastReadMessageId: ids.carlosText,
-      lastReadAt: date("2026-08-18T14:06:00.000Z"),
+      lastReadAt: date("2026-08-18T14:13:00.000Z"),
     },
     {
       conversationId: ids.mariaConversation,
@@ -329,6 +337,42 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
         lastReadAt: read.lastReadAt,
       },
       create: read,
+    });
+  }
+
+  const initialSharedState = [
+    {
+      conversationId: ids.carlosConversation,
+      teamLastReadMessageId: ids.carlosReply,
+      teamLastReadAt: date("2026-08-18T14:13:00.000Z"),
+      awaitingResponseSince: date("2026-08-18T14:12:00.000Z"),
+    },
+    {
+      conversationId: ids.mariaConversation,
+      teamLastReadMessageId: ids.mariaReply,
+      teamLastReadAt: date("2026-08-18T15:21:00.000Z"),
+      awaitingResponseSince: date("2026-08-18T15:25:00.000Z"),
+    },
+    {
+      conversationId: ids.pedroConversation,
+      teamLastReadMessageId: ids.pedroText,
+      teamLastReadAt: date("2026-08-18T16:35:00.000Z"),
+      awaitingResponseSince: date("2026-08-18T16:42:00.000Z"),
+    },
+  ];
+
+  for (const sharedState of initialSharedState) {
+    if (!createdConversationIds.has(sharedState.conversationId)) {
+      continue;
+    }
+
+    await prisma.conversation.update({
+      where: { id: sharedState.conversationId },
+      data: {
+        teamLastReadMessageId: sharedState.teamLastReadMessageId,
+        teamLastReadAt: sharedState.teamLastReadAt,
+        awaitingResponseSince: sharedState.awaitingResponseSince,
+      },
     });
   }
 }

@@ -88,13 +88,14 @@ describe("database", () => {
           'messages',
           'media_objects',
           'conversation_reads',
+          'conversation_audit_events',
           'webhook_events'
         )
         AND data_type LIKE 'timestamp%'
       ORDER BY table_name, column_name
     `;
 
-    expect(temporalColumns).toHaveLength(22);
+    expect(temporalColumns).toHaveLength(26);
     expect(new Set(temporalColumns.map((column) => column.dataType))).toEqual(
       new Set(["timestamp with time zone"]),
     );

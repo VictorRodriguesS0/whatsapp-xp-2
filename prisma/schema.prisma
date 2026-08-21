@@ -57,19 +57,26 @@ enum WebhookStatus {
   FAILED
 }
 
+enum ConversationAuditAction {
+  READ
+  MARKED_UNREAD
+}
+
 model User {
-  id                    String             @id @default(uuid()) @db.Uuid
-  name                  String
-  email                 String             @unique
-  passwordHash          String             @map("password_hash")
-  role                  UserRole
-  active                Boolean            @default(true)
-  createdAt             DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions              Session[]
-  assignedConversations Conversation[]     @relation("ResponsibleUser")
-  sentMessages          Message[]          @relation("SentByUser")
-  conversationReads     ConversationRead[]
+  id                        String                   @id @default(uuid()) @db.Uuid
+  name                      String
+  email                     String                   @unique
+  passwordHash              String                   @map("password_hash")
+  role                      UserRole
+  active                    Boolean                  @default(true)
+  createdAt                 DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions                  Session[]
+  assignedConversations     Conversation[]           @relation("ResponsibleUser")
+  sentMessages              Message[]                @relation("SentByUser")
+  conversationReads         ConversationRead[]
+  manualUnreadConversations Conversation[]           @relation("ManualUnreadByUser")
+  conversationAuditEvents   ConversationAuditEvent[]
 
   @@map("users")
 }
@@ -101,44 +108,53 @@ model Contact {
 }
 
 model Conversation {
-  id                String             @id @default(uuid()) @db.Uuid
-  contactId         String             @unique @map("contact_id") @db.Uuid
-  responsibleUserId String?            @map("responsible_user_id") @db.Uuid
-  lastMessageAt     DateTime           @map("last_message_at") @db.Timestamptz(3)
-  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  contact           Contact            @relation(fields: [contactId], references: [id], onDelete: Restrict)
-  responsibleUser   User?              @relation("ResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
-  messages          Message[]
-  reads             ConversationRead[]
+  id                    String                   @id @default(uuid()) @db.Uuid
+  contactId             String                   @unique @map("contact_id") @db.Uuid
+  responsibleUserId     String?                  @map("responsible_user_id") @db.Uuid
+  lastMessageAt         DateTime                 @map("last_message_at") @db.Timestamptz(3)
+  createdAt             DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  teamLastReadMessageId String?                  @map("team_last_read_message_id") @db.Uuid
+  teamLastReadAt        DateTime?                @map("team_last_read_at") @db.Timestamptz(3)
+  manualUnreadAt        DateTime?                @map("manual_unread_at") @db.Timestamptz(3)
+  manualUnreadByUserId  String?                  @map("manual_unread_by_user_id") @db.Uuid
+  awaitingResponseSince DateTime?                @map("awaiting_response_since") @db.Timestamptz(3)
+  contact               Contact                  @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  responsibleUser       User?                    @relation("ResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  teamLastReadMessage   Message?                 @relation("TeamLastReadMessage", fields: [teamLastReadMessageId], references: [id], onDelete: SetNull)
+  manualUnreadByUser    User?                    @relation("ManualUnreadByUser", fields: [manualUnreadByUserId], references: [id], onDelete: SetNull)
+  messages              Message[]
+  reads                 ConversationRead[]
+  auditEvents           ConversationAuditEvent[]
 
   @@index([lastMessageAt])
   @@map("conversations")
 }
 
 model Message {
-  id                  String              @id @default(uuid()) @db.Uuid
-  conversationId      String              @map("conversation_id") @db.Uuid
-  whatsappMessageId   String?             @unique @map("whatsapp_message_id")
-  clientRequestId     String?             @unique @map("client_request_id") @db.Uuid
+  id                  String                  @id @default(uuid()) @db.Uuid
+  conversationId      String                  @map("conversation_id") @db.Uuid
+  whatsappMessageId   String?                 @unique @map("whatsapp_message_id")
+  clientRequestId     String?                 @unique @map("client_request_id") @db.Uuid
   direction           MessageDirection
   type                MessageType
   body                String?
-  mediaObjectId       String?             @unique @map("media_object_id") @db.Uuid
-  sentByUserId        String?             @map("sent_by_user_id") @db.Uuid
+  mediaObjectId       String?                 @unique @map("media_object_id") @db.Uuid
+  sentByUserId        String?                 @map("sent_by_user_id") @db.Uuid
   status              MessageStatus
-  failureReason       String?             @map("failure_reason")
+  failureReason       String?                 @map("failure_reason")
   operationalState    MessageOperationalState @default(READY) @map("operational_state")
-  providerAttemptedAt DateTime?           @map("provider_attempted_at") @db.Timestamptz(3)
-  deliveryLeaseId     String?             @map("delivery_lease_id") @db.Uuid
-  deliveryLeaseUntil  DateTime?           @map("delivery_lease_until") @db.Timestamptz(3)
-  externalTimestamp   DateTime            @map("external_timestamp") @db.Timestamptz(3)
-  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conversation        Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  mediaObject         MediaObject?        @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
-  sentByUser          User?               @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
-  lastReadFor         ConversationRead[]   @relation("LastReadMessage")
+  providerAttemptedAt DateTime?               @map("provider_attempted_at") @db.Timestamptz(3)
+  deliveryLeaseId     String?                 @map("delivery_lease_id") @db.Uuid
+  deliveryLeaseUntil  DateTime?               @map("delivery_lease_until") @db.Timestamptz(3)
+  externalTimestamp   DateTime                @map("external_timestamp") @db.Timestamptz(3)
+  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation        Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  mediaObject         MediaObject?            @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
+  sentByUser          User?                   @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
+  lastReadFor         ConversationRead[]      @relation("LastReadMessage")
+  teamLastReadFor     Conversation[]          @relation("TeamLastReadMessage")
 
   @@index([conversationId, externalTimestamp])
   @@index([status, operationalState, deliveryLeaseUntil], map: "messages_delivery_claim_idx")
@@ -146,23 +162,23 @@ model Message {
 }
 
 model MediaObject {
-  id               String      @id @default(uuid()) @db.Uuid
-  storageProvider  String      @map("storage_provider")
-  storageKey       String?     @map("storage_key")
-  originalFilename String      @map("original_filename")
-  mimeType         String      @map("mime_type")
-  sizeBytes        BigInt      @map("size_bytes")
-  sha256           String?
-  metaMediaId      String?     @map("meta_media_id")
-  status           MediaStatus
-  failureReason    String?     @map("failure_reason")
-  downloadLeaseId  String?     @map("download_lease_id") @db.Uuid
-  downloadLeaseUntil DateTime? @map("download_lease_until") @db.Timestamptz(3)
-  downloadNextAttemptAt DateTime? @map("download_next_attempt_at") @db.Timestamptz(3)
-  downloadAttempts Int         @default(0) @map("download_attempts")
-  createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
-  message          Message?
+  id                    String      @id @default(uuid()) @db.Uuid
+  storageProvider       String      @map("storage_provider")
+  storageKey            String?     @map("storage_key")
+  originalFilename      String      @map("original_filename")
+  mimeType              String      @map("mime_type")
+  sizeBytes             BigInt      @map("size_bytes")
+  sha256                String?
+  metaMediaId           String?     @map("meta_media_id")
+  status                MediaStatus
+  failureReason         String?     @map("failure_reason")
+  downloadLeaseId       String?     @map("download_lease_id") @db.Uuid
+  downloadLeaseUntil    DateTime?   @map("download_lease_until") @db.Timestamptz(3)
+  downloadNextAttemptAt DateTime?   @map("download_next_attempt_at") @db.Timestamptz(3)
+  downloadAttempts      Int         @default(0) @map("download_attempts")
+  createdAt             DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  message               Message?
 
   @@index([status, downloadNextAttemptAt, downloadLeaseUntil], map: "media_objects_download_claim_idx")
   @@map("media_objects")
@@ -176,10 +192,24 @@ model ConversationRead {
   lastReadAt        DateTime     @map("last_read_at") @db.Timestamptz(3)
   conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user              User         @relation(fields: [userId], references: [id], onDelete: Restrict)
-  lastReadMessage   Message?      @relation("LastReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
+  lastReadMessage   Message?     @relation("LastReadMessage", fields: [lastReadMessageId], references: [id], onDelete: SetNull)
 
   @@unique([conversationId, userId])
   @@map("conversation_reads")
+}
+
+model ConversationAuditEvent {
+  id             String                  @id @default(uuid()) @db.Uuid
+  conversationId String                  @map("conversation_id") @db.Uuid
+  actorUserId    String                  @map("actor_user_id") @db.Uuid
+  action         ConversationAuditAction
+  messageId      String?                 @map("message_id") @db.Uuid
+  createdAt      DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  conversation   Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  actorUser      User                    @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, createdAt])
+  @@map("conversation_audit_events")
 }
 
 model WebhookEvent {

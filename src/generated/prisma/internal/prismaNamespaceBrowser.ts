@@ -58,6 +58,7 @@ export const ModelName = {
   Message: 'Message',
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
+  ConversationAuditEvent: 'ConversationAuditEvent',
   WebhookEvent: 'WebhookEvent'
 } as const
 
@@ -122,7 +123,12 @@ export const ConversationScalarFieldEnum = {
   responsibleUserId: 'responsibleUserId',
   lastMessageAt: 'lastMessageAt',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  teamLastReadMessageId: 'teamLastReadMessageId',
+  teamLastReadAt: 'teamLastReadAt',
+  manualUnreadAt: 'manualUnreadAt',
+  manualUnreadByUserId: 'manualUnreadByUserId',
+  awaitingResponseSince: 'awaitingResponseSince'
 } as const
 
 export type ConversationScalarFieldEnum = (typeof ConversationScalarFieldEnum)[keyof typeof ConversationScalarFieldEnum]
@@ -183,6 +189,18 @@ export const ConversationReadScalarFieldEnum = {
 } as const
 
 export type ConversationReadScalarFieldEnum = (typeof ConversationReadScalarFieldEnum)[keyof typeof ConversationReadScalarFieldEnum]
+
+
+export const ConversationAuditEventScalarFieldEnum = {
+  id: 'id',
+  conversationId: 'conversationId',
+  actorUserId: 'actorUserId',
+  action: 'action',
+  messageId: 'messageId',
+  createdAt: 'createdAt'
+} as const
+
+export type ConversationAuditEventScalarFieldEnum = (typeof ConversationAuditEventScalarFieldEnum)[keyof typeof ConversationAuditEventScalarFieldEnum]
 
 
 export const WebhookEventScalarFieldEnum = {
