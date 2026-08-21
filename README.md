@@ -352,7 +352,7 @@ set -eu
 
 APP_ROOT='/opt/apps/example-app'
 ENV_FILE="$APP_ROOT/.env.production"
-CANDIDATE_REVISION='a2ffb74e3ac7c7e932d0fb2d99b3f0100f3a452d'
+CANDIDATE_REVISION='cd61d93b66597d35c00394aca6ebe5d722ba7e74'
 ROLLBACK_REVISION='ef61c05'
 CANDIDATE_RELEASE="$APP_ROOT/releases/$CANDIDATE_REVISION"
 CANDIDATE_IMAGE="xp-whatsapp:$CANDIDATE_REVISION"
@@ -465,7 +465,7 @@ XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
 assert_migration_applied_clean
 ```
 
-Não execute migration one-off enquanto o app anterior estiver ativo. Se o primeiro start candidato falhar, mantenha o app parado. Rode somente o primeiro ramo P3009 abaixo, depois de repetir o bloco de preparação acima caso esteja em uma nova sessão. Ele exige uma linha realmente falha/incompleta, resolve-a com a imagem candidata, confirma `failed_or_incomplete=0` e tenta a candidata **uma única vez** com health wait.
+Não execute migration one-off enquanto o app anterior estiver ativo. Se o primeiro start candidato falhar, mantenha o app parado. Rode somente o primeiro ramo P3009 abaixo, depois de repetir o bloco de preparação acima caso esteja em uma nova sessão. Ele aceita exclusivamente o estado inicial `0/1/0`, resolve-o com a imagem candidata, confirma `failed_or_incomplete=0` e tenta a candidata **uma única vez** com health wait.
 
 ```sh
 set -eu
@@ -473,7 +473,7 @@ set -eu
 compose stop app
 assert_app_exited
 assert_app_sessions_drained
-assert_recovery_state 'failed-or-incomplete'
+assert_recovery_state 'initial-failed'
 
 XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
   compose run --rm --no-deps --entrypoint node app \
@@ -507,7 +507,7 @@ XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
   compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
 ```
 
-Para estados `0/1/0` (ou outra linha falha/incompleta) ou `0/0/1` (retry não aplicado), use o segundo ramo abaixo. Ele resolve novamente somente quando a classificação confirma falha/incompletude, prova estado sem falha, executa `migrate deploy` e `migrate status` com a imagem de rollback e só então sobe o rollback com health wait. Um `1/0/1` é recusado antes de qualquer resolve. Não faça `UPDATE` manual.
+Para uma única tentativa candidata, os únicos estados legítimos são: falha inicial `0/1/0`; após resolve, retry não aplicado `0/0/1`, retry falho `0/1/1`, ou retry aplicado com falha só de servidor `1/0/1`. Para `0/1/1` ou `0/0/1`, use o segundo ramo abaixo. Ele resolve novamente somente para `0/1/1`, prova estado sem falha, executa `migrate deploy` e `migrate status` com a imagem de rollback e só então sobe o rollback com health wait. Os estados `0/1/0` e `1/0/1` são recusados neste ramo: o primeiro precisa do único retry candidato acima, e o segundo pertence ao ramo server-only resolvido. Contagens maiores que uma em `failed` ou `rolled_back`, ou outro histórico inesperado, falham fechados. Não faça `UPDATE` manual.
 
 ```sh
 set -eu
@@ -517,12 +517,16 @@ assert_app_exited
 assert_app_sessions_drained
 recovery_state=$(migration_recovery_state_name)
 case "$recovery_state" in
-  failed-or-incomplete)
+  retry-failed)
     XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
       compose run --rm --no-deps --entrypoint node app \
       node_modules/prisma/build/index.js migrate resolve --rolled-back "$MIGRATION_NAME"
     ;;
   retry-not-applied) ;;
+  initial-failed)
+    echo 'Use o único ramo inicial 0/1/0 antes de considerar rollback.' >&2
+    exit 65
+    ;;
   retry-server-only)
     echo 'Use o ramo 1/0/1: migration aplicada, somente o servidor falhou.' >&2
     exit 65

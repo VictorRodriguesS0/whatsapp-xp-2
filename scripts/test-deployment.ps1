@@ -85,9 +85,10 @@ if (
   ([regex]::Matches($MigrationRunbook, '--wait --wait-timeout 120 app').Count -ne 5) -or
   ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_clean$').Count -ne 2) -or
   ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_resolved_clean$').Count -ne 2) -or
-  $MigrationRunbook -notmatch "assert_recovery_state 'failed-or-incomplete'" -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^XP_WHATSAPP_IMAGE="\$CANDIDATE_IMAGE"\s*\\\r?\n\s*compose up').Count -ne 2) -or
+  $MigrationRunbook -notmatch "assert_recovery_state 'initial-failed'" -or
   $MigrationRunbook -notmatch "assert_recovery_state 'retry-server-only'" -or
-  $MigrationRunbook -notmatch '(?ms)case "\$recovery_state" in.*?failed-or-incomplete\).*?migrate resolve --rolled-back "\$MIGRATION_NAME".*?retry-server-only\).*?exit 65.*?esac'
+  $MigrationRunbook -notmatch '(?ms)case "\$recovery_state" in.*?retry-failed\).*?migrate resolve --rolled-back "\$MIGRATION_NAME".*?retry-not-applied\).*?initial-failed\).*?exit 65.*?retry-server-only\).*?exit 65.*?esac'
 ) {
   throw 'Cada ramo deve falhar fechado: stop, estado de sessões, migration e start --wait precisam estar completos.'
 }
@@ -123,7 +124,9 @@ if (
   $CandidateBackup -notmatch 'ENV_FILE_SEEN=0' -or
   $CandidateBackup -notmatch 'PATH_FILE_SEEN=0' -or
   $CandidateMigration -notmatch 'awaiting_response_since' -or
-  $CandidateStateLibrary -notmatch 'retry-server-only'
+  $CandidateStateLibrary -notmatch 'initial-failed' -or
+  $CandidateStateLibrary -notmatch 'retry-failed' -or
+  $CandidateStateLibrary -match 'failed-or-incomplete'
 ) {
   throw 'CANDIDATE_REVISION deve conter migration 004, parser --env-file endurecido e classificador P3009.'
 }
