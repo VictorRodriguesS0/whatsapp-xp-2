@@ -690,6 +690,40 @@ describe("useInbox", () => {
     expect(hook.result.current.markUnreadError).not.toMatch(/Graph|OAuthException|190/i);
   });
 
+  it("keeps B's manual unread error after A's older request fails", async () => {
+    let resolveA!: (value: Response) => void;
+    let resolveB!: (value: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("conversation-a"), listItem("conversation-b")], nextCursor: null }, error: null });
+      if (url === "/api/conversations/conversation-a/messages") return response({ data: conversationDetail("conversation-a"), error: null });
+      if (url === "/api/conversations/conversation-b/messages") return response({ data: conversationDetail("conversation-b"), error: null });
+      if (url === "/api/conversations/conversation-a/unread" && init?.method === "POST") {
+        return new Promise<Response>((resolve) => { resolveA = resolve; });
+      }
+      if (url === "/api/conversations/conversation-b/unread" && init?.method === "POST") {
+        return new Promise<Response>((resolve) => { resolveB = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    let markA!: Promise<void>;
+    act(() => { markA = hook.result.current.markUnread("conversation-a"); });
+    await act(() => hook.result.current.openConversation("conversation-b"));
+    let markB!: Promise<void>;
+    act(() => { markB = hook.result.current.markUnread("conversation-b"); });
+    await act(async () => { resolveB(await response({ data: null, error: { message: "B failed" } }, false, 502)); await markB; });
+    expect(hook.result.current.markUnreadError).toBe("Não foi possível marcar como não lida.");
+
+    await act(async () => { resolveA(await response({ data: null, error: { message: "A failed" } }, false, 502)); await markA; });
+    expect(hook.result.current.selectedId).toBe("conversation-b");
+    expect(hook.result.current.markUnreadError).toBe("Não foi possível marcar como não lida.");
+  });
+
   it("refreshes the first page for every shared update but reloads detail only for the selected conversation", async () => {
     vi.stubGlobal("EventSource", FakeEventSource);
     let listFetches = 0;

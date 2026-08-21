@@ -45,8 +45,9 @@ function ConversationHeader({
 }) {
   async function handleMarkUnread(action: HTMLButtonElement) {
     if (!conversation || !onMarkUnread) return;
-    await onMarkUnread(conversation.id);
-    action.focus();
+    const conversationId = conversation.id;
+    await onMarkUnread(conversationId);
+    if (action.isConnected && action.dataset.conversationId === conversationId) action.focus();
   }
 
   return (
@@ -66,6 +67,7 @@ function ConversationHeader({
           aria-busy={markUnreadPending || undefined}
           aria-label="Marcar como não lida"
           className="w-11 px-0 sm:w-auto sm:px-3"
+          data-conversation-id={conversation?.id}
           disabled={!conversation || !onMarkUnread || markUnreadPending}
           onClick={(event) => void handleMarkUnread(event.currentTarget)}
           variant="secondary"

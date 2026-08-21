@@ -64,11 +64,6 @@ type ConversationErrorState = {
   message: string;
 };
 
-type MarkUnreadErrorState = {
-  conversationId: string;
-  message: string;
-};
-
 type RefreshListOptions = {
   reset?: boolean;
 };
@@ -248,7 +243,7 @@ export function useInbox(initialUser: SessionUser) {
   const [conversationErrorState, setConversationErrorState] = useState<ConversationErrorState | null>(null);
   const [responsiblePending, setResponsiblePending] = useState(false);
   const [markUnreadPendingIds, setMarkUnreadPendingIds] = useState<Set<string>>(() => new Set());
-  const [markUnreadErrorState, setMarkUnreadErrorState] = useState<MarkUnreadErrorState | null>(null);
+  const [markUnreadErrors, setMarkUnreadErrors] = useState<Map<string, string>>(() => new Map());
   const searchRef = useRef(search);
   const selectedIdRef = useRef(selectedId);
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
@@ -515,7 +510,11 @@ export function useInbox(initialUser: SessionUser) {
 
     const operation = (async () => {
       setMarkUnreadPendingIds((current) => new Set(current).add(conversationId));
-      setMarkUnreadErrorState((current) => current?.conversationId === conversationId ? null : current);
+      setMarkUnreadErrors((current) => {
+        const next = new Map(current);
+        next.delete(conversationId);
+        return next;
+      });
       try {
         const response = await fetch(`/api/conversations/${conversationId}/unread`, {
           method: "POST",
@@ -529,9 +528,10 @@ export function useInbox(initialUser: SessionUser) {
         await Promise.all(refreshes);
       } catch (error) {
         if (!mounted.current) return;
-        setMarkUnreadErrorState({
-          conversationId,
-          message: publicErrorMessage("unread", errorStatus(error)),
+        setMarkUnreadErrors((current) => {
+          const next = new Map(current);
+          next.set(conversationId, publicErrorMessage("unread", errorStatus(error)));
+          return next;
         });
       } finally {
         markUnreadRequests.current.delete(conversationId);
@@ -906,9 +906,7 @@ export function useInbox(initialUser: SessionUser) {
     conversationError: conversationErrorState?.message ?? null,
     responsiblePending,
     markUnreadPending: selectedId !== null && markUnreadPendingIds.has(selectedId),
-    markUnreadError: markUnreadErrorState?.conversationId === selectedId
-      ? markUnreadErrorState.message
-      : null,
+    markUnreadError: selectedId === null ? null : markUnreadErrors.get(selectedId) ?? null,
     connected: realtime.connected,
     setSearch: changeSearch,
     openConversation,

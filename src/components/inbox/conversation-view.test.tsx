@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
@@ -178,6 +178,31 @@ describe("ConversationView", () => {
 
     await waitFor(() => expect(onMarkUnread).toHaveBeenCalledWith(conversation.id));
     expect(action).toHaveFocus();
+  });
+
+  it("does not steal focus when a pending action for A settles after the header switches to B", async () => {
+    let settle!: () => void;
+    const pending = new Promise<void>((resolve) => { settle = resolve; });
+    const onMarkUnread = vi.fn(() => pending);
+    const conversationB: InboxConversation = {
+      ...conversation,
+      id: "conversation-b",
+      contact: { ...conversation.contact, id: "contact-b", name: "Beatriz" },
+    };
+    const unreadProps = { markUnreadError: null, markUnreadPending: false, onMarkUnread };
+    const { rerender } = render(<ConversationView {...handlers} {...unreadProps} conversation={conversation} />);
+    const action = screen.getByRole("button", { name: "Marcar como não lida" });
+    fireEvent.click(action);
+
+    rerender(<ConversationView {...handlers} {...unreadProps} conversation={conversationB} />);
+    const otherControl = document.createElement("button");
+    document.body.append(otherControl);
+    otherControl.focus();
+    await act(async () => { settle(); await pending; });
+
+    expect(onMarkUnread).toHaveBeenCalledWith("conversation-id");
+    expect(otherControl).toHaveFocus();
+    otherControl.remove();
   });
 
   it("keeps the manual unread action unavailable while saving and exposes a safe error", () => {
