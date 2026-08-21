@@ -141,9 +141,17 @@ expect_parser_failure 'backup aceitou env-file duplicado após valor vazio' \
   env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
   "$BACKUP_SCRIPT" "$TEST_ROOT/duplicate-env-output" --env-file '' --env-file "$TEST_ROOT/env files/canonical.env"
 
+expect_parser_failure 'backup aceitou env-file duplicado' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/duplicate-env-value-output" --env-file "$TEST_ROOT/env files/canonical.env" --env-file "$TEST_ROOT/env files/canonical.env"
+
 expect_parser_failure 'backup aceitou path-file duplicado após valor vazio' \
   env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
   "$BACKUP_SCRIPT" "$TEST_ROOT/duplicate-path-output" --path-file '' --path-file "$TEST_ROOT/xp-restore-backup-path.XXXXXX"
+
+expect_parser_failure 'backup aceitou path-file duplicado' \
+  env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
+  "$BACKUP_SCRIPT" "$TEST_ROOT/duplicate-path-value-output" --path-file "$TEST_ROOT/xp-restore-backup-path.XXXXXX" --path-file "$TEST_ROOT/xp-restore-backup-path.XXXXXX"
 
 expect_parser_failure 'backup aceitou opção desconhecida' \
   env DOCKER_ARGS="$TEST_ROOT/docker-args" TMPDIR="$TEST_ROOT" PATH="$TEST_ROOT/bin:$PATH" \
