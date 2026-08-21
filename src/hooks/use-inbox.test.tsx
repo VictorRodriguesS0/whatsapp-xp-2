@@ -39,8 +39,41 @@ function conversationDetail(id = "conversation-id", messages: unknown[] = []) {
   };
 }
 
+class FakeEventSource {
+  static instances: FakeEventSource[] = [];
+  onopen: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  private listeners = new Map<string, Set<(event: MessageEvent) => void>>();
+
+  constructor() {
+    FakeEventSource.instances.push(this);
+  }
+
+  addEventListener(type: string, listener: (event: MessageEvent) => void) {
+    const listeners = this.listeners.get(type) ?? new Set();
+    listeners.add(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  removeEventListener(type: string, listener: (event: MessageEvent) => void) {
+    this.listeners.get(type)?.delete(listener);
+  }
+
+  close() {}
+
+  emit(type: string, data: unknown) {
+    for (const listener of this.listeners.get(type) ?? []) {
+      listener(new MessageEvent(type, { data: JSON.stringify(data) }));
+    }
+  }
+}
+
 describe("useInbox", () => {
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    FakeEventSource.instances = [];
+  });
 
   it("sends the exact text with one stable client request id", async () => {
     const serverMessage = {
@@ -195,6 +228,87 @@ describe("useInbox", () => {
     resolveSend(await response({ data: serverMessage, error: null }, true, 201));
     await act(() => sendPromise);
     expect(hook.result.current.conversation?.messages.filter((item) => item.id === "server-message")).toHaveLength(1);
+  });
+
+  it("reconciles an ID-only message.created echo once without duplicating an optimistic API message", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let rejectSend!: (reason?: unknown) => void;
+    let listFetches = 0;
+    let detailFetches = 0;
+    const sentAt = new Date().toISOString();
+    const apiMessage = {
+      id: "api-message",
+      clientRequestId: "",
+      direction: "OUTBOUND" as const,
+      type: "TEXT" as const,
+      body: "Resposta da equipe",
+      mediaObjectId: null,
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT" as const,
+      failureReason: null,
+      externalTimestamp: sentAt,
+      createdAt: sentAt,
+    };
+    const echoMessage = {
+      id: "echo-message",
+      clientRequestId: null,
+      direction: "OUTBOUND" as const,
+      type: "TEXT" as const,
+      body: "Resposta do aplicativo",
+      mediaObjectId: null,
+      sentBy: null,
+      status: "SENT" as const,
+      failureReason: null,
+      externalTimestamp: sentAt,
+      createdAt: sentAt,
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [listItem("conversation-id")], nextCursor: null }, error: null });
+      }
+      if (url.endsWith("/messages") && init?.method === "POST") {
+        apiMessage.clientRequestId = (JSON.parse(String(init.body)) as { clientRequestId: string }).clientRequestId;
+        return new Promise<Response>((_resolve, reject) => { rejectSend = reject; });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({
+          data: conversationDetail("conversation-id", detailFetches === 1 ? [] : [apiMessage, echoMessage]),
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let sendPromise!: Promise<InboxMessage | null>;
+    act(() => { sendPromise = hook.result.current.sendText("conversation-id", "Resposta da equipe"); });
+    await waitFor(() => expect(hook.result.current.conversation?.messages).toHaveLength(1));
+
+    expect(FakeEventSource.instances).toHaveLength(1);
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "message.created",
+        conversationId: "conversation-id",
+        messageId: "echo-message",
+      });
+    });
+    await waitFor(() => expect(hook.result.current.conversation?.messages).toHaveLength(2));
+
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
+    expect(hook.result.current.conversation?.messages.map((message) => message.id)).toEqual(["api-message", "echo-message"]);
+    expect(hook.result.current.conversation?.messages.filter((message) => message.id === "api-message")).toHaveLength(1);
+
+    rejectSend(new Error("lost response"));
+    await expect(sendPromise).resolves.toMatchObject({ id: "api-message" });
+    expect(hook.result.current.conversation?.messages).toHaveLength(2);
+    hook.unmount();
   });
 
   it("refreshes the unread list after the read acknowledgement", async () => {

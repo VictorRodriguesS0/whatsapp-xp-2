@@ -19,12 +19,25 @@ const outboundFixture: MessageDto = {
 };
 
 describe("MessageBubble", () => {
-  it("labels an outbound message with the internal sender only", () => {
+  it("labels an outbound message with its internal sender", () => {
     render(<MessageBubble message={outboundFixture} />);
 
     expect(screen.getByText("Marcos")).toBeVisible();
     expect(screen.getByText("Temos disponível sim.")).toBeVisible();
     expect(screen.queryByText("Marcos: Temos disponível sim.")).not.toBeInTheDocument();
+  });
+
+  it("labels an outbound WhatsApp Business app message without an internal sender as WhatsApp", () => {
+    render(<MessageBubble message={{ ...outboundFixture, sentBy: null }} />);
+
+    expect(screen.getByText("WhatsApp")).toBeVisible();
+  });
+
+  it("does not render an author label for an inbound message without an internal sender", () => {
+    render(<MessageBubble message={{ ...outboundFixture, direction: "INBOUND", sentBy: null, status: "RECEIVED" }} />);
+
+    expect(screen.queryByText("Marcos")).not.toBeInTheDocument();
+    expect(screen.queryByText("WhatsApp")).not.toBeInTheDocument();
   });
 
   it.each([

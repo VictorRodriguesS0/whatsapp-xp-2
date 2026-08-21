@@ -36,7 +36,7 @@ export function MessageBubble({ message, onRetry }: { message: InboxMessage; onR
   return (
     <article className={cn("message-row flex", outbound ? "justify-end" : "justify-start")}>
       <div className={cn("max-w-[min(78%,42rem)] rounded-lg border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)]", outbound ? "bg-[var(--outbound)]" : "bg-[var(--inbound)]")}>
-        {outbound && message.sentBy ? <p className="mb-1 text-xs font-bold text-[var(--accent)]">{message.sentBy.name}</p> : null}
+        {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
         <MessageMedia message={message} />
         {message.body ? <p className={cn("whitespace-pre-wrap break-words text-[var(--text)]", message.type !== "TEXT" && "mt-2")}>{message.body}</p> : null}
         <div className={cn("mt-1 flex items-center justify-end gap-1 text-[11px] tabular-nums", message.status === "FAILED" ? "text-[var(--danger)]" : "text-[var(--muted)]")}>
