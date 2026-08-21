@@ -278,22 +278,35 @@ export async function refreshResponseState(
   conversationId: string,
 ): Promise<void> {
   await lockConversation(client, conversationId);
-  const conversation = await client.conversation.findUniqueOrThrow({
-    where: { id: conversationId },
-    select: { awaitingResponseSince: true },
-  });
-  const latest = await client.message.findFirst({
-    where: { conversationId },
+  const latestOutbound = await client.message.findFirst({
+    where: { conversationId, direction: MessageDirection.OUTBOUND },
     orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
-    select: { direction: true, externalTimestamp: true },
+    select: { id: true, externalTimestamp: true },
   });
-  const awaitingResponseSince =
-    latest?.direction === MessageDirection.INBOUND
-      ? (conversation.awaitingResponseSince ?? latest.externalTimestamp)
-      : null;
+  const firstUnansweredInbound = await client.message.findFirst({
+    where: {
+      conversationId,
+      direction: MessageDirection.INBOUND,
+      ...(latestOutbound
+        ? {
+            OR: [
+              { externalTimestamp: { gt: latestOutbound.externalTimestamp } },
+              {
+                externalTimestamp: latestOutbound.externalTimestamp,
+                id: { gt: latestOutbound.id },
+              },
+            ],
+          }
+        : {}),
+    },
+    orderBy: [{ externalTimestamp: "asc" }, { id: "asc" }],
+    select: { externalTimestamp: true },
+  });
 
   await client.conversation.update({
     where: { id: conversationId },
-    data: { awaitingResponseSince },
+    data: {
+      awaitingResponseSince: firstUnansweredInbound?.externalTimestamp ?? null,
+    },
   });
 }

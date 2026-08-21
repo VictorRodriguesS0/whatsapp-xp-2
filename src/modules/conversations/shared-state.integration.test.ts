@@ -225,14 +225,14 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("shared conversation state", () 
     });
   });
 
-  it("refreshes awaiting-response state from the stable latest message", async () => {
-    const { conversation } = await seedMessages();
+  it("refreshes awaiting-response state from the first inbound in the unanswered suffix", async () => {
+    const { conversation, firstTimestamp } = await seedMessages();
 
     await refreshResponseState(prisma, conversation.id);
     await expect(
       prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
     ).resolves.toMatchObject({
-      awaitingResponseSince: new Date("2026-08-21T12:01:00.000Z"),
+      awaitingResponseSince: firstTimestamp,
     });
   });
 });

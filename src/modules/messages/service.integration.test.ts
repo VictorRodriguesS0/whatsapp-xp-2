@@ -142,6 +142,168 @@ describe("outbound message PostgreSQL concurrency", () => {
     ).resolves.toEqual({ awaitingResponseSince: firstInbound });
   });
 
+  it("recomputes the first unanswered inbound when an older inbound arrives late", async () => {
+    const { conversation } = await seedReadFixture();
+    const delayedInbound = new Date("2026-08-21T11:00:00.000Z");
+    const firstPersistedInbound = new Date("2026-08-21T12:00:00.000Z");
+
+    await processWebhookEvents([
+      {
+        kind: "message",
+        whatsappMessageId: "wamid.final-review-inbound-t12",
+        from: "5511999990000",
+        contactName: "Contato de teste",
+        timestamp: firstPersistedInbound,
+        timestampRaw: String(firstPersistedInbound.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Mensagem recebida primeiro",
+        media: null,
+      },
+    ]);
+    await processWebhookEvents([
+      {
+        kind: "message",
+        whatsappMessageId: "wamid.final-review-inbound-t11",
+        from: "5511999990000",
+        contactName: "Contato de teste",
+        timestamp: delayedInbound,
+        timestampRaw: String(delayedInbound.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Mensagem atrasada",
+        media: null,
+      },
+    ]);
+
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: delayedInbound });
+  });
+
+  it("recomputes the unanswered suffix when a delayed outbound lands between inbounds", async () => {
+    const { conversation } = await seedReadFixture();
+    const firstInbound = new Date("2026-08-21T10:00:00.000Z");
+    const delayedOutbound = new Date("2026-08-21T11:00:00.000Z");
+    const laterInbound = new Date("2026-08-21T12:00:00.000Z");
+    await prisma.contact.update({
+      where: { id: conversation.contactId },
+      data: { phone: "5511999990000" },
+    });
+
+    for (const [whatsappMessageId, timestamp] of [
+      ["wamid.final-review-suffix-t10", firstInbound],
+      ["wamid.final-review-suffix-t12", laterInbound],
+    ] as const) {
+      await processWebhookEvents([
+        {
+          kind: "message",
+          whatsappMessageId,
+          from: "5511999990000",
+          contactName: "Contato de teste",
+          timestamp,
+          timestampRaw: String(timestamp.getTime() / 1_000),
+          type: MessageType.TEXT,
+          body: "Mensagem inbound",
+          media: null,
+        },
+      ]);
+    }
+    await processWebhookEvents([
+      {
+        kind: "messageEcho",
+        whatsappMessageId: "wamid.final-review-suffix-t11",
+        to: "5511999990000",
+        toUserId: null,
+        toParentUserId: null,
+        timestamp: delayedOutbound,
+        timestampRaw: String(delayedOutbound.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Resposta atrasada",
+        media: null,
+        origin: "WHATSAPP_BUSINESS_APP",
+      },
+    ]);
+
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: laterInbound });
+  });
+
+  it("uses the message UUID to order equal-timestamp inbound and outbound boundaries", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const timestamp = new Date("2026-08-21T12:00:00.000Z");
+    const lowerId = "20000000-0000-4000-8000-000000000001";
+    const higherId = "20000000-0000-4000-8000-000000000002";
+
+    await prisma.message.createMany({
+      data: [
+        {
+          id: lowerId,
+          conversationId: conversation.id,
+          direction: MessageDirection.OUTBOUND,
+          type: MessageType.TEXT,
+          body: "Resposta com UUID menor",
+          sentByUserId: victor.id,
+          status: MessageStatus.SENT,
+          externalTimestamp: timestamp,
+        },
+        {
+          id: higherId,
+          conversationId: conversation.id,
+          direction: MessageDirection.INBOUND,
+          type: MessageType.TEXT,
+          body: "Inbound com UUID maior",
+          status: MessageStatus.RECEIVED,
+          externalTimestamp: timestamp,
+        },
+      ],
+    });
+    await refreshResponseState(prisma, conversation.id);
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: timestamp });
+
+    await prisma.message.deleteMany({ where: { conversationId: conversation.id } });
+    await prisma.message.createMany({
+      data: [
+        {
+          id: lowerId,
+          conversationId: conversation.id,
+          direction: MessageDirection.INBOUND,
+          type: MessageType.TEXT,
+          body: "Inbound com UUID menor",
+          status: MessageStatus.RECEIVED,
+          externalTimestamp: timestamp,
+        },
+        {
+          id: higherId,
+          conversationId: conversation.id,
+          direction: MessageDirection.OUTBOUND,
+          type: MessageType.TEXT,
+          body: "Resposta com UUID maior",
+          sentByUserId: victor.id,
+          status: MessageStatus.SENT,
+          externalTimestamp: timestamp,
+        },
+      ],
+    });
+    await refreshResponseState(prisma, conversation.id);
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: null });
+  });
+
   it("does not reopen awaiting state for an older delayed inbound persisted after an outbound reply", async () => {
     const { conversation, victor } = await seedReadFixture();
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };

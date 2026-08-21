@@ -158,6 +158,7 @@ model Message {
   teamLastReadFor     Conversation[]          @relation("TeamLastReadMessage")
 
   @@index([conversationId, externalTimestamp])
+  @@index([conversationId, direction, externalTimestamp, id], map: "messages_response_state_idx")
   @@index([status, operationalState, deliveryLeaseUntil], map: "messages_delivery_claim_idx")
   @@map("messages")
 }
