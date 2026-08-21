@@ -83,6 +83,25 @@ function strictCleanString(
   return cleanString(value, maximumLength, options);
 }
 
+function exactIdentifier(value: unknown, maximumLength: number): string | null {
+  if (
+    typeof value !== "string" ||
+    value.length === 0 ||
+    value.length > maximumLength ||
+    /[\s\u0000-\u001f\u007f]/u.test(value)
+  ) {
+    return null;
+  }
+
+  return value;
+}
+
+function businessScopedUserId(value: unknown): string | null {
+  return typeof value === "string" && /^[A-Z]{2}\.[A-Za-z0-9]{1,128}$/.test(value)
+    ? value
+    : null;
+}
+
 function strictFilename(value: unknown): string | null {
   return typeof value === "string" && value.length <= 1024
     ? cleanFilename(value)
@@ -206,7 +225,7 @@ function normalizeMessage(
   contactNames: Map<string, string>,
 ): NormalizedMessageEvent | null {
   const message = record(candidate);
-  const whatsappMessageId = cleanString(message?.id, 512);
+  const whatsappMessageId = exactIdentifier(message?.id, 512);
   const from = whatsappUserId(message?.from);
   const rawType = cleanString(message?.type, 64);
   const parsedTimestamp = parseTimestamp(message?.timestamp);
@@ -254,18 +273,34 @@ function normalizeMessageEcho(
   candidate: unknown,
 ): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | null {
   const message = record(candidate);
-  const whatsappMessageId = strictCleanString(message?.id, 512);
-  const to = canonicalWhatsappUserId(message?.to);
+  const whatsappMessageId = exactIdentifier(message?.id, 512);
+  const hasLegacyRecipient = message ? hasOwn(message, "to") : false;
+  const to = hasLegacyRecipient ? canonicalWhatsappUserId(message?.to) : null;
+  const hasUserId = message ? hasOwn(message, "to_user_id") : false;
+  const toUserId = hasUserId ? businessScopedUserId(message?.to_user_id) : null;
+  const hasParentUserId = message ? hasOwn(message, "to_parent_user_id") : false;
+  const toParentUserId = hasParentUserId
+    ? businessScopedUserId(message?.to_parent_user_id)
+    : null;
   const rawType = strictCleanString(message?.type, 64);
   const parsedTimestamp = parseTimestamp(message?.timestamp);
 
-  if (!message || !whatsappMessageId || !to || !rawType || !parsedTimestamp) {
+  if (
+    !message ||
+    !whatsappMessageId ||
+    (hasLegacyRecipient && !to) ||
+    (hasUserId && !toUserId) ||
+    (!to && !toUserId) ||
+    (hasParentUserId && !toParentUserId) ||
+    !rawType ||
+    !parsedTimestamp
+  ) {
     return null;
   }
 
   if (rawType === "edit" || rawType === "revoke") {
     const control = record(message[rawType]);
-    const originalWhatsappMessageId = strictCleanString(
+    const originalWhatsappMessageId = exactIdentifier(
       control?.original_message_id,
       512,
     );
@@ -280,6 +315,8 @@ function normalizeMessageEcho(
       whatsappMessageId,
       originalWhatsappMessageId,
       to,
+      toUserId,
+      toParentUserId,
       timestamp: parsedTimestamp.date,
       timestampRaw: parsedTimestamp.raw,
       origin: "WHATSAPP_BUSINESS_APP",
@@ -312,6 +349,8 @@ function normalizeMessageEcho(
     kind: "messageEcho",
     whatsappMessageId,
     to,
+    toUserId,
+    toParentUserId,
     timestamp: parsedTimestamp.date,
     timestampRaw: parsedTimestamp.raw,
     type,
@@ -353,7 +392,7 @@ function normalizeStatus(candidate: unknown): NormalizedStatusEvent | null {
     return null;
   }
 
-  const whatsappMessageId = cleanString(status.id, 512);
+  const whatsappMessageId = exactIdentifier(status.id, 512);
   const parsedTimestamp = parseTimestamp(status.timestamp);
   const recipientId = whatsappUserId(status.recipient_id);
 

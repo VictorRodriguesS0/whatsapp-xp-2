@@ -47,15 +47,16 @@
 - Modify: `src/app/api/webhooks/meta/route.test.ts`
 
 **Interfaces:**
-- Produces `NormalizedMessageEchoEvent` with `kind: "messageEcho"`, stable `whatsappMessageId`, canonical recipient `to`, validated timestamp, supported/unsupported message type, safe body/media, and constant origin `WHATSAPP_BUSINESS_APP`.
+- Produces `NormalizedMessageEchoEvent` with `kind: "messageEcho"`, exact stable `whatsappMessageId`, nullable canonical legacy phone `to`, nullable `toUserId`, nullable separate `toParentUserId`, validated timestamp, supported/unsupported message type, safe body/media, and constant origin `WHATSAPP_BUSINESS_APP`. At least one of `to` or `toUserId` is required.
 - Produces a deduplicable control event for valid edit/revoke callbacks without mutating history in this release.
 - Preserves all current `messages` and `statuses` behavior.
+- Does not add schema or persistence in Task 1; Task 2 owns durable BSUID/phone reconciliation and must prevent duplicate contacts/conversations.
 
 - [ ] **Step 1: Write failing normalization and route tests**
 
-Add representative fixtures for text, image, video, audio, document, unsupported, edit, revoke, multiple echoes, mixed `messages` + `smb_message_echoes`, and multiple `changes`. Assert `to` is the conversation contact and the store number is never selected as the contact.
+Add representative fixtures for text, image, video, audio, document, unsupported, edit, revoke, multiple echoes, mixed `messages` + `smb_message_echoes`, and multiple `changes`. Cover the official legacy shape with only `to`, the newer shape with `to_user_id` and no phone, both identities together, optional `to_parent_user_id`, and assert the store number is never selected as the contact identity.
 
-Add table tests for missing/oversized/invalid `id`, `to`, timestamp, body, media ID, MIME, hash, filename, and control references. Assert errors expose only `WebhookPayloadError`, never secret or payload markers.
+Add table tests for missing/oversized/invalid `id`, `to`, `to_user_id`, `to_parent_user_id`, timestamp, body, media ID, MIME, hash, filename, and control references. Assert echo/control and standard message/status deduplication IDs containing whitespace or controls are rejected rather than cleaned, and errors expose only `WebhookPayloadError`, never secret or payload markers.
 
 - [ ] **Step 2: Run the focused RED tests**
 
@@ -69,9 +70,9 @@ Expected: FAIL because `smb_message_echoes` is ignored and the new event contrac
 
 - [ ] **Step 3: Add strict field routing and echo normalization**
 
-Route only `messages` and `smb_message_echoes`. Reuse current cleaning/limits for text and media. Canonicalize `to` to digits, require an epoch timestamp, map supported types to the current `MessageType`, and preserve unknown message activity as `UNSUPPORTED`.
+Route only `messages` and `smb_message_echoes`. Reuse current cleaning/limits for text and media. Canonicalize `to` to digits only when present; validate `to_user_id` in the documented BSUID format (uppercase two-letter ISO prefix, dot, then 1-128 alphanumerics) when present; validate `to_parent_user_id` independently when present. Require at least one of `to` or `to_user_id`, while preserving the official legacy phone-only payload. Do not derive one identity from the other. Require an epoch timestamp, map supported types to the current `MessageType`, and preserve unknown message activity as `UNSUPPORTED`.
 
-Recognize valid edit/revoke controls as no-op normalized events with their own stable identity. Reject malformed supported items so Meta retries instead of silently losing them.
+Recognize valid edit/revoke controls as no-op normalized events with their own stable identity. Preserve the event ID and original-message reference exactly; reject whitespace, controls or oversize instead of trimming/sanitizing deduplication identity. Reject malformed supported items so Meta retries instead of silently losing them.
 
 - [ ] **Step 4: Run focused tests and static checks**
 
@@ -110,7 +111,9 @@ git commit -m "feat: normalize WhatsApp app message echoes"
 
 Cover:
 
-- text echo creates/finds the contact by recipient `to` and stores exactly one outbound `SENT` message with no internal actor;
+- text echo creates/finds one contact by the available recipient phone or BSUID, reconciles both when present without duplicating a contact known by either identity, and stores exactly one outbound `SENT` message with no internal actor;
+- an echo without `to` still resolves through BSUID, and a later event carrying both identities attaches the phone to the same contact rather than creating a second conversation;
+- an official legacy echo without BSUID still resolves through `to`, and later overlap with a BSUID converges on that same contact;
 - new contact/conversation creation;
 - media echo creates one pending media row and schedules recovery once after commit;
 - serial and concurrent duplicate deliveries create one message;
@@ -134,7 +137,7 @@ Expected: FAIL because the processor has no echo branch and hardcodes inbound pe
 
 Refactor repository inputs without changing standard inbound semantics. Before creating an echo, look up `whatsappMessageId`; an existing row is authoritative and must only complete the echo event as duplicate.
 
-For a new echo, upsert the recipient contact/conversation, create optional pending media, create the outbound message, update conversation activity monotonically, call `refreshResponseState` with the same Prisma transaction, and complete the webhook reservation. Publish/schedule only after transaction commit.
+For a new echo, resolve the recipient by the available BSUID, phone or both inside the transaction. If either identity already maps to a contact, converge on that contact and attach the other identity monotonically; never create duplicate contacts/conversations for the same recipient. Then create optional pending media, create the outbound message, update conversation activity monotonically, call `refreshResponseState` with the same Prisma transaction, and complete the webhook reservation. Publish/schedule only after transaction commit.
 
 Control events reserve and complete with no history mutation.
 
@@ -291,6 +294,7 @@ Expected: worktree clean, production healthy, subscription converged, and the mo
 
 - Official `smb_message_echoes` callbacks are normalized and processed with the existing signature/body/deadline protections.
 - Text and supported media sent from the WhatsApp Business app appear once in the correct conversation.
+- Echoes resolve with either legacy phone or BSUID, and later BSUID/phone overlap converges without duplicate contacts or conversations.
 - Mobile-app messages are outbound `SENT`, have no invented internal actor, and display **WhatsApp**.
 - API-originated messages keep their employee attribution when a duplicate echo arrives.
 - Latest mobile-app replies clear the shared awaiting-response state; stale echoes cannot regress state.

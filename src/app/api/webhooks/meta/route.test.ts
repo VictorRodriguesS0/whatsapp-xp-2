@@ -40,6 +40,7 @@ function messageEchoPayload() {
                 {
                   from: "business-sender-number",
                   to: "+55 (11) 99999-0001",
+                  to_user_id: "BR.Customer123",
                   id: "wamid.echo-route",
                   timestamp: "1787133604",
                   type: "text",
@@ -169,6 +170,8 @@ describe("Meta webhook route", () => {
         kind: "messageEcho",
         whatsappMessageId: "wamid.echo-route",
         to: "5511999990001",
+        toUserId: "BR.Customer123",
+        toParentUserId: null,
         type: "TEXT",
         origin: "WHATSAPP_BUSINESS_APP",
       }),

@@ -31,7 +31,9 @@ export type NormalizedStatusEvent = {
 export type NormalizedMessageEchoEvent = {
   kind: "messageEcho";
   whatsappMessageId: string;
-  to: string;
+  to: string | null;
+  toUserId: string | null;
+  toParentUserId: string | null;
   timestamp: Date;
   timestampRaw: string;
   type: MessageType;
@@ -45,7 +47,9 @@ export type NormalizedMessageEchoControlEvent = {
   action: "EDIT" | "REVOKE";
   whatsappMessageId: string;
   originalWhatsappMessageId: string;
-  to: string;
+  to: string | null;
+  toUserId: string | null;
+  toParentUserId: string | null;
   timestamp: Date;
   timestampRaw: string;
   origin: "WHATSAPP_BUSINESS_APP";

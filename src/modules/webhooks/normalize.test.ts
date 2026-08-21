@@ -47,6 +47,7 @@ function messageEchoFixture(type: EchoType = "text") {
                 {
                   from: "business-sender-number",
                   to: "+55 (11) 99999-0001",
+                  to_user_id: "BR.Customer123",
                   id: `wamid.echo-${type}`,
                   timestamp: "1787133604",
                   type,
@@ -199,6 +200,8 @@ describe("Meta webhook normalization", () => {
         kind: "messageEcho",
         whatsappMessageId: "wamid.echo-text",
         to: "5511999990001",
+        toUserId: "BR.Customer123",
+        toParentUserId: null,
         timestamp: new Date("2026-08-19T10:00:04.000Z"),
         timestampRaw: "1787133604",
         type: "TEXT",
@@ -220,6 +223,8 @@ describe("Meta webhook normalization", () => {
     expect(event).toMatchObject({
       kind: "messageEcho",
       to: "5511999990001",
+      toUserId: "BR.Customer123",
+      toParentUserId: null,
       type,
       body: kind === "audio" ? null : `Echo ${kind}`,
       media: {
@@ -254,6 +259,8 @@ describe("Meta webhook normalization", () => {
         kind: "messageEcho",
         whatsappMessageId: "wamid.echo-sticker",
         to: "5511999990001",
+        toUserId: "BR.Customer123",
+        toParentUserId: null,
         type: "UNSUPPORTED",
         body: null,
         media: null,
@@ -273,6 +280,8 @@ describe("Meta webhook normalization", () => {
         whatsappMessageId: `wamid.echo-${rawAction}`,
         originalWhatsappMessageId: "wamid.echo-original",
         to: "5511999990001",
+        toUserId: "BR.Customer123",
+        toParentUserId: null,
         timestamp: new Date("2026-08-19T10:00:04.000Z"),
         timestampRaw: "1787133604",
         origin: "WHATSAPP_BUSINESS_APP",
@@ -304,10 +313,91 @@ describe("Meta webhook normalization", () => {
     expect(events.filter((event) => event.kind === "messageEcho")).toHaveLength(3);
   });
 
+  it("normalizes an echo without a legacy recipient phone when BSUID is present", () => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    delete payload.entry[0].changes[0].value.message_echoes[0].to;
+
+    expect(normalizeWebhook(payload)).toEqual([
+      expect.objectContaining({
+        kind: "messageEcho",
+        to: null,
+        toUserId: "BR.Customer123",
+        toParentUserId: null,
+      }),
+    ]);
+  });
+
+  it("preserves the official legacy echo with phone and no BSUID", () => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    delete payload.entry[0].changes[0].value.message_echoes[0].to_user_id;
+
+    expect(normalizeWebhook(payload)).toEqual([
+      expect.objectContaining({
+        kind: "messageEcho",
+        to: "5511999990001",
+        toUserId: null,
+        toParentUserId: null,
+      }),
+    ]);
+  });
+
+  it("rejects an echo without either recipient phone or BSUID", () => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    const echo = payload.entry[0].changes[0].value.message_echoes[0];
+    delete echo.to;
+    delete echo.to_user_id;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it("preserves a valid parent BSUID separately from the recipient BSUID", () => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    payload.entry[0].changes[0].value.message_echoes[0].to_parent_user_id =
+      "BR.Parent456";
+
+    expect(normalizeWebhook(payload)).toEqual([
+      expect.objectContaining({
+        kind: "messageEcho",
+        toUserId: "BR.Customer123",
+        toParentUserId: "BR.Parent456",
+      }),
+    ]);
+  });
+
+  it.each([
+    undefined,
+    "br.Customer123",
+    "BRA.Customer123",
+    "BR.",
+    `BR.${"a".repeat(129)}`,
+    "BR.Customer-123",
+    " BR.Customer123",
+    "BR.Customer123\u0000suffix",
+  ])("rejects an invalid recipient BSUID when it is present", (toUserId) => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    payload.entry[0].changes[0].value.message_echoes[0].to_user_id = toUserId;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([null, "br.Parent456", "BR.Parent-456", "BR.Parent456 "])(
+    "rejects an invalid optional parent BSUID when it is present",
+    (toParentUserId) => {
+      const payload = messageEchoFixture() as Record<string, any>;
+      payload.entry[0].changes[0].value.message_echoes[0].to_parent_user_id =
+        toParentUserId;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
   it.each([
     ["id", undefined],
     ["id", "x".repeat(513)],
     ["id", "\u0000"],
+    ["id", " wamid.echo-text"],
+    ["id", "wamid.echo-text "],
+    ["id", "wamid.echo\u0000text"],
     ["to", undefined],
     ["to", "not-a-recipient"],
     ["to", "1".repeat(33)],
@@ -353,8 +443,13 @@ describe("Meta webhook normalization", () => {
   it.each([
     ["id", undefined],
     ["id", "x".repeat(513)],
+    ["id", " wamid.echo-edit"],
+    ["id", "wamid.echo-edit\u0000suffix"],
     ["original_message_id", undefined],
     ["original_message_id", "x".repeat(513)],
+    ["original_message_id", " wamid.echo-original"],
+    ["original_message_id", "wamid.echo-original "],
+    ["original_message_id", "wamid.echo\u0000original"],
   ] as const)("rejects an app control with invalid %s", (field, value) => {
     const payload = messageEchoControlFixture("edit") as Record<string, any>;
     const echo = payload.entry[0].changes[0].value.message_echoes[0];
@@ -435,6 +530,8 @@ describe("Meta webhook normalization", () => {
 
   it.each([
     ["id", ""],
+    ["id", " wamid.text-1"],
+    ["id", "wamid.text\u0000-1"],
     ["from", "not-a-whatsapp-id"],
     ["timestamp", "yesterday"],
   ] as const)("rejects an invalid required message %s", (field, value) => {
@@ -469,6 +566,16 @@ describe("Meta webhook normalization", () => {
     (field) => {
       const payload = statusFixture("delivered") as Record<string, any>;
       delete payload.entry[0].changes[0].value.statuses[0][field];
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each([" wamid.outbound-1", "wamid.outbound\u0000-1"])(
+    "rejects a status whose deduplication ID is not exact",
+    (id) => {
+      const payload = statusFixture("delivered") as Record<string, any>;
+      payload.entry[0].changes[0].value.statuses[0].id = id;
 
       expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
     },
