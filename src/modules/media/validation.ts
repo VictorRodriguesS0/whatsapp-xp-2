@@ -302,7 +302,8 @@ export async function validateMediaFile(input: {
     contentMatches = await hasOleStream(input.path, fileStat.size, oleStreamByMime[normalized]);
   } else {
     const detected = await fileTypeFromFile(input.path);
-    contentMatches = Boolean(detected && detectedMimeAliases[normalized]?.includes(detected.mime));
+    const detectedMime = detected?.mime.split(";", 1)[0]?.trim().toLowerCase();
+    contentMatches = Boolean(detectedMime && detectedMimeAliases[normalized]?.includes(detectedMime));
   }
   if (!contentMatches) throw new MediaValidationError("Conteúdo incompatível com o tipo declarado");
   return { mimeType: normalized, kind: rule.kind, maximumBytes: rule.maximumBytes, sizeBytes: BigInt(fileStat.size) };

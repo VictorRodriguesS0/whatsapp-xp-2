@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { stageMediaStream } from "../media/temp-file";
+import { validateMediaFile } from "../media/validation";
 import { convertRecording } from "./converter";
 
 const execFileAsync = promisify(execFile);
@@ -39,6 +40,8 @@ describe.skipIf(process.env.RUN_FFMPEG_INTEGRATION !== "1")("real FFmpeg recordi
     const inspected = JSON.parse(stdout) as { streams: Array<{ codec_name: string; channels: number; sample_rate: string }>; format: { duration: string } };
     expect(inspected.streams[0]).toMatchObject({ codec_name: "opus", channels: 1, sample_rate: "48000" });
     expect(Number(inspected.format.duration)).toBeGreaterThan(0);
+    await expect(validateMediaFile({ path: result.path, filename: result.filename, mimeType: result.mimeType }))
+      .resolves.toMatchObject({ mimeType: "audio/ogg", kind: "audio" });
     await result.cleanup();
   });
 });
