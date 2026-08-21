@@ -169,4 +169,32 @@ describe("conversation read route", () => {
       error: { code: "INVALID_INPUT", message: "Dados inválidos" },
     });
   });
+
+  it("returns a safe error and does not publish when the read service fails", async () => {
+    const events: unknown[] = [];
+    const { POST } = createConversationReadRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      markSharedRead: async () => {
+        throw new Error("database credentials must stay private");
+      },
+      publishRealtime: (event) => events.push(event),
+    });
+
+    const response = await POST(
+      new Request(`http://localhost/api/conversations/${id}/read`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ messageId, observedManualUnreadRevision: null }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      data: null,
+      error: { code: "INTERNAL_ERROR", message: "Erro interno" },
+    });
+    expect(events).toEqual([]);
+  });
 });

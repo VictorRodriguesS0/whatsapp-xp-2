@@ -120,4 +120,31 @@ describe("conversation unread route", () => {
       error: { code: "INVALID_INPUT", message: "Dados inválidos" },
     });
   });
+
+  it("returns a safe error and does not publish when the unread service fails", async () => {
+    const events: unknown[] = [];
+    const { POST } = createConversationUnreadRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      markSharedUnread: async () => {
+        throw new Error("database credentials must stay private");
+      },
+      publishRealtime: (event) => events.push(event),
+    });
+
+    const response = await POST(
+      new Request(`http://localhost/api/conversations/${id}/unread`, {
+        method: "POST",
+        headers: { origin: "http://localhost" },
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      data: null,
+      error: { code: "INTERNAL_ERROR", message: "Erro interno" },
+    });
+    expect(events).toEqual([]);
+  });
 });
