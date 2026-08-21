@@ -18,10 +18,14 @@ describe("realtime hub", () => {
     const reader = subscribeRealtime(controller.signal).getReader();
 
     expect(new TextDecoder().decode((await reader.read()).value)).toBe(": connected\n\n");
-    publishRealtime({ type: "conversation.updated", conversationId: "c1" });
+    publishRealtime({
+      type: "conversation.updated",
+      conversationId: "c1",
+      revision: "2026-08-21T12:00:00.000Z",
+    });
 
     expect(new TextDecoder().decode((await reader.read()).value)).toBe(
-      'event: update\ndata: {"type":"conversation.updated","conversationId":"c1"}\n\n',
+      'event: update\ndata: {"type":"conversation.updated","conversationId":"c1","revision":"2026-08-21T12:00:00.000Z"}\n\n',
     );
 
     controller.abort();

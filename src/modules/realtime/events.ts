@@ -1,5 +1,5 @@
 export type RealtimeEvent =
-  | { type: "conversation.updated"; conversationId: string }
+  | { type: "conversation.updated"; conversationId: string; revision: string }
   | {
       type: "conversation.merged";
       sourceConversationId: string;

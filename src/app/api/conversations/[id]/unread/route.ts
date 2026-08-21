@@ -1,11 +1,6 @@
-import { z } from "zod";
-
 import { assertSameOrigin, requireUser } from "@/modules/auth/guards";
-import {
-  conversationIdSchema,
-  messageIdSchema,
-} from "@/modules/conversations/schemas";
-import { advanceSharedRead } from "@/modules/conversations/shared-state";
+import { conversationIdSchema } from "@/modules/conversations/schemas";
+import { markSharedUnread } from "@/modules/conversations/shared-state";
 import { publishRealtime } from "@/modules/realtime/hub";
 
 import {
@@ -15,29 +10,24 @@ import {
 
 export const runtime = "nodejs";
 
-const markSharedReadSchema = z.object({
-  messageId: messageIdSchema,
-  observedManualUnreadRevision: z.iso.datetime({ offset: true }).nullable(),
-});
-
-type ConversationReadRouteDependencies = {
+type ConversationUnreadRouteDependencies = {
   assertSameOrigin: typeof assertSameOrigin;
   requireUser: typeof requireUser;
-  markSharedRead: typeof advanceSharedRead;
+  markSharedUnread: typeof markSharedUnread;
   publishRealtime: typeof publishRealtime;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-const defaultDependencies: ConversationReadRouteDependencies = {
+const defaultDependencies: ConversationUnreadRouteDependencies = {
   assertSameOrigin,
   requireUser,
-  markSharedRead: advanceSharedRead,
+  markSharedUnread,
   publishRealtime,
 };
 
-export function createConversationReadRouteHandlers(
-  dependencies: ConversationReadRouteDependencies = defaultDependencies,
+export function createConversationUnreadRouteHandlers(
+  dependencies: ConversationUnreadRouteDependencies = defaultDependencies,
 ) {
   return {
     POST: async (request: Request, context: RouteContext): Promise<Response> => {
@@ -46,13 +36,7 @@ export function createConversationReadRouteHandlers(
         const actor = await dependencies.requireUser();
         const { id } = await context.params;
         const parsedId = conversationIdSchema.parse(id);
-        const input = markSharedReadSchema.parse(await request.json());
-        const state = await dependencies.markSharedRead(
-          actor.id,
-          parsedId,
-          input.messageId,
-          input.observedManualUnreadRevision,
-        );
+        const state = await dependencies.markSharedUnread(actor.id, parsedId);
         dependencies.publishRealtime({
           type: "conversation.updated",
           conversationId: parsedId,
@@ -66,4 +50,4 @@ export function createConversationReadRouteHandlers(
   };
 }
 
-export const POST = createConversationReadRouteHandlers().POST;
+export const POST = createConversationUnreadRouteHandlers().POST;
