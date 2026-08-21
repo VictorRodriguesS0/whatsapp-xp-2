@@ -202,11 +202,26 @@ Realize estes passos no Meta for Developers e no Business Manager com uma conta 
 4. em Configurações do negócio, crie um System User dedicado, conceda a ele os ativos estritamente necessários e gere token permanente com `whatsapp_business_messaging` e `whatsapp_business_management`;
 5. guarde o token em `WHATSAPP_ACCESS_TOKEN`; nunca o coloque em Git, shell history, ticket ou log;
 6. defina um `WHATSAPP_VERIFY_TOKEN` aleatório e configure a callback como `https://whatsapp.xpeletronicos.com/api/webhooks/meta`;
-7. assine o campo `messages` no webhook e associe/subscreva o aplicativo à WABA;
+7. assine o campo `messages` no webhook e associe/subscreva o aplicativo à WABA; em coexistência com o WhatsApp Business App, preserve todos os campos já assinados e acrescente também `smb_message_echoes`;
 8. preencha `META_APP_SECRET`, altere `WHATSAPP_PROVIDER=meta` e reinicie somente a aplicação;
 9. confirme no painel Meta que a verificação do webhook passou e que eventos chegam com assinatura válida.
 
 Permissões, versões da Graph API, revisão do app e nomenclatura do painel mudam ao longo do tempo. Antes da ativação, confira a documentação oficial vigente da Meta e a data de expiração de todos os ativos. Planeje rotação de token e segredo.
+
+### Coexistência com o WhatsApp Business App
+
+Mensagens enviadas pelo WhatsApp Business App ou por aparelhos vinculados só aparecem na central quando a assinatura do objeto `whatsapp_business_account` mantém `messages` e inclui `smb_message_echoes`. Trate a lista de campos como configuração preservada: leia a assinatura vigente sem exibir identificadores, salve a lista anterior em memória, acrescente somente `smb_message_echoes` e confirme por nova leitura que todos os campos anteriores continuam presentes, que o novo campo aparece exatamente uma vez e que nenhum outro campo mudou.
+
+Faça essa alteração somente depois de a imagem nova estar saudável. App Secret, access token e verify token devem permanecer no ambiente do servidor; não os interpole em argumentos, histórico de shell, arquivos versionados, relatórios ou logs. O callback continua sendo o endpoint HTTPS de webhook já configurado, sem alteração de DNS, número, revisão do aplicativo ou outros ativos Meta.
+
+Se a assinatura não convergir ou se a release apresentar falha, execute o rollback nesta ordem:
+
+1. restaure a lista anterior exata de campos, removendo `smb_message_echoes`;
+2. faça o readback e confirme que a assinatura voltou integralmente ao estado anterior;
+3. recrie somente `xp-whatsapp-app` com a imagem de compatibilidade imutável previamente testada contra o schema migrado;
+4. confirme health local e público, rotas críticas, webhook e invariantes dos demais containers.
+
+A imagem genérica anterior às identidades de contato anuláveis não é um alvo válido de rollback. Registre antes do deploy o digest da imagem de compatibilidade aprovada; não recrie PostgreSQL, Caddy, volumes, redes ou outros serviços durante esse procedimento.
 
 ### Janela de atendimento de 24 horas
 
