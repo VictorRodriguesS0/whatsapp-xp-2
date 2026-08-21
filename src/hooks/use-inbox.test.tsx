@@ -459,6 +459,110 @@ describe("useInbox", () => {
     hook.unmount();
   });
 
+  it("resets paginated state to the authoritative searched first page on realtime reconnect", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let searchedListFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url === "/api/conversations?search=Rita") {
+        searchedListFetches += 1;
+        return response({
+          data: searchedListFetches === 1
+            ? { items: [listItem("stale-first")], nextCursor: "page-2" }
+            : { items: [listItem("target")], nextCursor: null },
+          error: null,
+        });
+      }
+      if (url === "/api/conversations?search=Rita&cursor=page-2") {
+        return response({ data: { items: [listItem("source"), listItem("stale-page")], nextCursor: null }, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    act(() => hook.result.current.setSearch("Rita"));
+    await waitFor(() => expect(hook.result.current.nextCursor).toBe("page-2"));
+    await act(() => hook.result.current.loadMore());
+    expect(hook.result.current.conversations.map((item) => item.id)).toEqual(["stale-first", "source", "stale-page"]);
+
+    act(() => FakeEventSource.instances[0].onopen?.());
+    await waitFor(() => expect(hook.result.current.conversations.map((item) => item.id)).toEqual(["target"]));
+
+    expect(hook.result.current.search).toBe("Rita");
+    expect(hook.result.current.nextCursor).toBeNull();
+    expect(searchedListFetches).toBe(2);
+    hook.unmount();
+  });
+
+  it("clears a selected conversation when realtime sync refetches it as missing and ignores an older response", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let sourceFetches = 0;
+    let resolveOldSource!: (value: Response) => void;
+    let listFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({
+          data: { items: listFetches === 1 ? [listItem("source"), listItem("other")] : [listItem("other")], nextCursor: null },
+          error: null,
+        });
+      }
+      if (url === "/api/conversations/source/messages") {
+        sourceFetches += 1;
+        if (sourceFetches === 1) return response({ data: conversationDetail("source"), error: null });
+        if (sourceFetches === 2) return new Promise<Response>((resolve) => { resolveOldSource = resolve; });
+        return response({ data: null, error: { message: "Missing" } }, false, 404);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("source"));
+    expect(hook.result.current.conversation?.id).toBe("source");
+
+    act(() => { void hook.result.current.refreshConversation(); });
+    await waitFor(() => expect(sourceFetches).toBe(2));
+    act(() => FakeEventSource.instances[0].onopen?.());
+    await waitFor(() => expect(hook.result.current.selectedId).toBeNull());
+    await act(async () => { resolveOldSource(await response({ data: conversationDetail("source"), error: null })); });
+
+    expect(hook.result.current.conversation).toBeNull();
+    expect(hook.result.current.conversationError).toBeNull();
+    expect(hook.result.current.conversations.map((item) => item.id)).toEqual(["other"]);
+    hook.unmount();
+  });
+
+  it.each([
+    ["a server failure", () => response({ data: null, error: { message: "Unavailable" } }, false, 503)],
+    ["a network failure", () => Promise.reject(new Error("offline"))],
+  ])("keeps the selected conversation and exposes a safe error after %s", async (_label, failDetail) => {
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("source")], nextCursor: null }, error: null });
+      if (url === "/api/conversations/source/messages") {
+        detailFetches += 1;
+        return detailFetches === 1
+          ? response({ data: conversationDetail("source"), error: null })
+          : failDetail();
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("source"));
+    await act(() => hook.result.current.refreshConversation());
+
+    expect(hook.result.current.selectedId).toBe("source");
+    expect(hook.result.current.conversation?.id).toBe("source");
+    expect(hook.result.current.conversationError).toBe("Não foi possível carregar a conversa.");
+  });
+
   it("refreshes the unread list after the read acknowledgement", async () => {
     let listFetches = 0;
     const receivedAt = new Date().toISOString();

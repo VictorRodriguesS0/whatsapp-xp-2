@@ -63,6 +63,10 @@ type ConversationErrorState = {
   message: string;
 };
 
+type RefreshListOptions = {
+  reset?: boolean;
+};
+
 class ApiRequestError extends Error {
   constructor(public status: number) {
     super("API request failed");
@@ -262,9 +266,18 @@ export function useInbox(initialUser: SessionUser) {
     return confirmation.message;
   }, []);
 
-  const refreshList = useCallback(async () => {
+  const refreshList = useCallback(async ({ reset = false }: RefreshListOptions = {}) => {
     listRequest.current?.controller.abort();
     pageRequest.current?.controller.abort();
+    if (reset) {
+      pageRequest.current = null;
+      hasLoadedAdditionalPages.current = false;
+      nextCursorRef.current = null;
+      setConversations([]);
+      setNextCursor(null);
+      setLoadingMore(false);
+      setLoadMoreError(null);
+    }
     const sequence = (listRequest.current?.sequence ?? 0) + 1;
     const controller = new AbortController();
     listRequest.current = { sequence, controller };
@@ -444,6 +457,14 @@ export function useInbox(initialUser: SessionUser) {
     } catch (error) {
       if (controller.signal.aborted) return;
       if (conversationRequest.current?.sequence === sequence) {
+        if (errorStatus(error) === 404 && selectedIdRef.current === id) {
+          selectedIdRef.current = null;
+          setSelectedId(null);
+          setConversation(null);
+          setConversationErrorState(null);
+          lastReadRequest.current = null;
+          return;
+        }
         setConversationErrorState({
           conversationId: id,
           operation: "conversation",
@@ -727,7 +748,7 @@ export function useInbox(initialUser: SessionUser) {
   }, [fetchConversation, refreshList]);
 
   const onRealtimeSync = useCallback(() => {
-    void Promise.all([refreshList(), refreshConversation(), loadUsers()]);
+    void Promise.all([refreshList({ reset: true }), refreshConversation(), loadUsers()]);
   }, [loadUsers, refreshConversation, refreshList]);
 
   const onRealtimeEvent = useCallback((event: RealtimeEvent) => {
