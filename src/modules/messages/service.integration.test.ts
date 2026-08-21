@@ -13,6 +13,8 @@ import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import { DemoWhatsAppProvider } from "@/modules/whatsapp/demo-provider";
 import { LocalMediaStorage } from "@/modules/media/local-storage";
 import type { MediaUploadSource } from "@/modules/whatsapp/provider";
+import { refreshResponseState } from "@/modules/conversations/shared-state";
+import { processWebhookEvents } from "@/modules/webhooks/process";
 
 import {
   MessageSendRateLimiter,
@@ -49,6 +51,68 @@ describe("outbound message PostgreSQL concurrency", () => {
     await expect(prisma.message.count({ where: { clientRequestId } })).resolves.toBe(1);
     await expect(prisma.message.findUnique({ where: { clientRequestId }, select: { status: true, whatsappMessageId: true } }))
       .resolves.toMatchObject({ status: MessageStatus.SENT, whatsappMessageId: expect.stringMatching(/^demo-/) });
+  });
+
+  it("clears the shared awaiting-response state when it persists an outbound reply", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const inboundTimestamp = new Date("2026-08-21T12:00:00.000Z");
+    await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Preciso de ajuda",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: inboundTimestamp,
+      },
+    });
+    await refreshResponseState(prisma, conversation.id);
+
+    await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId: randomUUID(),
+      body: "Como posso ajudar?",
+    });
+
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: null });
+  });
+
+  it("keeps a later inbound message awaiting when its persistence races an outbound reply", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const laterInbound = new Date("2099-08-21T12:00:00.000Z");
+
+    await Promise.all([
+      sendMessage(actor, conversation.id, {
+        type: MessageType.TEXT,
+        clientRequestId: randomUUID(),
+        body: "Respondendo agora",
+      }),
+      processWebhookEvents([{
+        kind: "message",
+        whatsappMessageId: "wamid.task3-race-inbound",
+        from: "5511999990000",
+        contactName: "Contato de teste",
+        timestamp: laterInbound,
+        timestampRaw: String(laterInbound.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Mensagem posterior",
+        media: null,
+      }]),
+    ]);
+
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: laterInbound });
   });
 
   it("atomically claims one of two concurrent retries without creating another message", async () => {

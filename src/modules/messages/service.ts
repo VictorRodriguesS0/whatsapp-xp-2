@@ -16,6 +16,8 @@ import {
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
+import { runConversationTransaction } from "@/modules/conversations/service";
+import { refreshResponseState } from "@/modules/conversations/shared-state";
 import type { MessageDto } from "@/modules/conversations/types";
 import { LocalMediaStorage } from "@/modules/media/local-storage";
 import type { MediaStorage } from "@/modules/media/storage";
@@ -401,70 +403,40 @@ export const prismaMessageRepository: MessageServiceRepository = {
   async createPending(input) {
     const messageId = randomUUID();
     try {
-      const [outcome] = await prisma.$queryRaw<
-        Array<{
-          conversationExists: boolean;
-          destinationAvailable: boolean;
-          inserted: boolean;
-          activityUpdated: boolean;
-        }>
-      >(Prisma.sql`
-        WITH destination AS MATERIALIZED (
-          SELECT conversations."id", contacts."phone"
-          FROM "conversations"
-          JOIN "contacts"
-            ON contacts."id" = conversations."contact_id"
-          WHERE conversations."id" = ${input.conversationId}::uuid
-        ), inserted AS (
-          INSERT INTO "messages" (
-            "id", "conversation_id", "client_request_id", "direction", "type",
-            "body", "sent_by_user_id", "status", "external_timestamp",
-            "created_at", "updated_at"
-          )
-          SELECT
-            ${messageId}::uuid,
-            destination."id",
-            ${input.clientRequestId}::uuid,
-            ${MessageDirection.OUTBOUND}::"MessageDirection",
-            ${input.type}::"MessageType",
-            ${input.body},
-            ${input.sentByUserId}::uuid,
-            ${MessageStatus.PENDING}::"MessageStatus",
-            ${input.externalTimestamp},
-            CURRENT_TIMESTAMP,
-            CURRENT_TIMESTAMP
-          FROM destination
-          WHERE destination."phone" IS NOT NULL
-          RETURNING "conversation_id"
-        ), activity_updated AS (
-          UPDATE "conversations"
-          SET
-            "last_message_at" = GREATEST(
-              "last_message_at",
-              ${input.externalTimestamp}
-            ),
-            "updated_at" = CURRENT_TIMESTAMP
-          FROM inserted
-          WHERE "conversations"."id" = inserted."conversation_id"
-          RETURNING "conversations"."id"
-        )
-        SELECT
-          EXISTS(SELECT 1 FROM destination) AS "conversationExists",
-          EXISTS(
-            SELECT 1 FROM destination WHERE destination."phone" IS NOT NULL
-          ) AS "destinationAvailable",
-          EXISTS(SELECT 1 FROM inserted) AS "inserted",
-          EXISTS(SELECT 1 FROM activity_updated) AS "activityUpdated"
-      `);
-      if (!outcome?.conversationExists) {
-        throw new HttpError(404, "Conversa não encontrada");
-      }
-      if (!outcome.destinationAvailable) {
-        throw new HttpError(409, "Contato sem telefone disponível");
-      }
-      if (!outcome.inserted || !outcome.activityUpdated) {
-        throw new Error("Pending message transaction incomplete");
-      }
+      await runConversationTransaction(prisma, async (transaction) => {
+        const conversation = await transaction.conversation.findUnique({
+          where: { id: input.conversationId },
+          select: { contact: { select: { phone: true } } },
+        });
+        if (!conversation) {
+          throw new HttpError(404, "Conversa não encontrada");
+        }
+        if (!conversation.contact.phone) {
+          throw new HttpError(409, "Contato sem telefone disponível");
+        }
+
+        await transaction.message.create({
+          data: {
+            id: messageId,
+            conversationId: input.conversationId,
+            clientRequestId: input.clientRequestId,
+            direction: MessageDirection.OUTBOUND,
+            type: input.type,
+            body: input.body,
+            sentByUserId: input.sentByUserId,
+            status: MessageStatus.PENDING,
+            externalTimestamp: input.externalTimestamp,
+          },
+        });
+        await transaction.conversation.updateMany({
+          where: {
+            id: input.conversationId,
+            lastMessageAt: { lt: input.externalTimestamp },
+          },
+          data: { lastMessageAt: input.externalTimestamp },
+        });
+        await refreshResponseState(transaction, input.conversationId);
+      });
       const row = await prisma.message.findUniqueOrThrow({
         where: { id: messageId },
         select: prismaMessageScalarSelect,
