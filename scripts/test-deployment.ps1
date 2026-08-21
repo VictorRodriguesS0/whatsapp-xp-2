@@ -6,8 +6,19 @@ Set-StrictMode -Version Latest
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $EnvExample = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot '.env.example')
+$Dockerfile = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'Dockerfile')
+$RecordingConverter = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'src/modules/recordings/converter.ts')
 if ($EnvExample -notmatch '(?m)^NEXT_PUBLIC_APP_URL=https://whatsapp\.xpeletronicos\.com$') {
   throw 'NEXT_PUBLIC_APP_URL do ambiente versionado deve usar a origem HTTPS aprovada.'
+}
+if ($Dockerfile -notmatch '(?ms)apt-get install -y --no-install-recommends\s+openssl\s+ffmpeg(?:\s|\\)') {
+  throw 'O runtime final deve instalar openssl e o pacote Debian ffmpeg, que fornece ffmpeg e ffprobe.'
+}
+if (
+  $RecordingConverter -notmatch 'spawn\(command, args, \{ shell: false,' -or
+  $RecordingConverter -match '(?m)\b(exec|execFile)\s*\('
+) {
+  throw 'A conversão de gravações deve executar ffmpeg/ffprobe sem shell.'
 }
 
 $BackupShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.sh')

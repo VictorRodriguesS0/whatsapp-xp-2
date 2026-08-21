@@ -2,7 +2,7 @@
 
 FROM node:22-bookworm-slim AS base
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl \
+    && apt-get install -y --no-install-recommends openssl ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
