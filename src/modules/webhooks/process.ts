@@ -194,12 +194,12 @@ export function createPrismaWebhookRepository(
     for (const sourceRead of sourceReads) {
       const targetRead = targetReadsByUser.get(sourceRead.userId);
       const sourceBoundary = sourceRead.lastReadMessage ?? {
-        id: "",
+        id: null,
         externalTimestamp: sourceRead.lastReadAt,
       };
       const targetBoundary = targetRead?.lastReadMessage ??
         (targetRead
-          ? { id: "", externalTimestamp: targetRead.lastReadAt }
+          ? { id: null, externalTimestamp: targetRead.lastReadAt }
           : null);
       const winner =
         !targetBoundary || compareBoundary(sourceBoundary, targetBoundary) > 0
@@ -234,7 +234,37 @@ export function createPrismaWebhookRepository(
       data: { conversationId: targetConversation.id },
     });
 
-    const boundary = boundaryMessages.sort(compareBoundary).at(-1) ?? null;
+    const boundaryMessagesById = new Map(
+      boundaryMessages.map((message) => [message.id, message]),
+    );
+    const sharedBoundaries = [targetConversation, sourceConversation]
+      .map((conversation) => {
+        const pointer = conversation.teamLastReadMessageId
+          ? boundaryMessagesById.get(conversation.teamLastReadMessageId)
+          : null;
+        if (pointer) {
+          return {
+            boundary: pointer,
+            lastReadAt:
+              conversation.teamLastReadAt ?? pointer.externalTimestamp,
+          };
+        }
+        if (conversation.teamLastReadAt) {
+          return {
+            boundary: {
+              id: null,
+              externalTimestamp: conversation.teamLastReadAt,
+            },
+            lastReadAt: conversation.teamLastReadAt,
+          };
+        }
+        return null;
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null)
+      .sort((left, right) =>
+        compareBoundary(left.boundary, right.boundary),
+      );
+    const sharedBoundary = sharedBoundaries.at(-1) ?? null;
     const manualUnreadSourceIsNewer =
       sourceConversation.manualUnreadAt !== null &&
       (targetConversation.manualUnreadAt === null ||
@@ -250,17 +280,8 @@ export function createPrismaWebhookRepository(
           targetConversation.lastMessageAt > sourceConversation.lastMessageAt
             ? targetConversation.lastMessageAt
             : sourceConversation.lastMessageAt,
-        teamLastReadMessageId: boundary?.id ?? null,
-        teamLastReadAt:
-          boundary?.externalTimestamp ??
-          (targetConversation.teamLastReadAt &&
-          sourceConversation.teamLastReadAt
-            ? targetConversation.teamLastReadAt >
-              sourceConversation.teamLastReadAt
-              ? targetConversation.teamLastReadAt
-              : sourceConversation.teamLastReadAt
-            : (targetConversation.teamLastReadAt ??
-              sourceConversation.teamLastReadAt)),
+        teamLastReadMessageId: sharedBoundary?.boundary.id ?? null,
+        teamLastReadAt: sharedBoundary?.lastReadAt ?? null,
         manualUnreadAt: manualUnreadSourceIsNewer
           ? sourceConversation.manualUnreadAt
           : targetConversation.manualUnreadAt,
@@ -337,20 +358,22 @@ export function createPrismaWebhookRepository(
         ? bsuidContact
         : null;
 
-    if (
-      input.phone &&
-      target.phone &&
-      target.phone !== input.phone &&
-      target.whatsappId !== input.phone
-    ) {
-      throw new Error("Conflicting echo contact identities");
-    }
-    if (
-      input.whatsappUserId &&
-      target.whatsappUserId &&
-      target.whatsappUserId !== input.whatsappUserId
-    ) {
-      throw new Error("Conflicting echo contact identities");
+    for (const contact of source ? [target, source] : [target]) {
+      if (
+        input.phone &&
+        contact.phone &&
+        contact.phone !== input.phone &&
+        contact.whatsappId !== input.phone
+      ) {
+        throw new Error("Conflicting echo contact identities");
+      }
+      if (
+        input.whatsappUserId &&
+        contact.whatsappUserId &&
+        contact.whatsappUserId !== input.whatsappUserId
+      ) {
+        throw new Error("Conflicting echo contact identities");
+      }
     }
 
     if (source) {

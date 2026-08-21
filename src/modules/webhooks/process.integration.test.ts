@@ -215,6 +215,181 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       );
     });
 
+    it("preserves timestamp-only shared and per-user boundaries over equal-time pointers during convergence", async () => {
+      const boundaryTimestamp = new Date("2026-08-21T12:00:00.000Z");
+      await processWebhookEvents([
+        echoEvent("wamid.echo-boundary-phone", {
+          to: "551100000014",
+          toUserId: null,
+          timestamp: boundaryTimestamp,
+        }),
+      ]);
+      await processWebhookEvents([
+        echoEvent("wamid.echo-boundary-bsuid", {
+          to: null,
+          toUserId: "BR.BoundaryCustomer",
+          timestamp: boundaryTimestamp,
+        }),
+      ]);
+      const phoneContact = await prisma.contact.findUniqueOrThrow({
+        where: { phone: "551100000014" },
+        include: { conversation: true },
+      });
+      const bsuidContact = await prisma.contact.findUniqueOrThrow({
+        where: { whatsappUserId: "BR.BoundaryCustomer" },
+        include: { conversation: true },
+      });
+      const phoneMessage = await prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: "wamid.echo-boundary-phone" },
+      });
+      const user = await prisma.user.create({
+        data: {
+          name: "Boundary reader",
+          email: "boundary-reader@example.test",
+          passwordHash: "not-used",
+          role: UserRole.ATTENDANT,
+        },
+      });
+
+      await prisma.conversation.update({
+        where: { id: phoneContact.conversation!.id },
+        data: {
+          teamLastReadMessageId: phoneMessage.id,
+          teamLastReadAt: boundaryTimestamp,
+        },
+      });
+      await prisma.conversation.update({
+        where: { id: bsuidContact.conversation!.id },
+        data: {
+          teamLastReadMessageId: null,
+          teamLastReadAt: boundaryTimestamp,
+        },
+      });
+      await prisma.conversationRead.createMany({
+        data: [
+          {
+            conversationId: phoneContact.conversation!.id,
+            userId: user.id,
+            lastReadMessageId: phoneMessage.id,
+            lastReadAt: boundaryTimestamp,
+          },
+          {
+            conversationId: bsuidContact.conversation!.id,
+            userId: user.id,
+            lastReadMessageId: null,
+            lastReadAt: boundaryTimestamp,
+          },
+        ],
+      });
+
+      await processWebhookEvents([
+        echoEvent("wamid.echo-boundary-overlap", {
+          to: "551100000014",
+          toUserId: "BR.BoundaryCustomer",
+          timestamp: new Date("2026-08-21T12:01:00.000Z"),
+        }),
+      ]);
+
+      await expect(prisma.conversation.findFirstOrThrow()).resolves.toMatchObject({
+        teamLastReadMessageId: null,
+        teamLastReadAt: boundaryTimestamp,
+      });
+      await expect(prisma.conversationRead.findFirstOrThrow()).resolves.toMatchObject({
+        lastReadMessageId: null,
+        lastReadAt: boundaryTimestamp,
+      });
+    });
+
+    it("rejects conflicting source identities atomically instead of merging histories", async () => {
+      await processWebhookEvents([
+        echoEvent("wamid.echo-conflict-target", {
+          to: "551100000015",
+          toUserId: null,
+        }),
+      ]);
+      await processWebhookEvents([
+        echoEvent("wamid.echo-conflict-source", {
+          to: null,
+          toUserId: "BR.ConflictCustomer",
+        }),
+      ]);
+      await processWebhookEvents([
+        echoEvent("wamid.echo-conflict-source-phone", {
+          to: "551100000016",
+          toUserId: "BR.ConflictCustomer",
+          timestamp: new Date("2026-08-21T12:01:00.000Z"),
+        }),
+      ]);
+      const snapshot = {
+        contacts: await prisma.contact.findMany({
+          orderBy: { id: "asc" },
+          select: {
+            id: true,
+            whatsappId: true,
+            whatsappUserId: true,
+            phone: true,
+          },
+        }),
+        conversations: await prisma.conversation.findMany({
+          orderBy: { id: "asc" },
+          select: { id: true, contactId: true, lastMessageAt: true },
+        }),
+        messages: await prisma.message.findMany({
+          orderBy: { id: "asc" },
+          select: { id: true, conversationId: true, whatsappMessageId: true },
+        }),
+        mediaCount: await prisma.mediaObject.count(),
+      };
+
+      await expect(
+        processWebhookEvents([
+          echoEvent("wamid.echo-conflict-overlap", {
+            to: "551100000015",
+            toUserId: "BR.ConflictCustomer",
+            timestamp: new Date("2026-08-21T12:02:00.000Z"),
+          }),
+        ]),
+      ).rejects.toMatchObject({
+        message: "Falha ao processar webhook",
+        retryable: true,
+      });
+
+      await expect(
+        prisma.contact.findMany({
+          orderBy: { id: "asc" },
+          select: {
+            id: true,
+            whatsappId: true,
+            whatsappUserId: true,
+            phone: true,
+          },
+        }),
+      ).resolves.toEqual(snapshot.contacts);
+      await expect(
+        prisma.conversation.findMany({
+          orderBy: { id: "asc" },
+          select: { id: true, contactId: true, lastMessageAt: true },
+        }),
+      ).resolves.toEqual(snapshot.conversations);
+      await expect(
+        prisma.message.findMany({
+          orderBy: { id: "asc" },
+          select: { id: true, conversationId: true, whatsappMessageId: true },
+        }),
+      ).resolves.toEqual(snapshot.messages);
+      await expect(prisma.mediaObject.count()).resolves.toBe(snapshot.mediaCount);
+      await expect(
+        prisma.webhookEvent.findUniqueOrThrow({
+          where: {
+            deduplicationKey: "message-echo:wamid.echo-conflict-overlap",
+          },
+        }),
+      ).resolves.toMatchObject({
+        status: WebhookStatus.FAILED,
+        errorSummary: "processing_error:Error",
+      });
+    });
+
     it("persists and schedules media only once across duplicate delivery", async () => {
       const event = echoEvent("wamid.echo-media", {
         to: null,

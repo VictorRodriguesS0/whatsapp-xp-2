@@ -401,15 +401,29 @@ export const prismaMessageRepository: MessageServiceRepository = {
   async createPending(input) {
     const messageId = randomUUID();
     try {
-      await prisma.$executeRaw(Prisma.sql`
-        WITH inserted AS (
+      const [outcome] = await prisma.$queryRaw<
+        Array<{
+          conversationExists: boolean;
+          destinationAvailable: boolean;
+          inserted: boolean;
+          activityUpdated: boolean;
+        }>
+      >(Prisma.sql`
+        WITH destination AS MATERIALIZED (
+          SELECT conversations."id", contacts."phone"
+          FROM "conversations"
+          JOIN "contacts"
+            ON contacts."id" = conversations."contact_id"
+          WHERE conversations."id" = ${input.conversationId}::uuid
+        ), inserted AS (
           INSERT INTO "messages" (
             "id", "conversation_id", "client_request_id", "direction", "type",
             "body", "sent_by_user_id", "status", "external_timestamp",
             "created_at", "updated_at"
-          ) VALUES (
+          )
+          SELECT
             ${messageId}::uuid,
-            ${input.conversationId}::uuid,
+            destination."id",
             ${input.clientRequestId}::uuid,
             ${MessageDirection.OUTBOUND}::"MessageDirection",
             ${input.type}::"MessageType",
@@ -419,16 +433,38 @@ export const prismaMessageRepository: MessageServiceRepository = {
             ${input.externalTimestamp},
             CURRENT_TIMESTAMP,
             CURRENT_TIMESTAMP
-          )
+          FROM destination
+          WHERE destination."phone" IS NOT NULL
           RETURNING "conversation_id"
+        ), activity_updated AS (
+          UPDATE "conversations"
+          SET
+            "last_message_at" = GREATEST(
+              "last_message_at",
+              ${input.externalTimestamp}
+            ),
+            "updated_at" = CURRENT_TIMESTAMP
+          FROM inserted
+          WHERE "conversations"."id" = inserted."conversation_id"
+          RETURNING "conversations"."id"
         )
-        UPDATE "conversations"
-        SET
-          "last_message_at" = GREATEST("last_message_at", ${input.externalTimestamp}),
-          "updated_at" = CURRENT_TIMESTAMP
-        FROM inserted
-        WHERE "conversations"."id" = inserted."conversation_id"
+        SELECT
+          EXISTS(SELECT 1 FROM destination) AS "conversationExists",
+          EXISTS(
+            SELECT 1 FROM destination WHERE destination."phone" IS NOT NULL
+          ) AS "destinationAvailable",
+          EXISTS(SELECT 1 FROM inserted) AS "inserted",
+          EXISTS(SELECT 1 FROM activity_updated) AS "activityUpdated"
       `);
+      if (!outcome?.conversationExists) {
+        throw new HttpError(404, "Conversa não encontrada");
+      }
+      if (!outcome.destinationAvailable) {
+        throw new HttpError(409, "Contato sem telefone disponível");
+      }
+      if (!outcome.inserted || !outcome.activityUpdated) {
+        throw new Error("Pending message transaction incomplete");
+      }
       const row = await prisma.message.findUniqueOrThrow({
         where: { id: messageId },
         select: prismaMessageScalarSelect,

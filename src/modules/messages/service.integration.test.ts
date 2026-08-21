@@ -95,6 +95,63 @@ describe("outbound message PostgreSQL concurrency", () => {
     await expect(prisma.message.count()).resolves.toBe(0);
   });
 
+  it("rejects a BSUID-only destination before inserting or advancing activity", async () => {
+    const { victor } = await seedReadFixture();
+    const actor = {
+      id: victor.id,
+      name: victor.name,
+      email: victor.email,
+      role: victor.role,
+    };
+    const contact = await prisma.contact.create({
+      data: {
+        whatsappUserId: "BR.SendDestination",
+        name: "WhatsApp",
+      },
+    });
+    const initialActivity = new Date("2026-08-21T11:00:00.000Z");
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: initialActivity },
+    });
+    const provider = new DemoWhatsAppProvider();
+    let providerCalls = 0;
+    provider.sendText = async () => {
+      providerCalls += 1;
+      throw new Error("provider must not be called");
+    };
+    const dependencies: MessageServiceDependencies = {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT!),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    };
+
+    await expect(
+      sendMessage(
+        actor,
+        conversation.id,
+        {
+          type: MessageType.TEXT,
+          clientRequestId: randomUUID(),
+          body: "Não deve persistir",
+        },
+        dependencies,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      message: "Contato sem telefone disponível",
+    });
+
+    expect(providerCalls).toBe(0);
+    await expect(
+      prisma.message.count({ where: { conversationId: conversation.id } }),
+    ).resolves.toBe(0);
+    await expect(
+      prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
+    ).resolves.toMatchObject({ lastMessageAt: initialActivity });
+  });
+
   it("persists an unknown provider outcome as observable PENDING and refuses blind retry", async () => {
     const { conversation, victor } = await seedReadFixture();
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
