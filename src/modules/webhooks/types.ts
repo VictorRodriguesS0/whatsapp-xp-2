@@ -28,9 +28,34 @@ export type NormalizedStatusEvent = {
   failureReason: string | null;
 };
 
+export type NormalizedMessageEchoEvent = {
+  kind: "messageEcho";
+  whatsappMessageId: string;
+  to: string;
+  timestamp: Date;
+  timestampRaw: string;
+  type: MessageType;
+  body: string | null;
+  media: NormalizedMedia | null;
+  origin: "WHATSAPP_BUSINESS_APP";
+};
+
+export type NormalizedMessageEchoControlEvent = {
+  kind: "messageEchoControl";
+  action: "EDIT" | "REVOKE";
+  whatsappMessageId: string;
+  originalWhatsappMessageId: string;
+  to: string;
+  timestamp: Date;
+  timestampRaw: string;
+  origin: "WHATSAPP_BUSINESS_APP";
+};
+
 export type NormalizedWebhookEvent =
   | NormalizedMessageEvent
-  | NormalizedStatusEvent;
+  | NormalizedStatusEvent
+  | NormalizedMessageEchoEvent
+  | NormalizedMessageEchoControlEvent;
 
 export type ProcessSummary = {
   processed: number;

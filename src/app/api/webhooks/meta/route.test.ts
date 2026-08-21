@@ -25,6 +25,35 @@ function request(body: string, signature = sign(body)): Request {
   });
 }
 
+function messageEchoPayload() {
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "synthetic-waba",
+        changes: [
+          {
+            field: "smb_message_echoes",
+            value: {
+              messaging_product: "whatsapp",
+              message_echoes: [
+                {
+                  from: "business-sender-number",
+                  to: "+55 (11) 99999-0001",
+                  id: "wamid.echo-route",
+                  timestamp: "1787133604",
+                  type: "text",
+                  text: { body: "Resposta pelo aplicativo" },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function dependencies(overrides: Record<string, unknown> = {}) {
   const logs: Array<{ level: string; event: string; fields?: Record<string, unknown> }> = [];
   const base = {
@@ -119,6 +148,55 @@ describe("Meta webhook route", () => {
       processed: 1,
       duplicates: 0,
     });
+  });
+
+  it("authenticates and forwards a normalized app echo to the processor", async () => {
+    const body = JSON.stringify(messageEchoPayload());
+    let receivedEvents: unknown[] | undefined;
+    const harness = dependencies({
+      processWebhookEvents: async (events: unknown[]) => {
+        receivedEvents = events;
+        return { processed: 1, duplicates: 0 };
+      },
+    });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+
+    const response = await POST(request(body));
+
+    expect(response.status).toBe(200);
+    expect(receivedEvents).toEqual([
+      expect.objectContaining({
+        kind: "messageEcho",
+        whatsappMessageId: "wamid.echo-route",
+        to: "5511999990001",
+        type: "TEXT",
+        origin: "WHATSAPP_BUSINESS_APP",
+      }),
+    ]);
+    expect(JSON.stringify(harness.logs)).not.toContain(body);
+  });
+
+  it("returns a safe 400 for a signed malformed app echo", async () => {
+    const payload = messageEchoPayload() as Record<string, any>;
+    const privateMarker = "private-route-echo-marker";
+    payload.entry[0].changes[0].value.message_echoes[0].to = privateMarker;
+    const body = JSON.stringify(payload);
+    let processed = false;
+    const harness = dependencies({
+      processWebhookEvents: async () => {
+        processed = true;
+        return { processed: 1, duplicates: 0 };
+      },
+    });
+    const { POST } = createMetaWebhookRouteHandlers(harness.dependencies as never);
+
+    const response = await POST(request(body));
+
+    expect(response.status).toBe(400);
+    expect(processed).toBe(false);
+    expect(await response.text()).not.toContain(privateMarker);
+    expect(JSON.stringify(harness.logs)).not.toContain(privateMarker);
+    expect(JSON.stringify(harness.logs)).not.toContain(body);
   });
 
   it("schedules pending media persistence after returning the signed webhook response", async () => {

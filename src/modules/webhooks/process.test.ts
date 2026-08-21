@@ -8,6 +8,10 @@ import { inboundMediaFixture, inboundTextFixture, statusFixture } from "@/test/f
 import { resetTestDatabase } from "@/test/database";
 
 import { normalizeWebhook } from "./normalize";
+import type {
+  NormalizedMessageEchoControlEvent,
+  NormalizedMessageEchoEvent,
+} from "./types";
 import {
   processWebhookEvents,
   WebhookProcessingError,
@@ -177,6 +181,43 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
 }
 
 describe("webhook event processing", () => {
+  it.each([
+    {
+      kind: "messageEcho",
+      whatsappMessageId: "wamid.echo-pending-task-2",
+      to: "5511999990001",
+      timestamp: new Date("2026-08-21T12:00:00.000Z"),
+      timestampRaw: "1787313600",
+      type: "TEXT",
+      body: "synthetic echo",
+      media: null,
+      origin: "WHATSAPP_BUSINESS_APP",
+    } satisfies NormalizedMessageEchoEvent,
+    {
+      kind: "messageEchoControl",
+      action: "EDIT",
+      whatsappMessageId: "wamid.echo-control-pending-task-2",
+      originalWhatsappMessageId: "wamid.echo-original-pending-task-2",
+      to: "5511999990001",
+      timestamp: new Date("2026-08-21T12:00:00.000Z"),
+      timestampRaw: "1787313600",
+      origin: "WHATSAPP_BUSINESS_APP",
+    } satisfies NormalizedMessageEchoControlEvent,
+  ])("fails closed for $kind until Task 2 implements persistence", async (event) => {
+    const harness = createHarness();
+
+    await expect(
+      processWebhookEvents([event], harness.dependencies),
+    ).rejects.toMatchObject({ retryable: true, recordFailure: false });
+
+    expect(harness.state.events).toHaveLength(0);
+    expect(harness.state.contacts).toHaveLength(0);
+    expect(harness.state.conversations).toHaveLength(0);
+    expect(harness.state.messages).toHaveLength(0);
+    expect(harness.state.media).toHaveLength(0);
+    expect(harness.publications).toEqual([]);
+  });
+
   it("atomically creates contact, conversation, inbound message and pending media before publishing", async () => {
     const harness = createHarness();
     const events = normalizeWebhook(inboundMediaFixture("document"));

@@ -2,6 +2,8 @@ import { MessageStatus, MessageType } from "@/generated/prisma/enums";
 
 import type {
   NormalizedMedia,
+  NormalizedMessageEchoControlEvent,
+  NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
   NormalizedStatusEvent,
   NormalizedWebhookEvent,
@@ -69,6 +71,24 @@ function cleanFilename(value: unknown): string | null {
   return basename ? basename.slice(0, 255) : null;
 }
 
+function strictCleanString(
+  value: unknown,
+  maximumLength: number,
+  options: { trim?: boolean } = {},
+): string | null {
+  if (typeof value !== "string" || value.length > maximumLength) {
+    return null;
+  }
+
+  return cleanString(value, maximumLength, options);
+}
+
+function strictFilename(value: unknown): string | null {
+  return typeof value === "string" && value.length <= 1024
+    ? cleanFilename(value)
+    : null;
+}
+
 function parseTimestamp(value: unknown): { date: Date; raw: string } | null {
   if (typeof value !== "string" || !/^\d{1,16}$/.test(value)) {
     return null;
@@ -85,6 +105,19 @@ function parseTimestamp(value: unknown): { date: Date; raw: string } | null {
 function whatsappUserId(value: unknown): string | null {
   const cleaned = cleanString(value, 32);
   return cleaned && /^\d{1,32}$/.test(cleaned) ? cleaned : null;
+}
+
+function canonicalWhatsappUserId(value: unknown): string | null {
+  if (
+    typeof value !== "string" ||
+    value.length > 64 ||
+    !/^[+()\d.\s-]+$/.test(value)
+  ) {
+    return null;
+  }
+
+  const digits = value.replace(/\D/g, "");
+  return /^\d{1,32}$/.test(digits) ? digits : null;
 }
 
 function contactsByWhatsappId(value: UnknownRecord): Map<string, string> {
@@ -126,6 +159,45 @@ function normalizeMedia(
       filename: cleanFilename(media.filename),
     },
     body: cleanString(media.caption, 4096, { trim: false }),
+  };
+}
+
+function normalizeEchoMedia(
+  message: UnknownRecord,
+  rawType: string,
+): { media: NormalizedMedia; body: string | null } | null {
+  const media = record(message[rawType]);
+
+  if (!media) {
+    return null;
+  }
+
+  const metaMediaId = strictCleanString(media.id, 512);
+  const mimeType = strictCleanString(media.mime_type, 255);
+  const sha256 = strictCleanString(media.sha256, 256);
+  const filename = hasOwn(media, "filename")
+    ? strictFilename(media.filename)
+    : null;
+  const hasCaption = hasOwn(media, "caption");
+  const body = hasCaption
+    ? cleanString(media.caption, 4096, { trim: false })
+    : null;
+
+  if (
+    !metaMediaId ||
+    !mimeType ||
+    !sha256 ||
+    (hasOwn(media, "filename") && !filename) ||
+    (rawType === "document" && !filename) ||
+    (hasCaption &&
+      (typeof media.caption !== "string" || media.caption.length > 4096))
+  ) {
+    return null;
+  }
+
+  return {
+    media: { metaMediaId, mimeType, sha256, filename },
+    body,
   };
 }
 
@@ -175,6 +247,77 @@ function normalizeMessage(
     type,
     body,
     media,
+  };
+}
+
+function normalizeMessageEcho(
+  candidate: unknown,
+): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | null {
+  const message = record(candidate);
+  const whatsappMessageId = strictCleanString(message?.id, 512);
+  const to = canonicalWhatsappUserId(message?.to);
+  const rawType = strictCleanString(message?.type, 64);
+  const parsedTimestamp = parseTimestamp(message?.timestamp);
+
+  if (!message || !whatsappMessageId || !to || !rawType || !parsedTimestamp) {
+    return null;
+  }
+
+  if (rawType === "edit" || rawType === "revoke") {
+    const control = record(message[rawType]);
+    const originalWhatsappMessageId = strictCleanString(
+      control?.original_message_id,
+      512,
+    );
+
+    if (!control || !originalWhatsappMessageId) {
+      return null;
+    }
+
+    return {
+      kind: "messageEchoControl",
+      action: rawType === "edit" ? "EDIT" : "REVOKE",
+      whatsappMessageId,
+      originalWhatsappMessageId,
+      to,
+      timestamp: parsedTimestamp.date,
+      timestampRaw: parsedTimestamp.raw,
+      origin: "WHATSAPP_BUSINESS_APP",
+    };
+  }
+
+  const type = typeMap.get(rawType) ?? MessageType.UNSUPPORTED;
+  let body: string | null = null;
+  let media: NormalizedMedia | null = null;
+
+  if (type === MessageType.TEXT) {
+    const text = record(message.text);
+    body = strictCleanString(text?.body, 4096, { trim: false });
+
+    if (!text || !body) {
+      return null;
+    }
+  } else if (type !== MessageType.UNSUPPORTED) {
+    const normalizedMedia = normalizeEchoMedia(message, rawType);
+
+    if (!normalizedMedia) {
+      return null;
+    }
+
+    body = normalizedMedia.body;
+    media = normalizedMedia.media;
+  }
+
+  return {
+    kind: "messageEcho",
+    whatsappMessageId,
+    to,
+    timestamp: parsedTimestamp.date,
+    timestampRaw: parsedTimestamp.raw,
+    type,
+    body,
+    media,
+    origin: "WHATSAPP_BUSINESS_APP",
   };
 }
 
@@ -260,7 +403,7 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         throw new WebhookPayloadError();
       }
 
-      if (field !== "messages") {
+      if (field !== "messages" && field !== "smb_message_echoes") {
         continue;
       }
 
@@ -268,6 +411,24 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
 
       if (!value) {
         throw new WebhookPayloadError();
+      }
+
+      if (field === "smb_message_echoes") {
+        if (!Array.isArray(value.message_echoes)) {
+          throw new WebhookPayloadError();
+        }
+
+        for (const messageEcho of value.message_echoes) {
+          const normalized = normalizeMessageEcho(messageEcho);
+
+          if (!normalized) {
+            throw new WebhookPayloadError();
+          }
+
+          events.push(normalized);
+        }
+
+        continue;
       }
 
       const contactNames = contactsByWhatsappId(value);

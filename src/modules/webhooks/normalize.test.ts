@@ -11,6 +11,73 @@ import {
 
 import { normalizeWebhook, WebhookPayloadError } from "./normalize";
 
+type EchoType = "text" | "image" | "audio" | "video" | "document" | "sticker";
+
+function messageEchoFixture(type: EchoType = "text") {
+  const media = {
+    id: `echo-media-${type}`,
+    mime_type:
+      type === "image"
+        ? "image/jpeg"
+        : type === "audio"
+          ? "audio/ogg"
+          : type === "video"
+            ? "video/mp4"
+            : "application/pdf",
+    sha256: `echo-${type}-sha256`,
+    ...(type === "audio" ? {} : { caption: `Echo ${type}` }),
+    ...(type === "document" ? { filename: "../echo-document.pdf" } : {}),
+  };
+
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "synthetic-waba",
+        changes: [
+          {
+            field: "smb_message_echoes",
+            value: {
+              messaging_product: "whatsapp",
+              metadata: {
+                display_phone_number: "business-display-number",
+                phone_number_id: "synthetic-phone-number-id",
+              },
+              message_echoes: [
+                {
+                  from: "business-sender-number",
+                  to: "+55 (11) 99999-0001",
+                  id: `wamid.echo-${type}`,
+                  timestamp: "1787133604",
+                  type,
+                  ...(type === "text"
+                    ? { text: { body: "Resposta pelo aplicativo" } }
+                    : type === "sticker"
+                      ? { sticker: { id: "synthetic-sticker" } }
+                      : { [type]: media }),
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+function messageEchoControlFixture(action: "edit" | "revoke") {
+  const payload = messageEchoFixture();
+  const echo = payload.entry[0]!.changes[0]!.value.message_echoes[0]! as Record<
+    string,
+    unknown
+  >;
+  echo.id = `wamid.echo-${action}`;
+  echo.type = action;
+  echo[action] = { original_message_id: "wamid.echo-original" };
+  delete echo.text;
+  return payload;
+}
+
 describe("Meta webhook normalization", () => {
   it.each([
     null,
@@ -125,6 +192,195 @@ describe("Meta webhook normalization", () => {
       }),
     ]);
   });
+
+  it("normalizes an app text echo as outbound activity for the recipient", () => {
+    expect(normalizeWebhook(messageEchoFixture())).toEqual([
+      {
+        kind: "messageEcho",
+        whatsappMessageId: "wamid.echo-text",
+        to: "5511999990001",
+        timestamp: new Date("2026-08-19T10:00:04.000Z"),
+        timestampRaw: "1787133604",
+        type: "TEXT",
+        body: "Resposta pelo aplicativo",
+        media: null,
+        origin: "WHATSAPP_BUSINESS_APP",
+      },
+    ]);
+  });
+
+  it.each([
+    ["image", "IMAGE", "image/jpeg"],
+    ["audio", "AUDIO", "audio/ogg"],
+    ["video", "VIDEO", "video/mp4"],
+    ["document", "DOCUMENT", "application/pdf"],
+  ] as const)("normalizes an app %s echo with safe media metadata", (kind, type, mimeType) => {
+    const [event] = normalizeWebhook(messageEchoFixture(kind));
+
+    expect(event).toMatchObject({
+      kind: "messageEcho",
+      to: "5511999990001",
+      type,
+      body: kind === "audio" ? null : `Echo ${kind}`,
+      media: {
+        metaMediaId: `echo-media-${kind}`,
+        mimeType,
+        sha256: `echo-${kind}-sha256`,
+      },
+      origin: "WHATSAPP_BUSINESS_APP",
+    });
+
+    if (event?.kind === "messageEcho" && kind === "document") {
+      expect(event.media?.filename).toBe("echo-document.pdf");
+    }
+  });
+
+  it("sanitizes an empty optional app media caption to null", () => {
+    const payload = messageEchoFixture("image") as Record<string, any>;
+    payload.entry[0].changes[0].value.message_echoes[0].image.caption = "";
+
+    expect(normalizeWebhook(payload)).toEqual([
+      expect.objectContaining({
+        kind: "messageEcho",
+        body: null,
+        type: "IMAGE",
+      }),
+    ]);
+  });
+
+  it("preserves an unknown app echo type as unsupported activity", () => {
+    expect(normalizeWebhook(messageEchoFixture("sticker"))).toEqual([
+      expect.objectContaining({
+        kind: "messageEcho",
+        whatsappMessageId: "wamid.echo-sticker",
+        to: "5511999990001",
+        type: "UNSUPPORTED",
+        body: null,
+        media: null,
+        origin: "WHATSAPP_BUSINESS_APP",
+      }),
+    ]);
+  });
+
+  it.each([
+    ["edit", "EDIT"],
+    ["revoke", "REVOKE"],
+  ] as const)("normalizes a valid app %s control as a deduplicable no-op", (rawAction, action) => {
+    expect(normalizeWebhook(messageEchoControlFixture(rawAction))).toEqual([
+      {
+        kind: "messageEchoControl",
+        action,
+        whatsappMessageId: `wamid.echo-${rawAction}`,
+        originalWhatsappMessageId: "wamid.echo-original",
+        to: "5511999990001",
+        timestamp: new Date("2026-08-19T10:00:04.000Z"),
+        timestampRaw: "1787133604",
+        origin: "WHATSAPP_BUSINESS_APP",
+      },
+    ]);
+  });
+
+  it("normalizes multiple echoes, multiple changes, and standard messages together", () => {
+    const firstEcho = messageEchoFixture();
+    const secondEcho = messageEchoFixture("image");
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry[0].changes.push(firstEcho.entry[0]!.changes[0]);
+    payload.entry.push({
+      id: "synthetic-second-entry",
+      changes: [secondEcho.entry[0]!.changes[0]],
+    });
+    firstEcho.entry[0]!.changes[0]!.value.message_echoes.push(
+      structuredClone(secondEcho.entry[0]!.changes[0]!.value.message_echoes[0]!),
+    );
+
+    const events = normalizeWebhook(payload);
+
+    expect(events.map((event) => event.kind)).toEqual([
+      "message",
+      "messageEcho",
+      "messageEcho",
+      "messageEcho",
+    ]);
+    expect(events.filter((event) => event.kind === "messageEcho")).toHaveLength(3);
+  });
+
+  it.each([
+    ["id", undefined],
+    ["id", "x".repeat(513)],
+    ["id", "\u0000"],
+    ["to", undefined],
+    ["to", "not-a-recipient"],
+    ["to", "1".repeat(33)],
+    ["timestamp", undefined],
+    ["timestamp", "not-an-epoch"],
+    ["timestamp", "9".repeat(16)],
+  ])("rejects an app echo with invalid required %s metadata", (field, value) => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    payload.entry[0].changes[0].value.message_echoes[0][field] = value;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([undefined, 42, "\u0000", "x".repeat(4097)])(
+    "rejects an app text echo with an invalid body",
+    (body) => {
+      const payload = messageEchoFixture() as Record<string, any>;
+      payload.entry[0].changes[0].value.message_echoes[0].text.body = body;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each([
+    ["image", "id", undefined],
+    ["image", "id", "x".repeat(513)],
+    ["image", "mime_type", undefined],
+    ["image", "mime_type", "x".repeat(256)],
+    ["image", "sha256", undefined],
+    ["image", "sha256", "x".repeat(257)],
+    ["document", "filename", undefined],
+    ["document", "filename", "x".repeat(1025)],
+  ] as const)(
+    "rejects an app %s echo with invalid %s media metadata",
+    (kind, field, value) => {
+      const payload = messageEchoFixture(kind) as Record<string, any>;
+      payload.entry[0].changes[0].value.message_echoes[0][kind][field] = value;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each([
+    ["id", undefined],
+    ["id", "x".repeat(513)],
+    ["original_message_id", undefined],
+    ["original_message_id", "x".repeat(513)],
+  ] as const)("rejects an app control with invalid %s", (field, value) => {
+    const payload = messageEchoControlFixture("edit") as Record<string, any>;
+    const echo = payload.entry[0].changes[0].value.message_echoes[0];
+    if (field === "id") echo.id = value;
+    else echo.edit[field] = value;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([undefined, null, {}, "invalid"])(
+    "rejects an invalid message_echoes collection without exposing payload markers",
+    (messageEchoes) => {
+      const payload = messageEchoFixture() as Record<string, any>;
+      const marker = "private-echo-marker";
+      payload.entry[0].changes[0].value.message_echoes = messageEchoes;
+      payload.entry[0].changes[0].value.private = marker;
+
+      try {
+        normalizeWebhook(payload);
+        throw new Error("expected normalizeWebhook to reject");
+      } catch (error) {
+        expect(error).toBeInstanceOf(WebhookPayloadError);
+        expect(String(error)).not.toContain(marker);
+      }
+    },
+  );
 
   it("allowlists and maps only documented status values", () => {
     const payload = structuredClone(statusFixture("sent"));

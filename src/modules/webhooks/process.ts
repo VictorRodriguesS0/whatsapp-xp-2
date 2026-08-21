@@ -269,7 +269,15 @@ const defaultDependencies: WebhookProcessDependencies = {
   publishRealtime,
 };
 
-function deduplicationKey(event: NormalizedWebhookEvent): string {
+function isCurrentlyProcessableEvent(
+  event: NormalizedWebhookEvent,
+): event is NormalizedMessageEvent | NormalizedStatusEvent {
+  return event.kind === "message" || event.kind === "status";
+}
+
+function deduplicationKey(
+  event: NormalizedMessageEvent | NormalizedStatusEvent,
+): string {
   return event.kind === "message"
     ? `message:${event.whatsappMessageId}`
     : `status:${event.whatsappMessageId}:${event.status}:${event.timestampRaw}`;
@@ -392,6 +400,10 @@ export async function processWebhookEvents(
   const summary: ProcessSummary = { processed: 0, duplicates: 0 };
 
   for (const event of events) {
+    if (!isCurrentlyProcessableEvent(event)) {
+      throw new WebhookProcessingError(true, false);
+    }
+
     const key = deduplicationKey(event);
     const now = dependencies.now?.() ?? new Date();
     let outcome: {
