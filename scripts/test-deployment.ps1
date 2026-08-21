@@ -80,7 +80,8 @@ if (
   ([regex]::Matches($MigrationRunbook, '(?m)^assert_app_exited$').Count -ne 4) -or
   ([regex]::Matches($MigrationRunbook, '(?m)^assert_app_sessions_drained$').Count -ne 4) -or
   ([regex]::Matches($MigrationRunbook, '--wait --wait-timeout 120 app').Count -ne 4) -or
-  ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_clean$').Count -ne 3) -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_clean$').Count -ne 2) -or
+  ([regex]::Matches($MigrationRunbook, '(?m)^assert_migration_applied_no_failed$').Count -ne 1) -or
   $MigrationRunbook -notmatch '(?ms)if migration_failed_or_incomplete_present; then.*?migrate resolve --rolled-back "\$MIGRATION_NAME".*?fi'
 ) {
   throw 'Cada ramo deve falhar fechado: stop, estado de sessões, migration e start --wait precisam estar completos.'

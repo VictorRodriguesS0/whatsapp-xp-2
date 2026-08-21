@@ -429,6 +429,12 @@ assert_migration_applied_clean() {
   [ "$MIGRATION_FAILED" = '0' ]
   [ "$MIGRATION_ROLLED_BACK" = '0' ]
 }
+
+assert_migration_applied_no_failed() {
+  read_migration_state
+  [ "$MIGRATION_APPLIED" = '1' ]
+  [ "$MIGRATION_FAILED" = '0' ]
+}
 ```
 
 Com as funções ainda presentes na mesma sessão, crie e valide o backup, drene somente o app e inicie a candidata. O `--wait` é obrigatório: falha de migration, healthcheck ou timeout interrompe o bloco e não promove nada.
@@ -464,7 +470,7 @@ assert_failed_or_incomplete_zero
 # Única tentativa de retry após resolve; não repita este comando automaticamente.
 XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
   compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app
-assert_migration_applied_clean
+assert_migration_applied_no_failed
 ```
 
 Se essa única repetição falhar, não inicie a candidata de novo. O segundo ramo resolve de novo somente se ainda houver linha incompleta, prova estado limpo, executa `migrate deploy` e `migrate status` com a imagem de rollback e só então sobe o rollback com health wait. Não faça `UPDATE` manual.
