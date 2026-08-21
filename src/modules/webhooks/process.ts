@@ -165,41 +165,39 @@ export function createPrismaWebhookRepository(
       manualUnreadByUserId: string | null;
     },
   ): Promise<void> {
-    const [sourceReads, targetReads, boundaryMessages] = await Promise.all([
-      client.conversationRead.findMany({
-        where: { conversationId: sourceConversation.id },
-        select: {
-          userId: true,
-          lastReadAt: true,
-          lastReadMessageId: true,
-          lastReadMessage: {
-            select: { id: true, externalTimestamp: true },
-          },
+    const sourceReads = await client.conversationRead.findMany({
+      where: { conversationId: sourceConversation.id },
+      select: {
+        userId: true,
+        lastReadAt: true,
+        lastReadMessageId: true,
+        lastReadMessage: {
+          select: { id: true, externalTimestamp: true },
         },
-      }),
-      client.conversationRead.findMany({
-        where: { conversationId: targetConversation.id },
-        select: {
-          userId: true,
-          lastReadAt: true,
-          lastReadMessageId: true,
-          lastReadMessage: {
-            select: { id: true, externalTimestamp: true },
-          },
+      },
+    });
+    const targetReads = await client.conversationRead.findMany({
+      where: { conversationId: targetConversation.id },
+      select: {
+        userId: true,
+        lastReadAt: true,
+        lastReadMessageId: true,
+        lastReadMessage: {
+          select: { id: true, externalTimestamp: true },
         },
-      }),
-      client.message.findMany({
-        where: {
-          id: {
-            in: [
-              targetConversation.teamLastReadMessageId,
-              sourceConversation.teamLastReadMessageId,
-            ].filter((id): id is string => id !== null),
-          },
+      },
+    });
+    const boundaryMessages = await client.message.findMany({
+      where: {
+        id: {
+          in: [
+            targetConversation.teamLastReadMessageId,
+            sourceConversation.teamLastReadMessageId,
+          ].filter((id): id is string => id !== null),
         },
-        select: { id: true, externalTimestamp: true },
-      }),
-    ]);
+      },
+      select: { id: true, externalTimestamp: true },
+    });
     const targetReadsByUser = new Map(
       targetReads.map((read) => [read.userId, read]),
     );
@@ -311,6 +309,7 @@ export function createPrismaWebhookRepository(
     await client.conversation.delete({
       where: { id: sourceConversation.id },
     });
+    await refreshResponseState(client, targetConversation.id);
   }
 
   async function resolveEchoContact(input: {

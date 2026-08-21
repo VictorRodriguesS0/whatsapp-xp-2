@@ -12,10 +12,16 @@ import {
   WebhookStatus,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import { refreshResponseState } from "@/modules/conversations/shared-state";
+import type { RealtimeEvent } from "@/modules/realtime/events";
 import { subscribeRealtime } from "@/modules/realtime/hub";
 import { resetTestDatabase } from "@/test/database";
 
-import { processWebhookEvents } from "./process";
+import {
+  createPrismaWebhookRepository,
+  processWebhookEvents,
+  type WebhookProcessDependencies,
+} from "./process";
 import type {
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
@@ -82,6 +88,25 @@ function controlEvent(
     timestamp: new Date("2026-08-21T12:00:00.000Z"),
     timestampRaw: "1787313600",
     origin: "WHATSAPP_BUSINESS_APP",
+  };
+}
+
+function transactionDependencies(
+  realtime: RealtimeEvent[],
+): WebhookProcessDependencies {
+  return {
+    transaction: (operation) =>
+      prisma.$transaction(
+        (transaction) => operation(createPrismaWebhookRepository(transaction)),
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      ),
+    recordFailure: async () => {
+      throw new Error("unexpected recordFailure");
+    },
+    quarantineEvent: async () => {
+      throw new Error("unexpected quarantineEvent");
+    },
+    publishRealtime: (event) => realtime.push(event),
   };
 }
 
@@ -214,6 +239,205 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       expect(new Set(messages.map(({ conversationId }) => conversationId))).toHaveLength(
         1,
       );
+    });
+
+    it("refreshes an answered target from a merged newer inbound on a duplicate API echo", async () => {
+      const outboundTimestamp = new Date("2026-08-21T10:00:00.000Z");
+      const inboundTimestamp = new Date("2026-08-21T12:00:00.000Z");
+      const clientRequestId = "30000000-0000-4000-8000-000000000001";
+      const actor = await prisma.user.create({
+        data: {
+          name: "Merge actor",
+          email: "merge-inbound-actor@example.test",
+          passwordHash: "not-used",
+          role: UserRole.ADMIN,
+        },
+      });
+      const targetContact = await prisma.contact.create({
+        data: {
+          whatsappId: "551100000026",
+          phone: "551100000026",
+          name: "Phone target",
+        },
+      });
+      const sourceContact = await prisma.contact.create({
+        data: {
+          whatsappId: null,
+          whatsappUserId: "BR.MergeInbound",
+          phone: null,
+          name: "BSUID source",
+        },
+      });
+      const targetConversation = await prisma.conversation.create({
+        data: { contactId: targetContact.id, lastMessageAt: outboundTimestamp },
+      });
+      const sourceConversation = await prisma.conversation.create({
+        data: { contactId: sourceContact.id, lastMessageAt: inboundTimestamp },
+      });
+      const media = await prisma.mediaObject.create({
+        data: {
+          storageProvider: "local",
+          storageKey: "merge/original",
+          originalFilename: "original.jpg",
+          mimeType: "image/jpeg",
+          sizeBytes: 8n,
+          sha256: "b".repeat(64),
+          metaMediaId: "meta-merge-original",
+          status: MediaStatus.AVAILABLE,
+        },
+      });
+      const apiMessage = await prisma.message.create({
+        data: {
+          conversationId: targetConversation.id,
+          whatsappMessageId: "wamid.echo-merge-inbound-duplicate",
+          clientRequestId,
+          direction: MessageDirection.OUTBOUND,
+          type: MessageType.IMAGE,
+          body: "authoritative API body",
+          mediaObjectId: media.id,
+          sentByUserId: actor.id,
+          status: MessageStatus.DELIVERED,
+          externalTimestamp: outboundTimestamp,
+        },
+      });
+      await prisma.message.create({
+        data: {
+          conversationId: sourceConversation.id,
+          whatsappMessageId: "wamid.echo-merge-inbound-source",
+          direction: MessageDirection.INBOUND,
+          type: MessageType.TEXT,
+          body: "newer source inbound",
+          status: MessageStatus.RECEIVED,
+          externalTimestamp: inboundTimestamp,
+        },
+      });
+      const realtime: RealtimeEvent[] = [];
+
+      await expect(
+        processWebhookEvents(
+          [
+            echoEvent("wamid.echo-merge-inbound-duplicate", {
+              to: "551100000026",
+              toUserId: "BR.MergeInbound",
+              body: "must not replace API body",
+            }),
+          ],
+          transactionDependencies(realtime),
+        ),
+      ).resolves.toEqual({ processed: 0, duplicates: 1 });
+
+      await expect(
+        prisma.message.findUniqueOrThrow({ where: { id: apiMessage.id } }),
+      ).resolves.toMatchObject({
+        conversationId: targetConversation.id,
+        whatsappMessageId: "wamid.echo-merge-inbound-duplicate",
+        clientRequestId,
+        direction: MessageDirection.OUTBOUND,
+        type: MessageType.IMAGE,
+        body: "authoritative API body",
+        mediaObjectId: media.id,
+        sentByUserId: actor.id,
+        status: MessageStatus.DELIVERED,
+      });
+      await expect(
+        prisma.conversation.findUniqueOrThrow({
+          where: { id: targetConversation.id },
+          select: { awaitingResponseSince: true },
+        }),
+      ).resolves.toEqual({ awaitingResponseSince: inboundTimestamp });
+      await expect(
+        prisma.conversation.findUnique({ where: { id: sourceConversation.id } }),
+      ).resolves.toBeNull();
+      await expect(prisma.message.count()).resolves.toBe(2);
+      expect(realtime).toEqual([
+        {
+          type: "conversation.merged",
+          sourceConversationId: sourceConversation.id,
+          targetConversationId: targetConversation.id,
+        },
+      ]);
+    });
+
+    it("refreshes an awaiting target to answered when a merged source has a newer outbound", async () => {
+      const duplicateOutboundTimestamp = new Date("2026-08-21T09:00:00.000Z");
+      const targetInboundTimestamp = new Date("2026-08-21T10:00:00.000Z");
+      const sourceOutboundTimestamp = new Date("2026-08-21T12:00:00.000Z");
+      const targetContact = await prisma.contact.create({
+        data: {
+          whatsappId: "551100000027",
+          phone: "551100000027",
+          name: "Awaiting target",
+        },
+      });
+      const sourceContact = await prisma.contact.create({
+        data: {
+          whatsappId: null,
+          whatsappUserId: "BR.MergeOutbound",
+          phone: null,
+          name: "Answered source",
+        },
+      });
+      const targetConversation = await prisma.conversation.create({
+        data: { contactId: targetContact.id, lastMessageAt: targetInboundTimestamp },
+      });
+      const sourceConversation = await prisma.conversation.create({
+        data: { contactId: sourceContact.id, lastMessageAt: sourceOutboundTimestamp },
+      });
+      await prisma.message.createMany({
+        data: [
+          {
+            conversationId: targetConversation.id,
+            whatsappMessageId: "wamid.echo-merge-outbound-duplicate",
+            direction: MessageDirection.OUTBOUND,
+            type: MessageType.TEXT,
+            body: "older API outbound",
+            status: MessageStatus.SENT,
+            externalTimestamp: duplicateOutboundTimestamp,
+          },
+          {
+            conversationId: targetConversation.id,
+            whatsappMessageId: "wamid.echo-merge-outbound-target-inbound",
+            direction: MessageDirection.INBOUND,
+            type: MessageType.TEXT,
+            body: "target inbound",
+            status: MessageStatus.RECEIVED,
+            externalTimestamp: targetInboundTimestamp,
+          },
+          {
+            conversationId: sourceConversation.id,
+            whatsappMessageId: "wamid.echo-merge-outbound-source",
+            direction: MessageDirection.OUTBOUND,
+            type: MessageType.TEXT,
+            body: "newer source outbound",
+            status: MessageStatus.SENT,
+            externalTimestamp: sourceOutboundTimestamp,
+          },
+        ],
+      });
+      await refreshResponseState(prisma, targetConversation.id);
+      await expect(
+        prisma.conversation.findUniqueOrThrow({
+          where: { id: targetConversation.id },
+          select: { awaitingResponseSince: true },
+        }),
+      ).resolves.toEqual({ awaitingResponseSince: targetInboundTimestamp });
+
+      await processWebhookEvents(
+        [
+          echoEvent("wamid.echo-merge-outbound-duplicate", {
+            to: "551100000027",
+            toUserId: "BR.MergeOutbound",
+          }),
+        ],
+        transactionDependencies([]),
+      );
+
+      await expect(
+        prisma.conversation.findUniqueOrThrow({
+          where: { id: targetConversation.id },
+          select: { awaitingResponseSince: true },
+        }),
+      ).resolves.toEqual({ awaitingResponseSince: null });
     });
 
     it("publishes an ID-only conversation.merged event before message.created after commit", async () => {
