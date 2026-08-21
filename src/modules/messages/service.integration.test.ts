@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { Client } from "pg";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { MessageDirection, MessageOperationalState, MessageStatus, MessageType } from "@/generated/prisma/enums";
@@ -31,6 +32,24 @@ const roots: string[] = [];
 async function countStoredFiles(root: string): Promise<number> {
   const entries = await readdir(root, { recursive: true, withFileTypes: true });
   return entries.filter((entry) => entry.isFile() && !entry.name.endsWith(".part")).length;
+}
+
+async function waitForAdvisoryLockWait(client: Client): Promise<void> {
+  const deadline = Date.now() + 2_000;
+  while (Date.now() < deadline) {
+    const result = await client.query<{ waiting: boolean }>(`
+      SELECT EXISTS(
+        SELECT 1
+        FROM pg_stat_activity
+        WHERE datname = current_database()
+          AND wait_event_type = 'Lock'
+          AND wait_event = 'advisory'
+      ) AS waiting
+    `);
+    if (result.rows[0]?.waiting) return;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  throw new Error("Outbound transaction did not reach the advisory-lock barrier");
 }
 
 describe("outbound message PostgreSQL concurrency", () => {
@@ -83,28 +102,36 @@ describe("outbound message PostgreSQL concurrency", () => {
     ).resolves.toEqual({ awaitingResponseSince: null });
   });
 
-  it("keeps a later inbound message awaiting when its persistence races an outbound reply", async () => {
+  it("preserves the earliest awaiting timestamp across consecutive inbound webhook persistence", async () => {
     const { conversation, victor } = await seedReadFixture();
-    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
-    const laterInbound = new Date("2099-08-21T12:00:00.000Z");
+    const firstInbound = new Date("2026-08-21T12:00:00.000Z");
+    const secondInbound = new Date("2026-08-21T12:01:00.000Z");
 
-    await Promise.all([
-      sendMessage(actor, conversation.id, {
-        type: MessageType.TEXT,
-        clientRequestId: randomUUID(),
-        body: "Respondendo agora",
-      }),
-      processWebhookEvents([{
+    await processWebhookEvents([
+      {
         kind: "message",
-        whatsappMessageId: "wamid.task3-race-inbound",
+        whatsappMessageId: "wamid.task3-first-inbound",
         from: "5511999990000",
         contactName: "Contato de teste",
-        timestamp: laterInbound,
-        timestampRaw: String(laterInbound.getTime() / 1_000),
+        timestamp: firstInbound,
+        timestampRaw: String(firstInbound.getTime() / 1_000),
         type: MessageType.TEXT,
-        body: "Mensagem posterior",
+        body: "Primeira mensagem",
         media: null,
-      }]),
+      },
+    ]);
+    await processWebhookEvents([
+      {
+        kind: "message",
+        whatsappMessageId: "wamid.task3-second-inbound",
+        from: "5511999990000",
+        contactName: "Contato de teste",
+        timestamp: secondInbound,
+        timestampRaw: String(secondInbound.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Segunda mensagem",
+        media: null,
+      },
     ]);
 
     await expect(
@@ -112,7 +139,113 @@ describe("outbound message PostgreSQL concurrency", () => {
         where: { id: conversation.id },
         select: { awaitingResponseSince: true },
       }),
-    ).resolves.toEqual({ awaitingResponseSince: laterInbound });
+    ).resolves.toEqual({ awaitingResponseSince: firstInbound });
+  });
+
+  it("does not reopen awaiting state for an older delayed inbound persisted after an outbound reply", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const delayedInbound = new Date(Date.now() - 60_000);
+
+    await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId: randomUUID(),
+      body: "Resposta enviada",
+    });
+    await processWebhookEvents([
+      {
+        kind: "message",
+        whatsappMessageId: "wamid.task3-delayed-inbound",
+        from: "5511999990000",
+        contactName: "Contato de teste",
+        timestamp: delayedInbound,
+        timestampRaw: String(delayedInbound.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Mensagem atrasada",
+        media: null,
+      },
+    ]);
+
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { awaitingResponseSince: true },
+      }),
+    ).resolves.toEqual({ awaitingResponseSince: null });
+  });
+
+  it("retries a blocked outbound state refresh after a later inbound transaction commits", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const clientRequestId = randomUUID();
+    const laterInbound = new Date(Date.now() + 60_000);
+    const barrierLock = 2_026_082_103;
+    const barrier = new Client({ connectionString: process.env.DATABASE_URL });
+    let outbound: Promise<unknown> | null = null;
+
+    await barrier.connect();
+    try {
+      await barrier.query("SELECT pg_advisory_lock($1)", [barrierLock]);
+      await prisma.$executeRawUnsafe("CREATE SEQUENCE task3_outbound_refresh_attempts");
+      await prisma.$executeRawUnsafe(`
+        CREATE FUNCTION task3_block_outbound_refresh() RETURNS trigger AS $$
+        BEGIN
+          IF NEW.client_request_id = '${clientRequestId}'::uuid THEN
+            PERFORM nextval('task3_outbound_refresh_attempts');
+            PERFORM pg_advisory_xact_lock(${barrierLock});
+          END IF;
+          RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TRIGGER task3_block_outbound_refresh
+        BEFORE INSERT ON messages
+        FOR EACH ROW EXECUTE FUNCTION task3_block_outbound_refresh()
+      `);
+
+      outbound = sendMessage(actor, conversation.id, {
+        type: MessageType.TEXT,
+        clientRequestId,
+        body: "Resposta concorrente",
+      });
+      await waitForAdvisoryLockWait(barrier);
+
+      await processWebhookEvents([
+        {
+          kind: "message",
+          whatsappMessageId: "wamid.task3-racing-inbound",
+          from: "5511999990000",
+          contactName: "Contato de teste",
+          timestamp: laterInbound,
+          timestampRaw: String(laterInbound.getTime() / 1_000),
+          type: MessageType.TEXT,
+          body: "Mensagem concorrente posterior",
+          media: null,
+        },
+      ]);
+      await barrier.query("SELECT pg_advisory_unlock($1)", [barrierLock]);
+      await outbound;
+
+      await expect(
+        prisma.conversation.findUniqueOrThrow({
+          where: { id: conversation.id },
+          select: { awaitingResponseSince: true },
+        }),
+      ).resolves.toEqual({ awaitingResponseSince: laterInbound });
+      await expect(
+        prisma.$queryRawUnsafe<Array<{ last_value: bigint }>>(
+          "SELECT last_value FROM task3_outbound_refresh_attempts",
+        ),
+      ).resolves.toEqual([{ last_value: 2n }]);
+    } finally {
+      await barrier.query("SELECT pg_advisory_unlock($1)", [barrierLock]).catch(() => undefined);
+      await outbound?.catch(() => undefined);
+      await prisma.$executeRawUnsafe("DROP TRIGGER IF EXISTS task3_block_outbound_refresh ON messages");
+      await prisma.$executeRawUnsafe("DROP FUNCTION IF EXISTS task3_block_outbound_refresh()");
+      await prisma.$executeRawUnsafe("DROP SEQUENCE IF EXISTS task3_outbound_refresh_attempts");
+      await barrier.end();
+    }
   });
 
   it("atomically claims one of two concurrent retries without creating another message", async () => {
