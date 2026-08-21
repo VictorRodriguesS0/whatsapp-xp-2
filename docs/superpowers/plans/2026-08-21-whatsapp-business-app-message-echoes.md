@@ -56,7 +56,7 @@
 
 Add representative fixtures for text, image, video, audio, document, unsupported, edit, revoke, multiple echoes, mixed `messages` + `smb_message_echoes`, and multiple `changes`. Cover the official legacy shape with only `to`, the newer shape with `to_user_id` and no phone, both identities together, optional `to_parent_user_id`, and assert the store number is never selected as the contact identity.
 
-Add table tests for missing/oversized/invalid `id`, `to`, `to_user_id`, `to_parent_user_id`, timestamp, body, media ID, MIME, hash, filename, and control references. Assert echo/control and standard message/status deduplication IDs containing whitespace or controls are rejected rather than cleaned, and errors expose only `WebhookPayloadError`, never secret or payload markers.
+Add table tests for missing/oversized/invalid `id`, `to`, `to_user_id`, `to_parent_user_id`, timestamp, body, media ID, MIME, hash, filename, and control references. Cover the distinct official parent form `<ISO>.ENT.<suffix>`. Assert echo/control and standard message/status deduplication IDs containing whitespace or C0/C1 controls are rejected rather than cleaned, and errors expose only `WebhookPayloadError`, never secret or payload markers.
 
 - [ ] **Step 2: Run the focused RED tests**
 
@@ -70,7 +70,7 @@ Expected: FAIL because `smb_message_echoes` is ignored and the new event contrac
 
 - [ ] **Step 3: Add strict field routing and echo normalization**
 
-Route only `messages` and `smb_message_echoes`. Reuse current cleaning/limits for text and media. Canonicalize `to` to digits only when present; validate `to_user_id` in the documented BSUID format (uppercase two-letter ISO prefix, dot, then 1-128 alphanumerics) when present; validate `to_parent_user_id` independently when present. Require at least one of `to` or `to_user_id`, while preserving the official legacy phone-only payload. Do not derive one identity from the other. Require an epoch timestamp, map supported types to the current `MessageType`, and preserve unknown message activity as `UNSUPPORTED`.
+Route only `messages` and `smb_message_echoes`. Reuse current cleaning/limits for text and media. Canonicalize `to` to digits only when present; validate `to_user_id` in the documented BSUID format (uppercase two-letter ISO prefix, dot, then 1-128 alphanumerics) when present; validate `to_parent_user_id` independently in the distinct parent format (uppercase two-letter ISO prefix, `.ENT.`, then 1-128 alphanumerics). Require at least one of `to` or `to_user_id`, while preserving the official legacy phone-only payload. Do not derive one identity from the other. Require an epoch timestamp, map supported types to the current `MessageType`, and preserve unknown message activity as `UNSUPPORTED`.
 
 Recognize valid edit/revoke controls as no-op normalized events with their own stable identity. Preserve the event ID and original-message reference exactly; reject whitespace, controls or oversize instead of trimming/sanitizing deduplication identity. Reject malformed supported items so Meta retries instead of silently losing them.
 

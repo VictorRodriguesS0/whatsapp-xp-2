@@ -77,7 +77,7 @@ Um eco normalizado contém somente:
 - `whatsappMessageId` limitado, validado e preservado exatamente, sem trim ou remoção de controles;
 - telefone legado `to` canônico com dígitos quando presente, ou `null` quando omitido;
 - `toUserId` no formato BSUID `<ISO alpha-2>.<1-128 alfanuméricos>` quando presente, ou `null` no payload oficial legado que fornece apenas `to`;
-- `toParentUserId` separado no mesmo formato quando presente, ou `null` quando omitido;
+- `toParentUserId` separado no formato parent BSUID `<ISO alpha-2>.ENT.<1-128 alfanuméricos>` quando presente, ou `null` quando omitido;
 - timestamp válido;
 - tipo permitido/`UNSUPPORTED`;
 - texto ou metadados de mídia sanitizados;
@@ -85,7 +85,7 @@ Um eco normalizado contém somente:
 
 O número de origem da loja não será usado como contato. Para ecos, o destinatário precisa fornecer pelo menos um entre o telefone legado `to` e o BSUID `to_user_id`; qualquer campo declarado é validado estritamente. O payload oficial legado com somente `to` permanece aceito, assim como o payload sem telefone que fornece BSUID válido. Não há inferência de uma identidade a partir da outra. Esta Task 1 apenas preserva as duas identidades no contrato normalizado e não altera schema nem persistência. A Task 2 deverá reconciliar BSUID e telefone, quando ambos existirem, para convergir no mesmo contato sem criar duplicata. Texto mantém o mesmo limite de 4.096 caracteres; nomes de arquivo, MIME, hash e IDs de mídia reutilizam os limites e limpadores existentes. Um item suportado malformado rejeita o payload com erro público seguro para que a Meta possa tentar novamente, sem registrar o conteúdo.
 
-Eventos `edit` e `revoke` exigem `id`, timestamp e referência original válidos, são deduplicados e marcados como processados sem alterar a mensagem original nesta versão. O ID do evento e a referência original também são preservados exatamente; whitespace, controles e valores acima do limite são rejeitados em vez de sanitizados. A mesma validação exata passa a proteger os IDs de mensagens e statuses padrão usados nas chaves de deduplicação, sem alterar payloads válidos.
+Eventos `edit` e `revoke` exigem `id`, timestamp e referência original válidos, são deduplicados e marcados como processados sem alterar a mensagem original nesta versão. O ID do evento e a referência original também são preservados exatamente; whitespace, controles C0/C1 e valores acima do limite são rejeitados em vez de sanitizados. A mesma validação exata passa a proteger os IDs de mensagens e statuses padrão usados nas chaves de deduplicação, sem alterar payloads válidos.
 
 ### Persistência
 

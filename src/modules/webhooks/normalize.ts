@@ -88,7 +88,7 @@ function exactIdentifier(value: unknown, maximumLength: number): string | null {
     typeof value !== "string" ||
     value.length === 0 ||
     value.length > maximumLength ||
-    /[\s\u0000-\u001f\u007f]/u.test(value)
+    /[\s\u0000-\u001f\u007f-\u009f]/u.test(value)
   ) {
     return null;
   }
@@ -98,6 +98,13 @@ function exactIdentifier(value: unknown, maximumLength: number): string | null {
 
 function businessScopedUserId(value: unknown): string | null {
   return typeof value === "string" && /^[A-Z]{2}\.[A-Za-z0-9]{1,128}$/.test(value)
+    ? value
+    : null;
+}
+
+function parentBusinessScopedUserId(value: unknown): string | null {
+  return typeof value === "string" &&
+    /^[A-Z]{2}\.ENT\.[A-Za-z0-9]{1,128}$/.test(value)
     ? value
     : null;
 }
@@ -280,7 +287,7 @@ function normalizeMessageEcho(
   const toUserId = hasUserId ? businessScopedUserId(message?.to_user_id) : null;
   const hasParentUserId = message ? hasOwn(message, "to_parent_user_id") : false;
   const toParentUserId = hasParentUserId
-    ? businessScopedUserId(message?.to_parent_user_id)
+    ? parentBusinessScopedUserId(message?.to_parent_user_id)
     : null;
   const rawType = strictCleanString(message?.type, 64);
   const parsedTimestamp = parseTimestamp(message?.timestamp);

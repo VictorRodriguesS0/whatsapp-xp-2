@@ -353,13 +353,13 @@ describe("Meta webhook normalization", () => {
   it("preserves a valid parent BSUID separately from the recipient BSUID", () => {
     const payload = messageEchoFixture() as Record<string, any>;
     payload.entry[0].changes[0].value.message_echoes[0].to_parent_user_id =
-      "BR.Parent456";
+      "BR.ENT.118ABC";
 
     expect(normalizeWebhook(payload)).toEqual([
       expect.objectContaining({
         kind: "messageEcho",
         toUserId: "BR.Customer123",
-        toParentUserId: "BR.Parent456",
+        toParentUserId: "BR.ENT.118ABC",
       }),
     ]);
   });
@@ -380,7 +380,18 @@ describe("Meta webhook normalization", () => {
     expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
 
-  it.each([null, "br.Parent456", "BR.Parent-456", "BR.Parent456 "])(
+  it.each([
+    null,
+    "BR.Parent456",
+    "br.ENT.118ABC",
+    "BR.ent.118ABC",
+    "BRA.ENT.118ABC",
+    "BR.ENT.",
+    `BR.ENT.${"a".repeat(129)}`,
+    "BR.ENT.118-ABC",
+    " BR.ENT.118ABC",
+    "BR.ENT.118ABC\u0000suffix",
+  ])(
     "rejects an invalid optional parent BSUID when it is present",
     (toParentUserId) => {
       const payload = messageEchoFixture() as Record<string, any>;
@@ -398,6 +409,8 @@ describe("Meta webhook normalization", () => {
     ["id", " wamid.echo-text"],
     ["id", "wamid.echo-text "],
     ["id", "wamid.echo\u0000text"],
+    ["id", "wamid.echo\u0080text"],
+    ["id", "wamid.echo\u009ftext"],
     ["to", undefined],
     ["to", "not-a-recipient"],
     ["to", "1".repeat(33)],
