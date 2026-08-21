@@ -60,6 +60,9 @@ const defaultInbox = {
   sendRecording: vi.fn(),
   retryMessage: vi.fn(),
   markRead: vi.fn(),
+  markUnread: vi.fn().mockResolvedValue(undefined),
+  markUnreadPending: false,
+  markUnreadError: null,
   setResponsible: vi.fn(),
 };
 
@@ -185,5 +188,24 @@ describe("InboxShell", () => {
       file,
       audioRecorder.recording?.clientRequestId,
     ));
+  });
+
+  it("routes the header manual unread action through the selected conversation", () => {
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Marcar como não lida" }));
+    expect(defaultInbox.markUnread).toHaveBeenCalledWith("conversation-id");
   });
 });

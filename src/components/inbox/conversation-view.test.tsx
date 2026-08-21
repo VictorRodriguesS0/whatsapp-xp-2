@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
@@ -165,5 +165,32 @@ describe("ConversationView", () => {
 
     expect(useAudioRecorderMock).toHaveBeenLastCalledWith({ scopeKey: "conversation-id" });
     expect(handlers.onSendRecording).toHaveBeenCalledWith(file, audioRecorder.recording.clientRequestId);
+  });
+
+  it("offers the 44px manual unread action and restores focus after it settles", async () => {
+    const onMarkUnread = vi.fn().mockResolvedValue(undefined);
+    const unreadProps = { markUnreadError: null, markUnreadPending: false, onMarkUnread };
+    render(<ConversationView {...handlers} {...unreadProps} conversation={conversation} />);
+
+    const action = screen.getByRole("button", { name: "Marcar como não lida" });
+    expect(action).toHaveClass("min-h-11");
+    fireEvent.click(action);
+
+    await waitFor(() => expect(onMarkUnread).toHaveBeenCalledWith(conversation.id));
+    expect(action).toHaveFocus();
+  });
+
+  it("keeps the manual unread action unavailable while saving and exposes a safe error", () => {
+    const unreadProps = {
+      markUnreadError: "Não foi possível marcar como não lida.",
+      markUnreadPending: true,
+      onMarkUnread: vi.fn().mockResolvedValue(undefined),
+    };
+    render(<ConversationView {...handlers} {...unreadProps} conversation={conversation} />);
+
+    const action = screen.getByRole("button", { name: "Marcar como não lida" });
+    expect(action).toBeDisabled();
+    expect(action).toHaveAttribute("aria-busy", "true");
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível marcar como não lida.");
   });
 });

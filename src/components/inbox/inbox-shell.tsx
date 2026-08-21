@@ -119,7 +119,10 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               detailsTriggerRef={detailsTrigger}
               error={inbox.conversationError}
               loading={inbox.loadingConversation}
+              markUnreadError={inbox.markUnreadError}
+              markUnreadPending={inbox.markUnreadPending}
               onBack={backToList}
+              onMarkUnread={inbox.markUnread}
               onOpenDetails={() => setDetailsOpen(true)}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}

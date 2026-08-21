@@ -5,7 +5,8 @@ export type PublicErrorOperation =
   | "conversation"
   | "send"
   | "retry"
-  | "responsible";
+  | "responsible"
+  | "unread";
 
 const fallback: Record<PublicErrorOperation, string> = {
   login: "Não foi possível entrar agora. Tente novamente.",
@@ -15,6 +16,7 @@ const fallback: Record<PublicErrorOperation, string> = {
   send: "Não foi possível enviar a mensagem.",
   retry: "Não foi possível reenviar a mensagem.",
   responsible: "Não foi possível alterar o responsável.",
+  unread: "Não foi possível marcar como não lida.",
 };
 
 export function publicErrorMessage(operation: PublicErrorOperation, status?: number, network = false) {

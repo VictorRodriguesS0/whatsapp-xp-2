@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, Info } from "lucide-react";
+import { ArrowLeft, CircleDot, Info, LoaderCircle } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -29,14 +29,26 @@ function prefersReducedMotion() {
 function ConversationHeader({
   conversation,
   detailsTriggerRef,
+  markUnreadError,
+  markUnreadPending,
   onBack,
+  onMarkUnread,
   onOpenDetails,
 }: {
   conversation: InboxConversation | null;
   detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
+  markUnreadError?: string | null;
+  markUnreadPending?: boolean;
   onBack: () => void;
+  onMarkUnread?: (conversationId: string) => Promise<unknown>;
   onOpenDetails: () => void;
 }) {
+  async function handleMarkUnread(action: HTMLButtonElement) {
+    if (!conversation || !onMarkUnread) return;
+    await onMarkUnread(conversation.id);
+    action.focus();
+  }
+
   return (
     <header className="flex min-h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
       <Button aria-label="Voltar para conversas" className="mobile-back" onClick={onBack} size="icon" variant="ghost"><ArrowLeft aria-hidden="true" className="size-5" /></Button>
@@ -49,6 +61,20 @@ function ConversationHeader({
           <div className="min-w-0 flex-1"><h2 className="truncate font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>{conversation.contact.name}</h2><p className="truncate text-xs text-[var(--muted)]">{conversation.contact.phone}</p></div>
         </>
       ) : <h2 className="min-w-0 flex-1 font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>Conversa</h2>}
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <Button
+          aria-busy={markUnreadPending || undefined}
+          aria-label="Marcar como não lida"
+          className="w-11 px-0 sm:w-auto sm:px-3"
+          disabled={!conversation || !onMarkUnread || markUnreadPending}
+          onClick={(event) => void handleMarkUnread(event.currentTarget)}
+          variant="secondary"
+        >
+          {markUnreadPending ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <CircleDot aria-hidden="true" className="size-4" />}
+          <span className="hidden sm:inline">{markUnreadPending ? "Marcando…" : "Marcar como não lida"}</span>
+        </Button>
+        {markUnreadError ? <p className="max-w-40 text-right text-xs text-[var(--danger)]" role="alert">{markUnreadError}</p> : null}
+      </div>
       <Button asChild aria-label="Abrir dados do cliente" className="details-trigger" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost">
         <button ref={detailsTriggerRef} type="button"><Info aria-hidden="true" className="size-5" /></button>
       </Button>
@@ -62,6 +88,9 @@ export function ConversationView({
   loading,
   error,
   onBack,
+  markUnreadError = null,
+  markUnreadPending = false,
+  onMarkUnread,
   onOpenDetails,
   onRetryLoad,
   onVisibleMessage,
@@ -75,6 +104,9 @@ export function ConversationView({
   loading: boolean;
   error: string | null;
   onBack: () => void;
+  markUnreadError?: string | null;
+  markUnreadPending?: boolean;
+  onMarkUnread?: (conversationId: string) => Promise<unknown>;
   onOpenDetails: () => void;
   onRetryLoad: () => void;
   onVisibleMessage: (messageId: string) => void;
@@ -140,7 +172,15 @@ export function ConversationView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ConversationHeader conversation={conversation} detailsTriggerRef={detailsTriggerRef} onBack={onBack} onOpenDetails={onOpenDetails} />
+      <ConversationHeader
+        conversation={conversation}
+        detailsTriggerRef={detailsTriggerRef}
+        markUnreadError={markUnreadError}
+        markUnreadPending={markUnreadPending}
+        onBack={onBack}
+        onMarkUnread={onMarkUnread}
+        onOpenDetails={onOpenDetails}
+      />
 
       {loading && !conversation ? <div className="flex flex-1 items-center justify-center"><Spinner label="Carregando histórico" /></div> : null}
 

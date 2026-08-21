@@ -24,6 +24,10 @@ function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.00
     lastMessageAt,
     latestMessage: null,
     unreadCount: 0,
+    manuallyUnread: false,
+    manualUnreadRevision: null,
+    awaitingResponseSince: null,
+    revision: lastMessageAt,
   };
 }
 
@@ -618,6 +622,155 @@ describe("useInbox", () => {
       observedManualUnreadRevision: manualUnreadRevision,
     });
     await waitFor(() => expect(listFetches).toBeGreaterThan(1));
+  });
+
+  it("marks a conversation unread once and refreshes shared list and selected detail", async () => {
+    let listFetches = 0;
+    let detailFetches = 0;
+    let unreadFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [listItem("conversation-id")], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail("conversation-id"), error: null });
+      }
+      if (url === "/api/conversations/conversation-id/unread" && init?.method === "POST") {
+        unreadFetches += 1;
+        return response({
+          data: {
+            conversationId: "conversation-id",
+            unreadCount: 0,
+            manuallyUnread: true,
+            manualUnreadRevision: "2026-08-21T12:00:00.000Z",
+            awaitingResponseSince: null,
+            revision: "2026-08-21T12:00:00.000Z",
+          },
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    expect(hook.result.current).toHaveProperty("markUnread");
+    const inbox = hook.result.current as unknown as { markUnread: (id: string) => Promise<void> };
+    await act(async () => { await Promise.all([inbox.markUnread("conversation-id"), inbox.markUnread("conversation-id")]); });
+
+    expect(unreadFetches).toBe(1);
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
+  });
+
+  it("keeps the manual unread failure safe for the selected conversation", async () => {
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("conversation-id")], nextCursor: null }, error: null });
+      if (url === "/api/conversations/conversation-id/messages") return response({ data: conversationDetail("conversation-id"), error: null });
+      if (url === "/api/conversations/conversation-id/unread" && init?.method === "POST") {
+        return response({ data: null, error: { message: "Graph OAuthException 190" } }, false, 502);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    const inbox = hook.result.current as unknown as { markUnread: (id: string) => Promise<void> };
+    await act(() => inbox.markUnread("conversation-id"));
+
+    expect(hook.result.current.markUnreadError).toBe("Não foi possível marcar como não lida.");
+    expect(hook.result.current.markUnreadError).not.toMatch(/Graph|OAuthException|190/i);
+  });
+
+  it("refreshes the first page for every shared update but reloads detail only for the selected conversation", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [listItem("conversation-a"), listItem("conversation-b")], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail("conversation-a"), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.updated",
+        conversationId: "conversation-a",
+        revision: "2026-08-21T12:00:00.000Z",
+      });
+    });
+    await waitFor(() => expect(detailFetches).toBe(2));
+    expect(listFetches).toBe(2);
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.updated",
+        conversationId: "conversation-b",
+        revision: "2026-08-21T12:01:00.000Z",
+      });
+    });
+    await waitFor(() => expect(listFetches).toBe(3));
+    expect(detailFetches).toBe(2);
+  });
+
+  it("acknowledges the selected conversation with its own manual-unread revision", async () => {
+    const revisionA = "2026-08-21T12:00:00.000Z";
+    const revisionB = "2026-08-21T12:01:00.000Z";
+    let readBody: unknown;
+    const messageFor = (id: string) => ({
+      id: `message-${id}`,
+      direction: "INBOUND" as const,
+      type: "TEXT" as const,
+      body: "Olá",
+      mediaObjectId: null,
+      sentBy: null,
+      status: "RECEIVED" as const,
+      failureReason: null,
+      externalTimestamp: revisionA,
+      createdAt: revisionA,
+    });
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url === "/api/conversations/conversation-a/messages") {
+        return response({ data: { ...conversationDetail("conversation-a", [messageFor("a")]), manuallyUnread: true, manualUnreadRevision: revisionA }, error: null });
+      }
+      if (url === "/api/conversations/conversation-b/messages") {
+        return response({ data: { ...conversationDetail("conversation-b", [messageFor("b")]), manuallyUnread: true, manualUnreadRevision: revisionB }, error: null });
+      }
+      if (url === "/api/conversations/conversation-b/read" && init?.method === "POST") {
+        readBody = JSON.parse(String(init.body));
+        return response({ data: {}, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+    await act(() => hook.result.current.openConversation("conversation-b"));
+    await act(() => hook.result.current.markRead("conversation-b", "message-b"));
+
+    expect(readBody).toEqual({ messageId: "message-b", observedManualUnreadRevision: revisionB });
   });
 
   it("clears the previous detail when the next conversation cannot be loaded", async () => {

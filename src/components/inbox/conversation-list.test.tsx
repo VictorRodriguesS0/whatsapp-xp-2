@@ -42,6 +42,23 @@ describe("ConversationList", () => {
     expect(screen.getByText("Marcos")).toBeVisible();
   });
 
+  it("keeps shared unread state distinct from awaiting a response", () => {
+    render(
+      <ConversationList
+        items={[
+          { ...fixture, unreadCount: 0, manuallyUnread: true, awaitingResponseSince: null },
+          { ...fixture, id: "10000000-0000-4000-8000-000000000002", unreadCount: 0, manuallyUnread: false },
+        ]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByLabelText("Conversa marcada como não lida")).toBeVisible();
+    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.getAllByText("Aguardando resposta")).toHaveLength(1);
+  });
+
   it("exposes the selected conversation and a 44px interaction target", () => {
     const onSelect = vi.fn();
     render(<ConversationList items={[fixture]} selectedId={fixture.id} onSelect={onSelect} />);
