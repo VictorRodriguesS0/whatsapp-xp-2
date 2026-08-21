@@ -76,6 +76,44 @@ describe("demonstration seed", () => {
       carlosReads[1]!.lastReadMessageId,
     );
 
+    const carlosMessages = await prisma.message.findMany({
+      where: { conversationId: conversations[0]!.id },
+      orderBy: [{ externalTimestamp: "asc" }, { id: "asc" }],
+    });
+    const latestOutbound = carlosMessages
+      .filter((message) => message.direction === "OUTBOUND")
+      .at(-1)!;
+    const trailingInbound = carlosMessages.filter(
+      (message) =>
+        message.direction === "INBOUND" &&
+        (message.externalTimestamp > latestOutbound.externalTimestamp ||
+          (message.externalTimestamp.getTime() ===
+            latestOutbound.externalTimestamp.getTime() &&
+            message.id > latestOutbound.id)),
+    );
+    const expectedAwaitingResponseSince = trailingInbound.reduce(
+      (earliest, message) =>
+        message.externalTimestamp < earliest
+          ? message.externalTimestamp
+          : earliest,
+      trailingInbound[0]!.externalTimestamp,
+    );
+    const carlosSharedState = await prisma.conversation.findUniqueOrThrow({
+      where: { id: conversations[0]!.id },
+    });
+    expect(carlosSharedState.awaitingResponseSince).toEqual(
+      expectedAwaitingResponseSince,
+    );
+
+    const reads = await prisma.conversationRead.findMany({
+      include: { lastReadMessage: true },
+    });
+    for (const read of reads) {
+      expect(read.lastReadMessage).not.toBeNull();
+      expect(read.lastReadAt.getTime()).toBeGreaterThanOrEqual(
+        read.lastReadMessage!.externalTimestamp.getTime(),
+      );
+    }
   });
 
   it("initializes a retry after a conversation-only interrupted seed", async () => {
