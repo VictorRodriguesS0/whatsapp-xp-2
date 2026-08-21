@@ -223,6 +223,8 @@ Se a assinatura não convergir ou se a release apresentar falha, execute o rollb
 
 A imagem genérica anterior às identidades de contato anuláveis não é um alvo válido de rollback. Registre antes do deploy o digest da imagem de compatibilidade aprovada; não recrie PostgreSQL, Caddy, volumes, redes ou outros serviços durante esse procedimento.
 
+O registro sanitizado da tentativa de produção de 21 de agosto de 2026 está em `docs/verification/2026-08-21-whatsapp-business-app-message-echoes.md`. Essa tentativa terminou no rollback de segurança previsto; o documento não autoriza reativar a assinatura sem uma nova janela controlada.
+
 ### Janela de atendimento de 24 horas
 
 Mensagens livres de atendimento só podem ser enviadas dentro da janela de 24 horas após a última mensagem do cliente. Fora dela, a Meta exige template aprovado e pode recusar o envio. Este MVP registra a falha retornada, mas não implementa seleção/envio de templates. Não tente contornar a política; responda após nova mensagem do cliente ou implemente templates oficiais em uma evolução controlada.
