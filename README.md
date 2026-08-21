@@ -339,6 +339,81 @@ curl --fail --silent http://127.0.0.1:3100/api/health
 
 O entrypoint aplica migrations antes do servidor. Nunca atualize simultaneamente o site principal e esta central, e nunca reutilize seus volumes ou `.env`.
 
+### Migration de dados com writers drenados
+
+Uma migration que recalcula dados derivados a partir de tabelas ainda escritas pelo app não deve executar enquanto o runtime anterior aceita mensagens. Um único `UPDATE` é transacional e pode ser idempotente, mas seu snapshot pode anteceder um writer concorrente que já inseriu uma mensagem e ainda aguarda o lock da conversa. Para esse tipo de release, use uma janela curta com a única instância de `app` parada. Caddy, PostgreSQL, volumes, redes, outros containers e a assinatura Meta permanecem intactos; callbacks recebidos na janela devem ser recuperados pelos retries da Meta.
+
+Antes da janela, fixe os nomes imutáveis das imagens candidata e de rollback, valide um backup novo e confirme que existe somente uma instância de `xp-whatsapp-app`. Não carregue `.env.production` como script de shell e não imprima o Compose resolvido, porque valores com espaços não são shell-safe e a configuração contém segredos.
+
+```sh
+CANDIDATE_RELEASE='/opt/apps/example-app/releases/<commit-candidato>'
+CANDIDATE_IMAGE='xp-whatsapp:<commit-candidato>'
+ROLLBACK_IMAGE='xp-whatsapp:<commit-anterior-compativel>'
+cd "$CANDIDATE_RELEASE/deploy/kvm"
+
+# O backup deve terminar e validar antes do drain.
+"$CANDIDATE_RELEASE/scripts/backup.sh" /srv/backups/example-app
+
+# Drene somente o app e falhe fechado se outro writer continuar conectado.
+docker compose --env-file .env.production stop app
+test "$(docker inspect --format '{{.State.Status}}' xp-whatsapp-app)" = 'exited'
+
+app_db_sessions=$(
+  docker compose --env-file .env.production exec -T database sh -lc \
+    'psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atq' <<'SQL'
+SELECT count(*)
+FROM pg_stat_activity
+WHERE datname = current_database()
+  AND backend_type = 'client backend'
+  AND pid <> pg_backend_pid();
+SQL
+)
+test "$app_db_sessions" = '0'
+
+# O entrypoint da candidata executa migrate deploy antes de iniciar o servidor.
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  docker compose --env-file .env.production up -d --no-deps --force-recreate app
+```
+
+Não execute uma migration one-off enquanto o app anterior estiver ativo. Após o `up`, acompanhe imediatamente estado, health e logs sanitizados. Se o entrypoint falhar, pare `app` para encerrar o restart loop e consulte somente o estado agregado da migration alvo:
+
+```sql
+SELECT
+  count(*) FILTER (WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL) AS applied,
+  count(*) FILTER (WHERE finished_at IS NULL AND rolled_back_at IS NULL) AS failed_or_incomplete,
+  count(*) FILTER (WHERE rolled_back_at IS NOT NULL) AS resolved_rolled_back
+FROM _prisma_migrations
+WHERE migration_name = '<migration-alvo>';
+```
+
+Se a migration alvo estiver falha ou incompleta, mantenha o app parado e use a CLI Prisma **da imagem candidata**, com o entrypoint sobrescrito, para resolver o registro como rolled back. Confirme `failed_or_incomplete=0` e tente iniciar a candidata exatamente mais uma vez:
+
+```sh
+docker compose --env-file .env.production stop app
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  docker compose --env-file .env.production run --rm --no-deps --entrypoint node app \
+  node_modules/prisma/build/index.js migrate resolve --rolled-back <migration-alvo>
+
+# Repita a consulta agregada e exija failed_or_incomplete=0.
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  docker compose --env-file .env.production up -d --no-deps --force-recreate app
+```
+
+Se essa única repetição falhar, pare o app, resolva novamente qualquer linha falha com a imagem candidata e confirme que não resta P3009. Em seguida rode `migrate deploy` e `migrate status` com a imagem de rollback, que não contém a migration nova, antes de reativá-la. Deixe a divergência histórica explicitamente registrada; não faça `UPDATE` manual.
+
+```sh
+XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
+  docker compose --env-file .env.production run --rm --no-deps --entrypoint node app \
+  node_modules/prisma/build/index.js migrate deploy
+XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
+  docker compose --env-file .env.production run --rm --no-deps --entrypoint node app \
+  node_modules/prisma/build/index.js migrate status
+XP_WHATSAPP_IMAGE="$ROLLBACK_IMAGE" \
+  docker compose --env-file .env.production up -d --no-deps --force-recreate app
+```
+
+Se a migration tiver concluído e somente o servidor candidato falhar, não resolva nem reverta a migration: confirme `migrate status` limpo com a imagem candidata e inicie diretamente a imagem anterior compatível. Em nenhum ramo reverta dados já aplicados. Só encerre a janela depois de health local/público, revisão/digest/UID/redes, migrations, auditoria exata dos dados, logs, Meta e snapshot de todos os containers non-app estarem aprovados.
+
 ## Rollback
 
 Rollback de código só é seguro quando a versão anterior aceita o schema já migrado:
