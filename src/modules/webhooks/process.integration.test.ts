@@ -12,6 +12,7 @@ import {
   WebhookStatus,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import { subscribeRealtime } from "@/modules/realtime/hub";
 import { resetTestDatabase } from "@/test/database";
 
 import { processWebhookEvents } from "./process";
@@ -215,6 +216,70 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       );
     });
 
+    it("publishes an ID-only conversation.merged event before message.created after commit", async () => {
+      const phoneContact = await prisma.contact.create({
+        data: {
+          whatsappId: "551100000025",
+          phone: "551100000025",
+          name: "Phone contact",
+        },
+      });
+      const bsuidContact = await prisma.contact.create({
+        data: {
+          whatsappId: null,
+          whatsappUserId: "BR.MergeRealtime",
+          phone: null,
+          name: "BSUID contact",
+        },
+      });
+      const targetConversation = await prisma.conversation.create({
+        data: {
+          contactId: phoneContact.id,
+          lastMessageAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+      });
+      const sourceConversation = await prisma.conversation.create({
+        data: {
+          contactId: bsuidContact.id,
+          lastMessageAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+      });
+      const abortController = new AbortController();
+      const reader = subscribeRealtime(abortController.signal).getReader();
+      await reader.read();
+
+      try {
+        await processWebhookEvents([
+          echoEvent("wamid.echo-merge-realtime", {
+            to: "551100000025",
+            toUserId: "BR.MergeRealtime",
+          }),
+        ]);
+
+        const decodeEvent = async () => {
+          const chunk = new TextDecoder().decode((await reader.read()).value);
+          return JSON.parse(chunk.split("data: ")[1]!.trim()) as unknown;
+        };
+        await expect(decodeEvent()).resolves.toEqual({
+          type: "conversation.merged",
+          sourceConversationId: sourceConversation.id,
+          targetConversationId: targetConversation.id,
+        });
+        await expect(decodeEvent()).resolves.toEqual({
+          type: "message.created",
+          conversationId: targetConversation.id,
+          messageId: expect.any(String),
+        });
+        await expect(
+          prisma.conversation.findUnique({
+            where: { id: sourceConversation.id },
+          }),
+        ).resolves.toBeNull();
+      } finally {
+        abortController.abort();
+      }
+    });
+
     it("preserves timestamp-only shared and per-user boundaries over equal-time pointers during convergence", async () => {
       const boundaryTimestamp = new Date("2026-08-21T12:00:00.000Z");
       await processWebhookEvents([
@@ -349,10 +414,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
             timestamp: new Date("2026-08-21T12:02:00.000Z"),
           }),
         ]),
-      ).rejects.toMatchObject({
-        message: "Falha ao processar webhook",
-        retryable: true,
-      });
+      ).resolves.toEqual({ processed: 0, duplicates: 0, quarantined: 1 });
 
       await expect(
         prisma.contact.findMany({
@@ -385,8 +447,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           },
         }),
       ).resolves.toMatchObject({
-        status: WebhookStatus.FAILED,
-        errorSummary: "processing_error:Error",
+        status: WebhookStatus.PROCESSED,
+        errorSummary: "quarantined:identity_conflict",
+        processedAt: expect.any(Date),
       });
     });
 
@@ -425,10 +488,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
             toUserId: "BR.LegacyPhoneConflict",
           }),
         ]),
-      ).rejects.toMatchObject({
-        message: "Falha ao processar webhook",
-        retryable: true,
-      });
+      ).resolves.toEqual({ processed: 0, duplicates: 0, quarantined: 1 });
 
       await expect(
         prisma.contact.findMany({
@@ -452,9 +512,77 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           },
         }),
       ).resolves.toMatchObject({
-        status: WebhookStatus.FAILED,
-        errorSummary: "processing_error:Error",
+        status: WebhookStatus.PROCESSED,
+        errorSummary: "quarantined:identity_conflict",
+        processedAt: expect.any(Date),
       });
+    });
+
+    it("quarantines conflicting cross-column candidates, continues the batch and deduplicates redelivery", async () => {
+      const firstCandidate = await prisma.contact.create({
+        data: {
+          whatsappId: null,
+          whatsappUserId: "BR.CrossColumnOne",
+          phone: "551100000021",
+          name: "First candidate",
+        },
+      });
+      const secondCandidate = await prisma.contact.create({
+        data: {
+          whatsappId: "551100000021",
+          whatsappUserId: "BR.CrossColumnTwo",
+          phone: null,
+          name: "Second candidate",
+        },
+      });
+      const originalCandidates = await prisma.contact.findMany({
+        where: { id: { in: [firstCandidate.id, secondCandidate.id] } },
+        orderBy: { id: "asc" },
+      });
+      const conflict = echoEvent("wamid.echo-cross-column-conflict", {
+        to: "551100000021",
+        toUserId: null,
+      });
+
+      await expect(
+        processWebhookEvents([
+          conflict,
+          echoEvent("wamid.echo-after-quarantine", {
+            to: "551100000022",
+            toUserId: null,
+          }),
+        ]),
+      ).resolves.toEqual({ processed: 1, duplicates: 0, quarantined: 1 });
+
+      await expect(
+        prisma.contact.findMany({
+          where: { id: { in: [firstCandidate.id, secondCandidate.id] } },
+          orderBy: { id: "asc" },
+        }),
+      ).resolves.toEqual(originalCandidates);
+      await expect(
+        prisma.message.findMany({ select: { whatsappMessageId: true } }),
+      ).resolves.toEqual([
+        { whatsappMessageId: "wamid.echo-after-quarantine" },
+      ]);
+      await expect(
+        prisma.webhookEvent.findUniqueOrThrow({
+          where: {
+            deduplicationKey:
+              "message-echo:wamid.echo-cross-column-conflict",
+          },
+        }),
+      ).resolves.toMatchObject({
+        status: WebhookStatus.PROCESSED,
+        errorSummary: "quarantined:identity_conflict",
+        processedAt: expect.any(Date),
+      });
+
+      await expect(processWebhookEvents([conflict])).resolves.toEqual({
+        processed: 0,
+        duplicates: 1,
+      });
+      await expect(prisma.message.count()).resolves.toBe(1);
     });
 
     it("allows a phone-less BSUID source whose legacy whatsappId is its own BSUID", async () => {
@@ -492,6 +620,44 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           phone: "551100000019",
         }),
       ]);
+      await expect(prisma.message.count()).resolves.toBe(1);
+    });
+
+    it("deterministically converges compatible cross-column phone candidates", async () => {
+      const canonical = await prisma.contact.create({
+        data: {
+          whatsappId: null,
+          whatsappUserId: null,
+          phone: "551100000020",
+          name: "Canonical phone",
+        },
+      });
+      await prisma.contact.create({
+        data: {
+          whatsappId: "551100000020",
+          whatsappUserId: null,
+          phone: null,
+          name: "Legacy phone",
+        },
+      });
+
+      await expect(
+        processWebhookEvents([
+          echoEvent("wamid.echo-cross-column-compatible", {
+            to: "551100000020",
+            toUserId: null,
+          }),
+        ]),
+      ).resolves.toEqual({ processed: 1, duplicates: 0 });
+
+      await expect(prisma.contact.findMany()).resolves.toEqual([
+        expect.objectContaining({
+          id: canonical.id,
+          whatsappId: "551100000020",
+          phone: "551100000020",
+        }),
+      ]);
+      await expect(prisma.conversation.count()).resolves.toBe(1);
       await expect(prisma.message.count()).resolves.toBe(1);
     });
 
@@ -602,6 +768,12 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           sentByUserId: user.id,
           status: MessageStatus.DELIVERED,
         });
+      await expect(
+        prisma.contact.findUniqueOrThrow({ where: { id: contact.id } }),
+      ).resolves.toMatchObject({
+        phone: "551100000005",
+        whatsappUserId: "BR.ApiDuplicate",
+      });
       await expect(prisma.message.count()).resolves.toBe(1);
       await expect(
         prisma.webhookEvent.findUnique({
@@ -610,6 +782,102 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           },
         }),
       ).resolves.toMatchObject({ status: WebhookStatus.PROCESSED });
+
+      await processWebhookEvents([
+        echoEvent("wamid.echo-api-duplicate-follow-up", {
+          to: null,
+          toUserId: "BR.ApiDuplicate",
+        }),
+      ]);
+      await expect(prisma.contact.count()).resolves.toBe(1);
+      await expect(prisma.conversation.count()).resolves.toBe(1);
+      await expect(
+        prisma.message.findMany({
+          orderBy: { externalTimestamp: "asc" },
+          select: { conversationId: true },
+        }),
+      ).resolves.toEqual([
+        { conversationId: conversation.id },
+        { conversationId: conversation.id },
+      ]);
+    });
+
+    it("quarantines a duplicate wamid whose echo identity contradicts the API conversation", async () => {
+      const actor = await prisma.user.create({
+        data: {
+          name: "Internal actor",
+          email: "echo-conflicting-actor@example.test",
+          passwordHash: "not-used",
+          role: UserRole.ADMIN,
+        },
+      });
+      const apiContact = await prisma.contact.create({
+        data: {
+          whatsappId: "551100000023",
+          phone: "551100000023",
+          name: "API contact",
+        },
+      });
+      const apiConversation = await prisma.conversation.create({
+        data: {
+          contactId: apiContact.id,
+          lastMessageAt: new Date("2026-08-21T12:00:00.000Z"),
+        },
+      });
+      const apiMessage = await prisma.message.create({
+        data: {
+          conversationId: apiConversation.id,
+          whatsappMessageId: "wamid.echo-api-conflicting-identity",
+          direction: MessageDirection.OUTBOUND,
+          type: MessageType.TEXT,
+          body: "authoritative API content",
+          sentByUserId: actor.id,
+          status: MessageStatus.DELIVERED,
+          externalTimestamp: new Date("2026-08-21T12:00:00.000Z"),
+        },
+      });
+      await prisma.contact.create({
+        data: {
+          whatsappId: "551100000024",
+          whatsappUserId: "BR.ConflictingApiIdentity",
+          phone: null,
+          name: "Conflicting BSUID contact",
+        },
+      });
+      const domainBefore = {
+        contacts: await prisma.contact.findMany({ orderBy: { id: "asc" } }),
+        conversations: await prisma.conversation.findMany({
+          orderBy: { id: "asc" },
+        }),
+        messages: await prisma.message.findMany({ orderBy: { id: "asc" } }),
+      };
+
+      await expect(
+        processWebhookEvents([
+          echoEvent("wamid.echo-api-conflicting-identity", {
+            to: null,
+            toUserId: "BR.ConflictingApiIdentity",
+            body: "must not replace",
+          }),
+        ]),
+      ).resolves.toEqual({ processed: 0, duplicates: 0, quarantined: 1 });
+
+      await expect(
+        prisma.contact.findMany({ orderBy: { id: "asc" } }),
+      ).resolves.toEqual(domainBefore.contacts);
+      await expect(
+        prisma.conversation.findMany({ orderBy: { id: "asc" } }),
+      ).resolves.toEqual(domainBefore.conversations);
+      await expect(
+        prisma.message.findMany({ orderBy: { id: "asc" } }),
+      ).resolves.toEqual(domainBefore.messages);
+      await expect(
+        prisma.message.findUniqueOrThrow({ where: { id: apiMessage.id } }),
+      ).resolves.toMatchObject({
+        body: "authoritative API content",
+        sentByUserId: actor.id,
+        status: MessageStatus.DELIVERED,
+      });
     });
 
     it("keeps newer inbound activity awaiting across a stale echo and clears on a latest echo", async () => {

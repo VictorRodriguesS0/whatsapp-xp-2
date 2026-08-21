@@ -35,6 +35,11 @@ type MessageRecord = {
   status: MessageStatusValue;
 };
 
+type ConversationMerge = {
+  sourceConversationId: string;
+  targetConversationId: string;
+};
+
 export type WebhookRepository = {
   reserveEvent(key: string, eventType: string): Promise<ReservationResult>;
   completeEvent(key: string): Promise<void>;
@@ -46,7 +51,8 @@ export type WebhookRepository = {
   resolveEchoContact(input: {
     phone: string | null;
     whatsappUserId: string | null;
-  }): Promise<{ id: string }>;
+    expectedConversationId: string | null;
+  }): Promise<{ id: string; mergedConversations: ConversationMerge[] }>;
   upsertConversation(contactId: string, timestamp: Date): Promise<{ id: string }>;
   findMessage(whatsappMessageId: string): Promise<MessageRecord | null>;
   createMedia(media: NormalizedMedia): Promise<{ id: string }>;
@@ -76,6 +82,11 @@ export type WebhookProcessDependencies = {
     eventType: string,
     errorSummary: string,
   ): Promise<void>;
+  quarantineEvent(
+    key: string,
+    eventType: string,
+    errorSummary: string,
+  ): Promise<void>;
   publishRealtime(event: RealtimeEvent): void;
   now?(): Date;
 };
@@ -96,6 +107,13 @@ export class WebhookProcessingError extends Error {
   ) {
     super("Falha ao processar webhook");
     this.name = "WebhookProcessingError";
+  }
+}
+
+class WebhookIdentityConflictError extends Error {
+  constructor() {
+    super("Conflicting echo contact identities");
+    this.name = "WebhookIdentityConflictError";
   }
 }
 
@@ -298,13 +316,17 @@ export function createPrismaWebhookRepository(
   async function resolveEchoContact(input: {
     phone: string | null;
     whatsappUserId: string | null;
-  }): Promise<{ id: string }> {
+    expectedConversationId: string | null;
+  }): Promise<{ id: string; mergedConversations: ConversationMerge[] }> {
     const identities: Prisma.ContactWhereInput[] = [];
     if (input.phone) {
       identities.push({ phone: input.phone }, { whatsappId: input.phone });
     }
     if (input.whatsappUserId) {
       identities.push({ whatsappUserId: input.whatsappUserId });
+    }
+    if (input.expectedConversationId) {
+      identities.push({ conversation: { id: input.expectedConversationId } });
     }
 
     const select = {
@@ -328,20 +350,8 @@ export function createPrismaWebhookRepository(
       where: { OR: identities },
       select,
     });
-    const phoneContact = input.phone
-      ? contacts.find(
-          (contact) =>
-            contact.phone === input.phone || contact.whatsappId === input.phone,
-        )
-      : undefined;
-    const bsuidContact = input.whatsappUserId
-      ? contacts.find(
-          (contact) => contact.whatsappUserId === input.whatsappUserId,
-        )
-      : undefined;
-
-    if (!phoneContact && !bsuidContact) {
-      return client.contact.create({
+    if (contacts.length === 0) {
+      const created = await client.contact.create({
         data: {
           whatsappId: input.phone,
           whatsappUserId: input.whatsappUserId,
@@ -350,57 +360,88 @@ export function createPrismaWebhookRepository(
         },
         select: { id: true },
       });
+      return { ...created, mergedConversations: [] };
     }
 
-    const target = phoneContact ?? bsuidContact!;
-    const source =
-      phoneContact && bsuidContact && phoneContact.id !== bsuidContact.id
-        ? bsuidContact
-        : null;
-
-    for (const contact of source ? [target, source] : [target]) {
+    const phoneIdentities = new Set<string>();
+    const whatsappUserIds = new Set<string>();
+    if (input.phone) phoneIdentities.add(input.phone);
+    if (input.whatsappUserId) whatsappUserIds.add(input.whatsappUserId);
+    for (const contact of contacts) {
+      if (contact.phone) phoneIdentities.add(contact.phone);
+      if (contact.whatsappUserId) whatsappUserIds.add(contact.whatsappUserId);
       const whatsappIdIsCanonicalUserId =
         contact.whatsappId !== null &&
         (contact.whatsappId === contact.whatsappUserId ||
           contact.whatsappId === input.whatsappUserId);
-      if (
-        input.phone &&
-        contact.whatsappId &&
-        contact.whatsappId !== input.phone &&
-        !whatsappIdIsCanonicalUserId
-      ) {
-        throw new Error("Conflicting echo contact identities");
-      }
-      if (
-        input.phone &&
-        contact.phone &&
-        contact.phone !== input.phone &&
-        contact.whatsappId !== input.phone
-      ) {
-        throw new Error("Conflicting echo contact identities");
-      }
-      if (
-        input.whatsappUserId &&
-        contact.whatsappUserId &&
-        contact.whatsappUserId !== input.whatsappUserId
-      ) {
-        throw new Error("Conflicting echo contact identities");
+      if (contact.whatsappId && !whatsappIdIsCanonicalUserId) {
+        phoneIdentities.add(contact.whatsappId);
       }
     }
+    if (phoneIdentities.size > 1 || whatsappUserIds.size > 1) {
+      throw new WebhookIdentityConflictError();
+    }
 
-    if (source) {
-      if (target.conversation && source.conversation) {
-        await mergeConversations(target.conversation, source.conversation);
+    const expectedCandidates = input.expectedConversationId
+      ? contacts.filter(
+          (contact) => contact.conversation?.id === input.expectedConversationId,
+        )
+      : [];
+    const canonicalPhoneCandidates = input.phone
+      ? contacts.filter((contact) => contact.phone === input.phone)
+      : [];
+    const legacyPhoneCandidates = input.phone
+      ? contacts.filter((contact) => contact.whatsappId === input.phone)
+      : [];
+    const bsuidCandidates = input.whatsappUserId
+      ? contacts.filter(
+          (contact) => contact.whatsappUserId === input.whatsappUserId,
+        )
+      : [];
+    const target =
+      expectedCandidates[0] ??
+      canonicalPhoneCandidates[0] ??
+      legacyPhoneCandidates[0] ??
+      bsuidCandidates[0];
+    if (!target || expectedCandidates.length > 1) {
+      throw new WebhookIdentityConflictError();
+    }
+
+    let targetConversation = target.conversation;
+    const mergedConversations: ConversationMerge[] = [];
+    const sources = contacts
+      .filter((contact) => contact.id !== target.id)
+      .sort((left, right) => left.id.localeCompare(right.id));
+    for (const source of sources) {
+      if (targetConversation && source.conversation) {
+        await mergeConversations(targetConversation, source.conversation);
+        mergedConversations.push({
+          sourceConversationId: source.conversation.id,
+          targetConversationId: targetConversation.id,
+        });
+        targetConversation = await client.conversation.findUniqueOrThrow({
+          where: { id: targetConversation.id },
+          select: {
+            id: true,
+            responsibleUserId: true,
+            lastMessageAt: true,
+            teamLastReadMessageId: true,
+            teamLastReadAt: true,
+            manualUnreadAt: true,
+            manualUnreadByUserId: true,
+          },
+        });
       } else if (source.conversation) {
         await client.conversation.update({
           where: { id: source.conversation.id },
           data: { contactId: target.id },
         });
+        targetConversation = source.conversation;
       }
       await client.contact.delete({ where: { id: source.id } });
     }
 
-    return client.contact.update({
+    const updated = await client.contact.update({
       where: { id: target.id },
       data: {
         whatsappId: target.whatsappId ?? input.phone,
@@ -409,6 +450,7 @@ export function createPrismaWebhookRepository(
       },
       select: { id: true },
     });
+    return { ...updated, mergedConversations };
   }
 
   return {
@@ -565,6 +607,40 @@ const defaultDependencies: WebhookProcessDependencies = {
         },
       });
     }),
+  quarantineEvent: (key, eventType, errorSummary) =>
+    runWebhookTransaction(prisma, async (transaction) => {
+      const existing = await transaction.webhookEvent.findUnique({
+        where: { deduplicationKey: key },
+        select: { id: true, status: true },
+      });
+
+      if (existing?.status === WebhookStatus.PROCESSED) {
+        return;
+      }
+
+      if (existing) {
+        await transaction.webhookEvent.update({
+          where: { id: existing.id },
+          data: {
+            eventType,
+            status: WebhookStatus.PROCESSED,
+            errorSummary,
+            processedAt: new Date(),
+          },
+        });
+        return;
+      }
+
+      await transaction.webhookEvent.create({
+        data: {
+          deduplicationKey: key,
+          eventType,
+          status: WebhookStatus.PROCESSED,
+          errorSummary,
+          processedAt: new Date(),
+        },
+      });
+    }),
   publishRealtime,
 };
 
@@ -621,12 +697,16 @@ async function processMessage(
   event: NormalizedMessageEvent,
   key: string,
   repository: WebhookRepository,
-): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null; pendingMediaId: string | null }> {
+): Promise<{
+  duplicate: boolean;
+  realtime: readonly RealtimeEvent[];
+  pendingMediaId: string | null;
+}> {
   const existing = await repository.findMessage(event.whatsappMessageId);
 
   if (existing) {
     await repository.completeEvent(key);
-    return { duplicate: true, realtime: null, pendingMediaId: null };
+    return { duplicate: true, realtime: [], pendingMediaId: null };
   }
 
   const contact = await repository.upsertContact({
@@ -653,11 +733,11 @@ async function processMessage(
   return {
     duplicate: false,
     pendingMediaId: media?.id ?? null,
-    realtime: {
+    realtime: [{
       type: "message.created",
       conversationId: message.conversationId,
       messageId: message.id,
-    },
+    }],
   };
 }
 
@@ -667,20 +747,28 @@ async function processMessageEcho(
   repository: WebhookRepository,
 ): Promise<{
   duplicate: boolean;
-  realtime: RealtimeEvent | null;
+  realtime: readonly RealtimeEvent[];
   pendingMediaId: string | null;
 }> {
   const existing = await repository.findMessage(event.whatsappMessageId);
-
-  if (existing) {
-    await repository.completeEvent(key);
-    return { duplicate: true, realtime: null, pendingMediaId: null };
-  }
-
   const contact = await repository.resolveEchoContact({
     phone: event.to,
     whatsappUserId: event.toUserId,
+    expectedConversationId: existing?.conversationId ?? null,
   });
+  const mergeRealtime: RealtimeEvent[] = contact.mergedConversations.map(
+    ({ sourceConversationId, targetConversationId }) => ({
+      type: "conversation.merged",
+      sourceConversationId,
+      targetConversationId,
+    }),
+  );
+
+  if (existing) {
+    await repository.completeEvent(key);
+    return { duplicate: true, realtime: mergeRealtime, pendingMediaId: null };
+  }
+
   const conversation = await repository.upsertConversation(
     contact.id,
     event.timestamp,
@@ -703,11 +791,14 @@ async function processMessageEcho(
   return {
     duplicate: false,
     pendingMediaId: media?.id ?? null,
-    realtime: {
-      type: "message.created",
-      conversationId: message.conversationId,
-      messageId: message.id,
-    },
+    realtime: [
+      ...mergeRealtime,
+      {
+        type: "message.created",
+        conversationId: message.conversationId,
+        messageId: message.id,
+      },
+    ],
   };
 }
 
@@ -717,11 +808,11 @@ async function processMessageEchoControl(
   repository: WebhookRepository,
 ): Promise<{
   duplicate: boolean;
-  realtime: RealtimeEvent | null;
+  realtime: readonly RealtimeEvent[];
   pendingMediaId: string | null;
 }> {
   await repository.completeEvent(key);
-  return { duplicate: false, realtime: null, pendingMediaId: null };
+  return { duplicate: false, realtime: [], pendingMediaId: null };
 }
 
 async function processStatus(
@@ -729,7 +820,7 @@ async function processStatus(
   key: string,
   repository: WebhookRepository,
   now: Date,
-): Promise<{ duplicate: boolean; realtime: RealtimeEvent | null; pendingMediaId: string | null }> {
+): Promise<{ duplicate: boolean; realtime: readonly RealtimeEvent[]; pendingMediaId: string | null }> {
   const message = await repository.findMessage(event.whatsappMessageId);
 
   if (!message) {
@@ -737,10 +828,10 @@ async function processStatus(
       throw new WebhookProcessingError(true);
     }
     await repository.completeEvent(key);
-    return { duplicate: false, realtime: null, pendingMediaId: null };
+    return { duplicate: false, realtime: [], pendingMediaId: null };
   }
 
-  let realtime: RealtimeEvent | null = null;
+  let realtime: RealtimeEvent[] = [];
 
   if (shouldApplyStatus(message.status, event.status)) {
     const updated = await repository.updateMessageStatus(
@@ -748,11 +839,11 @@ async function processStatus(
       event.status,
       event.failureReason,
     );
-    realtime = {
+    realtime = [{
       type: "message.status",
       conversationId: updated.conversationId,
       messageId: updated.id,
-    };
+    }];
   }
 
   await repository.completeEvent(key);
@@ -771,7 +862,7 @@ export async function processWebhookEvents(
     const now = dependencies.now?.() ?? new Date();
     let outcome: {
       duplicate: boolean;
-      realtime: RealtimeEvent | null;
+      realtime: readonly RealtimeEvent[];
       pendingMediaId: string | null;
     };
 
@@ -780,7 +871,7 @@ export async function processWebhookEvents(
         const reservation = await repository.reserveEvent(key, event.kind);
 
         if (reservation === WebhookStatus.PROCESSED) {
-          return { duplicate: true, realtime: null, pendingMediaId: null };
+          return { duplicate: true, realtime: [], pendingMediaId: null };
         }
 
         if (reservation === WebhookStatus.PROCESSING) {
@@ -799,6 +890,20 @@ export async function processWebhookEvents(
         }
       });
     } catch (error) {
+      if (error instanceof WebhookIdentityConflictError) {
+        try {
+          await dependencies.quarantineEvent(
+            key,
+            event.kind,
+            "quarantined:identity_conflict",
+          );
+        } catch {
+          throw new WebhookProcessingError(true, false);
+        }
+        summary.quarantined = (summary.quarantined ?? 0) + 1;
+        continue;
+      }
+
       const processingError =
         error instanceof WebhookProcessingError
           ? error
@@ -817,22 +922,21 @@ export async function processWebhookEvents(
 
     if (outcome.duplicate) {
       summary.duplicates += 1;
-      continue;
-    }
+    } else {
+      summary.processed += 1;
 
-    summary.processed += 1;
-
-    if (outcome.pendingMediaId && onMediaCommitted) {
-      try {
-        onMediaCommitted(outcome.pendingMediaId);
-      } catch {
-        // The committed media record remains available for on-demand recovery.
+      if (outcome.pendingMediaId && onMediaCommitted) {
+        try {
+          onMediaCommitted(outcome.pendingMediaId);
+        } catch {
+          // The committed media record remains available for on-demand recovery.
+        }
       }
     }
 
-    if (outcome.realtime) {
+    for (const realtime of outcome.realtime) {
       try {
-        dependencies.publishRealtime(outcome.realtime);
+        dependencies.publishRealtime(realtime);
       } catch {
         // Database state is authoritative; clients resynchronize after reconnecting.
       }

@@ -75,6 +75,33 @@ describe("useRealtime", () => {
     hook.unmount();
   });
 
+  it("routes only complete ID-only conversation.merged events", () => {
+    const onEvent = vi.fn();
+    const hook = renderHook(() =>
+      useRealtime({ onSync: vi.fn(), onEvent }),
+    );
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.merged",
+        sourceConversationId: "source-conversation-id",
+        targetConversationId: "target-conversation-id",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.merged",
+        sourceConversationId: "source-conversation-id",
+      });
+    });
+
+    expect(onEvent).toHaveBeenCalledOnce();
+    expect(onEvent).toHaveBeenCalledWith({
+      type: "conversation.merged",
+      sourceConversationId: "source-conversation-id",
+      targetConversationId: "target-conversation-id",
+    });
+    hook.unmount();
+  });
+
   it("reconnects exponentially with a 15 second cap", () => {
     const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent: vi.fn() }));
 

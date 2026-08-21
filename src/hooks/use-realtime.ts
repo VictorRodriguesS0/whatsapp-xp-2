@@ -27,9 +27,21 @@ function emitStatus(next: boolean) {
 
 function isRealtimeEvent(value: unknown): value is RealtimeEvent {
   if (!value || typeof value !== "object") return false;
-  const event = value as { type?: unknown; conversationId?: unknown; userId?: unknown };
+  const event = value as {
+    type?: unknown;
+    conversationId?: unknown;
+    sourceConversationId?: unknown;
+    targetConversationId?: unknown;
+    userId?: unknown;
+  };
   if (typeof event.type !== "string") return false;
   if (event.type === "user.updated") return typeof event.userId === "string";
+  if (event.type === "conversation.merged") {
+    return (
+      typeof event.sourceConversationId === "string" &&
+      typeof event.targetConversationId === "string"
+    );
+  }
   return ["conversation.updated", "message.created", "message.status", "read.updated", "responsible.updated"].includes(event.type)
     && typeof event.conversationId === "string";
 }

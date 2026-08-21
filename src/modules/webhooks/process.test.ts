@@ -138,7 +138,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
           existing.phone ??= phone;
           existing.whatsappId ??= phone;
           existing.whatsappUserId ??= whatsappUserId;
-          return { id: existing.id };
+          return { id: existing.id, mergedConversations: [] };
         }
         const created = {
           id: `contact-${target.contacts.size + 1}`,
@@ -148,7 +148,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
           name: phone ?? "WhatsApp",
         };
         target.contacts.set(created.id, created);
-        return { id: created.id };
+        return { id: created.id, mergedConversations: [] };
       },
       upsertConversation: async (contactId, timestamp) => {
         const existing = [...target.conversations.values()].find(
@@ -234,6 +234,13 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       state.events.set(key, {
         eventType,
         status: WebhookStatus.FAILED,
+        errorSummary,
+      });
+    },
+    quarantineEvent: async (key, eventType, errorSummary) => {
+      state.events.set(key, {
+        eventType,
+        status: WebhookStatus.PROCESSED,
         errorSummary,
       });
     },
