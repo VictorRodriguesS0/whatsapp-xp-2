@@ -33,6 +33,23 @@ $RestoreShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/r
 $BackupPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.ps1')
 $HelperShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.sh')
 $HelperPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.ps1')
+$Readme = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'README.md')
+
+if (
+  $BackupShell -notmatch 'docker compose --project-directory "\$PROJECT_ROOT" --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE"' -or
+  $BackupShell -match '(?m)^\s*(?:\.|source|eval)\s+.*ENV_FILE'
+) {
+  throw 'backup.sh deve encaminhar somente o caminho de ENV_FILE como opção global do Compose, sem carregar o segredo no shell.'
+}
+if (
+  $Readme -notmatch "APP_ROOT='/opt/apps/example-app'" -or
+  $Readme -notmatch 'ENV_FILE="\$APP_ROOT/\.env\.production"' -or
+  $Readme -notmatch 'COMPOSE_FILE="\$CANDIDATE_RELEASE/deploy/kvm/docker-compose\.yml"' -or
+  $Readme -notmatch '"\$CANDIDATE_RELEASE/scripts/backup\.sh" /srv/backups/example-app --env-file "\$ENV_FILE"' -or
+  $Readme -match 'docker compose --env-file \.env\.production'
+) {
+  throw 'O runbook de migration deve usar APP_ROOT/ENV_FILE/COMPOSE_FILE absolutos e não pode depender de .env.production relativo.'
+}
 
 if ($BackupShell -notmatch 'docker-helper-lib\.sh' -or $RestoreShell -notmatch 'docker-helper-lib\.sh') {
   throw 'Backup/restore shell devem usar o protocolo comum de ownership de helpers.'

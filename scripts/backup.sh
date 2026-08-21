@@ -1,14 +1,36 @@
 #!/bin/sh
 set -eu
 
-if [ "$#" -ne 1 ] && { [ "$#" -ne 3 ] || [ "$2" != '--path-file' ]; }; then
-  echo "Uso: $0 /caminho/absoluto/para/backups [--path-file /tmp/caminho]" >&2
+usage() {
+  echo "Uso: $0 /caminho/absoluto/para/backups [--env-file /caminho/absoluto/.env] [--path-file /tmp/caminho]" >&2
   exit 64
-fi
+}
+
+[ "$#" -ge 1 ] || usage
+OUTPUT_ROOT=$1
+shift
 
 PATH_FILE=
-if [ "$#" -eq 3 ]; then
-  PATH_FILE=$3
+ENV_FILE=
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --path-file)
+      [ "$#" -ge 2 ] || usage
+      [ -z "$PATH_FILE" ] || usage
+      PATH_FILE=$2
+      shift 2
+      ;;
+    --env-file)
+      [ "$#" -ge 2 ] || usage
+      [ -z "$ENV_FILE" ] || usage
+      ENV_FILE=$2
+      shift 2
+      ;;
+    *) usage ;;
+  esac
+done
+
+if [ -n "$PATH_FILE" ]; then
   case "$PATH_FILE" in
     /*) ;;
     *) echo 'O arquivo de retorno deve usar caminho absoluto.' >&2; exit 64 ;;
@@ -28,7 +50,18 @@ if [ "$#" -eq 3 ]; then
   fi
 fi
 
-case "$1" in
+if [ -n "$ENV_FILE" ]; then
+  case "$ENV_FILE" in
+    /*) ;;
+    *) echo 'O arquivo de ambiente deve usar caminho absoluto.' >&2; exit 64 ;;
+  esac
+  if [ ! -f "$ENV_FILE" ] || [ -L "$ENV_FILE" ]; then
+    echo 'O arquivo de ambiente deve ser um arquivo regular existente e não pode ser symlink.' >&2
+    exit 64
+  fi
+fi
+
+case "$OUTPUT_ROOT" in
   /*) ;;
   *) echo 'O diretório de backup deve ser um caminho absoluto explícito.' >&2; exit 64 ;;
 esac
@@ -37,7 +70,6 @@ SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 PROJECT_ROOT=$(CDPATH= cd -- "$SCRIPT_DIR/.." && pwd -P)
 COMPOSE_FILE="$PROJECT_ROOT/docker-compose.yml"
 . "$SCRIPT_DIR/docker-helper-lib.sh"
-OUTPUT_ROOT=$1
 
 mkdir -p -- "$OUTPUT_ROOT"
 OUTPUT_ROOT=$(CDPATH= cd -- "$OUTPUT_ROOT" && pwd -P)
@@ -58,7 +90,11 @@ fi
 mkdir -m 0700 -- "$BACKUP_DIR"
 
 compose() {
-  docker compose --project-directory "$PROJECT_ROOT" -f "$COMPOSE_FILE" "$@"
+  if [ -n "$ENV_FILE" ]; then
+    docker compose --project-directory "$PROJECT_ROOT" --env-file "$ENV_FILE" -f "$COMPOSE_FILE" "$@"
+  else
+    docker compose --project-directory "$PROJECT_ROOT" -f "$COMPOSE_FILE" "$@"
+  fi
 }
 
 DATABASE_CONTAINER=$(compose ps -q database)
