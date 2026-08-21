@@ -21,6 +21,7 @@ const fixture: ConversationListItem = {
     type: "TEXT",
     body: "Vocês têm esse modelo em estoque?",
     mediaObjectId: null,
+    mediaState: null,
     sentBy: null,
     status: "RECEIVED",
     failureReason: null,

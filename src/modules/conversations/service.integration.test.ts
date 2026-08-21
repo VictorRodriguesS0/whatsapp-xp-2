@@ -3,6 +3,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  MediaStatus,
   MessageDirection,
   MessageStatus,
   MessageType,
@@ -92,5 +93,50 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
       lastReadMessageId: higherId,
       unreadCount: 0,
     });
+  });
+
+  it("exposes only safe media recovery state in conversation DTOs", async () => {
+    const { conversation, user } = await seedEqualTimestampFixture();
+    const nextAttemptAt = new Date("2020-01-01T00:00:00.000Z");
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local-secret-provider",
+        storageKey: "secret-storage-key",
+        originalFilename: "private-provider-filename.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 4n,
+        sha256: "secret-hash",
+        metaMediaId: "secret-provider-id",
+        status: MediaStatus.PENDING,
+        failureReason: "secret-internal-reason",
+        downloadNextAttemptAt: nextAttemptAt,
+        downloadAttempts: 1,
+      },
+    });
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-19T12:01:00.000Z"),
+      },
+    });
+
+    const detail = await getConversation(user.id, conversation.id);
+    const dto = detail.messages.find((candidate) => candidate.id === message.id);
+
+    expect(dto?.mediaState).toEqual({
+      status: MediaStatus.PENDING,
+      nextAttemptAt: nextAttemptAt.toISOString(),
+      canRetry: true,
+    });
+    const serialized = JSON.stringify(dto);
+    expect(serialized).not.toContain("secret-storage-key");
+    expect(serialized).not.toContain("private-provider-filename.jpg");
+    expect(serialized).not.toContain("secret-hash");
+    expect(serialized).not.toContain("secret-provider-id");
+    expect(serialized).not.toContain("secret-internal-reason");
   });
 });

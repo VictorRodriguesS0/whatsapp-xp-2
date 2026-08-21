@@ -30,6 +30,7 @@ const message: InboxMessage = {
   type: "TEXT",
   body: "Olá",
   mediaObjectId: null,
+  mediaState: null,
   sentBy: null,
   status: "RECEIVED",
   failureReason: null,

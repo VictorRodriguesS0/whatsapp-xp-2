@@ -68,6 +68,7 @@ describe("conversation history route", () => {
           type: MessageType.TEXT,
           body: "Oi",
           mediaObjectId: null,
+          mediaState: null,
           sentBy: { id: actor.id, name: actor.name },
           status: MessageStatus.SENT,
           failureReason: null,
@@ -116,6 +117,7 @@ describe("conversation history route", () => {
           type: MessageType.DOCUMENT,
           body: null,
           mediaObjectId: id,
+          mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
           sentBy: { id: actor.id, name: actor.name },
           status: MessageStatus.SENT,
           failureReason: null,
@@ -163,6 +165,9 @@ describe("conversation history route", () => {
           type: MessageType.DOCUMENT,
           body: null,
           mediaObjectId: calls === 1 ? null : id,
+          mediaState: calls === 1
+            ? null
+            : { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
           sentBy: { id: actor.id, name: actor.name },
           status: calls === 1 ? MessageStatus.FAILED : MessageStatus.SENT,
           failureReason: calls === 1 ? "Falha local" : null,

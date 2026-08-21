@@ -9,8 +9,15 @@ import { MediaStatus, type MediaStatus as MediaStatusValue } from "@/generated/p
 import { prisma } from "@/lib/db";
 import { getServerEnv } from "@/lib/env";
 import { HttpError } from "@/lib/http";
+import {
+  MAX_MEDIA_DOWNLOAD_ATTEMPTS,
+  type MediaStateDto,
+  toMediaStateDto,
+} from "@/modules/conversations/types";
 import { messageUuidSchema } from "@/modules/messages/schemas";
 import { safeOriginalFilename } from "@/modules/messages/status";
+import type { RealtimeEvent } from "@/modules/realtime/events";
+import { publishRealtime } from "@/modules/realtime/hub";
 import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { WhatsAppProvider } from "@/modules/whatsapp/provider";
@@ -22,7 +29,7 @@ import { MediaValidationError, mediaRuleForMime, validateMediaFile } from "./val
 
 const DOWNLOAD_LEASE_MS = 2 * 60_000;
 const MAXIMUM_BACKOFF_MS = 30_000;
-export const MAX_MEDIA_DOWNLOAD_ATTEMPTS = 5;
+export { MAX_MEDIA_DOWNLOAD_ATTEMPTS };
 
 export type MediaObjectRecord = {
   id: string;
@@ -44,11 +51,13 @@ export type MediaObjectRecord = {
 export interface MediaServiceRepository {
   findById(id: string): Promise<MediaObjectRecord | null>;
   findVisibleById(id: string, actorId: string): Promise<MediaObjectRecord | null>;
+  findRealtimeTarget(id: string): Promise<{ messageId: string; conversationId: string } | null>;
+  resetFailed(id: string): Promise<boolean>;
   claimPending(id: string, input: { leaseId: string; now: Date; leaseUntil: Date }): Promise<MediaObjectRecord | null>;
   finalizeExhausted(id: string, now: Date, reason: string): Promise<boolean>;
   renewLease(id: string, leaseId: string, leaseUntil: Date): Promise<boolean>;
   markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }): Promise<boolean>;
-  markPermanentFailure(id: string, leaseId: string, reason: string): Promise<void>;
+  markPermanentFailure(id: string, leaseId: string, reason: string): Promise<boolean>;
   releaseTransientFailure(id: string, leaseId: string, input: { reason: string; nextAttemptAt: Date }): Promise<void>;
 }
 
@@ -63,6 +72,7 @@ export type MediaServiceDependencies = {
   taskLimiter?: MediaTaskLimiter;
   leaseMs?: number;
   leaseRenewIntervalMs?: number;
+  publishRealtime?: (event: Extract<RealtimeEvent, { type: "media.updated" }>) => void;
 };
 
 const mediaSelect = {
@@ -83,8 +93,35 @@ export const prismaMediaRepository: MediaServiceRepository = {
     return row ? mapMedia(row) : null;
   },
   async findVisibleById(id, _actorId) {
+    const actor = await prisma.user.findFirst({
+      where: { id: _actorId, active: true },
+      select: { id: true },
+    });
+    if (!actor) return null;
     const row = await prisma.mediaObject.findFirst({ where: { id, message: { isNot: null } }, select: mediaSelect });
     return row ? mapMedia(row) : null;
+  },
+  async findRealtimeTarget(id) {
+    return prisma.message.findUnique({
+      where: { mediaObjectId: id },
+      select: { id: true, conversationId: true },
+    }).then((message) => message
+      ? { messageId: message.id, conversationId: message.conversationId }
+      : null);
+  },
+  async resetFailed(id) {
+    const reset = await prisma.mediaObject.updateMany({
+      where: { id, status: MediaStatus.FAILED, message: { isNot: null } },
+      data: {
+        status: MediaStatus.PENDING,
+        failureReason: null,
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+        downloadNextAttemptAt: null,
+        downloadAttempts: 0,
+      },
+    });
+    return reset.count === 1;
   },
   async claimPending(id, input) {
     const claimed = await prisma.mediaObject.updateMany({
@@ -142,10 +179,11 @@ export const prismaMediaRepository: MediaServiceRepository = {
     return result.count === 1;
   },
   async markPermanentFailure(id, leaseId, reason) {
-    await prisma.mediaObject.updateMany({
+    const failed = await prisma.mediaObject.updateMany({
       where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
       data: { status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null },
     });
+    return failed.count === 1;
   },
   async releaseTransientFailure(id, leaseId, input) {
     await prisma.mediaObject.updateMany({
@@ -164,6 +202,7 @@ const defaultDependencies: MediaServiceDependencies = {
   mediaRoot,
   inFlight: new Map(),
   taskLimiter: defaultTaskLimiter,
+  publishRealtime,
 };
 
 function parsePublicUuid(value: string, notFoundMessage: string): string {
@@ -182,6 +221,19 @@ function transientBackoffMs(attempt: number): number {
   return Math.min(MAXIMUM_BACKOFF_MS, 1000 * 2 ** Math.max(0, Math.min(attempt - 1, 5)));
 }
 
+async function publishTerminalUpdate(
+  id: string,
+  dependencies: MediaServiceDependencies,
+): Promise<void> {
+  try {
+    const target = await dependencies.repository.findRealtimeTarget(id);
+    if (!target || !dependencies.publishRealtime) return;
+    dependencies.publishRealtime({ type: "media.updated", ...target, mediaId: id });
+  } catch {
+    // The committed database state remains authoritative.
+  }
+}
+
 async function persistPendingMedia(id: string, dependencies: MediaServiceDependencies): Promise<void> {
   const initial = await dependencies.repository.findById(id);
   if (!initial) throw new HttpError(404, "Mídia não encontrada");
@@ -191,7 +243,9 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
   const clock = dependencies.now ?? (() => new Date());
   const now = clock();
   if (initial.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
-    await dependencies.repository.finalizeExhausted(id, now, "Falha ao obter mídia; intervenção necessária");
+    if (await dependencies.repository.finalizeExhausted(id, now, "Falha ao obter mídia; intervenção necessária")) {
+      await publishTerminalUpdate(id, dependencies);
+    }
     return;
   }
   const leaseId = (dependencies.createUuid ?? randomUUID)();
@@ -245,12 +299,17 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
       storageKey: stored.key, sizeBytes: stored.sizeBytes, sha256: stored.sha256, mimeType: rule.mimeType,
     });
     if (!committed) await dependencies.storage.remove(stored.key).catch(() => undefined);
+    else await publishTerminalUpdate(id, dependencies);
   } catch (error) {
     if (storedKey) await dependencies.storage.remove(storedKey).catch(() => undefined);
     if (error instanceof MediaValidationError || (error instanceof WhatsAppProviderError && error.kind === "rejected")) {
-      await dependencies.repository.markPermanentFailure(id, leaseId, "Mídia remota inválida");
+      if (await dependencies.repository.markPermanentFailure(id, leaseId, "Mídia remota inválida")) {
+        await publishTerminalUpdate(id, dependencies);
+      }
     } else if (media.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
-      await dependencies.repository.markPermanentFailure(id, leaseId, "Falha ao obter mídia; intervenção necessária");
+      if (await dependencies.repository.markPermanentFailure(id, leaseId, "Falha ao obter mídia; intervenção necessária")) {
+        await publishTerminalUpdate(id, dependencies);
+      }
     } else {
       const attempt = media.downloadAttempts;
       await dependencies.repository.releaseTransientFailure(id, leaseId, {
@@ -277,6 +336,38 @@ export function ensureMediaAvailable(mediaId: string, dependencies: MediaService
   });
   dependencies.inFlight.set(id, task);
   return task;
+}
+
+export async function recoverMedia(
+  actorUserId: string,
+  mediaId: string,
+  manual: boolean,
+  dependencies: MediaServiceDependencies = defaultDependencies,
+): Promise<MediaStateDto> {
+  const actorId = parsePublicUuid(actorUserId, "Usuário não encontrado");
+  const id = parsePublicUuid(mediaId, "Mídia não encontrada");
+  let media = await dependencies.repository.findVisibleById(id, actorId);
+  if (!media) throw new HttpError(404, "Mídia não encontrada");
+
+  if (media.status === MediaStatus.FAILED) {
+    if (!manual) return toMediaStateDto(media, (dependencies.now ?? (() => new Date()))());
+    await dependencies.repository.resetFailed(id);
+    media = await dependencies.repository.findVisibleById(id, actorId);
+    if (!media) throw new HttpError(404, "Mídia não encontrada");
+  }
+
+  if (media.status === MediaStatus.PENDING) {
+    try {
+      await ensureMediaAvailable(id, dependencies, actorId);
+    } catch (error) {
+      const current = await dependencies.repository.findVisibleById(id, actorId);
+      if (!current || current.downloadLeaseId !== null) throw error;
+    }
+  }
+
+  const current = await dependencies.repository.findVisibleById(id, actorId);
+  if (!current) throw new HttpError(404, "Mídia não encontrada");
+  return toMediaStateDto(current, (dependencies.now ?? (() => new Date()))());
 }
 
 export async function getMediaForDownload(actorId: string, mediaId: string, dependencies: MediaServiceDependencies = defaultDependencies) {

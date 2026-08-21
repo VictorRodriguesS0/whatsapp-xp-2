@@ -11,7 +11,7 @@ import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { MediaUploadSource, WhatsAppProvider } from "@/modules/whatsapp/provider";
 import { LocalMediaStorage } from "./local-storage";
 import { MediaTaskLimiter } from "./task-limiter";
-import { ensureMediaAvailable, getMediaForDownload, type MediaObjectRecord, type MediaServiceDependencies, type MediaServiceRepository } from "./service";
+import { ensureMediaAvailable, getMediaForDownload, recoverMedia, type MediaObjectRecord, type MediaServiceDependencies, type MediaServiceRepository } from "./service";
 
 const mediaId = "30000000-0000-4000-8000-000000000001";
 const actorId = "00000000-0000-4000-8000-000000000001";
@@ -22,13 +22,36 @@ const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
 
 class MemoryMediaRepository implements MediaServiceRepository {
+  actorActive = true;
+  committed = false;
+  realtimeTargetError: Error | null = null;
   record: MediaObjectRecord = {
     id: mediaId, storageKey: null, originalFilename: "foto.jpg", mimeType: "image/jpeg", sizeBytes: 0n,
     sha256: sha256Base64, metaMediaId: "meta-1", status: MediaStatus.PENDING, failureReason: null,
     linkedToMessage: true, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null, downloadAttempts: 0,
   };
   async findById(id: string) { return id === this.record.id ? this.record : null; }
-  async findVisibleById(id: string, _actorId: string) { return id === this.record.id && this.record.linkedToMessage ? this.record : null; }
+  async findVisibleById(id: string, _actorId: string) { return id === this.record.id && this.record.linkedToMessage && this.actorActive ? this.record : null; }
+  async resetFailed(id: string) {
+    if (id !== this.record.id || this.record.status !== MediaStatus.FAILED) return false;
+    this.record = {
+      ...this.record,
+      status: MediaStatus.PENDING,
+      failureReason: null,
+      downloadLeaseId: null,
+      downloadLeaseUntil: null,
+      downloadNextAttemptAt: null,
+      downloadAttempts: 0,
+    };
+    this.committed = true;
+    return true;
+  }
+  async findRealtimeTarget(id: string) {
+    if (this.realtimeTargetError) throw this.realtimeTargetError;
+    return id === this.record.id && this.record.linkedToMessage
+      ? { messageId: "20000000-0000-4000-8000-000000000001", conversationId: "10000000-0000-4000-8000-000000000001" }
+      : null;
+  }
   async claimPending(id: string, input: { leaseId: string; now: Date; leaseUntil: Date }) {
     if (id !== this.record.id || this.record.status !== MediaStatus.PENDING ||
       (this.record.downloadLeaseUntil && this.record.downloadLeaseUntil > input.now) ||
@@ -40,11 +63,13 @@ class MemoryMediaRepository implements MediaServiceRepository {
     if (id !== this.record.id || this.record.status !== MediaStatus.PENDING || this.record.downloadAttempts < 5 ||
       (this.record.downloadLeaseUntil && this.record.downloadLeaseUntil > now)) return false;
     this.record = { ...this.record, status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
+    this.committed = true;
     return true;
   }
   async markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }) {
     if (id !== this.record.id || this.record.downloadLeaseId !== leaseId || this.record.status !== MediaStatus.PENDING) return false;
     this.record = { ...this.record, ...input, status: MediaStatus.AVAILABLE, failureReason: null, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
+    this.committed = true;
     return true;
   }
   async renewLease(id: string, leaseId: string, leaseUntil: Date) {
@@ -53,8 +78,12 @@ class MemoryMediaRepository implements MediaServiceRepository {
     return true;
   }
   async markPermanentFailure(id: string, leaseId: string, reason: string) {
-    if (id === this.record.id && this.record.downloadLeaseId === leaseId && this.record.status === MediaStatus.PENDING)
+    if (id === this.record.id && this.record.downloadLeaseId === leaseId && this.record.status === MediaStatus.PENDING) {
       this.record = { ...this.record, status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null };
+      this.committed = true;
+      return true;
+    }
+    return false;
   }
   async releaseTransientFailure(id: string, leaseId: string, input: { reason: string; nextAttemptAt: Date }) {
     if (id === this.record.id && this.record.downloadLeaseId === leaseId && this.record.status === MediaStatus.PENDING)
@@ -90,8 +119,18 @@ async function harness() {
   const storage = new LocalMediaStorage(root);
   const provider = new InboundProvider();
   let now = new Date("2026-08-20T12:00:00.000Z");
-  const dependencies: MediaServiceDependencies = { repository, storage, provider, mediaRoot: root, inFlight: new Map(), now: () => now, createUuid: randomUUID };
-  return { dependencies, repository, provider, advance(ms: number) { now = new Date(now.getTime() + ms); } };
+  const events: Array<{ type: string; conversationId: string; messageId: string; mediaId: string; afterCommit: boolean }> = [];
+  const dependencies: MediaServiceDependencies = {
+    repository,
+    storage,
+    provider,
+    mediaRoot: root,
+    inFlight: new Map(),
+    now: () => now,
+    createUuid: randomUUID,
+    publishRealtime: (event) => events.push({ ...event, afterCommit: repository.committed }),
+  };
+  return { dependencies, repository, provider, events, advance(ms: number) { now = new Date(now.getTime() + ms); } };
 }
 
 describe("received media service", () => {
@@ -236,5 +275,133 @@ describe("received media service", () => {
     expect(new Uint8Array(await new Response(downloadable.stream).arrayBuffer())).toEqual(bytes);
     state.repository.record = { ...state.repository.record, linkedToMessage: false };
     await expect(getMediaForDownload(actorId, mediaId, state.dependencies)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("returns pending state without retrying before the bounded next-attempt time", async () => {
+    const state = await harness();
+    state.repository.record = {
+      ...state.repository.record,
+      downloadNextAttemptAt: new Date("2026-08-20T12:00:01.000Z"),
+      downloadAttempts: 1,
+    };
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.PENDING,
+      nextAttemptAt: "2026-08-20T12:00:01.000Z",
+      canRetry: false,
+    });
+    expect(state.provider.metadataCalls).toBe(0);
+    expect(state.events).toEqual([]);
+  });
+
+  it("returns available state without another provider call", async () => {
+    const state = await harness();
+    state.repository.record = { ...state.repository.record, status: MediaStatus.AVAILABLE };
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.AVAILABLE,
+      nextAttemptAt: null,
+      canRetry: false,
+    });
+    expect(state.provider.metadataCalls).toBe(0);
+  });
+
+  it("returns a bounded pending state after a transient provider failure", async () => {
+    const state = await harness();
+    state.provider.failure = new WhatsAppProviderError("unknown");
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.PENDING,
+      nextAttemptAt: "2026-08-20T12:00:01.000Z",
+      canRetry: false,
+    });
+    expect(state.events).toEqual([]);
+  });
+
+  it("publishes exactly once and only after an exhausted failure commit", async () => {
+    const state = await harness();
+    state.repository.record = { ...state.repository.record, downloadAttempts: 4 };
+    state.provider.failure = new WhatsAppProviderError("unknown");
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.FAILED,
+      nextAttemptAt: null,
+      canRetry: true,
+    });
+    expect(state.events).toEqual([{
+      type: "media.updated",
+      conversationId: "10000000-0000-4000-8000-000000000001",
+      messageId: "20000000-0000-4000-8000-000000000001",
+      mediaId,
+      afterCommit: true,
+    }]);
+  });
+
+  it("atomically resets failed media before a manual bounded recovery", async () => {
+    const state = await harness();
+    state.repository.record = {
+      ...state.repository.record,
+      status: MediaStatus.FAILED,
+      failureReason: "Falha ao obter mídia; intervenção necessária",
+      downloadLeaseId: randomUUID(),
+      downloadLeaseUntil: new Date("2026-08-20T13:00:00.000Z"),
+      downloadNextAttemptAt: new Date("2026-08-20T13:00:00.000Z"),
+      downloadAttempts: 5,
+    };
+
+    await expect(recoverMedia(actorId, mediaId, true, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.AVAILABLE,
+      nextAttemptAt: null,
+      canRetry: false,
+    });
+    expect(state.repository.record).toMatchObject({
+      status: MediaStatus.AVAILABLE,
+      failureReason: null,
+      downloadLeaseId: null,
+      downloadLeaseUntil: null,
+      downloadNextAttemptAt: null,
+      downloadAttempts: 1,
+    });
+    expect(state.provider.downloadCalls).toBe(1);
+  });
+
+  it("coalesces simultaneous recoveries and emits one post-commit event", async () => {
+    const state = await harness();
+
+    const results = await Promise.all([
+      recoverMedia(actorId, mediaId, false, state.dependencies),
+      recoverMedia(actorId, mediaId, false, state.dependencies),
+    ]);
+
+    expect(results).toEqual([
+      { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false },
+      { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false },
+    ]);
+    expect(state.provider.downloadCalls).toBe(1);
+    expect(state.events).toHaveLength(1);
+    expect(state.events[0]).toMatchObject({ type: "media.updated", mediaId, afterCommit: true });
+  });
+
+  it("keeps committed media available when post-commit SSE target lookup fails", async () => {
+    const state = await harness();
+    state.repository.realtimeTargetError = new Error("realtime lookup unavailable");
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.AVAILABLE,
+      nextAttemptAt: null,
+      canRetry: false,
+    });
+    expect(state.repository.record.status).toBe(MediaStatus.AVAILABLE);
+    const downloadable = await getMediaForDownload(actorId, mediaId, state.dependencies);
+    await expect(new Response(downloadable.stream).arrayBuffer()).resolves.toBeInstanceOf(ArrayBuffer);
+  });
+
+  it("rejects recovery when the active actor cannot see a linked conversation", async () => {
+    const state = await harness();
+    state.repository.actorActive = false;
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).rejects.toMatchObject({ status: 404 });
+    expect(state.provider.metadataCalls).toBe(0);
+    expect(state.events).toEqual([]);
   });
 });

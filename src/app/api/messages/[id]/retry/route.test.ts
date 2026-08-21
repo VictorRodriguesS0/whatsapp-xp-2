@@ -22,6 +22,7 @@ describe("message retry route", () => {
           type: MessageType.TEXT,
           body: "Oi",
           mediaObjectId: null,
+          mediaState: null,
           sentBy: { id: actor.id, name: actor.name },
           status: MessageStatus.SENT,
           failureReason: null,

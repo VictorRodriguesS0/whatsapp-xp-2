@@ -2,7 +2,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 
-import { MessageDirection, MessageStatus, MessageType, UserRole } from "@/generated/prisma/enums";
+import { MediaStatus, MessageDirection, MessageStatus, MessageType, UserRole } from "@/generated/prisma/enums";
 import { HttpError } from "@/lib/http";
 import type { StagedMediaFile } from "@/modules/media/temp-file";
 
@@ -30,6 +30,7 @@ function message() {
     type: MessageType.AUDIO,
     body: null,
     mediaObjectId: conversationId,
+    mediaState: { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false },
     sentBy: { id: actor.id, name: actor.name },
     status: MessageStatus.SENT,
     failureReason: null,

@@ -119,6 +119,7 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     type: pending.kind === "text" ? "TEXT" : pending.type,
     body: pending.body || null,
     mediaObjectId: null,
+    mediaState: null,
     sentBy: { id: actor.id, name: actor.name },
     status: "PENDING",
     failureReason: null,

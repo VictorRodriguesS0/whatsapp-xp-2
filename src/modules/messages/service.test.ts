@@ -356,6 +356,7 @@ describe("outbound message service", () => {
     }, state.dependencies);
 
     expect(result.status).toBe(MessageStatus.SENT);
+    expect(result.mediaState).toBeNull();
     expect(state.repository.history).toEqual([
       "create:PENDING",
       "publish:message.created",
@@ -449,6 +450,11 @@ describe("outbound message service", () => {
 
     expect(result.status).toBe(MessageStatus.SENT);
     expect(result.mediaObjectId).not.toBeNull();
+    expect(result.mediaState).toEqual({
+      status: "AVAILABLE",
+      nextAttemptAt: null,
+      canRetry: false,
+    });
     expect(state.provider.calls).toEqual(["upload", providerType]);
   });
 
@@ -475,6 +481,7 @@ describe("outbound message service", () => {
     expect(state.repository.records).toHaveLength(1);
     expect(state.provider.calls).toEqual(["text", "text"]);
     expect(state.repository.records.get(failed.id)?.status).toBe(MessageStatus.SENT);
+    expect(retries.find((result) => result.status === "fulfilled")?.value.mediaState).toBeNull();
     expect(limiter.calls).toBe(1);
   });
 

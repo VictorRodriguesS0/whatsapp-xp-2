@@ -26,6 +26,7 @@ import type {
   MessageDto,
   MessageRecord,
 } from "./types";
+import { toMediaStateDto } from "./types";
 
 export const CONVERSATION_PAGE_SIZE = 50;
 
@@ -43,6 +44,13 @@ const messageSelect = {
   externalTimestamp: true,
   createdAt: true,
   sentByUser: { select: userSelect },
+  mediaObject: {
+    select: {
+      status: true,
+      downloadNextAttemptAt: true,
+      downloadAttempts: true,
+    },
+  },
 } as const;
 const conversationSelect = {
   id: true,
@@ -152,6 +160,10 @@ function messageOrder(left: MessageRecord, right: MessageRecord): number {
 }
 
 function toMessageDto(message: MessageRecord): MessageDto {
+  const mediaState = message.mediaObject
+    ? toMediaStateDto(message.mediaObject, new Date())
+    : null;
+
   return {
     id: message.id,
     clientRequestId: message.clientRequestId ?? null,
@@ -159,6 +171,7 @@ function toMessageDto(message: MessageRecord): MessageDto {
     type: message.type,
     body: message.body,
     mediaObjectId: message.mediaObjectId,
+    mediaState,
     sentBy: message.sentByUser
       ? { id: message.sentByUser.id, name: message.sentByUser.name }
       : null,

@@ -581,6 +581,9 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     type: message.type,
     body: message.body,
     mediaObjectId: message.mediaObjectId,
+    mediaState: message.mediaObject
+      ? { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false }
+      : null,
     sentBy: { id: message.sentByUser.id, name: message.sentByUser.name },
     status: message.status,
     failureReason: message.failureReason,

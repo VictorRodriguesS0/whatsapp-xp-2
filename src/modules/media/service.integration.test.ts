@@ -6,13 +6,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MediaStatus } from "@/generated/prisma/enums";
+import { MediaStatus, MessageDirection, MessageStatus, MessageType, UserRole } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import type { MediaUploadSource, WhatsAppProvider } from "@/modules/whatsapp/provider";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import { resetTestDatabase } from "@/test/database";
 import { LocalMediaStorage } from "./local-storage";
-import { ensureMediaAvailable, prismaMediaRepository, type MediaServiceDependencies } from "./service";
+import { ensureMediaAvailable, prismaMediaRepository, recoverMedia, type MediaServiceDependencies } from "./service";
 
 const bytes = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]);
 const sha = createHash("sha256").update(bytes).digest("base64");
@@ -20,6 +20,7 @@ const roots: string[] = [];
 
 class Provider implements WhatsAppProvider {
   calls = 0;
+  downloadCalls = 0;
   delayMs = 10;
   failure: Error | null = null;
   async getMediaMetadata(mediaId: string) {
@@ -29,6 +30,7 @@ class Provider implements WhatsAppProvider {
     return { id: mediaId, url: "https://lookaside.fbsbx.com/file", mimeType: "image/jpeg", sha256: sha, sizeBytes: 4n };
   }
   async downloadMedia() {
+    this.downloadCalls += 1;
     return { stream: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(bytes); controller.close(); } }), mimeType: "image/jpeg", sizeBytes: 4n };
   }
   async sendText(): Promise<never> { throw new Error("unused"); }
@@ -142,6 +144,135 @@ describe("received media PostgreSQL leases", () => {
     });
 
     expect(provider.calls).toBe(1);
+    await expect(prisma.mediaObject.findUnique({ where: { id: media.id }, select: { status: true, downloadAttempts: true } }))
+      .resolves.toEqual({ status: MediaStatus.FAILED, downloadAttempts: 5 });
+  });
+
+  it("atomically resets a visible failed object and coalesces simultaneous manual recoveries", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-manual-"));
+    roots.push(root);
+    const provider = new Provider();
+    provider.delayMs = 30;
+    const user = await prisma.user.create({
+      data: {
+        name: "Victor",
+        email: "victor.media-recovery@example.test",
+        passwordHash: "not-used-by-this-fixture",
+        role: UserRole.ADMIN,
+      },
+    });
+    const contact = await prisma.contact.create({
+      data: { name: "Contato", whatsappId: "5511999990010" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: new Date() },
+    });
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local",
+        originalFilename: "foto.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 0n,
+        sha256: sha,
+        metaMediaId: "meta-pg-manual",
+        status: MediaStatus.FAILED,
+        failureReason: "Falha ao obter mídia; intervenção necessária",
+        downloadAttempts: 5,
+        downloadLeaseId: randomUUID(),
+        downloadLeaseUntil: new Date(Date.now() + 60_000),
+        downloadNextAttemptAt: new Date(Date.now() + 60_000),
+      },
+    });
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date(),
+      },
+    });
+    const events: unknown[] = [];
+    const common = {
+      repository: prismaMediaRepository,
+      storage: new LocalMediaStorage(root),
+      provider,
+      mediaRoot: root,
+      publishRealtime: (event: unknown) => events.push(event),
+    };
+    const worker = (): MediaServiceDependencies => ({ ...common, inFlight: new Map() });
+
+    const states = await Promise.all([
+      recoverMedia(user.id, media.id, true, worker()),
+      recoverMedia(user.id, media.id, true, worker()),
+    ]);
+
+    expect(states.some((state) => state.status === MediaStatus.AVAILABLE)).toBe(true);
+    expect(states.every((state) =>
+      state.status === MediaStatus.PENDING || state.status === MediaStatus.AVAILABLE,
+    )).toBe(true);
+    expect(provider.downloadCalls).toBe(1);
+    await expect(prisma.mediaObject.findUnique({
+      where: { id: media.id },
+      select: {
+        status: true,
+        failureReason: true,
+        downloadAttempts: true,
+        downloadLeaseId: true,
+        downloadLeaseUntil: true,
+        downloadNextAttemptAt: true,
+      },
+    })).resolves.toEqual({
+      status: MediaStatus.AVAILABLE,
+      failureReason: null,
+      downloadAttempts: 1,
+      downloadLeaseId: null,
+      downloadLeaseUntil: null,
+      downloadNextAttemptAt: null,
+    });
+    expect(events).toEqual([{
+      type: "media.updated",
+      conversationId: conversation.id,
+      messageId: message.id,
+      mediaId: media.id,
+    }]);
+  });
+
+  it("rejects media visibility for an inactive actor without resetting or downloading", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-inactive-"));
+    roots.push(root);
+    const provider = new Provider();
+    const user = await prisma.user.create({
+      data: {
+        name: "Inativo",
+        email: "inactive.media-recovery@example.test",
+        passwordHash: "not-used-by-this-fixture",
+        role: UserRole.ATTENDANT,
+        active: false,
+      },
+    });
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local",
+        originalFilename: "foto.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 0n,
+        sha256: sha,
+        metaMediaId: "meta-pg-inactive",
+        status: MediaStatus.FAILED,
+        downloadAttempts: 5,
+      },
+    });
+
+    await expect(recoverMedia(user.id, media.id, true, {
+      repository: prismaMediaRepository,
+      storage: new LocalMediaStorage(root),
+      provider,
+      mediaRoot: root,
+      inFlight: new Map(),
+    })).rejects.toMatchObject({ status: 404 });
+    expect(provider.calls).toBe(0);
     await expect(prisma.mediaObject.findUnique({ where: { id: media.id }, select: { status: true, downloadAttempts: true } }))
       .resolves.toEqual({ status: MediaStatus.FAILED, downloadAttempts: 5 });
   });

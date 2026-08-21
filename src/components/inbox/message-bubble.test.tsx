@@ -11,6 +11,7 @@ const outboundFixture: MessageDto = {
   type: "TEXT",
   body: "Temos disponível sim.",
   mediaObjectId: null,
+  mediaState: null,
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
   status: "DELIVERED",
   failureReason: null,
@@ -95,7 +96,13 @@ describe("MessageBubble", () => {
   it("uses the authenticated media route", () => {
     render(
       <MessageBubble
-        message={{ ...outboundFixture, type: "IMAGE", body: "Produto", mediaObjectId: "media-id" }}
+        message={{
+          ...outboundFixture,
+          type: "IMAGE",
+          body: "Produto",
+          mediaObjectId: "media-id",
+          mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        }}
       />,
     );
     expect(screen.getByRole("img", { name: "Produto" })).toHaveAttribute("src", "/api/media/media-id");

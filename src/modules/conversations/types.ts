@@ -1,8 +1,11 @@
 import type {
+  MediaStatus,
   MessageDirection,
   MessageStatus,
   MessageType,
 } from "@/generated/prisma/enums";
+
+export const MAX_MEDIA_DOWNLOAD_ATTEMPTS = 5;
 
 export type ConversationUserRecord = {
   id: string;
@@ -19,6 +22,34 @@ export type ContactDto = {
 
 export type ResponsibleUserDto = Pick<ConversationUserRecord, "id" | "name">;
 
+export type MediaStateDto = {
+  status: MediaStatus;
+  nextAttemptAt: string | null;
+  canRetry: boolean;
+};
+
+export type SafeMessageMediaRecord = {
+  status: MediaStatus;
+  downloadNextAttemptAt: Date | null;
+  downloadAttempts: number;
+};
+
+export function toMediaStateDto(
+  media: SafeMessageMediaRecord,
+  now: Date,
+): MediaStateDto {
+  return {
+    status: media.status,
+    nextAttemptAt: media.downloadNextAttemptAt?.toISOString() ?? null,
+    canRetry:
+      media.status === "FAILED" ||
+      (media.status === "PENDING" &&
+        media.downloadAttempts < MAX_MEDIA_DOWNLOAD_ATTEMPTS &&
+        (media.downloadNextAttemptAt === null ||
+          media.downloadNextAttemptAt <= now)),
+  };
+}
+
 export type MessageRecord = {
   id: string;
   clientRequestId?: string | null;
@@ -27,6 +58,7 @@ export type MessageRecord = {
   type: MessageType;
   body: string | null;
   mediaObjectId: string | null;
+  mediaObject?: SafeMessageMediaRecord | null;
   sentByUser: ConversationUserRecord | null;
   status: MessageStatus;
   failureReason: string | null;
@@ -41,6 +73,7 @@ export type MessageDto = {
   type: MessageType;
   body: string | null;
   mediaObjectId: string | null;
+  mediaState: MediaStateDto | null;
   sentBy: ResponsibleUserDto | null;
   status: MessageStatus;
   failureReason: string | null;
