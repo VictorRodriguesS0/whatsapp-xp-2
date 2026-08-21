@@ -380,6 +380,9 @@ export function useInbox(initialUser: SessionUser) {
 
   const markRead = useCallback(async (conversationId: string, messageId: string) => {
     if (messageId.startsWith("optimistic:")) return;
+    const observedManualUnreadRevision = conversation?.id === conversationId
+      ? conversation.manualUnreadRevision
+      : null;
     const requestKey = `${conversationId}:${messageId}`;
     if (lastReadRequest.current === requestKey) return;
     lastReadRequest.current = requestKey;
@@ -387,7 +390,7 @@ export function useInbox(initialUser: SessionUser) {
       const response = await fetch(`/api/conversations/${conversationId}/read`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messageId }),
+        body: JSON.stringify({ messageId, observedManualUnreadRevision }),
       });
       if (response.ok) void refreshList();
       else {
@@ -398,7 +401,7 @@ export function useInbox(initialUser: SessionUser) {
       lastReadRequest.current = null;
       // The list sync will preserve the unread count until the server accepts the read.
     }
-  }, [refreshList]);
+  }, [conversation, refreshList]);
 
   const fetchConversation = useCallback(async (id: string, announceLoading: boolean) => {
     conversationRequest.current?.controller.abort();

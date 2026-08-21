@@ -566,6 +566,8 @@ describe("useInbox", () => {
   it("refreshes the unread list after the read acknowledgement", async () => {
     let listFetches = 0;
     const receivedAt = new Date().toISOString();
+    const manualUnreadRevision = "2026-08-21T11:00:00.000Z";
+    let readBody: unknown;
     vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const url = String(input);
       if (url === "/api/conversations") {
@@ -580,6 +582,7 @@ describe("useInbox", () => {
           lastMessageAt: receivedAt,
           latestMessage: null,
           unreadCount: 1,
+          manualUnreadRevision,
           createdAt: receivedAt,
           updatedAt: receivedAt,
           messages: [{
@@ -599,7 +602,10 @@ describe("useInbox", () => {
           lastReadAt: null,
         }, error: null });
       }
-      if (url.endsWith("/read") && init?.method === "POST") return response({ data: {}, error: null });
+      if (url.endsWith("/read") && init?.method === "POST") {
+        readBody = JSON.parse(String(init.body));
+        return response({ data: {}, error: null });
+      }
       throw new Error(`Unexpected request ${url}`);
     });
     const hook = renderHook(() => useInbox(user));
@@ -607,6 +613,10 @@ describe("useInbox", () => {
     await act(() => hook.result.current.openConversation("conversation-id"));
     expect(listFetches).toBe(1);
     await act(() => hook.result.current.markRead("conversation-id", "received-message"));
+    expect(readBody).toEqual({
+      messageId: "received-message",
+      observedManualUnreadRevision: manualUnreadRevision,
+    });
     await waitFor(() => expect(listFetches).toBeGreaterThan(1));
   });
 
