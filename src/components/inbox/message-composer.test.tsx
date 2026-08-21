@@ -103,7 +103,9 @@ describe("MessageComposer", () => {
     recorder.durationMs = 65_999;
     render(<MessageComposer {...props()} />);
 
-    expect(screen.getByRole("status")).toHaveAccessibleName("Gravando áudio 01:05");
+    expect(screen.getByRole("status")).toHaveAccessibleName("Gravando áudio");
+    expect(screen.getByRole("status")).not.toHaveTextContent("01:05");
+    expect(screen.getByText("01:05")).toHaveAttribute("aria-hidden", "true");
     expect(screen.getByTestId("recording-status-dot")).toHaveClass("bg-[var(--danger)]");
     expect(screen.getByRole("button", { name: "Cancelar gravação" })).toHaveClass("min-h-11");
     expect(screen.getByRole("button", { name: "Parar gravação" })).toHaveClass("min-h-11");
@@ -170,5 +172,29 @@ describe("MessageComposer", () => {
     rendered.rerender(<MessageComposer {...props({ conversationId: "conversation-two" })} />);
     expect(useAudioRecorderMock).toHaveBeenLastCalledWith({ scopeKey: "conversation-two" });
     expect(recorder.cancel).toHaveBeenCalledOnce();
+  });
+
+  it("explains unsupported recording without blocking audio attachments", () => {
+    recorder.supported = false;
+    render(<MessageComposer {...props()} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Este navegador não grava áudio. Você ainda pode anexar um arquivo de áudio.",
+    );
+    expect(screen.getByRole("button", { name: "Gravar áudio" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Anexar arquivo" })).toBeEnabled();
+  });
+
+  it("clears a pending focus intent when the conversation changes", async () => {
+    recorder.phase = "recording";
+    const rendered = render(<MessageComposer {...props()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Parar gravação" }));
+
+    rendered.rerender(<MessageComposer {...props({ conversationId: "conversation-two" })} />);
+    recorder.phase = "preview";
+    recorder.recording = previewRecording();
+    rendered.rerender(<MessageComposer {...props({ conversationId: "conversation-two" })} />);
+
+    await waitFor(() => expect(screen.getByLabelText("Prévia da gravação")).not.toHaveFocus());
   });
 });

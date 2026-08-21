@@ -31,6 +31,7 @@ export function MessageComposer({
   const [file, setFile] = useState<File | null>(null);
   const [sendingRecording, setSendingRecording] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [recorderReady, setRecorderReady] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const microphoneRef = useRef<HTMLButtonElement>(null);
   const previewRef = useRef<HTMLAudioElement>(null);
@@ -43,9 +44,12 @@ export function MessageComposer({
   scopeRef.current = conversationId;
   recordingIdRef.current = recorder.recording?.clientRequestId ?? null;
 
+  useEffect(() => setRecorderReady(true), []);
+
   useEffect(() => {
     if (previousConversationIdRef.current === conversationId) return;
     previousConversationIdRef.current = conversationId;
+    focusIntentRef.current = null;
     if (recorder.phase !== "idle" && recorder.phase !== "error") recorder.cancel();
     setSendingRecording(false);
     setSendError(null);
@@ -140,10 +144,10 @@ export function MessageComposer({
 
       {recorder.phase === "recording" ? (
         <div className="flex min-h-11 items-center gap-2">
-          <div aria-label={`Gravando áudio ${duration}`} className="flex min-w-0 flex-1 items-center gap-2 text-sm text-[var(--text)]" role="status" aria-live="polite">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-[var(--text)]">
             <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-[var(--danger)]" data-testid="recording-status-dot" />
-            <span className="truncate">Gravando áudio</span>
-            <span className="font-mono tabular-nums">{duration}</span>
+            <span aria-label="Gravando áudio" className="truncate" role="status" aria-live="polite">Gravando áudio</span>
+            <span aria-hidden="true" className="font-mono tabular-nums">{duration}</span>
           </div>
           <Button aria-label="Cancelar gravação" className="min-h-11" disabled={unavailable} onClick={cancelRecording} size="icon" variant="ghost">
             <Trash2 aria-hidden="true" className="size-4" />
@@ -227,7 +231,7 @@ export function MessageComposer({
               <Button asChild className="min-h-11" size="icon">
                 <button
                   aria-label="Gravar áudio"
-                  disabled={disabled || !recorder.supported}
+                  disabled={disabled}
                   onClick={() => void recorder.start()}
                   ref={microphoneRef}
                   type="button"
@@ -242,8 +246,17 @@ export function MessageComposer({
         </>
       ) : null}
 
-      {recorder.error || sendError ? (
-        <p className="mt-2 text-sm text-[var(--danger)]" role="status" aria-live="polite">{sendError ?? recorder.error}</p>
+      {(recorderReady && !recorder.supported) || recorder.error || sendError ? (
+        <p
+          className={`mt-2 text-sm ${recorder.error || sendError ? "text-[var(--danger)]" : "text-[var(--muted)]"}`}
+          role="status"
+          aria-live="polite"
+        >
+          {sendError
+            ?? (!recorder.supported
+              ? "Este navegador não grava áudio. Você ainda pode anexar um arquivo de áudio."
+              : recorder.error)}
+        </p>
       ) : null}
     </form>
   );

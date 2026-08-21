@@ -157,7 +157,13 @@ function retainPendingAlias(pendingSends: Map<string, PendingSend>, rowId: strin
 function releasePending(pendingSends: Map<string, PendingSend>, pending: PendingSend) {
   const wasRetained = pendingEntryByClientRequestId(pendingSends, pending.clientRequestId) !== null;
   removePendingAliases(pendingSends, pending.clientRequestId);
-  if (wasRetained && pending.kind === "media" && pending.previewUrl) URL.revokeObjectURL?.(pending.previewUrl);
+  if (wasRetained && pending.kind === "media" && pending.previewUrl) {
+    try {
+      URL.revokeObjectURL?.(pending.previewUrl);
+    } catch {
+      // Custody is cleared before browser cleanup so this URL cannot be released twice.
+    }
+  }
 }
 
 function withPendingMedia(message: MessageDto, pending: PendingMedia): InboxMessage {
@@ -188,6 +194,7 @@ export function useInbox(initialUser: SessionUser) {
   const pageRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const conversationRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const pendingSends = useRef(new Map<string, PendingSend>());
+  const mounted = useRef(true);
   const lastReadRequest = useRef<string | null>(null);
   const nextCursorRef = useRef(nextCursor);
   const hasLoadedAdditionalPages = useRef(false);
@@ -389,6 +396,7 @@ export function useInbox(initialUser: SessionUser) {
   }, [fetchConversation]);
 
   const performSend = useCallback(async (pending: PendingSend, rowId: string) => {
+    if (!mounted.current) return null;
     setConversation((current) => updateMessage(current, rowId, (message) => ({
       ...message,
       status: "PENDING",
@@ -423,6 +431,7 @@ export function useInbox(initialUser: SessionUser) {
         body,
       });
       const message = await readEnvelope<MessageDto>(response);
+      if (!mounted.current) return null;
       const resolvedMessage = pending.kind === "media" && !message.mediaObjectId
         ? withPendingMedia(message, pending)
         : message;
@@ -455,6 +464,7 @@ export function useInbox(initialUser: SessionUser) {
       void refreshList();
       return resolvedMessage;
     } catch (error) {
+      if (!mounted.current) return null;
       const retained = pendingEntryByClientRequestId(pendingSends.current, pending.clientRequestId);
       if (!retained) return null;
       const failureRowId = retained[0];
@@ -515,6 +525,16 @@ export function useInbox(initialUser: SessionUser) {
     file: File,
     clientRequestId: string,
   ) => {
+    const existing = pendingEntryByClientRequestId(pendingSends.current, clientRequestId);
+    if (existing) {
+      const [rowId, pending] = existing;
+      if (
+        pending.kind !== "media"
+        || pending.source !== "recording"
+        || pending.conversationId !== conversationId
+      ) return Promise.resolve(null);
+      return performSend(pending, rowId);
+    }
     const ownedFile = new File([file], file.name, {
       type: file.type,
       lastModified: file.lastModified,
@@ -632,13 +652,32 @@ export function useInbox(initialUser: SessionUser) {
   }, [refreshList, search]);
 
   useEffect(() => {
+    mounted.current = true;
     void loadUsers();
     return () => {
+      mounted.current = false;
       listRequest.current?.controller.abort();
       pageRequest.current?.controller.abort();
       conversationRequest.current?.controller.abort();
+      const releasedRequestIds = new Set<string>();
+      const previewUrls: string[] = [];
       for (const pending of pendingSends.current.values()) {
-        if (pending.kind === "media" && pending.previewUrl) URL.revokeObjectURL?.(pending.previewUrl);
+        if (
+          pending.kind === "media"
+          && pending.previewUrl
+          && !releasedRequestIds.has(pending.clientRequestId)
+        ) {
+          releasedRequestIds.add(pending.clientRequestId);
+          previewUrls.push(pending.previewUrl);
+        }
+      }
+      pendingSends.current.clear();
+      for (const previewUrl of previewUrls) {
+        try {
+          URL.revokeObjectURL?.(previewUrl);
+        } catch {
+          // The pending map no longer owns this URL, even if browser cleanup fails.
+        }
       }
     };
   }, [loadUsers]);

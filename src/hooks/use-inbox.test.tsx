@@ -607,9 +607,10 @@ describe("useInbox", () => {
     expect(firstFile).not.toBe(sourceFile);
     expect(createPreview).toHaveBeenCalledWith(firstFile);
 
-    await act(() => hook.result.current.retryMessage(failed!.id));
+    await act(() => hook.result.current.sendRecording("conversation-id", sourceFile, requestId));
 
     expect(fetchMock.mock.calls.filter(([url]) => String(url).endsWith("/recordings"))).toHaveLength(2);
+    expect(createPreview).toHaveBeenCalledOnce();
     expect(sentForms[1].get("clientRequestId")).toBe(requestId);
     expect(sentForms[1].get("file")).toBe(firstFile);
     expect(hook.result.current.conversation?.messages).toHaveLength(1);
@@ -620,6 +621,51 @@ describe("useInbox", () => {
       mediaObjectId: "audio-media",
     });
     expect(revokePreview).toHaveBeenCalledOnce();
+  });
+
+  it("releases recording custody once and ignores a response that arrives after unmount", async () => {
+    const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:unmounted-recording");
+    const revokePreview = vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const requestId = "33333333-3333-4333-8333-333333333333";
+    let resolveSend!: (value: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages") && !init?.method) return response({ data: conversationDetail(), error: null });
+      if (url.endsWith("/recordings") && init?.method === "POST") {
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let sendPromise!: Promise<unknown>;
+    act(() => { sendPromise = hook.result.current.sendRecording("conversation-id", sourceFile, requestId); });
+    hook.unmount();
+    expect(revokePreview).toHaveBeenCalledOnce();
+
+    resolveSend(await response({ data: {
+      id: "late-recording",
+      clientRequestId: requestId,
+      direction: "OUTBOUND",
+      type: "AUDIO",
+      body: null,
+      mediaObjectId: "audio-media",
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+      failureReason: null,
+      externalTimestamp: "2026-08-20T14:30:00.000Z",
+      createdAt: "2026-08-20T14:30:00.000Z",
+    }, error: null }, true, 201));
+    await sendPromise;
+
+    expect(revokePreview).toHaveBeenCalledOnce();
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("deduplicates a recording when SSE wins and ignores its late response after navigation", async () => {
