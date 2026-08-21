@@ -28,6 +28,10 @@ const fixture: ConversationListItem = {
     createdAt: "2026-08-20T14:30:00.000Z",
   },
   unreadCount: 3,
+  manuallyUnread: false,
+  manualUnreadRevision: null,
+  awaitingResponseSince: "2026-08-20T14:30:00.000Z",
+  revision: "2026-08-20T14:30:00.000Z",
 };
 
 describe("ConversationList", () => {

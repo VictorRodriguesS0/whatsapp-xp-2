@@ -11,7 +11,8 @@ import {
 import { prisma } from "@/lib/db";
 import { resetTestDatabase } from "@/test/database";
 
-import { getConversation, listConversations, markRead } from "./service";
+import { getConversation, listConversations } from "./service";
+import { advanceSharedRead } from "./shared-state";
 
 const lowerId = "20000000-0000-4000-8000-000000000001";
 const higherId = "20000000-0000-4000-8000-000000000002";
@@ -61,13 +62,18 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
   it("uses the message id to delimit unread messages at an equal timestamp", async () => {
     const { conversation, user } = await seedEqualTimestampFixture();
 
-    await markRead(user.id, conversation.id, lowerId);
+    await advanceSharedRead(user.id, conversation.id, lowerId, null);
     await expect(listConversations(user.id, {})).resolves.toMatchObject({
       items: [{ unreadCount: 1, latestMessage: { id: higherId } }],
     });
 
-    const advanced = await markRead(user.id, conversation.id, higherId);
-    expect(advanced.lastReadMessageId).toBe(higherId);
+    const advanced = await advanceSharedRead(
+      user.id,
+      conversation.id,
+      higherId,
+      null,
+    );
+    expect(advanced.unreadCount).toBe(0);
     await expect(listConversations(user.id, {})).resolves.toMatchObject({
       items: [{ unreadCount: 0 }],
     });
@@ -75,11 +81,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
 
   it("keeps the highest equal-timestamp message during concurrent read attempts", async () => {
     const { conversation, user } = await seedEqualTimestampFixture();
-    await markRead(user.id, conversation.id, lowerId);
+    await advanceSharedRead(user.id, conversation.id, lowerId, null);
 
     await Promise.all([
-      markRead(user.id, conversation.id, higherId),
-      markRead(user.id, conversation.id, lowerId),
+      advanceSharedRead(user.id, conversation.id, higherId, null),
+      advanceSharedRead(user.id, conversation.id, lowerId, null),
     ]);
 
     await expect(getConversation(user.id, conversation.id)).resolves.toMatchObject({

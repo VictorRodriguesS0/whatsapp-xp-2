@@ -57,6 +57,10 @@ export type ConversationListRecord = {
   updatedAt: Date;
   latestMessage: MessageRecord | null;
   unreadCount: number;
+  teamLastReadMessageId: string | null;
+  teamLastReadAt: Date | null;
+  manualUnreadAt: Date | null;
+  awaitingResponseSince: Date | null;
 };
 
 export type ConversationDetailRecord = ConversationListRecord & {
@@ -72,6 +76,10 @@ export type ConversationListItem = {
   lastMessageAt: string;
   latestMessage: MessageDto | null;
   unreadCount: number;
+  manuallyUnread: boolean;
+  manualUnreadRevision: string | null;
+  awaitingResponseSince: string | null;
+  revision: string;
 };
 
 export type ConversationDetail = ConversationListItem & {
@@ -118,6 +126,15 @@ export type ConversationReadDto = {
   conversationId: string;
   lastReadMessageId: string | null;
   lastReadAt: string;
+};
+
+export type SharedConversationStateDto = {
+  conversationId: string;
+  unreadCount: number;
+  manuallyUnread: boolean;
+  manualUnreadRevision: string | null;
+  awaitingResponseSince: string | null;
+  revision: string;
 };
 
 export type ConversationRepository = {

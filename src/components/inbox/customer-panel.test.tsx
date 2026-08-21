@@ -12,6 +12,10 @@ const conversation: ConversationListItem = {
   lastMessageAt: "2026-08-20T14:30:00.000Z",
   latestMessage: null,
   unreadCount: 0,
+  manuallyUnread: false,
+  manualUnreadRevision: null,
+  awaitingResponseSince: null,
+  revision: "2026-08-20T14:30:00.000Z",
 };
 
 describe("CustomerPanel", () => {

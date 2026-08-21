@@ -49,6 +49,13 @@ const conversationSelect = {
   lastMessageAt: true,
   createdAt: true,
   updatedAt: true,
+  teamLastReadMessageId: true,
+  teamLastReadAt: true,
+  manualUnreadAt: true,
+  awaitingResponseSince: true,
+  teamLastReadMessage: {
+    select: { id: true, externalTimestamp: true },
+  },
   contact: {
     select: {
       id: true,
@@ -72,11 +79,44 @@ type BaseConversationRow = {
   updatedAt: Date;
   contact: ConversationListRecord["contact"];
   responsibleUser: ConversationUserRecord | null;
+  teamLastReadMessageId: string | null;
+  teamLastReadAt: Date | null;
+  manualUnreadAt: Date | null;
+  awaitingResponseSince: Date | null;
+  teamLastReadMessage: {
+    id: string;
+    externalTimestamp: Date;
+  } | null;
 };
 
-function isPrismaError(error: unknown, code: string): boolean {
+function isPrismaError(
+  error: unknown,
+  code: string,
+): error is Prisma.PrismaClientKnownRequestError {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
+  );
+}
+
+function isRetryableConversationConflict(error: unknown): boolean {
+  if (isPrismaError(error, "P2034")) {
+    return true;
+  }
+
+  if (!isPrismaError(error, "P2010")) {
+    return false;
+  }
+
+  const driverAdapterError = error.meta?.driverAdapterError;
+
+  return (
+    typeof driverAdapterError === "object" &&
+    driverAdapterError !== null &&
+    "cause" in driverAdapterError &&
+    typeof driverAdapterError.cause === "object" &&
+    driverAdapterError.cause !== null &&
+    "kind" in driverAdapterError.cause &&
+    driverAdapterError.cause.kind === "TransactionWriteConflict"
   );
 }
 
@@ -95,7 +135,7 @@ export async function runConversationTransaction<TTransaction, TResult>(
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       });
     } catch (error) {
-      if (!isPrismaError(error, "P2034") || attempt === 2) {
+      if (!isRetryableConversationConflict(error) || attempt === 2) {
         throw error;
       }
     }
@@ -141,6 +181,10 @@ function toListItem(record: ConversationListRecord): ConversationListItem {
       ? toMessageDto(record.latestMessage)
       : null,
     unreadCount: record.unreadCount,
+    manuallyUnread: record.manualUnreadAt !== null,
+    manualUnreadRevision: record.manualUnreadAt?.toISOString() ?? null,
+    awaitingResponseSince: record.awaitingResponseSince?.toISOString() ?? null,
+    revision: record.updatedAt.toISOString(),
   };
 }
 
@@ -226,39 +270,23 @@ function searchWhere(search?: string): Prisma.ConversationWhereInput {
 
 async function unreadCounts(
   client: PrismaConversationRepositoryClient,
-  userId: string,
   conversations: BaseConversationRow[],
 ): Promise<Map<string, number>> {
   if (conversations.length === 0) {
     return new Map();
   }
 
-  const reads = await client.conversationRead.findMany({
-    where: { userId, conversationId: { in: conversations.map(({ id }) => id) } },
-    select: {
-      conversationId: true,
-      lastReadAt: true,
-      lastReadMessage: { select: { id: true, externalTimestamp: true } },
-    },
-  });
-  const readByConversation = new Map(
-    reads.map((read) => [read.conversationId, read]),
-  );
   const groups = await client.message.groupBy({
     by: ["conversationId"],
     where: {
       direction: MessageDirection.INBOUND,
-      OR: conversations.map(({ id }) => {
-        const read = readByConversation.get(id);
-
-        if (!read) {
-          return { conversationId: id };
-        }
-
-        if (!read.lastReadMessage) {
+      OR: conversations.map(({ id, teamLastReadAt, teamLastReadMessage }) => {
+        if (!teamLastReadMessage) {
           return {
             conversationId: id,
-            externalTimestamp: { gt: read.lastReadAt },
+            ...(teamLastReadAt
+              ? { externalTimestamp: { gt: teamLastReadAt } }
+              : {}),
           };
         }
 
@@ -266,11 +294,13 @@ async function unreadCounts(
           conversationId: id,
           OR: [
             {
-              externalTimestamp: { gt: read.lastReadMessage.externalTimestamp },
+              externalTimestamp: {
+                gt: teamLastReadMessage.externalTimestamp,
+              },
             },
             {
-              externalTimestamp: read.lastReadMessage.externalTimestamp,
-              id: { gt: read.lastReadMessage.id },
+              externalTimestamp: teamLastReadMessage.externalTimestamp,
+              id: { gt: teamLastReadMessage.id },
             },
           ],
         };
@@ -300,9 +330,9 @@ export function createPrismaConversationRepository(
           },
         },
       });
-      const counts = await unreadCounts(client, userId, rows);
+      const counts = await unreadCounts(client, rows);
 
-      return rows.map(({ messages, ...row }) => ({
+      return rows.map(({ messages, teamLastReadMessage: _boundary, ...row }) => ({
         ...row,
         latestMessage: messages[0] ?? null,
         unreadCount: counts.get(row.id) ?? 0,
@@ -317,11 +347,6 @@ export function createPrismaConversationRepository(
             orderBy: [{ externalTimestamp: "asc" }, { id: "asc" }],
             select: messageSelect,
           },
-          reads: {
-            where: { userId },
-            take: 1,
-            select: { lastReadMessageId: true, lastReadAt: true },
-          },
         },
       });
 
@@ -329,16 +354,15 @@ export function createPrismaConversationRepository(
         return null;
       }
 
-      const counts = await unreadCounts(client, userId, [row]);
-      const read = row.reads[0];
-      const { reads: _reads, ...base } = row;
+      const counts = await unreadCounts(client, [row]);
+      const { teamLastReadMessage: _boundary, ...base } = row;
 
       return {
         ...base,
         latestMessage: row.messages.at(-1) ?? null,
         unreadCount: counts.get(row.id) ?? 0,
-        lastReadMessageId: read?.lastReadMessageId ?? null,
-        lastReadAt: read?.lastReadAt ?? null,
+        lastReadMessageId: row.teamLastReadMessageId,
+        lastReadAt: row.teamLastReadAt,
       };
     },
     findMessage(messageId) {

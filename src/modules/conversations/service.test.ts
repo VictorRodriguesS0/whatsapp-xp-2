@@ -81,7 +81,12 @@ function conversation(
   lastMessageAt: Date,
   responsibleUser: ConversationUserRecord | null = null,
   messages: MessageRecord[] = [],
+  teamLastReadMessageId: string | null = null,
 ): ConversationListRecord {
+  const teamLastReadMessage = messages.find(
+    (candidate) => candidate.id === teamLastReadMessageId,
+  );
+
   return {
     id,
     contact: {
@@ -101,6 +106,10 @@ function conversation(
           right.id.localeCompare(left.id),
       )[0] ?? null,
     unreadCount: 0,
+    teamLastReadMessageId,
+    teamLastReadAt: teamLastReadMessage?.externalTimestamp ?? null,
+    manualUnreadAt: null,
+    awaitingResponseSince: null,
   };
 }
 
@@ -132,7 +141,7 @@ function createRepository(
     reads,
     upsertCalls,
     responsibleUpdates,
-    list: async (userId, query) => {
+    list: async (_userId, query) => {
       const normalizedSearch = query.search?.toLocaleLowerCase("pt-BR");
       const filtered = records
         .filter(
@@ -156,13 +165,9 @@ function createRepository(
         .slice(0, query.take);
 
       return filtered.map((record) => {
-        const read = reads.find(
-          (candidate) =>
-            candidate.userId === userId && candidate.conversationId === record.id,
+        const readMessage = messages.find(
+          (candidate) => candidate.id === record.teamLastReadMessageId,
         );
-        const readMessage = read
-          ? messages.find((candidate) => candidate.id === read.lastReadMessageId)
-          : null;
         const unreadCount = messages.filter((candidate) => {
           if (
             candidate.conversationId !== record.id ||
@@ -171,12 +176,8 @@ function createRepository(
             return false;
           }
 
-          if (!read) {
-            return true;
-          }
-
           if (!readMessage) {
-            return candidate.externalTimestamp > read.lastReadAt;
+            return true;
           }
 
           return (
@@ -190,22 +191,19 @@ function createRepository(
         return { ...record, unreadCount };
       });
     },
-    findById: async (userId, id) => {
+    findById: async (_userId, id) => {
       const record = records.find((candidate) => candidate.id === id);
 
       if (!record) {
         return null;
       }
 
-      const read = reads.find(
-        (candidate) => candidate.userId === userId && candidate.conversationId === id,
-      );
       const conversationMessages = messages.filter(
         (candidate) => candidate.conversationId === id,
       );
-      const readMessage = read
-        ? messages.find((candidate) => candidate.id === read.lastReadMessageId)
-        : null;
+      const readMessage = messages.find(
+        (candidate) => candidate.id === record.teamLastReadMessageId,
+      );
 
       return {
         ...record,
@@ -215,12 +213,8 @@ function createRepository(
             return false;
           }
 
-          if (!read) {
-            return true;
-          }
-
           if (!readMessage) {
-            return candidate.externalTimestamp > read.lastReadAt;
+            return true;
           }
 
           return (
@@ -229,8 +223,8 @@ function createRepository(
               readMessage.externalTimestamp.getTime() && candidate.id > readMessage.id)
           );
         }).length,
-        lastReadMessageId: read?.lastReadMessageId ?? null,
-        lastReadAt: read?.lastReadAt ?? null,
+        lastReadMessageId: record.teamLastReadMessageId,
+        lastReadAt: record.teamLastReadAt,
       };
     },
     findMessage: async (messageId) =>
@@ -354,12 +348,20 @@ describe("conversation service", () => {
     expect(secondPage.nextCursor).toBeNull();
   });
 
-  it("calculates unread inbound messages independently for each user", async () => {
+  it("returns the same shared unread count to every user", async () => {
     const conversationId = "10000000-0000-4000-8000-000000000001";
     const first = message("20000000-0000-4000-8000-000000000001", conversationId, new Date(1));
     const outbound = message("20000000-0000-4000-8000-000000000002", conversationId, new Date(2), MessageDirection.OUTBOUND);
     const latest = message("20000000-0000-4000-8000-000000000003", conversationId, new Date(3));
-    const record = conversation(conversationId, "Carlos", "5511999990001", new Date(3), null, [first, outbound, latest]);
+    const record = conversation(
+      conversationId,
+      "Carlos",
+      "5511999990001",
+      new Date(3),
+      null,
+      [first, outbound, latest],
+      first.id,
+    );
     const repository = createRepository([record], [first, outbound, latest], [
       {
         userId: victor.id,
@@ -373,7 +375,7 @@ describe("conversation service", () => {
       items: [{ unreadCount: 1 }],
     });
     await expect(listConversations(marcos.id, {}, repository)).resolves.toMatchObject({
-      items: [{ unreadCount: 2 }],
+      items: [{ unreadCount: 1 }],
     });
   });
 
@@ -458,7 +460,17 @@ describe("conversation service", () => {
       timestamp,
     );
     const repository = createRepository(
-      [conversation(conversationId, "Carlos", "1", timestamp, null, [lower, higher])],
+      [
+        conversation(
+          conversationId,
+          "Carlos",
+          "1",
+          timestamp,
+          null,
+          [lower, higher],
+          lower.id,
+        ),
+      ],
       [lower, higher],
       [{
         userId: victor.id,
