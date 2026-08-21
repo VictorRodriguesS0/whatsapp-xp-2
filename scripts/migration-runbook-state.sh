@@ -10,9 +10,10 @@ migration_recovery_state() {
 
   case "$1:$2:$3" in
     1:0:0) printf '%s\n' 'initial-server-only' ;;
-    0:[1-9]*:*) printf '%s\n' 'failed-or-incomplete' ;;
+    0:1:0) printf '%s\n' 'initial-failed' ;;
     0:0:1) printf '%s\n' 'retry-not-applied' ;;
     1:0:1) printf '%s\n' 'retry-server-only' ;;
+    0:1:1) printf '%s\n' 'retry-failed' ;;
     *) return 65 ;;
   esac
 }

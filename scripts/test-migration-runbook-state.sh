@@ -28,11 +28,14 @@ expect_failure() {
 }
 
 expect_state initial-server-only 1 0 0
-expect_state failed-or-incomplete 0 1 0
-expect_state failed-or-incomplete 0 1 1
+expect_state initial-failed 0 1 0
 expect_state retry-not-applied 0 0 1
 expect_state retry-server-only 1 0 1
+expect_state retry-failed 0 1 1
 expect_failure 1 0 2
+expect_failure 0 2 0
+expect_failure 0 2 1
+expect_failure 0 1 2
 expect_failure 1 0 not-a-count
 expect_failure 0 0 0
 
