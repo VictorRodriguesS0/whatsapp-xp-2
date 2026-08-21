@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionUser } from "@/modules/auth/session";
 
-import { useInbox } from "./use-inbox";
+import { useInbox, type InboxMessage } from "./use-inbox";
 
 const user: SessionUser = {
   id: "30000000-0000-4000-8000-000000000001",
@@ -186,7 +186,7 @@ describe("useInbox", () => {
     await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
     await act(() => hook.result.current.openConversation("conversation-id"));
 
-    let sendPromise!: Promise<unknown>;
+    let sendPromise!: Promise<InboxMessage | null>;
     act(() => { sendPromise = hook.result.current.sendText("conversation-id", "Resposta"); });
     await waitFor(() => expect(hook.result.current.conversation?.messages).toHaveLength(1));
     await act(() => hook.result.current.refreshConversation());
@@ -644,7 +644,7 @@ describe("useInbox", () => {
     await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
     await act(() => hook.result.current.openConversation("conversation-id"));
 
-    let sendPromise!: Promise<unknown>;
+    let sendPromise!: Promise<InboxMessage | null>;
     act(() => { sendPromise = hook.result.current.sendRecording("conversation-id", sourceFile, requestId); });
     hook.unmount();
     expect(revokePreview).toHaveBeenCalledOnce();
@@ -770,22 +770,31 @@ describe("useInbox", () => {
     await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
     await act(() => hook.result.current.openConversation("conversation-id"));
 
-    let sendPromise!: Promise<unknown>;
+    let sendPromise!: Promise<InboxMessage | null>;
     act(() => { sendPromise = hook.result.current.sendRecording("conversation-id", sourceFile, requestId); });
     await act(() => hook.result.current.refreshConversation());
     expect(hook.result.current.conversation?.messages).toEqual([confirmed]);
     expect(revokePreview).toHaveBeenCalledOnce();
 
+    act(() => hook.result.current.closeConversation());
+    expect(hook.result.current.conversation).toBeNull();
     rejectSend(new Error("lost response"));
-    const result = await act(() => sendPromise);
-    expect(result).toBeTruthy();
-    expect(hook.result.current.conversation?.messages).toEqual([confirmed]);
+    const result: InboxMessage | null = await act(() => sendPromise);
+    expect(result).toMatchObject({
+      id: confirmed.id,
+      clientRequestId: requestId,
+      type: "AUDIO",
+      status: "SENT",
+      mediaObjectId: "audio-media",
+    });
 
-    const repeated = await act(() => hook.result.current.sendRecording("conversation-id", sourceFile, requestId));
-    expect(repeated).toBeTruthy();
+    const repeated: InboxMessage | null = await act(() => (
+      hook.result.current.sendRecording("conversation-id", sourceFile, requestId)
+    ));
+    expect(repeated).toEqual(result);
     expect(recordingFetches).toBe(1);
     expect(createPreview).toHaveBeenCalledOnce();
-    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    expect(hook.result.current.conversation).toBeNull();
     expect(revokePreview).toHaveBeenCalledOnce();
   });
 

@@ -51,12 +51,9 @@ type PendingMedia = {
 type PendingSend = PendingText | PendingMedia;
 
 type ConfirmedSend = {
-  confirmed: true;
   conversationId: string;
-  messageId: string;
+  message: InboxMessage;
 };
-
-type SendResult = InboxMessage | ConfirmedSend;
 
 const MAX_CONFIRMED_SENDS = 256;
 
@@ -165,9 +162,9 @@ function retainPendingAlias(pendingSends: Map<string, PendingSend>, rowId: strin
 }
 
 function rememberConfirmedSend(
-  confirmedSends: Map<string, Omit<ConfirmedSend, "confirmed">>,
+  confirmedSends: Map<string, ConfirmedSend>,
   clientRequestId: string,
-  confirmation: Omit<ConfirmedSend, "confirmed">,
+  confirmation: ConfirmedSend,
 ) {
   confirmedSends.delete(clientRequestId);
   confirmedSends.set(clientRequestId, confirmation);
@@ -217,10 +214,9 @@ export function useInbox(initialUser: SessionUser) {
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const pageRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const conversationRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
-  const conversationRef = useRef<InboxConversation | null>(conversation);
   const pendingSends = useRef(new Map<string, PendingSend>());
-  const inFlightSends = useRef(new Map<string, Promise<SendResult | null>>());
-  const confirmedSends = useRef(new Map<string, Omit<ConfirmedSend, "confirmed">>());
+  const inFlightSends = useRef(new Map<string, Promise<InboxMessage | null>>());
+  const confirmedSends = useRef(new Map<string, ConfirmedSend>());
   const mounted = useRef(true);
   const lastReadRequest = useRef<string | null>(null);
   const nextCursorRef = useRef(nextCursor);
@@ -230,19 +226,10 @@ export function useInbox(initialUser: SessionUser) {
   searchRef.current = search;
   selectedIdRef.current = selectedId;
   nextCursorRef.current = nextCursor;
-  conversationRef.current = conversation;
-
-  const confirmedResult = useCallback((pending: PendingSend): SendResult | null => {
+  const confirmedResult = useCallback((pending: PendingSend): InboxMessage | null => {
     const confirmation = confirmedSends.current.get(pending.clientRequestId);
     if (!confirmation || confirmation.conversationId !== pending.conversationId) return null;
-    const current = conversationRef.current;
-    const message = current?.id === confirmation.conversationId
-      ? current.messages.find((item) => (
-        item.id === confirmation.messageId
-        || item.clientRequestId === pending.clientRequestId
-      ))
-      : null;
-    return message ?? { confirmed: true, ...confirmation };
+    return confirmation.message;
   }, []);
 
   const refreshList = useCallback(async () => {
@@ -389,26 +376,21 @@ export function useInbox(initialUser: SessionUser) {
         }
         rememberConfirmedSend(confirmedSends.current, pending.clientRequestId, {
           conversationId: id,
-          messageId: message.id,
+          message,
         });
         releasePending(pendingSends.current, pending);
         return message;
       });
       const reconciledDetail = { ...detail, messages: reconciledMessages };
       setConversation((current) => {
-        if (!current || current.id !== id) {
-          conversationRef.current = reconciledDetail;
-          return reconciledDetail;
-        }
+        if (!current || current.id !== id) return reconciledDetail;
         const optimistic = current.messages.filter(
           (message) => message.id.startsWith("optimistic:")
             && (!message.clientRequestId || !confirmedRequestIds.has(message.clientRequestId)),
         );
-        const next = optimistic.length > 0
+        return optimistic.length > 0
           ? { ...reconciledDetail, messages: [...reconciledMessages, ...optimistic] }
           : reconciledDetail;
-        conversationRef.current = next;
-        return next;
       });
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -445,11 +427,11 @@ export function useInbox(initialUser: SessionUser) {
     if (id) await fetchConversation(id, false);
   }, [fetchConversation]);
 
-  const performSend = useCallback((pending: PendingSend, rowId: string): Promise<SendResult | null> => {
+  const performSend = useCallback((pending: PendingSend, rowId: string): Promise<InboxMessage | null> => {
     const existing = inFlightSends.current.get(pending.clientRequestId);
     if (existing) return existing;
     if (!mounted.current) return Promise.resolve(null);
-    const operation = (async (): Promise<SendResult | null> => {
+    const operation = (async (): Promise<InboxMessage | null> => {
       setConversation((current) => updateMessage(current, rowId, (message) => ({
         ...message,
         status: "PENDING",
@@ -508,7 +490,6 @@ export function useInbox(initialUser: SessionUser) {
             ...current,
             messages,
           };
-          conversationRef.current = next;
           return next;
         });
         if (pending.kind === "media" && !message.mediaObjectId) {
@@ -516,7 +497,7 @@ export function useInbox(initialUser: SessionUser) {
         } else {
           rememberConfirmedSend(confirmedSends.current, pending.clientRequestId, {
             conversationId: pending.conversationId,
-            messageId: message.id,
+            message: resolvedMessage,
           });
           releasePending(pendingSends.current, pending);
         }
@@ -594,16 +575,10 @@ export function useInbox(initialUser: SessionUser) {
     conversationId: string,
     file: File,
     clientRequestId: string,
-  ) => {
+  ): Promise<InboxMessage | null> => {
     const confirmed = confirmedSends.current.get(clientRequestId);
     if (confirmed?.conversationId === conversationId) {
-      const current = conversationRef.current;
-      const message = current?.id === conversationId
-        ? current.messages.find((item) => (
-          item.id === confirmed.messageId || item.clientRequestId === clientRequestId
-        ))
-        : null;
-      return Promise.resolve(message ?? { confirmed: true as const, ...confirmed });
+      return Promise.resolve(confirmed.message);
     }
     const existing = pendingEntryByClientRequestId(pendingSends.current, clientRequestId);
     if (existing) {
