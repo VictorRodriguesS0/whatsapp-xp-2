@@ -209,11 +209,15 @@ export class LocalMediaStorage implements MediaStorage {
       completed = true;
     } finally {
       try {
-        reader.releaseLock();
+        if (!completed) await reader.cancel().catch(() => undefined);
       } finally {
-        await closeWithCleanup(handle, async () => {
-          if (!completed) await unlink(target).catch(() => undefined);
-        });
+        try {
+          reader.releaseLock();
+        } finally {
+          await closeWithCleanup(handle, async () => {
+            if (!completed) await unlink(target).catch(() => undefined);
+          });
+        }
       }
     }
 

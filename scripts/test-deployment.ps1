@@ -8,6 +8,7 @@ $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $EnvExample = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot '.env.example')
 $Dockerfile = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'Dockerfile')
 $RecordingConverter = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'src/modules/recordings/converter.ts')
+$NginxFinal = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'deploy/nginx/whatsapp.xpeletronicos.com.conf')
 if ($EnvExample -notmatch '(?m)^NEXT_PUBLIC_APP_URL=https://whatsapp\.xpeletronicos\.com$') {
   throw 'NEXT_PUBLIC_APP_URL do ambiente versionado deve usar a origem HTTPS aprovada.'
 }
@@ -19,6 +20,12 @@ if (
   $RecordingConverter -match '(?m)\b(exec|execFile)\s*\('
 ) {
   throw 'A conversão de gravações deve executar ffmpeg/ffprobe sem shell.'
+}
+if (
+  $NginxFinal -match 'microphone=\(\)' -or
+  ([regex]::Matches($NginxFinal, 'microphone=\(self\)')).Count -lt 2
+) {
+  throw 'O proxy HTTPS documentado deve permitir microfone somente para a própria origem.'
 }
 
 $BackupShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.sh')
@@ -36,6 +43,9 @@ if ($BackupPowerShell -notmatch 'docker-helper-lib\.ps1') {
 foreach ($BackupScript in @($BackupShell, $BackupPowerShell)) {
   if ($BackupScript -notmatch "--exclude='\./\.staging'") {
     throw 'Backup deve excluir o diretório transitório .staging do arquivo restaurável.'
+  }
+  if ($BackupScript -notmatch "--exclude='\./\.recordings'") {
+    throw 'Backup deve excluir o diretório transitório .recordings do arquivo restaurável.'
   }
 }
 if (

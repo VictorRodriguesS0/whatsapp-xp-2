@@ -1,10 +1,10 @@
 // @vitest-environment node
 
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, readFile, rm, stat, symlink } from "node:fs/promises";
+import { mkdtemp, mkdir, open, readFile, rm, stat, symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { closingFileHandleStream, LocalMediaStorage } from "./local-storage";
 
@@ -17,6 +17,7 @@ async function temporaryRoot(): Promise<string> {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
 
@@ -171,5 +172,32 @@ describe("local media storage", () => {
     expect(stored.sizeBytes).toBe(4n * 1024n * 1024n);
     await storage.remove(stored.key);
     await expect(storage.open(stored.key)).rejects.toThrow();
+  });
+
+  it("cancels the source stream when target writing fails before EOF", async () => {
+    const root = await temporaryRoot();
+    const probe = await open(join(root, "prototype-probe"), "w");
+    const fileHandlePrototype = Object.getPrototypeOf(probe) as { write: (...args: unknown[]) => Promise<unknown> };
+    await probe.close();
+    vi.spyOn(fileHandlePrototype, "write").mockRejectedValueOnce(new Error("simulated disk failure"));
+    let cancelled = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) { controller.enqueue(new Uint8Array([1, 2, 3])); },
+      cancel() { cancelled = true; },
+    });
+    const storage = new LocalMediaStorage(root, {
+      now: () => new Date("2026-08-20T12:00:00.000Z"),
+      randomUUID: () => "123e4567-e89b-42d3-a456-426614174000",
+    });
+
+    await expect(storage.putStream({
+      filename: "audio.ogg",
+      mimeType: "audio/ogg",
+      stream,
+      maximumBytes: 1024,
+    })).rejects.toThrow("simulated disk failure");
+    expect(cancelled).toBe(true);
+    await expect(stat(join(root, "2026", "08", "123e4567-e89b-42d3-a456-426614174000")))
+      .rejects.toMatchObject({ code: "ENOENT" });
   });
 });

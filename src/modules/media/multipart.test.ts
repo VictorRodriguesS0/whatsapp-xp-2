@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -23,6 +23,7 @@ describe("streaming media multipart", () => {
       root,
       maximumFileBytes: 1,
       maximumRequestBytes: 64 * 1024,
+      maximumDurationMs: 1_000,
       allowedFields: ["request"],
     });
 
@@ -71,5 +72,78 @@ describe("streaming media multipart", () => {
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
+  });
+
+  it("aborts and cleans an active upload when the request signal is cancelled", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-multipart-abort-"));
+    roots.push(root);
+    const boundary = "xp-abort";
+    const prefix = new TextEncoder().encode(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="x.bin"\r\nContent-Type: application/octet-stream\r\n\r\npartial`,
+    );
+    const abortController = new AbortController();
+    let pulls = 0;
+    const request = new Request("http://localhost/upload", {
+      method: "POST",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      signal: abortController.signal,
+      body: new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          pulls += 1;
+          if (pulls === 1) { controller.enqueue(prefix); return; }
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          controller.error(new Error("late source failure"));
+        },
+      }),
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const started = Date.now();
+    setTimeout(() => abortController.abort(), 10);
+
+    await expect(parseMultipartFileRequest({
+      request,
+      root,
+      maximumFileBytes: 1024,
+      maximumRequestBytes: 2048,
+      maximumDurationMs: 1_000,
+      allowedFields: [],
+    })).rejects.toMatchObject({ status: 408 });
+    expect(Date.now() - started).toBeLessThan(100);
+    await expect(readdir(join(root, ".staging"))).resolves.toEqual([]);
+  });
+
+  it("enforces a bounded upload deadline and cleans an active file", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-multipart-timeout-"));
+    roots.push(root);
+    const boundary = "xp-timeout";
+    const prefix = new TextEncoder().encode(
+      `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="x.bin"\r\nContent-Type: application/octet-stream\r\n\r\npartial`,
+    );
+    let pulls = 0;
+    const request = new Request("http://localhost/upload", {
+      method: "POST",
+      headers: { "content-type": `multipart/form-data; boundary=${boundary}` },
+      body: new ReadableStream<Uint8Array>({
+        async pull(controller) {
+          pulls += 1;
+          if (pulls === 1) { controller.enqueue(prefix); return; }
+          await new Promise((resolve) => setTimeout(resolve, 150));
+          controller.error(new Error("late source failure"));
+        },
+      }),
+      duplex: "half",
+    } as RequestInit & { duplex: "half" });
+    const started = Date.now();
+
+    await expect(parseMultipartFileRequest({
+      request,
+      root,
+      maximumFileBytes: 1024,
+      maximumRequestBytes: 2048,
+      maximumDurationMs: 20,
+      allowedFields: [],
+    })).rejects.toMatchObject({ status: 408 });
+    expect(Date.now() - started).toBeLessThan(100);
+    await expect(readdir(join(root, ".staging"))).resolves.toEqual([]);
   });
 });

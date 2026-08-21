@@ -2,11 +2,12 @@ import "server-only";
 
 import { spawn as nodeSpawn, type ChildProcess } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
-import { lstat, mkdir, readdir, readFile, realpath, rmdir, stat, unlink } from "node:fs/promises";
+import { lstat, mkdir, open, readdir, readFile, realpath, rmdir, stat, unlink } from "node:fs/promises";
 import { isAbsolute, relative, resolve } from "node:path";
 import { z } from "zod";
 
 import { HttpError } from "../../lib/http";
+import { readExact } from "../media/file-io";
 import { ensurePrivateDirectoryTree } from "../media/local-storage";
 import type { StagedMediaFile } from "../media/temp-file";
 import { validateMediaFile } from "../media/validation";
@@ -42,6 +43,7 @@ const probeSchema = z.object({
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const PROCESS_DIAGNOSTIC_LIMIT_BYTES = 8 * 1024;
 const TERMINATION_GRACE_MS = 1_000;
+const INPUT_FORMAT_WHITELIST = "matroska,webm,ogg,mov,mp4,m4a,3gp,3g2,mj2";
 
 class ProcessFailure extends Error {}
 
@@ -70,6 +72,8 @@ function canonicalMime(mimeType: string): string {
 function probeArgs(path: string): string[] {
   return [
     "-v", "error", "-select_streams", "a:0",
+    "-protocol_whitelist", "file",
+    "-format_whitelist", INPUT_FORMAT_WHITELIST,
     "-show_entries", "stream=codec_type,codec_name,channels,sample_rate:format=duration",
     "-of", "json", path,
   ];
@@ -77,11 +81,31 @@ function probeArgs(path: string): string[] {
 
 function convertArgs(input: string, output: string): string[] {
   return [
-    "-nostdin", "-hide_banner", "-loglevel", "error", "-i", input,
+    "-nostdin", "-hide_banner", "-loglevel", "error",
+    "-protocol_whitelist", "file",
+    "-format_whitelist", INPUT_FORMAT_WHITELIST,
+    "-i", input,
     "-map_metadata", "-1", "-vn", "-ac", "1", "-ar", "48000",
     "-c:a", "libopus", "-application", "voip", "-b:a", "24k",
     "-t", "300", "-f", "ogg", "-n", output,
   ];
+}
+
+async function assertRawRecordingContainer(source: StagedMediaFile, mimeType: string): Promise<void> {
+  const headerLength = Number(source.sizeBytes < 4096n ? source.sizeBytes : 4096n);
+  const header = Buffer.alloc(headerLength);
+  const handle = await open(source.path, "r");
+  try {
+    await readExact(handle, header, 0);
+  } finally {
+    await handle.close();
+  }
+  const compatible = mimeType === "audio/webm"
+    ? header.subarray(0, 4).equals(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])) && header.includes(Buffer.from("webm"))
+    : mimeType === "audio/ogg"
+      ? header.subarray(0, 4).equals(Buffer.from("OggS"))
+      : header.byteLength >= 12 && header.subarray(4, 8).equals(Buffer.from("ftyp"));
+  if (!compatible) throw new HttpError(400, "Gravação de áudio inválida");
 }
 
 function parseProbe(stdout: string): z.infer<typeof probeSchema> {
@@ -260,6 +284,7 @@ export async function convertRecording(
   let outputPath: string | undefined;
   let reservation: OutputReservation | undefined;
   try {
+    await assertRawRecordingContainer(input.source, mimeType);
     const configuredRoot = resolve(input.root);
     await ensurePrivateDirectoryTree(configuredRoot, true);
     const mediaRoot = await realpath(configuredRoot);

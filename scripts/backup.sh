@@ -100,7 +100,7 @@ docker cp "$DATABASE_CONTAINER:$TEMP_DATABASE" "$BACKUP_DIR/database.dump"
 
 create_owned_docker_helper media-backup \
   --mount type=volume,source=xp_whatsapp_media,target=/source,readonly \
-  alpine:3.22 sh -ceu "umask 077; tar -C /source --exclude='./.staging' -czf /tmp/media.tar.gz ."
+  alpine:3.22 sh -ceu "umask 077; tar -C /source --exclude='./.staging' --exclude='./.recordings' -czf /tmp/media.tar.gz ."
 docker start -a "$DOCKER_HELPER_ID" >/dev/null
 docker cp "$DOCKER_HELPER_ID:/tmp/media.tar.gz" "$BACKUP_DIR/media.tar.gz"
 remove_active_docker_helper

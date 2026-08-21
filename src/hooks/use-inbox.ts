@@ -150,6 +150,16 @@ function pendingEntryByClientRequestId(
   return null;
 }
 
+function pendingForConversation(pendingSends: Map<string, PendingSend>, conversationId: string) {
+  const unique = new Map<string, PendingSend>();
+  for (const pending of pendingSends.values()) {
+    if (pending.conversationId === conversationId && !unique.has(pending.clientRequestId)) {
+      unique.set(pending.clientRequestId, pending);
+    }
+  }
+  return [...unique.values()];
+}
+
 function removePendingAliases(pendingSends: Map<string, PendingSend>, clientRequestId: string) {
   for (const [rowId, pending] of pendingSends) {
     if (pending.clientRequestId === clientRequestId) pendingSends.delete(rowId);
@@ -383,13 +393,24 @@ export function useInbox(initialUser: SessionUser) {
       });
       const reconciledDetail = { ...detail, messages: reconciledMessages };
       setConversation((current) => {
-        if (!current || current.id !== id) return reconciledDetail;
-        const optimistic = current.messages.filter(
+        const currentOptimistic = current?.id === id ? current.messages.filter(
           (message) => message.id.startsWith("optimistic:")
             && (!message.clientRequestId || !confirmedRequestIds.has(message.clientRequestId)),
-        );
-        return optimistic.length > 0
-          ? { ...reconciledDetail, messages: [...reconciledMessages, ...optimistic] }
+        ) : [];
+        const currentByRequestId = new Map(currentOptimistic.flatMap((message) => (
+          message.clientRequestId ? [[message.clientRequestId, message] as const] : []
+        )));
+        const retained = pendingForConversation(pendingSends.current, id)
+          .filter((pending) => !confirmedRequestIds.has(pending.clientRequestId))
+          .map((pending) => currentByRequestId.get(pending.clientRequestId) ?? {
+            ...optimisticMessage(initialUser, pending),
+            status: inFlightSends.current.has(pending.clientRequestId) ? "PENDING" as const : "FAILED" as const,
+            failureReason: inFlightSends.current.has(pending.clientRequestId)
+              ? null
+              : publicErrorMessage("send"),
+          });
+        return retained.length > 0
+          ? { ...reconciledDetail, messages: [...reconciledMessages, ...retained] }
           : reconciledDetail;
       });
     } catch (error) {
@@ -404,7 +425,7 @@ export function useInbox(initialUser: SessionUser) {
     } finally {
       if (conversationRequest.current?.sequence === sequence) setLoadingConversation(false);
     }
-  }, []);
+  }, [initialUser]);
 
   const openConversation = useCallback(async (id: string) => {
     selectedIdRef.current = id;

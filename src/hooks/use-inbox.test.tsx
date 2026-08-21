@@ -623,6 +623,68 @@ describe("useInbox", () => {
     expect(revokePreview).toHaveBeenCalledOnce();
   });
 
+  it("restores a failed recording row after navigating away and back", async () => {
+    const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:navigated-recording");
+    const requestId = "66666666-6666-4666-8666-666666666666";
+    let rejectFirst!: (reason?: unknown) => void;
+    let attempts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [listItem("conversation-a"), listItem("conversation-b")], nextCursor: null }, error: null });
+      if (url === "/api/conversations/conversation-a/messages" && !init?.method) {
+        return response({ data: conversationDetail("conversation-a"), error: null });
+      }
+      if (url === "/api/conversations/conversation-b/messages" && !init?.method) {
+        return response({ data: conversationDetail("conversation-b"), error: null });
+      }
+      if (url === "/api/conversations/conversation-a/recordings" && init?.method === "POST") {
+        attempts += 1;
+        if (attempts === 1) return new Promise<Response>((_resolve, reject) => { rejectFirst = reject; });
+        return response({ data: {
+          id: "navigated-recording-message",
+          clientRequestId: requestId,
+          direction: "OUTBOUND",
+          type: "AUDIO",
+          body: null,
+          mediaObjectId: "audio-media",
+          sentBy: { id: user.id, name: user.name },
+          status: "SENT",
+          failureReason: null,
+          externalTimestamp: "2026-08-20T14:30:00.000Z",
+          createdAt: "2026-08-20T14:30:00.000Z",
+        }, error: null }, true, 201);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    let firstSend!: Promise<InboxMessage | null>;
+    act(() => { firstSend = hook.result.current.sendRecording("conversation-a", sourceFile, requestId); });
+    expect(hook.result.current.conversation?.messages).toHaveLength(1);
+    await act(() => hook.result.current.openConversation("conversation-b"));
+    rejectFirst(new Error("offline"));
+    await act(() => firstSend);
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    const restored = hook.result.current.conversation?.messages[0];
+    expect(restored).toMatchObject({
+      id: `optimistic:${requestId}`,
+      clientRequestId: requestId,
+      status: "FAILED",
+      localFileName: "gravacao.webm",
+      previewUrl: "blob:navigated-recording",
+    });
+    await act(() => hook.result.current.retryMessage(restored!.id));
+    expect(attempts).toBe(2);
+    expect(hook.result.current.conversation?.messages).toEqual([
+      expect.objectContaining({ id: "navigated-recording-message", status: "SENT" }),
+    ]);
+  });
+
   it("releases recording custody once and ignores a response that arrives after unmount", async () => {
     const sourceFile = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
     vi.spyOn(URL, "createObjectURL").mockReturnValue("blob:unmounted-recording");

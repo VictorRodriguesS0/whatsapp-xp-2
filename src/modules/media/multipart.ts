@@ -9,6 +9,7 @@ import { DOCUMENT_MAX_BYTES } from "./validation";
 import { stageMediaStream, type StagedMediaFile } from "./temp-file";
 
 const MULTIPART_OVERHEAD_MAX_BYTES = 1024 * 1024;
+const MEDIA_MULTIPART_MAX_DURATION_MS = 10 * 60 * 1000;
 export const MULTIPART_REQUEST_MAX_BYTES = DOCUMENT_MAX_BYTES + MULTIPART_OVERHEAD_MAX_BYTES;
 
 type StagingOutcome =
@@ -20,6 +21,7 @@ export type MultipartFileRequestInput = {
   root: string;
   maximumFileBytes: number;
   maximumRequestBytes: number;
+  maximumDurationMs: number;
   allowedFields: readonly string[];
 };
 
@@ -27,12 +29,13 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
   fields: Record<string, string>;
   file: StagedMediaFile;
 }> {
-  const { request, root, maximumFileBytes, maximumRequestBytes, allowedFields } = input;
+  const { request, root, maximumFileBytes, maximumRequestBytes, maximumDurationMs, allowedFields } = input;
   const contentType = request.headers.get("content-type") ?? "";
   const contentLength = request.headers.get("content-length");
   if (contentLength !== null && (!/^\d+$/.test(contentLength) || BigInt(contentLength) > BigInt(maximumRequestBytes))) {
     throw new HttpError(413, "Arquivo muito grande");
   }
+  if (request.signal.aborted) throw new HttpError(408, "Tempo de upload esgotado");
   if (!request.body) throw new HttpError(400, "Arquivo inválido");
 
   let busboy: BusboyInstance;
@@ -84,6 +87,7 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
       callback(null, chunk);
     },
   });
+  const abortForRequest = () => abort(new HttpError(408, "Tempo de upload esgotado"));
 
   busboy.on("field", (name: string, value: string, nameTruncated: boolean, valueTruncated: boolean) => {
     if (nameTruncated || valueTruncated || !allowedFields.includes(name) || Object.hasOwn(fields, name)) {
@@ -127,6 +131,9 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
     source.once("error", (error) => { abort(error); reject(error); });
     boundedSource.once("error", (error) => { abort(error); reject(error); });
   });
+  request.signal.addEventListener("abort", abortForRequest, { once: true });
+  const deadline = setTimeout(abortForRequest, maximumDurationMs);
+  deadline.unref?.();
   source.pipe(boundedSource).pipe(busboy);
 
   let file: StagedMediaFile | undefined;
@@ -149,6 +156,9 @@ export async function parseMultipartFileRequest(input: MultipartFileRequestInput
     if (parserError instanceof HttpError) throw parserError;
     if (error instanceof HttpError) throw error;
     throw new HttpError(400, "Multipart inválido");
+  } finally {
+    clearTimeout(deadline);
+    request.signal.removeEventListener("abort", abortForRequest);
   }
 }
 
@@ -161,6 +171,7 @@ export async function parseMediaMultipartRequest(request: Request, root: string)
     root,
     maximumFileBytes: DOCUMENT_MAX_BYTES,
     maximumRequestBytes: MULTIPART_REQUEST_MAX_BYTES,
+    maximumDurationMs: MEDIA_MULTIPART_MAX_DURATION_MS,
     allowedFields: ["type", "clientRequestId", "body"],
   });
 }

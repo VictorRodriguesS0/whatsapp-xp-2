@@ -30,7 +30,11 @@ async function root(): Promise<string> {
   return value;
 }
 
-async function source(rootPath: string, mimeType = "audio/webm", bytes = Buffer.from("raw")): Promise<StagedMediaFile> {
+async function source(
+  rootPath: string,
+  mimeType = "audio/webm",
+  bytes = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.from("webm")]),
+): Promise<StagedMediaFile> {
   const path = join(rootPath, "source-upload-name.webm");
   await writeFile(path, bytes);
   return {
@@ -85,12 +89,20 @@ describe("recording conversion", () => {
     const result = await convertRecording({ root: rootPath, source: await source(rootPath) }, { runProcess, createUuid: () => outputId });
 
     expect(calls[0]).toMatchObject({ command: "ffprobe", timeoutMs: 10_000 });
+    expect(calls[0]!.args).toEqual(expect.arrayContaining([
+      "-protocol_whitelist", "file",
+      "-format_whitelist", "matroska,webm,ogg,mov,mp4,m4a,3gp,3g2,mj2",
+    ]));
     expect(calls[1]).toMatchObject({ command: "ffmpeg", timeoutMs: 60_000 });
     expect(calls[1]!.args).toEqual(expect.arrayContaining([
       "-nostdin", "-hide_banner", "-loglevel", "error", "-map_metadata", "-1",
+      "-protocol_whitelist", "file",
+      "-format_whitelist", "matroska,webm,ogg,mov,mp4,m4a,3gp,3g2,mj2",
       "-vn", "-ac", "1", "-ar", "48000", "-c:a", "libopus",
       "-application", "voip", "-b:a", "24k", "-t", "300", "-f", "ogg",
     ]));
+    expect(calls[1]!.args.indexOf("-protocol_whitelist")).toBeLessThan(calls[1]!.args.indexOf("-i"));
+    expect(calls[1]!.args.indexOf("-format_whitelist")).toBeLessThan(calls[1]!.args.indexOf("-i"));
     expect(result).toMatchObject({ mimeType: "audio/ogg", filename: "gravacao.ogg" });
     expect(result.path).toBe(outputPath(rootPath));
     expect(await readFile(result.path)).toEqual(validOgg);
@@ -110,6 +122,21 @@ describe("recording conversion", () => {
     const rootPath = await root();
     const result = await convertRecording({ root: rootPath, source: await source(rootPath, "audio/webm; charset=binary") }, { runProcess: successfulRunner(), createUuid: () => outputId });
     await result.cleanup();
+  });
+
+  it("rejects a playlist disguised as browser audio before spawning a process", async () => {
+    const rootPath = await root();
+    let calls = 0;
+    const runner: RunBoundedProcess = async () => {
+      calls += 1;
+      return { stdout: probe(), stderr: "" };
+    };
+
+    await expect(convertRecording({
+      root: rootPath,
+      source: await source(rootPath, "audio/webm", Buffer.from("#EXTM3U\nhttp://127.0.0.1/internal")),
+    }, { runProcess: runner, createUuid: () => outputId })).rejects.toMatchObject({ status: 400 });
+    expect(calls).toBe(0);
   });
 
   it("rejects a raw recording over 16 MiB before spawning", async () => {

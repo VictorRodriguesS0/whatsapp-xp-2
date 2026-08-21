@@ -72,7 +72,7 @@ try {
 
   New-OwnedDockerHelper -Purpose 'media-backup' -CreateArguments @(
     '--mount', 'type=volume,source=xp_whatsapp_media,target=/source,readonly',
-    'alpine:3.22', 'sh', '-ceu', "umask 077; tar -C /source --exclude='./.staging' -czf /tmp/media.tar.gz ."
+    'alpine:3.22', 'sh', '-ceu', "umask 077; tar -C /source --exclude='./.staging' --exclude='./.recordings' -czf /tmp/media.tar.gz ."
   )
   & docker start -a $DockerHelperId *> $null
   if ($LASTEXITCODE -ne 0) { throw 'Não foi possível arquivar o volume de mídia.' }
