@@ -170,7 +170,9 @@ Depois do commit, o servidor publica `message.created`. O cliente refaz a lista 
 
 Esta correção entra no primeiro checkpoint de produção solicitado pelo usuário, junto do estado operacional compartilhado. As etapas internas de schema/serviço não serão publicadas isoladamente. O primeiro deploy ocorrerá quando leitura compartilhada, resposta compartilhada, APIs/SSE e ecos do WhatsApp formarem um fluxo completo e revisado.
 
-Falha antes da alteração da assinatura aciona rollback da imagem. Falha depois da assinatura remove somente `smb_message_echoes`, restaura a lista anterior de campos e então reverte a imagem. Banco, Caddy, volumes e demais sistemas da KVM não serão recriados.
+Depois que a migração nullable existir, a imagem anterior à migração não será usada como rollback: a reprodução local provou que seu cliente materializa os registros, mas o fluxo de envio aceita destino nulo e muta mensagem/atividade. Antes de alterar a assinatura, a release deverá produzir e testar uma imagem de compatibilidade baseada na Task 2 endurecida contra uma cópia isolada do schema migrado com contato BSUID-only e eco sem ator.
+
+Falha antes ou depois da alteração da assinatura restaura primeiro a lista anterior de campos, removendo `smb_message_echoes`, e valida o readback. Se rollback de aplicação ainda for necessário, somente a imagem de compatibilidade com digest registrado será implantada. Banco, Caddy, volumes e demais sistemas da KVM não serão recriados.
 
 ## Fora de escopo
 

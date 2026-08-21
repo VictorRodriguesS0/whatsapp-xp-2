@@ -18,8 +18,8 @@
 - A duplicate echo must never overwrite content, status, media, or `sentByUserId` on an API-created message.
 - Reuse the current bounded media pipeline: leases, limiter, five-attempt cap, MIME/hash/size/magic validation, and `media.updated` publication.
 - SSE payloads remain ID/state-only. No new public browser API is needed.
-- Deploy one immutable app image and recreate only `xp-whatsapp-app`; do not recreate or edit PostgreSQL, Caddy, volumes, networks, or unrelated KVM services.
-- Update Meta subscriptions only after health checks, preserving every previously subscribed field; restore the exact prior list before image rollback if validation fails.
+- Deploy one immutable release image and recreate only `xp-whatsapp-app`; prepare a separate immutable rollback-compatibility image offline, but never run a second app replica. Do not recreate or edit PostgreSQL, Caddy, volumes, networks, or unrelated KVM services.
+- Update Meta subscriptions only after health checks, preserving every previously subscribed field. After the nullable-contact migration exists, rollback must never use an unverified pre-migration image: remove `smb_message_echoes`, verify the exact prior field list, and then use only the proven rollback-compatibility image.
 
 ---
 
@@ -223,7 +223,7 @@ git commit -m "feat: label WhatsApp app messages"
 
 - [ ] **Step 1: Document the required subscription and rollback**
 
-Document that coexistence requires the existing `messages` subscription plus `smb_message_echoes`, that the previous field list must be preserved, and that App Secret/access token/verify token must stay server-side. Include the exact rollback order: restore prior fields, verify readback, then roll back the image.
+Document that coexistence requires the existing `messages` subscription plus `smb_message_echoes`, that the previous field list must be preserved, and that App Secret/access token/verify token must stay server-side. Include the exact rollback order: remove `smb_message_echoes` by restoring the prior field list, verify readback, deploy the proven compatibility image, then verify health. The generic image that predates nullable contact identities is not a valid rollback target.
 
 - [ ] **Step 2: Run fresh release gates**
 
@@ -243,11 +243,21 @@ git diff --check
 git status --short
 ```
 
-Build the immutable Docker image from the exact clean commit and verify standalone startup, internal/host health, UID 1001, and zero packaged tests. Do not deploy with a dirty tree.
+Build the immutable release image from the exact clean commit and verify standalone startup, internal/host health, UID 1001, and zero packaged tests. Do not deploy with a dirty tree.
+
+Also build an immutable rollback-compatibility image from commit `495499d` or a later reviewed Task 2 hardening commit. Against an isolated restored copy of the migrated database, seed only synthetic phone-only and BSUID-only contacts plus an actorless echo, then prove all of the following before any production subscription change:
+
+1. conversation/contact/message reads materialize successfully;
+2. actorless echoes remain readable;
+3. sending to a BSUID-only contact returns the safe conflict response before provider invocation;
+4. the rejected send creates no message and does not advance conversation activity;
+5. normal phone-backed sending remains healthy.
+
+Record the compatibility image digest and test outcomes. If this matrix does not pass, deployment and subscription changes are blocked. Review reproduction showed that the generated client from base `9a13613` can read nullable contacts and actorless echoes, but its real send path passes a null destination and mutates message/activity state; therefore that base image is explicitly disallowed as a rollback artifact.
 
 - [ ] **Step 3: Back up and deploy only the app**
 
-Create and validate the existing database/media backup bundle because this release includes the already-reviewed shared-state migration. Record the current release/image/hash and a non-sensitive snapshot of all container identities/StartedAt values.
+Create and validate the existing database/media backup bundle because this release includes the already-reviewed shared-state migration. Record the current release image/hash, the proven rollback-compatibility image/hash, and a non-sensitive snapshot of all container identities/StartedAt values.
 
 Transfer/import the immutable image and exact Git-archive release. Validate resolved Compose, then recreate only `xp-whatsapp-app`. Verify Compose config hash, UID 1001, health, public login/legal routes, webhook GET, invalid signature 401, three canonical networks, and unchanged database/Caddy/other containers.
 
@@ -260,7 +270,7 @@ On the KVM, read the current app subscription field list into process memory wit
 3. callback/verification succeeded;
 4. no other field changed.
 
-If any assertion fails, restore the exact previous list and verify restoration before considering image rollback.
+If any assertion fails, restore the exact previous list and verify restoration before considering image rollback. Once the migration is present, any image rollback must target only the recorded compatibility image; the pre-migration image is never selected.
 
 - [ ] **Step 5: Run the real controlled acceptance test**
 
@@ -300,4 +310,4 @@ Expected: worktree clean, production healthy, subscription converged, and the mo
 - Latest mobile-app replies clear the shared awaiting-response state; stale echoes cannot regress state.
 - Every session reconciles through existing ID-only SSE.
 - Existing Meta subscriptions, database, Caddy, volumes, networks, and unrelated services remain intact.
-- Rollback was proven safe and production evidence contains no PII/content/secrets.
+- Rollback was proven with the dedicated compatibility image against migrated synthetic BSUID-only/actorless-echo data; the old pre-migration image is excluded, and production evidence contains no PII/content/secrets.
