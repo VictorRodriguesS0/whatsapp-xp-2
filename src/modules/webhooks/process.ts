@@ -359,6 +359,18 @@ export function createPrismaWebhookRepository(
         : null;
 
     for (const contact of source ? [target, source] : [target]) {
+      const whatsappIdIsCanonicalUserId =
+        contact.whatsappId !== null &&
+        (contact.whatsappId === contact.whatsappUserId ||
+          contact.whatsappId === input.whatsappUserId);
+      if (
+        input.phone &&
+        contact.whatsappId &&
+        contact.whatsappId !== input.phone &&
+        !whatsappIdIsCanonicalUserId
+      ) {
+        throw new Error("Conflicting echo contact identities");
+      }
       if (
         input.phone &&
         contact.phone &&

@@ -390,6 +390,111 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       });
     });
 
+    it("rejects a phone-less BSUID source with a conflicting legacy phone identity atomically", async () => {
+      await prisma.contact.createMany({
+        data: [
+          {
+            whatsappId: "551100000017",
+            whatsappUserId: null,
+            phone: "551100000017",
+            name: "Phone target",
+          },
+          {
+            whatsappId: "551100000018",
+            whatsappUserId: "BR.LegacyPhoneConflict",
+            phone: null,
+            name: "BSUID source",
+          },
+        ],
+      });
+      const contactsBefore = await prisma.contact.findMany({
+        orderBy: { whatsappId: "asc" },
+        select: {
+          id: true,
+          whatsappId: true,
+          whatsappUserId: true,
+          phone: true,
+          name: true,
+        },
+      });
+
+      await expect(
+        processWebhookEvents([
+          echoEvent("wamid.echo-legacy-phone-conflict", {
+            to: "551100000017",
+            toUserId: "BR.LegacyPhoneConflict",
+          }),
+        ]),
+      ).rejects.toMatchObject({
+        message: "Falha ao processar webhook",
+        retryable: true,
+      });
+
+      await expect(
+        prisma.contact.findMany({
+          orderBy: { whatsappId: "asc" },
+          select: {
+            id: true,
+            whatsappId: true,
+            whatsappUserId: true,
+            phone: true,
+            name: true,
+          },
+        }),
+      ).resolves.toEqual(contactsBefore);
+      await expect(prisma.conversation.count()).resolves.toBe(0);
+      await expect(prisma.message.count()).resolves.toBe(0);
+      await expect(
+        prisma.webhookEvent.findUniqueOrThrow({
+          where: {
+            deduplicationKey:
+              "message-echo:wamid.echo-legacy-phone-conflict",
+          },
+        }),
+      ).resolves.toMatchObject({
+        status: WebhookStatus.FAILED,
+        errorSummary: "processing_error:Error",
+      });
+    });
+
+    it("allows a phone-less BSUID source whose legacy whatsappId is its own BSUID", async () => {
+      const phoneContact = await prisma.contact.create({
+        data: {
+          whatsappId: "551100000019",
+          whatsappUserId: null,
+          phone: "551100000019",
+          name: "Phone target",
+        },
+      });
+      await prisma.contact.create({
+        data: {
+          whatsappId: "BR.LegacyCanonicalUser",
+          whatsappUserId: "BR.LegacyCanonicalUser",
+          phone: null,
+          name: "BSUID source",
+        },
+      });
+
+      await expect(
+        processWebhookEvents([
+          echoEvent("wamid.echo-legacy-canonical-bsuid", {
+            to: "551100000019",
+            toUserId: "BR.LegacyCanonicalUser",
+          }),
+        ]),
+      ).resolves.toEqual({ processed: 1, duplicates: 0 });
+
+      await expect(prisma.contact.findMany()).resolves.toEqual([
+        expect.objectContaining({
+          id: phoneContact.id,
+          whatsappId: "551100000019",
+          whatsappUserId: "BR.LegacyCanonicalUser",
+          phone: "551100000019",
+        }),
+      ]);
+      await expect(prisma.message.count()).resolves.toBe(1);
+    });
+
     it("persists and schedules media only once across duplicate delivery", async () => {
       const event = echoEvent("wamid.echo-media", {
         to: null,
