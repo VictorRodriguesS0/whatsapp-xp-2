@@ -182,6 +182,16 @@ Se o link já existir, não o recrie. O certificado final deve existir em:
 
 O bloco final atende somente `whatsapp.xpeletronicos.com`, usa `X-Real-IP $remote_addr` para o rate limiter de autenticação, preserva `Host` e `X-Forwarded-*`, limita uploads a 105 MB e define timeouts de requisição. `/api/realtime` desativa buffering/cache, usa `no-store` e timeout longo. WebSocket não é necessário.
 
+## Gravação e envio de áudio
+
+A caixa de atendimento permite gravar uma mensagem de voz, ouvir uma prévia, apagar e enviar. A gravação só começa depois do clique em **Gravar áudio** e exige HTTPS (ou `localhost`) e permissão de microfone. O limite é de cinco minutos e 16 MiB antes da conversão; a aplicação interrompe automaticamente no tempo máximo.
+
+O navegador homologado para operação é Chromium atual (Chrome ou Edge) em desktop e Android. Outros navegadores funcionam apenas quando oferecem `navigator.mediaDevices.getUserMedia`, `MediaRecorder` e geram `audio/webm`, `audio/ogg` ou `audio/mp4`. Quando a gravação não estiver disponível ou a permissão for recusada, o atendente ainda pode usar **Anexar arquivo** para enviar um áudio já salvo.
+
+No servidor, FFprobe valida a entrada e o FFmpeg converte a gravação para OGG/Opus mono, 48 kHz e aproximadamente 24 kbit/s. O arquivo bruto fica apenas em staging temporário e é removido em sucesso ou falha; somente o OGG validado entra no armazenamento comum. A imagem de produção deve conter `ffmpeg` e `ffprobe`, e o processo continua rodando como UID 1001 sem shell ou volume adicional para o conversor.
+
+Se o microfone falhar, confira nesta ordem: HTTPS válido, permissão do site no navegador, dispositivo de entrada selecionado e se outra aplicação está usando o microfone. Não habilite captura automática nem relaxe os limites de upload para contornar uma falha.
+
 ## Configuração oficial da Meta
 
 Realize estes passos no Meta for Developers e no Business Manager com uma conta autorizada:

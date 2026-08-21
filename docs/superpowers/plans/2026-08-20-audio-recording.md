@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript 7, MediaRecorder/getUserMedia, Vitest/Testing Library, Busboy streaming multipart, Node `child_process.spawn`, FFmpeg/FFprobe, PostgreSQL/Prisma, Docker, WhatsApp Cloud API.
 
+**Execution status (2026-08-20):** Tasks 1–4 and Task 5 Steps 1–6 are implemented and locally verified. Independent final review, KVM rollout, and the user-confirmed real WhatsApp playback remain pending.
+
 ## Global Constraints
 
 - User flow: one action starts recording, one action stops it, and a preview must be shown before sending.
@@ -63,7 +65,7 @@ export class RecordingAdmissionLimiter {
 }
 ```
 
-- [ ] **Step 1: Write RED tests for process safety, media probing, output validation, and cleanup**
+- [x] **Step 1: Write RED tests for process safety, media probing, output validation, and cleanup**
 
 Create `converter.test.ts` with tests that require:
 
@@ -87,7 +89,7 @@ it("runs ffprobe and ffmpeg without a shell and with fixed voice arguments", asy
 
 Add separate cases for unsupported raw MIME, no audio stream, zero/NaN duration, duration above 300 seconds, FFprobe timeout, FFmpeg timeout/crash, diagnostics above 8 KiB, invalid OGG bytes, non-Opus output, non-mono output, non-48 kHz output, changed output size/hash, and cleanup of the generated output after every failure. Test `runBoundedProcess` with an injected fake `spawn` and assert `{ shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }`, forced termination on timeout/overflow, and listener/timer cleanup.
 
-- [ ] **Step 2: Run the converter tests and verify RED**
+- [x] **Step 2: Run the converter tests and verify RED**
 
 Run:
 
@@ -97,7 +99,7 @@ npx vitest run src/modules/recordings/converter.test.ts
 
 Expected: FAIL because `converter.ts` does not exist.
 
-- [ ] **Step 3: Implement the minimal converter and bounded subprocess runner**
+- [x] **Step 3: Implement the minimal converter and bounded subprocess runner**
 
 Implement these exact rules:
 
@@ -128,7 +130,7 @@ await validateMediaFile({
 
 Return a `StagedMediaFile` with a SHA-256, exact size, idempotent `cleanup()`, and no raw user filename in process arguments or diagnostics. Convert all public failures to short `HttpError` messages in Portuguese and never expose stderr.
 
-- [ ] **Step 4: Write and run RED/GREEN limiter tests**
+- [x] **Step 4: Write and run RED/GREEN limiter tests**
 
 Tests must prove one active conversion per user, two globally, fail-fast `BUSY`, ten admitted attempts in ten minutes, the eleventh `RATE_LIMITED`, expiry at the exact window boundary, idempotent release, and no rate debit for a request rejected solely because the concurrency ceiling is full.
 
@@ -140,11 +142,11 @@ npx vitest run src/modules/recordings/limiter.test.ts
 
 Expected before implementation: FAIL because `limiter.ts` does not exist. Implement a process-local `RecordingAdmissionLimiter` with opaque admission IDs and exact release ownership; rerun and require all tests PASS.
 
-- [ ] **Step 5: Add an opt-in real FFmpeg integration test**
+- [x] **Step 5: Add an opt-in real FFmpeg integration test**
 
 Create `converter.integration.test.ts` guarded by `RUN_FFMPEG_INTEGRATION=1`. Generate a short WebM/Opus source with FFmpeg, call `convertRecording`, probe the returned file, and assert OGG/Opus, mono, 48 kHz, duration greater than zero, size below 16 MiB, and cleanup. When the environment flag is absent, skip only this file's real-binary test.
 
-- [ ] **Step 6: Run Task 1 GREEN and commit**
+- [x] **Step 6: Run Task 1 GREEN and commit**
 
 Run:
 
@@ -179,7 +181,7 @@ git commit -m "feat: add bounded audio conversion"
 - Consumes: `assertSameOrigin`, `requireUser`, `conversationIdSchema`, `getConversation`, `clientRequestIdSchema`, `convertRecording`, `RecordingAdmissionLimiter`, and `sendMessage`.
 - Produces: authenticated `POST /api/conversations/[id]/recordings` returning the existing `{ data, error }` envelope and `MessageDto` with status 201.
 
-- [ ] **Step 1: Write RED tests for a configurable streaming multipart core**
+- [x] **Step 1: Write RED tests for a configurable streaming multipart core**
 
 Refactor by test, not by copying. Add tests around a new internal/exported function:
 
@@ -195,7 +197,7 @@ export async function parseMultipartFileRequest(input: {
 
 Require the existing media parser to preserve its current limits and accepted fields. Require the recording wrapper to accept only `clientRequestId` plus one `file`, reject duplicate/unknown/truncated fields, reject missing/duplicate/empty files, reject `Content-Length` above `16 MiB + 64 KiB` before reading, stop a chunked request at the same bound, and clean staged data on parser/schema failure.
 
-- [ ] **Step 2: Run multipart tests and verify RED**
+- [x] **Step 2: Run multipart tests and verify RED**
 
 Run:
 
@@ -205,7 +207,7 @@ npx vitest run src/modules/media/multipart.test.ts src/modules/recordings/multip
 
 Expected: the new recording suite fails because its module and configurable parser do not exist; all pre-existing media cases remain GREEN.
 
-- [ ] **Step 3: Implement the generic parser and recording wrapper**
+- [x] **Step 3: Implement the generic parser and recording wrapper**
 
 Keep Busboy, immediate rejection handling, streaming staging, size/hash calculation, and cleanup semantics. `parseRecordingMultipartRequest(request, root)` must call the generic parser with:
 
@@ -219,7 +221,7 @@ Keep Busboy, immediate rejection handling, streaming staging, size/hash calculat
 
 Do not call `request.formData()` or materialize the upload as an `ArrayBuffer`.
 
-- [ ] **Step 4: Write the recording route RED suite**
+- [x] **Step 4: Write the recording route RED suite**
 
 The route tests must assert this order and behavior:
 
@@ -249,7 +251,7 @@ The route tests must assert this order and behavior:
 8. raw and converted temporaries are cleaned after success, conversion failure, send failure, and lost client response;
 9. the same `clientRequestId` can safely repeat and delegates idempotency to `sendMessage`.
 
-- [ ] **Step 5: Run the route suite and verify RED**
+- [x] **Step 5: Run the route suite and verify RED**
 
 Run:
 
@@ -259,7 +261,7 @@ npx vitest run "src/app/api/conversations/[id]/recordings/route.test.ts"
 
 Expected: FAIL because the route does not exist.
 
-- [ ] **Step 6: Implement the route with dependency injection**
+- [x] **Step 6: Implement the route with dependency injection**
 
 Export `createConversationRecordingsRouteHandler(overrides)` for tests and a production `POST`. Use this exact operation sequence:
 
@@ -275,7 +277,7 @@ if (admission === "RATE_LIMITED") throw new HttpError(429, "Muitas gravações e
 
 Inside one `try/finally`, parse the raw upload, canonicalize and allowlist its MIME essence, validate the `clientRequestId`, convert it, call `sendMessage`, and return status 201. Cleanup both staged files and release admission in nested `finally` blocks. Map all exceptions through the existing conversation error response; do not log source names, diagnostics, body bytes, IDs, or provider payloads.
 
-- [ ] **Step 7: Run Task 2 GREEN and commit**
+- [x] **Step 7: Run Task 2 GREEN and commit**
 
 Run:
 
@@ -330,7 +332,7 @@ export function useAudioRecorder(options: { scopeKey: string; maximumDurationMs?
 };
 ```
 
-- [ ] **Step 1: Write the complete hook RED suite**
+- [x] **Step 1: Write the complete hook RED suite**
 
 Use deterministic fake `MediaStream`, tracks, `MediaRecorder`, timers, object URLs, and UUIDs. Cover:
 
@@ -345,7 +347,7 @@ Use deterministic fake `MediaStream`, tracks, `MediaRecorder`, timers, object UR
 - `discard()`, a changed `scopeKey`, and unmount stop tracks, clear timers/listeners, revoke exactly the owned URL once, and return to idle;
 - zero-byte or disallowed final blobs are rejected without a preview.
 
-- [ ] **Step 2: Run the hook tests and verify RED**
+- [x] **Step 2: Run the hook tests and verify RED**
 
 Run:
 
@@ -355,13 +357,13 @@ npx vitest run src/hooks/use-audio-recorder.test.tsx
 
 Expected: FAIL because `use-audio-recorder.ts` does not exist.
 
-- [ ] **Step 3: Implement the minimal hook state machine**
+- [x] **Step 3: Implement the minimal hook state machine**
 
 Keep all mutable recorder/stream/timer/generation tokens in refs. A generation number must invalidate callbacks from any canceled or previous recording. Select the first supported MIME from the approved order; pass `{ mimeType, audioBitsPerSecond: 32_000 }` when a supported MIME exists and `{ audioBitsPerSecond: 32_000 }` for fallback. Accumulate `dataavailable` chunks, but accept the final Blob only when its MIME essence is one of the three allowed values and its size is in `(0, 16 MiB]`.
 
 Use one short interval only to render elapsed time; compute `Math.min(Date.now() - startedAt, maximumDurationMs)` on each tick. Use a separate exact timeout for automatic stop. Never request permission during render/effect.
 
-- [ ] **Step 4: Run Task 3 GREEN and commit**
+- [x] **Step 4: Run Task 3 GREEN and commit**
 
 Run:
 
@@ -412,7 +414,7 @@ useInbox(...).sendRecording: (
 ) => Promise<InboxMessage | null>;
 ```
 
-- [ ] **Step 1: Write composer RED tests**
+- [x] **Step 1: Write composer RED tests**
 
 Test the user-visible contract:
 
@@ -426,7 +428,7 @@ Test the user-visible contract:
 - every action target has `min-h-11`/44 px and disabled state follows the conversation loading state;
 - changing `conversationId` cancels and cleans an active recording.
 
-- [ ] **Step 2: Run composer tests and verify RED**
+- [x] **Step 2: Run composer tests and verify RED**
 
 Run:
 
@@ -436,11 +438,11 @@ npx vitest run src/components/inbox/message-composer.test.tsx
 
 Expected: new cases FAIL because microphone states and `onSendRecording` are absent; the two existing composer tests remain GREEN.
 
-- [ ] **Step 3: Implement the composer states without duplicating recorder logic**
+- [x] **Step 3: Implement the composer states without duplicating recorder logic**
 
 Add `Mic`, `Square`, and `Trash2` icons; keep existing typography, border, canvas/panel tokens, and cardless composition. The component calls only the hook API and owns only the network `sending` flag/focus refs. Format duration with a pure local helper covered by test. Use the native `<audio controls preload="metadata">` for preview. Do not introduce waveform, animation, a recording modal, or browser API access in the component.
 
-- [ ] **Step 4: Write RED tests for inbox transport and reconciliation**
+- [x] **Step 4: Write RED tests for inbox transport and reconciliation**
 
 Extend the pending media discriminant:
 
@@ -459,7 +461,7 @@ type PendingMedia = {
 
 Require recordings to POST only `clientRequestId` and `file` to `/api/conversations/:id/recordings`, while attachments retain the existing messages route and fields. Assert optimistic `AUDIO/PENDING`, reuse of the hook-provided UUID, one optimistic row across retry, raw `File` preservation after conversion/network failure, retry through the recordings route while no persisted `mediaObjectId` exists, normal `/api/messages/:id/retry` after media persistence, SSE-before-HTTP deduplication, exactly-once preview URL revocation, and stale-conversation guards.
 
-- [ ] **Step 5: Run inbox tests and verify RED**
+- [x] **Step 5: Run inbox tests and verify RED**
 
 Run:
 
@@ -469,13 +471,13 @@ npx vitest run src/hooks/use-inbox.test.tsx src/components/inbox/conversation-vi
 
 Expected: new recording transport/propagation cases FAIL; existing pagination, media, focus, and SSE cases stay GREEN.
 
-- [ ] **Step 6: Implement recording transport and prop propagation**
+- [x] **Step 6: Implement recording transport and prop propagation**
 
 Add `sendRecording` beside `sendMedia`. Factor `createPendingMedia` only if it removes real duplication without changing existing behavior. In `performSend`, choose the endpoint from `pending.source`; recording multipart must not include `type` or `body`. Propagate `onSendRecording` through `InboxShell` and `ConversationView`, and pass the selected conversation ID into `MessageComposer` as the recorder scope key.
 
 When the composer begins sending, `useInbox` must synchronously own an immutable `File` and its own preview URL before the hook can discard its URL. Preserve the existing alias/reconciliation rules by `clientRequestId`.
 
-- [ ] **Step 7: Run Task 4 GREEN and commit**
+- [x] **Step 7: Run Task 4 GREEN and commit**
 
 Run:
 
@@ -509,11 +511,11 @@ git commit -m "feat: record and preview voice messages"
 - Consumes: all prior tasks and the existing immutable KVM release process.
 - Produces: a non-root production image containing FFmpeg/FFprobe and a verified app-only production release.
 
-- [ ] **Step 1: Write a RED runtime packaging assertion**
+- [x] **Step 1: Write a RED runtime packaging assertion**
 
 Extend the deployment verification script or add a focused test that requires the final Docker runtime to install both `ffmpeg` and `ffprobe` from Debian packages and forbids shell-based converter invocation. Run it before editing the Dockerfile and observe the expected failure because FFmpeg is absent.
 
-- [ ] **Step 2: Install FFmpeg/FFprobe in the image**
+- [x] **Step 2: Install FFmpeg/FFprobe in the image**
 
 Change the base package installation to:
 
@@ -525,7 +527,7 @@ RUN apt-get update \
 
 Do not add a privileged user, extra volume, host binary mount, shell wrapper, or new public port.
 
-- [ ] **Step 3: Run the real Linux conversion and integration gates**
+- [x] **Step 3: Run the real Linux conversion and integration gates**
 
 Build a test-capable image from the committed source and run:
 
@@ -538,7 +540,7 @@ src/modules/messages/service.integration.test.ts
 
 Use the isolated `_test` PostgreSQL database. Require real FFmpeg conversion, demo-provider delivery, one message row, one media row, no raw recording in the media volume, and an empty `.recordings`/`.staging` directory after completion.
 
-- [ ] **Step 4: Run all local quality gates**
+- [x] **Step 4: Run all local quality gates**
 
 Run each command independently and stop on the first failure:
 
@@ -557,11 +559,11 @@ git diff --check
 
 Expected: zero test failures/warnings; lint/typecheck/Prisma/build/verifiers exit 0; audit reports zero vulnerabilities.
 
-- [ ] **Step 5: Run browser QA before deployment**
+- [x] **Step 5: Run browser QA before deployment**
 
 Over HTTPS or a secure local context, verify microphone permission denied/allowed, start/stop, automatic five-minute stop using a shortened test clock, preview playback, delete, retry after simulated network failure, and send through the demo provider. Check 1440×900, 900×1100, and 390×844 for no horizontal overflow, keyboard focus restoration, 44 px controls, reduced motion, console cleanliness, and microphone track shutdown after every exit.
 
-- [ ] **Step 6: Build and inspect the immutable production image**
+- [x] **Step 6: Build and inspect the immutable production image**
 
 Tag the exact commit `xp-whatsapp:<commit>`. Verify:
 
