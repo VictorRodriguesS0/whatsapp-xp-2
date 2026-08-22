@@ -58,11 +58,37 @@ export type NormalizedMessageEchoControlEvent = {
   origin: "WHATSAPP_BUSINESS_APP";
 };
 
+export type NormalizedReactionEvent = {
+  kind: "reaction";
+  whatsappMessageId: string;
+  targetWhatsappMessageId: string;
+  from: string;
+  contactName: string | null;
+  emoji: string;
+  timestamp: Date;
+  timestampRaw: string;
+};
+
+export type NormalizedReactionEchoEvent = {
+  kind: "reactionEcho";
+  whatsappMessageId: string;
+  targetWhatsappMessageId: string;
+  to: string | null;
+  toUserId: string | null;
+  toParentUserId: string | null;
+  emoji: string;
+  timestamp: Date;
+  timestampRaw: string;
+  origin: "WHATSAPP_BUSINESS_APP";
+};
+
 export type NormalizedWebhookEvent =
   | NormalizedMessageEvent
   | NormalizedStatusEvent
   | NormalizedMessageEchoEvent
-  | NormalizedMessageEchoControlEvent;
+  | NormalizedMessageEchoControlEvent
+  | NormalizedReactionEvent
+  | NormalizedReactionEchoEvent;
 
 export type ProcessSummary = {
   processed: number;

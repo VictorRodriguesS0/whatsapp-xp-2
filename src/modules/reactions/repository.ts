@@ -218,7 +218,7 @@ export const prismaReactionRepository: ReactionRepository = {
   },
 
   async confirmRemoval(reactionId, clientRequestId) {
-    const removed = await prisma.messageReaction.deleteMany({
+    const removed = await prisma.messageReaction.updateMany({
       where: {
         id: reactionId,
         reactor: ReactionReactor.BUSINESS,
@@ -227,6 +227,7 @@ export const prismaReactionRepository: ReactionRepository = {
         status: ReactionStatus.PENDING,
         providerAttemptedAt: { not: null },
       },
+      data: { status: ReactionStatus.SENT, failureReason: null },
     });
     return removed.count === 1;
   },

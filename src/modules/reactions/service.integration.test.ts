@@ -128,7 +128,10 @@ describe("reaction service with PostgreSQL", () => {
     );
 
     expect(removed).toMatchObject({ emoji: "", status: "SENT", removed: true });
-    await expect(prisma.messageReaction.count()).resolves.toBe(0);
+    await expect(prisma.messageReaction.findFirst()).resolves.toMatchObject({
+      emoji: "",
+      status: "SENT",
+    });
   });
 
   it("allows only one provider operation per target message", async () => {

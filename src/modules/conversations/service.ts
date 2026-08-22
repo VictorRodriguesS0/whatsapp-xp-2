@@ -60,6 +60,7 @@ const messageSelect = {
     },
   },
   reactions: {
+    where: { emoji: { not: "" } },
     orderBy: { reactor: "desc" },
     select: {
       id: true,

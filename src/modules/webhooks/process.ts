@@ -5,6 +5,8 @@ import {
   MediaStatus,
   MessageDirection,
   MessageStatus,
+  ReactionReactor,
+  ReactionStatus,
   WebhookStatus,
   type MessageStatus as MessageStatusValue,
 } from "@/generated/prisma/enums";
@@ -23,6 +25,8 @@ import type {
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedReactionEchoEvent,
+  NormalizedReactionEvent,
   NormalizedStatusEvent,
   NormalizedWebhookEvent,
   ProcessSummary,
@@ -35,6 +39,12 @@ type MessageRecord = {
   id: string;
   conversationId: string;
   status: MessageStatusValue;
+};
+
+type ReactionTargetRecord = MessageRecord & {
+  contactWhatsappId: string | null;
+  contactWhatsappUserId: string | null;
+  contactPhone: string | null;
 };
 
 type ConversationMerge = {
@@ -76,6 +86,16 @@ export type WebhookRepository = {
     status: NormalizedStatusEvent["status"],
     failureReason: string | null,
   ): Promise<MessageRecord>;
+  findReactionTarget(whatsappMessageId: string): Promise<ReactionTargetRecord | null>;
+  applyReaction(input: {
+    messageId: string;
+    reactor: ReactionReactor;
+    emoji: string;
+    providerMessageId: string;
+    providerEventId: string;
+    providerTimestamp: Date;
+  }): Promise<"APPLIED" | "IGNORED">;
+  revokeMessage(messageId: string, revokedAt: Date): Promise<MessageRecord>;
 };
 
 export type WebhookProcessDependencies = {
@@ -569,6 +589,102 @@ export function createPrismaWebhookRepository(
         select: { id: true, conversationId: true, status: true },
       });
     },
+    findReactionTarget(whatsappMessageId) {
+      return client.message.findUnique({
+        where: { whatsappMessageId },
+        select: {
+          id: true,
+          conversationId: true,
+          status: true,
+          conversation: {
+            select: {
+              contact: {
+                select: {
+                  whatsappId: true,
+                  whatsappUserId: true,
+                  phone: true,
+                },
+              },
+            },
+          },
+        },
+      }).then((row) => row ? ({
+        id: row.id,
+        conversationId: row.conversationId,
+        status: row.status,
+        contactWhatsappId: row.conversation.contact.whatsappId,
+        contactWhatsappUserId: row.conversation.contact.whatsappUserId,
+        contactPhone: row.conversation.contact.phone,
+      }) : null);
+    },
+    async applyReaction(input) {
+      const current = await client.messageReaction.findUnique({
+        where: {
+          messageId_reactor: {
+            messageId: input.messageId,
+            reactor: input.reactor,
+          },
+        },
+        select: {
+          providerTimestamp: true,
+          providerEventId: true,
+          clientRequestId: true,
+          sentByUserId: true,
+          providerMessageId: true,
+        },
+      });
+      if (current?.providerTimestamp) {
+        const timestampOrder = input.providerTimestamp.getTime() - current.providerTimestamp.getTime();
+        if (
+          timestampOrder < 0 ||
+          (timestampOrder === 0 && input.providerEventId <= (current.providerEventId ?? ""))
+        ) {
+          return "IGNORED";
+        }
+      }
+      const preserveSender =
+        input.reactor === ReactionReactor.BUSINESS &&
+        current?.providerMessageId === input.providerMessageId
+          ? current.sentByUserId
+          : null;
+      await client.messageReaction.upsert({
+        where: {
+          messageId_reactor: {
+            messageId: input.messageId,
+            reactor: input.reactor,
+          },
+        },
+        create: {
+          messageId: input.messageId,
+          reactor: input.reactor,
+          emoji: input.emoji,
+          status: ReactionStatus.SENT,
+          providerMessageId: input.providerMessageId,
+          providerEventId: input.providerEventId,
+          providerTimestamp: input.providerTimestamp,
+          sentByUserId: preserveSender,
+        },
+        update: {
+          emoji: input.emoji,
+          status: ReactionStatus.SENT,
+          clientRequestId: preserveSender ? current?.clientRequestId : null,
+          providerMessageId: input.providerMessageId,
+          providerEventId: input.providerEventId,
+          providerTimestamp: input.providerTimestamp,
+          providerAttemptedAt: null,
+          sentByUserId: preserveSender,
+          failureReason: null,
+        },
+      });
+      return "APPLIED";
+    },
+    revokeMessage(messageId, revokedAt) {
+      return client.message.update({
+        where: { id: messageId },
+        data: { revokedAt },
+        select: { id: true, conversationId: true, status: true },
+      });
+    },
   };
 }
 
@@ -659,6 +775,10 @@ function deduplicationKey(
       return `message-echo:${event.whatsappMessageId}`;
     case "messageEchoControl":
       return `message-echo-control:${event.action}:${event.whatsappMessageId}:${event.originalWhatsappMessageId}`;
+    case "reaction":
+      return `reaction:${event.whatsappMessageId}`;
+    case "reactionEcho":
+      return `reaction-echo:${event.whatsappMessageId}`;
   }
 }
 
@@ -807,8 +927,69 @@ async function processMessageEcho(
   };
 }
 
+function numericIdentity(value: string | null): string | null {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  return digits || null;
+}
+
+function reactionIdentityMatches(
+  target: ReactionTargetRecord,
+  event: NormalizedReactionEvent | NormalizedReactionEchoEvent | NormalizedMessageEchoControlEvent,
+): boolean {
+  const phoneIdentities = new Set(
+    [target.contactWhatsappId, target.contactPhone]
+      .map(numericIdentity)
+      .filter((value): value is string => value !== null),
+  );
+  if (event.kind === "reaction") {
+    return phoneIdentities.has(numericIdentity(event.from) ?? "");
+  }
+  const phoneMatches = event.to
+    ? phoneIdentities.has(numericIdentity(event.to) ?? "")
+    : false;
+  const userMatches = event.toUserId
+    ? event.toUserId === target.contactWhatsappUserId
+    : false;
+  return phoneMatches || userMatches;
+}
+
+async function processReaction(
+  event: NormalizedReactionEvent | NormalizedReactionEchoEvent,
+  key: string,
+  repository: WebhookRepository,
+  now: Date,
+): Promise<{ duplicate: boolean; realtime: readonly RealtimeEvent[]; pendingMediaId: null }> {
+  const target = await repository.findReactionTarget(event.targetWhatsappMessageId);
+  if (!target) {
+    if (Math.abs(now.getTime() - event.timestamp.getTime()) <= MISSING_STATUS_RETRY_GRACE_MS) {
+      throw new WebhookProcessingError(true);
+    }
+    await repository.completeEvent(key);
+    return { duplicate: false, realtime: [], pendingMediaId: null };
+  }
+  if (!reactionIdentityMatches(target, event)) throw new WebhookIdentityConflictError();
+
+  const applied = await repository.applyReaction({
+    messageId: target.id,
+    reactor: event.kind === "reaction" ? ReactionReactor.CONTACT : ReactionReactor.BUSINESS,
+    emoji: event.emoji,
+    providerMessageId: event.whatsappMessageId,
+    providerEventId: event.whatsappMessageId,
+    providerTimestamp: event.timestamp,
+  });
+  await repository.completeEvent(key);
+  return {
+    duplicate: applied === "IGNORED",
+    realtime: applied === "APPLIED"
+      ? [{ type: "reaction.updated", conversationId: target.conversationId, messageId: target.id }]
+      : [],
+    pendingMediaId: null,
+  };
+}
+
 async function processMessageEchoControl(
-  _event: NormalizedMessageEchoControlEvent,
+  event: NormalizedMessageEchoControlEvent,
   key: string,
   repository: WebhookRepository,
 ): Promise<{
@@ -816,6 +997,19 @@ async function processMessageEchoControl(
   realtime: readonly RealtimeEvent[];
   pendingMediaId: string | null;
 }> {
+  if (event.action === "REVOKE") {
+    const target = await repository.findReactionTarget(event.originalWhatsappMessageId);
+    if (target) {
+      if (!reactionIdentityMatches(target, event)) throw new WebhookIdentityConflictError();
+      const revoked = await repository.revokeMessage(target.id, event.timestamp);
+      await repository.completeEvent(key);
+      return {
+        duplicate: false,
+        realtime: [{ type: "message.status", conversationId: revoked.conversationId, messageId: revoked.id }],
+        pendingMediaId: null,
+      };
+    }
+  }
   await repository.completeEvent(key);
   return { duplicate: false, realtime: [], pendingMediaId: null };
 }
@@ -892,6 +1086,9 @@ export async function processWebhookEvents(
             return processMessageEcho(event, key, repository);
           case "messageEchoControl":
             return processMessageEchoControl(event, key, repository);
+          case "reaction":
+          case "reactionEcho":
+            return processReaction(event, key, repository, now);
         }
       });
     } catch (error) {

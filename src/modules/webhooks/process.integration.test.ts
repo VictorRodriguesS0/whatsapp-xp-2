@@ -26,6 +26,8 @@ import type {
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedReactionEchoEvent,
+  NormalizedReactionEvent,
 } from "./types";
 
 function echoEvent(
@@ -93,6 +95,76 @@ function controlEvent(
     timestampRaw: "1787313600",
     origin: "WHATSAPP_BUSINESS_APP",
   };
+}
+
+function reactionEvent(
+  whatsappMessageId: string,
+  targetWhatsappMessageId: string,
+  emoji: string,
+  options: { from?: string; timestamp?: Date } = {},
+): NormalizedReactionEvent {
+  const timestamp = options.timestamp ?? new Date("2026-08-21T12:01:00.000Z");
+  return {
+    kind: "reaction",
+    whatsappMessageId,
+    targetWhatsappMessageId,
+    from: options.from ?? "551100000031",
+    contactName: "Reaction contact",
+    emoji,
+    timestamp,
+    timestampRaw: String(timestamp.getTime() / 1_000),
+  };
+}
+
+function reactionEchoEvent(
+  whatsappMessageId: string,
+  targetWhatsappMessageId: string,
+  emoji: string,
+  options: { to?: string | null; toUserId?: string | null; timestamp?: Date } = {},
+): NormalizedReactionEchoEvent {
+  const timestamp = options.timestamp ?? new Date("2026-08-21T12:01:00.000Z");
+  return {
+    kind: "reactionEcho",
+    whatsappMessageId,
+    targetWhatsappMessageId,
+    to: options.to === undefined ? "551100000031" : options.to,
+    toUserId: options.toUserId ?? null,
+    toParentUserId: null,
+    emoji,
+    timestamp,
+    timestampRaw: String(timestamp.getTime() / 1_000),
+    origin: "WHATSAPP_BUSINESS_APP",
+  };
+}
+
+async function seedReactionTarget() {
+  const contact = await prisma.contact.create({
+    data: {
+      whatsappId: "551100000031",
+      whatsappUserId: "BR.ReactionCustomer",
+      phone: "551100000031",
+      name: "Reaction contact",
+    },
+  });
+  const conversation = await prisma.conversation.create({
+    data: {
+      contactId: contact.id,
+      lastMessageAt: new Date("2026-08-21T12:00:00.000Z"),
+      awaitingResponseSince: new Date("2026-08-21T11:59:00.000Z"),
+    },
+  });
+  const message = await prisma.message.create({
+    data: {
+      conversationId: conversation.id,
+      whatsappMessageId: "wamid.reaction-target",
+      direction: MessageDirection.OUTBOUND,
+      type: MessageType.TEXT,
+      body: "Target",
+      status: MessageStatus.SENT,
+      externalTimestamp: new Date("2026-08-21T12:00:00.000Z"),
+    },
+  });
+  return { contact, conversation, message };
 }
 
 function transactionDependencies(
@@ -1193,6 +1265,84 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         lastMessageAt: latestTimestamp,
         awaitingResponseSince: null,
       });
+    });
+
+    it("reconciles contact reactions and removals without changing messages or response state", async () => {
+      const { conversation, message } = await seedReactionTarget();
+      const awaitingBefore = conversation.awaitingResponseSince;
+      const messageCount = await prisma.message.count();
+
+      await processWebhookEvents([
+        reactionEvent("wamid.contact-reaction-1", "wamid.reaction-target", "👍"),
+      ]);
+      await expect(prisma.messageReaction.findFirst()).resolves.toMatchObject({
+        messageId: message.id,
+        reactor: "CONTACT",
+        emoji: "👍",
+        status: "SENT",
+      });
+
+      await processWebhookEvents([
+        reactionEvent(
+          "wamid.contact-reaction-older",
+          "wamid.reaction-target",
+          "😂",
+          { timestamp: new Date("2026-08-21T12:00:30.000Z") },
+        ),
+        reactionEvent(
+          "wamid.contact-reaction-remove",
+          "wamid.reaction-target",
+          "",
+          { timestamp: new Date("2026-08-21T12:02:00.000Z") },
+        ),
+      ]);
+      await expect(prisma.messageReaction.findFirst()).resolves.toMatchObject({
+        reactor: "CONTACT",
+        emoji: "",
+        providerEventId: "wamid.contact-reaction-remove",
+      });
+      await expect(prisma.message.count()).resolves.toBe(messageCount);
+      await expect(prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }))
+        .resolves.toMatchObject({ awaitingResponseSince: awaitingBefore });
+      await expect(prisma.conversationRead.count()).resolves.toBe(0);
+    });
+
+    it("reconciles official app reaction echoes using timestamp and event-id ordering", async () => {
+      const { message } = await seedReactionTarget();
+      const timestamp = new Date("2026-08-21T12:03:00.000Z");
+      await processWebhookEvents([
+        reactionEchoEvent("wamid.echo-reaction-b", "wamid.reaction-target", "❤️", { timestamp }),
+      ]);
+      await processWebhookEvents([
+        reactionEchoEvent("wamid.echo-reaction-a", "wamid.reaction-target", "😂", { timestamp }),
+        reactionEchoEvent("wamid.echo-reaction-c", "wamid.reaction-target", "🙏", { timestamp }),
+      ]);
+
+      await expect(prisma.messageReaction.findUnique({
+        where: { messageId_reactor: { messageId: message.id, reactor: "BUSINESS" } },
+      })).resolves.toMatchObject({
+        emoji: "🙏",
+        providerEventId: "wamid.echo-reaction-c",
+        providerTimestamp: timestamp,
+      });
+    });
+
+    it("quarantines a reaction whose customer identity differs from the target conversation", async () => {
+      await seedReactionTarget();
+      await expect(processWebhookEvents([
+        reactionEvent("wamid.wrong-customer", "wamid.reaction-target", "👍", { from: "551199999999" }),
+      ])).resolves.toEqual({ processed: 0, duplicates: 0, quarantined: 1 });
+      await expect(prisma.messageReaction.count()).resolves.toBe(0);
+    });
+
+    it("marks the original message revoked when the official app reports a revoke control", async () => {
+      const { message } = await seedReactionTarget();
+      const revoke = controlEvent("REVOKE", "wamid.echo-control-revoke-existing");
+      revoke.originalWhatsappMessageId = "wamid.reaction-target";
+      revoke.toUserId = "BR.ReactionCustomer";
+      await processWebhookEvents([revoke]);
+      await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id } }))
+        .resolves.toMatchObject({ revokedAt: revoke.timestamp });
     });
 
     it("deduplicates edit and revoke controls without mutating message history", async () => {

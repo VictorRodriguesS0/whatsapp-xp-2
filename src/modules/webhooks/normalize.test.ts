@@ -433,15 +433,44 @@ describe("Meta webhook normalization", () => {
       .toThrow(WebhookPayloadError);
   });
 
-  it("records an unknown inbound message type as unsupported", () => {
+  it("normalizes an inbound reaction without creating an unsupported message", () => {
     expect(normalizeWebhook(unsupportedMessageFixture)).toEqual([
-      expect.objectContaining({
-        kind: "message",
+      {
+        kind: "reaction",
         whatsappMessageId: "wamid.reaction-1",
-        type: "UNSUPPORTED",
-        body: null,
-        content: { kind: "unknown", rawType: "reaction" },
-        media: null,
+        targetWhatsappMessageId: "wamid.provider-only",
+        from: "5511999990001",
+        contactName: "Ana Cliente",
+        emoji: "👍",
+        timestamp: new Date("2026-08-19T10:00:03.000Z"),
+        timestampRaw: "1787133603",
+      },
+    ]);
+  });
+
+  it.each(["👍👍", "texto", " "])("rejects malformed reaction emoji %j", (emoji) => {
+    const payload = structuredClone(unsupportedMessageFixture) as Record<string, any>;
+    payload.entry[0].changes[0].value.messages[0].reaction.emoji = emoji;
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it("normalizes removal and official app reaction echoes", () => {
+    const inboundRemoval = structuredClone(unsupportedMessageFixture) as Record<string, any>;
+    inboundRemoval.entry[0].changes[0].value.messages[0].reaction.emoji = "";
+    expect(normalizeWebhook(inboundRemoval)[0]).toMatchObject({ kind: "reaction", emoji: "" });
+
+    const appEcho = messageEchoFixture() as Record<string, any>;
+    const echo = appEcho.entry[0].changes[0].value.message_echoes[0];
+    echo.type = "reaction";
+    delete echo.text;
+    echo.reaction = { message_id: "wamid.target", emoji: "❤️" };
+    expect(normalizeWebhook(appEcho)).toEqual([
+      expect.objectContaining({
+        kind: "reactionEcho",
+        whatsappMessageId: "wamid.echo-text",
+        targetWhatsappMessageId: "wamid.target",
+        emoji: "❤️",
+        origin: "WHATSAPP_BUSINESS_APP",
       }),
     ]);
   });

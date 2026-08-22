@@ -223,6 +223,9 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
         message.status = status;
         return { ...message, failureReason };
       },
+      findReactionTarget: async () => { throw new Error("unused"); },
+      applyReaction: async () => { throw new Error("unused"); },
+      revokeMessage: async () => { throw new Error("unused"); },
     };
   }
 

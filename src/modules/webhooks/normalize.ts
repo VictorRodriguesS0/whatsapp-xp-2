@@ -9,9 +9,12 @@ import type {
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedReactionEchoEvent,
+  NormalizedReactionEvent,
   NormalizedStatusEvent,
   NormalizedWebhookEvent,
 } from "./types";
+import { isSingleEmoji } from "@/modules/reactions/emoji";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -523,7 +526,7 @@ function normalizeUnknownContent(message: UnknownRecord): MessageContent | null 
 function normalizeMessage(
   candidate: unknown,
   contactNames: Map<string, string>,
-): NormalizedMessageEvent | null {
+): NormalizedMessageEvent | NormalizedReactionEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const from = whatsappUserId(message?.from);
@@ -532,6 +535,30 @@ function normalizeMessage(
 
   if (!message || !whatsappMessageId || !from || !rawType || !parsedTimestamp) {
     return null;
+  }
+
+  if (rawType === "reaction") {
+    const reaction = record(message.reaction);
+    const targetWhatsappMessageId = exactIdentifier(reaction?.message_id, 512);
+    const emoji = reaction?.emoji;
+    if (
+      !reaction ||
+      !targetWhatsappMessageId ||
+      typeof emoji !== "string" ||
+      (emoji !== "" && !isSingleEmoji(emoji))
+    ) {
+      return null;
+    }
+    return {
+      kind: "reaction",
+      whatsappMessageId,
+      targetWhatsappMessageId,
+      from,
+      contactName: contactNames.get(from) ?? null,
+      emoji,
+      timestamp: parsedTimestamp.date,
+      timestampRaw: parsedTimestamp.raw,
+    };
   }
 
   const type = typeMap.get(rawType) ?? MessageType.UNSUPPORTED;
@@ -592,7 +619,7 @@ function normalizeMessage(
 
 function normalizeMessageEcho(
   candidate: unknown,
-): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | null {
+): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | NormalizedReactionEchoEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const hasLegacyRecipient = message ? hasOwn(message, "to") : false;
@@ -638,6 +665,33 @@ function normalizeMessageEcho(
       to,
       toUserId,
       toParentUserId,
+      timestamp: parsedTimestamp.date,
+      timestampRaw: parsedTimestamp.raw,
+      origin: "WHATSAPP_BUSINESS_APP",
+    };
+  }
+
+
+  if (rawType === "reaction") {
+    const reaction = record(message.reaction);
+    const targetWhatsappMessageId = exactIdentifier(reaction?.message_id, 512);
+    const emoji = reaction?.emoji;
+    if (
+      !reaction ||
+      !targetWhatsappMessageId ||
+      typeof emoji !== "string" ||
+      (emoji !== "" && !isSingleEmoji(emoji))
+    ) {
+      return null;
+    }
+    return {
+      kind: "reactionEcho",
+      whatsappMessageId,
+      targetWhatsappMessageId,
+      to,
+      toUserId,
+      toParentUserId,
+      emoji,
       timestamp: parsedTimestamp.date,
       timestampRaw: parsedTimestamp.raw,
       origin: "WHATSAPP_BUSINESS_APP",
