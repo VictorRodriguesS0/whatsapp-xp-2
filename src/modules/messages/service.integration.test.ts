@@ -134,6 +134,8 @@ describe("outbound message PostgreSQL concurrency", () => {
     let echoBeforeProviderReturn: {
       id: string;
       sentByUserId: string | null;
+      status: MessageStatus;
+      failureReason: string | null;
     } | null = null;
     let apiBeforeProviderReturn: {
       id: string;
@@ -161,10 +163,22 @@ describe("outbound message PostgreSQL concurrency", () => {
         media: null,
         replyToWhatsappMessageId: original.whatsappMessageId,
         origin: "WHATSAPP_BUSINESS_APP",
+      }, {
+        kind: "status",
+        whatsappMessageId: providerMessageId,
+        timestamp: new Date(echoTimestamp.getTime() + 1_000),
+        timestampRaw: String(echoTimestamp.getTime() / 1_000 + 1),
+        status: MessageStatus.FAILED,
+        failureReason: "Falha confirmada pela Meta",
       }]);
       echoBeforeProviderReturn = await prisma.message.findUnique({
         where: { whatsappMessageId: providerMessageId },
-        select: { id: true, sentByUserId: true },
+        select: {
+          id: true,
+          sentByUserId: true,
+          status: true,
+          failureReason: true,
+        },
       });
       apiBeforeProviderReturn = await prisma.message.findUnique({
         where: { clientRequestId },
@@ -191,14 +205,17 @@ describe("outbound message PostgreSQL concurrency", () => {
     });
 
     expect(result).toMatchObject({
-      status: MessageStatus.SENT,
+      status: MessageStatus.FAILED,
+      failureReason: "Falha confirmada pela Meta",
       replyTo: expect.objectContaining({ messageId: original.id }),
     });
-    expect(echoProcessResult).toMatchObject({ processed: 1, duplicates: 0 });
+    expect(echoProcessResult).toMatchObject({ processed: 2, duplicates: 0 });
     expect(echoEventStatus).toBe("PROCESSED");
     expect(echoBeforeProviderReturn).toEqual({
       id: expect.any(String),
       sentByUserId: null,
+      status: MessageStatus.FAILED,
+      failureReason: "Falha confirmada pela Meta",
     });
     expect(apiBeforeProviderReturn).toEqual({
       id: result.id,
@@ -213,6 +230,8 @@ describe("outbound message PostgreSQL concurrency", () => {
         sentByUserId: true,
         replyToMessageId: true,
         replyToWhatsappMessageId: true,
+        status: true,
+        failureReason: true,
         operationalState: true,
       },
     })).resolves.toEqual([{
@@ -221,6 +240,8 @@ describe("outbound message PostgreSQL concurrency", () => {
       sentByUserId: victor.id,
       replyToMessageId: original.id,
       replyToWhatsappMessageId: original.whatsappMessageId,
+      status: MessageStatus.FAILED,
+      failureReason: "Falha confirmada pela Meta",
       operationalState: MessageOperationalState.SENT,
     }]);
     await expect(prisma.message.count()).resolves.toBe(2);

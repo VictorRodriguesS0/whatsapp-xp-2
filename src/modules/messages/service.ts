@@ -46,6 +46,7 @@ import {
   reconcileReplyLinks,
   resolveReplyTarget,
 } from "./reply-linking.server";
+import { shouldApplyMessageStatus } from "./status-precedence";
 import { safeFailureReason, safeOriginalFilename } from "./status";
 
 export const MESSAGE_SEND_RATE_LIMIT = 30;
@@ -591,9 +592,21 @@ export const prismaMessageRepository: MessageServiceRepository = {
               clientRequestId: true,
               sentByUserId: true,
               mediaObjectId: true,
+              status: true,
+              failureReason: true,
               mediaObject: { select: { storageKey: true } },
             },
           });
+
+          const finalStatus = echo && !shouldApplyMessageStatus(
+            echo.status,
+            MessageStatus.SENT,
+          )
+            ? echo.status
+            : MessageStatus.SENT;
+          const finalFailureReason = finalStatus === MessageStatus.FAILED
+            ? echo?.failureReason ?? null
+            : null;
 
           if (echo && echo.id !== outbound.id) {
             const isMatchingEcho = (
@@ -637,8 +650,8 @@ export const prismaMessageRepository: MessageServiceRepository = {
             where: { id: messageId },
             data: {
               whatsappMessageId: parsedWhatsappMessageId,
-              status: MessageStatus.SENT,
-              failureReason: null,
+              status: finalStatus,
+              failureReason: finalFailureReason,
               operationalState: MessageOperationalState.SENT,
               deliveryLeaseId: null,
               deliveryLeaseUntil: null,

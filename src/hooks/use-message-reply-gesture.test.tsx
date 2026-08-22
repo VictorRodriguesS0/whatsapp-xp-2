@@ -12,6 +12,7 @@ function Harness({ onReply }: { onReply: () => void }) {
   return (
     <article data-offset={gesture.offset} data-testid="gesture" {...gesture.handlers}>
       <span>Mensagem</span>
+      <div data-reply-swipe-ignore="true"><h3>Conteúdo rico</h3></div>
       <button type="button">Controle</button>
       <audio aria-label="Áudio" controls />
     </article>
@@ -129,4 +130,21 @@ describe("useMessageReplyGesture", () => {
     expect(reply).not.toHaveBeenCalled();
     expect(target).toHaveAttribute("data-offset", "0");
   });
+
+  it.each(["touch", "pen"])(
+    "leaves %s gestures on marked rich text available for selection",
+    (pointerType) => {
+      const reply = vi.fn();
+      render(<Harness onReply={reply} />);
+      const target = screen.getByTestId("gesture");
+      const richText = screen.getByRole("heading", { name: "Conteúdo rico" });
+
+      pointer(richText, "down", { x: 0, y: 0, pointerType });
+      pointer(richText, "move", { x: 70, y: 0, pointerType });
+      pointer(richText, "up", { x: 70, y: 0, pointerType });
+
+      expect(reply).not.toHaveBeenCalled();
+      expect(target).toHaveAttribute("data-offset", "0");
+    },
+  );
 });

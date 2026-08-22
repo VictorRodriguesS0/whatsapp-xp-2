@@ -21,6 +21,7 @@ import {
   reconcileConversationReplyLinks,
   reconcileReplyLinks,
 } from "@/modules/messages/reply-linking.server";
+import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
 
 import type {
   NormalizedMedia,
@@ -693,32 +694,6 @@ function safeErrorSummary(error: unknown): string {
   return `processing_error:${name || "Unknown"}`;
 }
 
-function shouldApplyStatus(
-  current: MessageStatusValue,
-  next: NormalizedStatusEvent["status"],
-): boolean {
-  if (current === MessageStatus.RECEIVED || current === MessageStatus.READ) {
-    return false;
-  }
-
-  if (next === MessageStatus.FAILED) {
-    return current === MessageStatus.PENDING || current === MessageStatus.SENT;
-  }
-
-  if (current === MessageStatus.FAILED) {
-    return false;
-  }
-
-  const rank: Partial<Record<MessageStatusValue, number>> = {
-    [MessageStatus.PENDING]: 0,
-    [MessageStatus.SENT]: 1,
-    [MessageStatus.DELIVERED]: 2,
-    [MessageStatus.READ]: 3,
-  };
-
-  return (rank[next] ?? -1) > (rank[current] ?? -1);
-}
-
 async function processMessage(
   event: NormalizedMessageEvent,
   key: string,
@@ -863,7 +838,7 @@ async function processStatus(
 
   let realtime: RealtimeEvent[] = [];
 
-  if (shouldApplyStatus(message.status, event.status)) {
+  if (shouldApplyMessageStatus(message.status, event.status)) {
     const updated = await repository.updateMessageStatus(
       message.id,
       event.status,

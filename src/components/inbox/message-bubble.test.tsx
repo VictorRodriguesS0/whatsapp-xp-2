@@ -199,7 +199,9 @@ describe("MessageBubble", () => {
     );
 
     expect(screen.getByRole("link", { name: "Abrir no Google Maps" })).toBeVisible();
-    expect(screen.getByText("XP Eletrônicos").closest("article")?.firstElementChild).toHaveClass(
+    const heading = screen.getByRole("heading", { name: "XP Eletrônicos" });
+    expect(heading.closest('[data-reply-swipe-ignore="true"]')).not.toBeNull();
+    expect(heading.closest("article")?.firstElementChild).toHaveClass(
       "max-w-[min(78%,42rem)]",
     );
   });
