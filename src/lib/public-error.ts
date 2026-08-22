@@ -5,6 +5,8 @@ export type PublicErrorOperation =
   | "conversation"
   | "send"
   | "retry"
+  | "reaction"
+  | "reaction-unknown"
   | "responsible"
   | "unread"
   | "contact-types"
@@ -19,6 +21,8 @@ const fallback: Record<PublicErrorOperation, string> = {
   conversation: "Não foi possível carregar a conversa.",
   send: "Não foi possível enviar a mensagem.",
   retry: "Não foi possível reenviar a mensagem.",
+  reaction: "Não foi possível atualizar a reação.",
+  "reaction-unknown": "A confirmação da reação ainda está pendente.",
   responsible: "Não foi possível alterar o responsável.",
   unread: "Não foi possível marcar como não lida.",
   "contact-types": "Não foi possível carregar os tipos de contato.",

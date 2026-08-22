@@ -17,6 +17,7 @@ import type { ContactDto as UpdatedContactDto } from "@/modules/contacts/types";
 import type { RealtimeEvent } from "@/modules/realtime/events";
 
 import { useRealtime } from "./use-realtime";
+import { useMessageReactions } from "./use-message-reactions";
 
 export type InboxMessage = MessageDto & {
   previewUrl?: string;
@@ -966,6 +967,23 @@ export function useInbox(initialUser: SessionUser) {
     })();
   }, [performSend, refreshList]);
 
+  const getActiveConversationId = useCallback(() => selectedIdRef.current, []);
+  const getReactionMessage = useCallback((messageId: string) => (
+    conversation?.messages.find((message) => message.id === messageId) ?? null
+  ), [conversation]);
+  const replaceMessageReactions = useCallback((messageId: string, reactions: MessageDto["reactions"]) => {
+    setConversation((current) => updateMessage(current, messageId, (message) => ({
+      ...message,
+      reactions,
+    })));
+  }, []);
+  const messageReactions = useMessageReactions({
+    actor: { id: initialUser.id, name: initialUser.name },
+    getActiveConversationId,
+    getMessage: getReactionMessage,
+    replaceReactions: replaceMessageReactions,
+  });
+
   const setResponsible = useCallback(async (userId: string | null): Promise<void> => {
     const id = selectedIdRef.current;
     if (!id || responsibleRequestPending.current) return;
@@ -1046,7 +1064,8 @@ export function useInbox(initialUser: SessionUser) {
     if (
       event.type === "message.created" ||
       event.type === "message.status" ||
-      event.type === "media.updated"
+      event.type === "media.updated" ||
+      event.type === "reaction.updated"
     ) {
       void refreshList();
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
@@ -1178,6 +1197,9 @@ export function useInbox(initialUser: SessionUser) {
     sendMedia,
     sendRecording,
     retryMessage,
+    reactToMessage: messageReactions.react,
+    retryReaction: messageReactions.retry,
+    reactionStateFor: messageReactions.stateFor,
     markRead,
     markUnread,
     setResponsible,

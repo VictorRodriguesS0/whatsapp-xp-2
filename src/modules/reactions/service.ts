@@ -81,7 +81,7 @@ async function setBusinessReactionOnce(
   actorId: string,
   messageId: string,
   input: ReactionInput,
-  dependencies: ReactionServiceDependencies = defaultDependencies,
+  dependencies: ReactionServiceDependencies,
 ): Promise<ReactionMutationDto> {
   const repository = dependencies.repository;
   const clock = dependencies.now ?? (() => new Date());
@@ -148,7 +148,7 @@ export function setBusinessReaction(
   actorId: string,
   messageId: string,
   input: ReactionInput,
-  dependencies: ReactionServiceDependencies,
+  dependencies: ReactionServiceDependencies = defaultDependencies,
 ): Promise<ReactionMutationDto> {
   const parsedActorId = uuidSchema.parse(actorId);
   const parsedMessageId = uuidSchema.parse(messageId);
