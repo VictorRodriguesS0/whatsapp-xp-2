@@ -584,6 +584,7 @@ export function useInbox(initialUser: SessionUser) {
         setConversation((current) => current?.contact.id === contactId
           ? { ...current, contact: mergeUpdatedContact(current.contact, updated) }
           : current);
+        void refreshList();
         return true;
       } catch (error) {
         if (!mounted.current) return false;

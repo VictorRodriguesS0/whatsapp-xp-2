@@ -1,12 +1,15 @@
 "use client";
 
-import { Phone, UserRoundCheck } from "lucide-react";
+import { Phone, Tags, UserRoundCheck } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ResponsibleOption } from "@/hooks/use-inbox";
-import type { ConversationListItem } from "@/modules/conversations/types";
+import type { ContactClassificationRecord, ConversationListItem } from "@/modules/conversations/types";
+
+import { ContactTagChip } from "./contact-tag-chip";
+import { ContactTagEditor } from "./contact-tag-editor";
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -17,12 +20,26 @@ export function CustomerPanel({
   users,
   currentUserId,
   onSetResponsible,
+  availableTags,
+  tagsLoading,
+  tagsError,
+  tagSavePending,
+  tagSaveError,
+  onRetryTags,
+  onSaveTags,
   pending = false,
 }: {
   conversation: ConversationListItem | null;
   users: ResponsibleOption[];
   currentUserId: string;
   onSetResponsible: (userId: string | null) => void;
+  availableTags: ContactClassificationRecord[];
+  tagsLoading: boolean;
+  tagsError: string | null;
+  tagSavePending: boolean;
+  tagSaveError: string | null;
+  onRetryTags: () => void;
+  onSaveTags: (contactId: string, tagIds: string[]) => Promise<boolean>;
   pending?: boolean;
 }) {
   if (!conversation) {
@@ -50,6 +67,35 @@ export function CustomerPanel({
           <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--muted)]"><Phone aria-hidden="true" className="size-3.5" />{conversation.contact.phone}</p>
         </div>
       </div>
+
+      <section aria-labelledby="contact-tags-heading" className="border-b border-[var(--border)] py-5">
+        <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text)]" id="contact-tags-heading">
+          <Tags aria-hidden="true" className="size-4" />
+          Etiquetas
+        </h3>
+        {conversation.contact.tags.length > 0 ? (
+          <div aria-label={`Etiquetas de ${conversation.contact.name}`} className="mt-3 flex flex-wrap gap-2">
+            {conversation.contact.tags.map((tag) => (
+              <ContactTagChip color={tag.color} key={tag.id} name={tag.name} />
+            ))}
+          </div>
+        ) : (
+          <p className="mt-2 text-sm text-[var(--muted)]">Nenhuma etiqueta aplicada</p>
+        )}
+        <div className="mt-4">
+          <ContactTagEditor
+            assignedTags={conversation.contact.tags}
+            availableTags={availableTags}
+            contactId={conversation.contact.id}
+            error={tagSaveError ?? tagsError}
+            key={conversation.contact.id}
+            loading={tagsLoading}
+            onRetryLoad={onRetryTags}
+            onSave={onSaveTags}
+            pending={tagSavePending}
+          />
+        </div>
+      </section>
 
       <section aria-labelledby="responsible-heading" className="pt-5">
         <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text)]" id="responsible-heading"><UserRoundCheck aria-hidden="true" className="size-4" />Responsável</h3>

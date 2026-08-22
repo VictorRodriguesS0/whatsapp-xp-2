@@ -46,6 +46,39 @@ describe("ConversationList", () => {
     expect(screen.getByText("Marcos")).toBeVisible();
   });
 
+  it("shows two compact textual labels and an accessible overflow count", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          contact: {
+            ...fixture.contact,
+            tags: [
+              { id: "tag-1", name: "VIP", color: "#176B52", active: true },
+              { id: "tag-2", name: "Aguardando produto", color: "#2458A6", active: true },
+              { id: "tag-3", name: "Loja", color: "#B4443C", active: true },
+              { id: "tag-4", name: "Retorno", color: "url(javascript:bad)", active: true },
+            ],
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const row = screen.getByRole("button", { name: /Carlos Lima/i });
+    expect(row).toHaveTextContent("VIP");
+    expect(row).toHaveTextContent("Aguardando produto");
+    expect(row).not.toHaveTextContent("Loja");
+    expect(screen.getByLabelText("Mais 2 etiquetas")).toHaveTextContent("+2");
+  });
+
+  it("does not add a label row when the contact has no labels", () => {
+    render(<ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} />);
+
+    expect(screen.queryByLabelText("Etiquetas de Carlos Lima")).not.toBeInTheDocument();
+  });
+
   it("keeps shared unread state distinct from awaiting a response", () => {
     render(
       <ConversationList

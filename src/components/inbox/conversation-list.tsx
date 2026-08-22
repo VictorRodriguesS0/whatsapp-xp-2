@@ -10,6 +10,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/modules/conversations/types";
 
+import { ContactTagChip } from "./contact-tag-chip";
+
 type ConversationListProps = {
   items: ConversationListItem[];
   selectedId: string | null;
@@ -143,6 +145,21 @@ export function ConversationList({
                   </span>
                   {item.awaitingResponseSince ? <span className="mt-1 block text-xs font-medium text-[var(--text)]">Aguardando resposta</span> : null}
                   <span className="mt-1 block truncate text-xs text-[var(--muted)]">{item.responsible?.name ?? "Sem responsável"}</span>
+                  {item.contact.tags.length > 0 ? (
+                    <span aria-label={`Etiquetas de ${item.contact.name}`} className="mt-1.5 flex min-w-0 items-center gap-1">
+                      {item.contact.tags.slice(0, 2).map((tag) => (
+                        <ContactTagChip color={tag.color} compact key={tag.id} name={tag.name} />
+                      ))}
+                      {item.contact.tags.length > 2 ? (
+                        <span
+                          aria-label={`Mais ${item.contact.tags.length - 2} etiquetas`}
+                          className="shrink-0 rounded-full border border-[var(--border)] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-[var(--muted)]"
+                        >
+                          +{item.contact.tags.length - 2}
+                        </span>
+                      ) : null}
+                    </span>
+                  ) : null}
                 </span>
               </span>
             </button>

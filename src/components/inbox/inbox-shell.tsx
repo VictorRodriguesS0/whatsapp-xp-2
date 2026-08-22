@@ -144,7 +144,20 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
           </section>
 
           <aside aria-label="Dados do cliente" className="customer-pane min-h-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]">
-            <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} pending={inbox.responsiblePending} users={inbox.users} />
+            <CustomerPanel
+              availableTags={inbox.contactTags}
+              conversation={selectedListItem}
+              currentUserId={initialUser.id}
+              onRetryTags={() => void inbox.loadContactTags()}
+              onSaveTags={inbox.replaceContactTags}
+              onSetResponsible={(id) => void inbox.setResponsible(id)}
+              pending={inbox.responsiblePending}
+              tagSaveError={inbox.contactTagSaveError}
+              tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
+              tagsError={inbox.contactTagsError}
+              tagsLoading={inbox.contactTagsLoading}
+              users={inbox.users}
+            />
           </aside>
         </div>
       </div>
@@ -159,7 +172,20 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
         >
           <DialogTitle className="pr-12 text-lg font-bold text-[var(--text)]">Dados do cliente</DialogTitle>
           <DialogDescription className="sr-only">Contato e responsável pela conversa selecionada.</DialogDescription>
-          <CustomerPanel conversation={selectedListItem} currentUserId={initialUser.id} onSetResponsible={(id) => void inbox.setResponsible(id)} pending={inbox.responsiblePending} users={inbox.users} />
+          <CustomerPanel
+            availableTags={inbox.contactTags}
+            conversation={selectedListItem}
+            currentUserId={initialUser.id}
+            onRetryTags={() => void inbox.loadContactTags()}
+            onSaveTags={inbox.replaceContactTags}
+            onSetResponsible={(id) => void inbox.setResponsible(id)}
+            pending={inbox.responsiblePending}
+            tagSaveError={inbox.contactTagSaveError}
+            tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
+            tagsError={inbox.contactTagsError}
+            tagsLoading={inbox.contactTagsLoading}
+            users={inbox.users}
+          />
         </DialogContent>
       </Dialog>
     </main>

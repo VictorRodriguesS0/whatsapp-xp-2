@@ -188,7 +188,10 @@ describe("useInbox", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
       const url = String(input);
       if (url === "/api/conversations") {
-        return response({ data: { items: [item], nextCursor: null }, error: null });
+        const currentItem = saveCalls > 0
+          ? { ...item, contact: { ...item.contact, ...authoritativeContact, profileName: "Carlos" } }
+          : item;
+        return response({ data: { items: [currentItem], nextCursor: null }, error: null });
       }
       if (url === "/api/users/assignable") {
         return response({ data: { items: [] }, error: null });
