@@ -5,6 +5,10 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+$GitAttributes = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot '.gitattributes')
+if ($GitAttributes -notmatch '(?m)^\*\.sh text eol=lf$') {
+  throw 'Scripts POSIX devem ser normalizados como LF no Git para releases Linux.'
+}
 $EnvExample = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot '.env.example')
 $Dockerfile = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'Dockerfile')
 $RecordingConverter = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'src/modules/recordings/converter.ts')
