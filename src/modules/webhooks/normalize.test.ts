@@ -290,6 +290,36 @@ describe("Meta webhook normalization", () => {
     },
   );
 
+  it.each([" list_reply", "list_reply ", "list_\u0000reply"])(
+    "rejects a non-exact inbound interactive discriminator: %j",
+    (interactionType) => {
+      const payload = structuredClone(inboundListReplyFixture) as Record<
+        string,
+        any
+      >;
+      payload.entry[0].changes[0].value.messages[0].interactive.type =
+        interactionType;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
+  it.each([" button_reply", "button_reply ", "button_\u0000reply"])(
+    "rejects a non-exact message echo interactive discriminator: %j",
+    (interactionType) => {
+      const payload = messageEchoFixture() as Record<string, any>;
+      const echo = payload.entry[0].changes[0].value.message_echoes[0];
+      echo.type = "interactive";
+      echo.interactive = {
+        type: interactionType,
+        button_reply: { id: "buy_now", title: "Quero comprar" },
+      };
+      delete echo.text;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
+
   it("normalizes order and system summaries without raw payload details", () => {
     expect(normalizeWebhook(inboundOrderFixture)[0]).toMatchObject({
       type: "ORDER",
@@ -388,6 +418,18 @@ describe("Meta webhook normalization", () => {
     ],
   ])("rejects an order containing %s", (_name, item) => {
     expect(() => normalizeWebhook(orderFixtureWithProductItems([item])))
+      .toThrow(WebhookPayloadError);
+  });
+
+  it("rejects an oversized order before traversing product items", () => {
+    const productItems = new Array<unknown>(1_001);
+    Object.defineProperty(productItems, 0, {
+      get() {
+        throw new Error("oversized product items were traversed");
+      },
+    });
+
+    expect(() => normalizeWebhook(orderFixtureWithProductItems(productItems)))
       .toThrow(WebhookPayloadError);
   });
 

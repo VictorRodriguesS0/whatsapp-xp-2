@@ -361,7 +361,7 @@ function normalizeInteractive(
   }
 
   const interactive = record(message.interactive);
-  const interactionType = strictCleanString(interactive?.type, 64);
+  const interactionType = exactBoundedProviderString(interactive?.type, 64);
 
   if (!interactive || !interactionType) {
     return null;
@@ -457,7 +457,11 @@ function validOrderProductItem(value: unknown): boolean {
 function normalizeOrder(message: UnknownRecord): MessageContent | null {
   const order = record(message.order);
 
-  if (!order || !Array.isArray(order.product_items)) {
+  if (
+    !order ||
+    !Array.isArray(order.product_items) ||
+    order.product_items.length > 1_000
+  ) {
     return null;
   }
 
