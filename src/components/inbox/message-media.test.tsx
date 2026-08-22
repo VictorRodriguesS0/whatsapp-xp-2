@@ -74,7 +74,9 @@ describe("MessageMedia", () => {
 
   it.each([
     ["network rejection", () => Promise.reject(new TypeError("network unavailable"))],
-    ["failed POST", () => Promise.resolve(new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }))],
+    ["HTTP 408", () => Promise.resolve(new Response(JSON.stringify({ error: "timeout" }), { status: 408 }))],
+    ["HTTP 429", () => Promise.resolve(new Response(JSON.stringify({ error: "limited" }), { status: 429 }))],
+    ["HTTP 503", () => Promise.resolve(new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }))],
   ])("rearms automatic recovery with backoff after a %s", async (_case, failRequest) => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
@@ -99,6 +101,27 @@ describe("MessageMedia", () => {
       `/api/media/${baseMessage.mediaObjectId}`,
     );
   });
+
+  it.each([400, 401, 403, 404, 409, 422])(
+    "does not rearm permanent HTTP %s and replaces the spinner with a safe retry action",
+    async (status) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+      const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(() => Promise.resolve(
+        new Response(JSON.stringify({ error: `private server detail ${status}` }), { status }),
+      ));
+
+      render(<MessageMedia message={baseMessage} />);
+      await act(async () => Promise.resolve());
+      await act(async () => vi.advanceTimersByTimeAsync(5 * 60_000));
+
+      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(screen.queryByText("Baixando áudio")).toBeNull();
+      expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível baixar a mídia.");
+      expect(screen.getByRole("alert")).not.toHaveTextContent(/private|server|detail|400|401|403|404|409|422/i);
+      expect(screen.getByRole("button", { name: "Tentar novamente" })).toHaveClass("min-h-11");
+    },
+  );
 
   it("rearms without a hot loop when the server returns the same due PENDING state", async () => {
     vi.useFakeTimers();

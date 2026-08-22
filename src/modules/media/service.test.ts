@@ -28,6 +28,7 @@ class MemoryMediaRepository implements MediaServiceRepository {
   record: MediaObjectRecord = {
     id: mediaId, storageKey: null, originalFilename: "foto.jpg", mimeType: "image/jpeg", sizeBytes: 0n,
     sha256: sha256Base64, metaMediaId: "meta-1", status: MediaStatus.PENDING, failureReason: null,
+    terminalTransitionId: null,
     linkedToMessage: true, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null, downloadAttempts: 0,
   };
   async findById(id: string) { return id === this.record.id ? this.record : null; }
@@ -38,6 +39,7 @@ class MemoryMediaRepository implements MediaServiceRepository {
       ...this.record,
       status: MediaStatus.PENDING,
       failureReason: null,
+      terminalTransitionId: null,
       downloadLeaseId: null,
       downloadLeaseUntil: null,
       downloadNextAttemptAt: null,
@@ -56,19 +58,42 @@ class MemoryMediaRepository implements MediaServiceRepository {
     if (id !== this.record.id || this.record.status !== MediaStatus.PENDING ||
       (this.record.downloadLeaseUntil && this.record.downloadLeaseUntil > input.now) ||
       (this.record.downloadNextAttemptAt && this.record.downloadNextAttemptAt > input.now)) return null;
-    this.record = { ...this.record, downloadLeaseId: input.leaseId, downloadLeaseUntil: input.leaseUntil, downloadAttempts: this.record.downloadAttempts + 1 };
+    this.record = {
+      ...this.record,
+      terminalTransitionId: null,
+      downloadLeaseId: input.leaseId,
+      downloadLeaseUntil: input.leaseUntil,
+      downloadAttempts: this.record.downloadAttempts + 1,
+    };
     return this.record;
   }
-  async finalizeExhausted(id: string, now: Date, reason: string) {
+  async finalizeExhausted(id: string, now: Date, reason: string, transitionId: string) {
     if (id !== this.record.id || this.record.status !== MediaStatus.PENDING || this.record.downloadAttempts < 5 ||
       (this.record.downloadLeaseUntil && this.record.downloadLeaseUntil > now)) return false;
-    this.record = { ...this.record, status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
+    this.record = {
+      ...this.record,
+      status: MediaStatus.FAILED,
+      failureReason: reason,
+      terminalTransitionId: transitionId,
+      downloadLeaseId: null,
+      downloadLeaseUntil: null,
+      downloadNextAttemptAt: null,
+    };
     this.committed = true;
     return true;
   }
   async markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }) {
     if (id !== this.record.id || this.record.downloadLeaseId !== leaseId || this.record.status !== MediaStatus.PENDING) return false;
-    this.record = { ...this.record, ...input, status: MediaStatus.AVAILABLE, failureReason: null, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null };
+    this.record = {
+      ...this.record,
+      ...input,
+      status: MediaStatus.AVAILABLE,
+      failureReason: null,
+      terminalTransitionId: null,
+      downloadLeaseId: null,
+      downloadLeaseUntil: null,
+      downloadNextAttemptAt: null,
+    };
     this.committed = true;
     return true;
   }
@@ -77,9 +102,16 @@ class MemoryMediaRepository implements MediaServiceRepository {
     this.record = { ...this.record, downloadLeaseUntil: leaseUntil };
     return true;
   }
-  async markPermanentFailure(id: string, leaseId: string, reason: string) {
+  async markPermanentFailure(id: string, leaseId: string, reason: string, transitionId: string) {
     if (id === this.record.id && this.record.downloadLeaseId === leaseId && this.record.status === MediaStatus.PENDING) {
-      this.record = { ...this.record, status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null };
+      this.record = {
+        ...this.record,
+        status: MediaStatus.FAILED,
+        failureReason: reason,
+        terminalTransitionId: transitionId,
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+      };
       this.committed = true;
       return true;
     }
@@ -87,7 +119,14 @@ class MemoryMediaRepository implements MediaServiceRepository {
   }
   async releaseTransientFailure(id: string, leaseId: string, input: { reason: string; nextAttemptAt: Date }) {
     if (id === this.record.id && this.record.downloadLeaseId === leaseId && this.record.status === MediaStatus.PENDING)
-      this.record = { ...this.record, failureReason: input.reason, downloadNextAttemptAt: input.nextAttemptAt, downloadLeaseId: null, downloadLeaseUntil: null };
+      this.record = {
+        ...this.record,
+        failureReason: input.reason,
+        terminalTransitionId: null,
+        downloadNextAttemptAt: input.nextAttemptAt,
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+      };
   }
 }
 
@@ -403,6 +442,7 @@ describe("received media service", () => {
       downloadLeaseUntil: new Date("2026-08-20T13:00:00.000Z"),
       downloadNextAttemptAt: new Date("2026-08-20T13:00:00.000Z"),
       downloadAttempts: 5,
+      terminalTransitionId: randomUUID(),
     };
 
     await expect(recoverMedia(actorId, mediaId, true, state.dependencies)).resolves.toEqual({
@@ -417,6 +457,7 @@ describe("received media service", () => {
       downloadLeaseUntil: null,
       downloadNextAttemptAt: null,
       downloadAttempts: 1,
+      terminalTransitionId: null,
     });
     expect(state.provider.downloadCalls).toBe(1);
   });

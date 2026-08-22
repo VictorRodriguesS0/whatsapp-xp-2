@@ -252,11 +252,12 @@ describe("received media PostgreSQL leases", () => {
         externalTimestamp: new Date(),
       },
     });
+    const transitionId = "60000000-0000-4000-8000-000000000001";
     let committedBeforeFault = false;
     const faultingRepository = {
       ...prismaMediaRepository,
-      async finalizeExhausted(id: string, now: Date, reason: string) {
-        committedBeforeFault = await prismaMediaRepository.finalizeExhausted(id, now, reason);
+      async finalizeExhausted(id: string, now: Date, reason: string, callerTransitionId: string) {
+        committedBeforeFault = await prismaMediaRepository.finalizeExhausted(id, now, reason, callerTransitionId);
         throw new Error("simulated finalizeExhausted response loss after commit");
       },
     };
@@ -268,6 +269,7 @@ describe("received media PostgreSQL leases", () => {
       provider,
       mediaRoot: root,
       inFlight: new Map(),
+      createUuid: () => transitionId,
       publishRealtime: (event) => events.push(event),
     })).resolves.toBeUndefined();
 
@@ -286,6 +288,12 @@ describe("received media PostgreSQL leases", () => {
       messageId: message.id,
       mediaId: media.id,
     }]);
+    const [ownership] = await prisma.$queryRaw<Array<{ terminal_transition_id: string | null }>>`
+      SELECT terminal_transition_id::text
+      FROM media_objects
+      WHERE id = ${media.id}::uuid
+    `;
+    expect(ownership?.terminal_transition_id).toBe(transitionId);
   });
 
   it("reconciles a real markPermanentFailure commit after its response is lost and publishes once", async () => {
@@ -320,11 +328,12 @@ describe("received media PostgreSQL leases", () => {
         externalTimestamp: new Date(),
       },
     });
+    const transitionId = "60000000-0000-4000-8000-000000000002";
     let committedBeforeFault = false;
     const faultingRepository = {
       ...prismaMediaRepository,
-      async markPermanentFailure(id: string, leaseId: string, reason: string) {
-        committedBeforeFault = await prismaMediaRepository.markPermanentFailure(id, leaseId, reason);
+      async markPermanentFailure(id: string, leaseId: string, reason: string, callerTransitionId: string) {
+        committedBeforeFault = await prismaMediaRepository.markPermanentFailure(id, leaseId, reason, callerTransitionId);
         throw new Error("simulated markPermanentFailure response loss after commit");
       },
     };
@@ -336,6 +345,7 @@ describe("received media PostgreSQL leases", () => {
       provider,
       mediaRoot: root,
       inFlight: new Map(),
+      createUuid: () => transitionId,
       publishRealtime: (event) => events.push(event),
     })).rejects.toBeInstanceOf(WhatsAppProviderError);
 
@@ -350,6 +360,129 @@ describe("received media PostgreSQL leases", () => {
       messageId: message.id,
       mediaId: media.id,
     }]);
+    const [ownership] = await prisma.$queryRaw<Array<{ terminal_transition_id: string | null }>>`
+      SELECT terminal_transition_id::text
+      FROM media_objects
+      WHERE id = ${media.id}::uuid
+    `;
+    expect(ownership?.terminal_transition_id).toBe(transitionId);
+  });
+
+  it("publishes only for the terminal CAS owner when a losing worker also loses its response", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-terminal-owner-"));
+    roots.push(root);
+    const provider = new Provider();
+    const contact = await prisma.contact.create({
+      data: { name: "Contato autoria terminal", whatsappId: "5511999990015" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: new Date() },
+    });
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local",
+        originalFilename: "foto.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 0n,
+        sha256: sha,
+        metaMediaId: "meta-pg-terminal-owner",
+        status: MediaStatus.PENDING,
+        downloadAttempts: 5,
+      },
+    });
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date(),
+      },
+    });
+    const winnerTransitionId = "60000000-0000-4000-8000-000000000003";
+    const loserTransitionId = "60000000-0000-4000-8000-000000000004";
+    let initialReads = 0;
+    let releaseInitialReads!: () => void;
+    const initialReadsComplete = new Promise<void>((resolve) => { releaseInitialReads = resolve; });
+    let releaseWinnerCommit!: () => void;
+    const winnerCommitComplete = new Promise<void>((resolve) => { releaseWinnerCommit = resolve; });
+
+    const withInitialReadBarrier = () => {
+      let initial = true;
+      return {
+        ...prismaMediaRepository,
+        async findById(id: string) {
+          const row = await prismaMediaRepository.findById(id);
+          if (initial) {
+            initial = false;
+            initialReads += 1;
+            if (initialReads === 2) releaseInitialReads();
+            await initialReadsComplete;
+          }
+          return row;
+        },
+      };
+    };
+    const winnerBase = withInitialReadBarrier();
+    const loserBase = withInitialReadBarrier();
+    const winnerRepository = {
+      ...winnerBase,
+      async finalizeExhausted(id: string, now: Date, reason: string, transitionId: string) {
+        const won = await prismaMediaRepository.finalizeExhausted(id, now, reason, transitionId);
+        releaseWinnerCommit();
+        return won;
+      },
+    };
+    let loserCas: boolean | undefined;
+    const loserRepository = {
+      ...loserBase,
+      async finalizeExhausted(id: string, now: Date, reason: string, transitionId: string) {
+        await winnerCommitComplete;
+        loserCas = await prismaMediaRepository.finalizeExhausted(id, now, reason, transitionId);
+        throw new Error("simulated losing-worker response loss after CAS=0");
+      },
+    };
+    const winnerEvents: unknown[] = [];
+    const loserEvents: unknown[] = [];
+
+    const outcomes = await Promise.allSettled([
+      ensureMediaAvailable(media.id, {
+        repository: winnerRepository,
+        storage: new LocalMediaStorage(root),
+        provider,
+        mediaRoot: root,
+        inFlight: new Map(),
+        createUuid: () => winnerTransitionId,
+        publishRealtime: (event) => winnerEvents.push(event),
+      }),
+      ensureMediaAvailable(media.id, {
+        repository: loserRepository,
+        storage: new LocalMediaStorage(root),
+        provider,
+        mediaRoot: root,
+        inFlight: new Map(),
+        createUuid: () => loserTransitionId,
+        publishRealtime: (event) => loserEvents.push(event),
+      }),
+    ]);
+
+    expect(outcomes[0].status).toBe("fulfilled");
+    expect(outcomes[1]).toMatchObject({ status: "rejected", reason: new Error("simulated losing-worker response loss after CAS=0") });
+    expect(loserCas).toBe(false);
+    expect(winnerEvents).toEqual([{
+      type: "media.updated",
+      conversationId: conversation.id,
+      messageId: message.id,
+      mediaId: media.id,
+    }]);
+    expect(loserEvents).toEqual([]);
+    const [ownership] = await prisma.$queryRaw<Array<{ terminal_transition_id: string | null }>>`
+      SELECT terminal_transition_id::text
+      FROM media_objects
+      WHERE id = ${media.id}::uuid
+    `;
+    expect(ownership?.terminal_transition_id).toBe(winnerTransitionId);
   });
 
   it("atomically resets a visible failed object and coalesces simultaneous manual recoveries", async () => {

@@ -41,6 +41,7 @@ export type MediaObjectRecord = {
   metaMediaId: string | null;
   status: MediaStatusValue;
   failureReason: string | null;
+  terminalTransitionId: string | null;
   linkedToMessage: boolean;
   downloadLeaseId: string | null;
   downloadLeaseUntil: Date | null;
@@ -54,10 +55,10 @@ export interface MediaServiceRepository {
   findRealtimeTarget(id: string): Promise<{ messageId: string; conversationId: string } | null>;
   resetFailed(id: string): Promise<boolean>;
   claimPending(id: string, input: { leaseId: string; now: Date; leaseUntil: Date }): Promise<MediaObjectRecord | null>;
-  finalizeExhausted(id: string, now: Date, reason: string): Promise<boolean>;
+  finalizeExhausted(id: string, now: Date, reason: string, transitionId: string): Promise<boolean>;
   renewLease(id: string, leaseId: string, leaseUntil: Date): Promise<boolean>;
   markAvailable(id: string, leaseId: string, input: { storageKey: string; sizeBytes: bigint; sha256: string; mimeType: string }): Promise<boolean>;
-  markPermanentFailure(id: string, leaseId: string, reason: string): Promise<boolean>;
+  markPermanentFailure(id: string, leaseId: string, reason: string, transitionId: string): Promise<boolean>;
   releaseTransientFailure(id: string, leaseId: string, input: { reason: string; nextAttemptAt: Date }): Promise<void>;
 }
 
@@ -77,7 +78,8 @@ export type MediaServiceDependencies = {
 
 const mediaSelect = {
   id: true, storageKey: true, originalFilename: true, mimeType: true, sizeBytes: true, sha256: true,
-  metaMediaId: true, status: true, failureReason: true, downloadLeaseId: true, downloadLeaseUntil: true,
+  metaMediaId: true, status: true, failureReason: true, terminalTransitionId: true,
+  downloadLeaseId: true, downloadLeaseUntil: true,
   downloadNextAttemptAt: true, downloadAttempts: true, message: { select: { id: true } },
 } as const;
 type PrismaMediaRow = Prisma.MediaObjectGetPayload<{ select: typeof mediaSelect }>;
@@ -115,6 +117,7 @@ export const prismaMediaRepository: MediaServiceRepository = {
       data: {
         status: MediaStatus.PENDING,
         failureReason: null,
+        terminalTransitionId: null,
         downloadLeaseId: null,
         downloadLeaseUntil: null,
         downloadNextAttemptAt: null,
@@ -135,6 +138,7 @@ export const prismaMediaRepository: MediaServiceRepository = {
         ],
       },
       data: {
+        terminalTransitionId: null,
         downloadLeaseId: input.leaseId,
         downloadLeaseUntil: input.leaseUntil,
         downloadAttempts: { increment: 1 },
@@ -142,7 +146,7 @@ export const prismaMediaRepository: MediaServiceRepository = {
     });
     return claimed.count === 1 ? this.findById(id) : null;
   },
-  async finalizeExhausted(id, now, reason) {
+  async finalizeExhausted(id, now, reason, transitionId) {
     const finalized = await prisma.mediaObject.updateMany({
       where: {
         id,
@@ -153,6 +157,7 @@ export const prismaMediaRepository: MediaServiceRepository = {
       data: {
         status: MediaStatus.FAILED,
         failureReason: reason,
+        terminalTransitionId: transitionId,
         downloadLeaseId: null,
         downloadLeaseUntil: null,
         downloadNextAttemptAt: null,
@@ -172,23 +177,37 @@ export const prismaMediaRepository: MediaServiceRepository = {
       where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
       data: {
         storageKey: input.storageKey, sizeBytes: input.sizeBytes, sha256: input.sha256, mimeType: input.mimeType,
-        status: MediaStatus.AVAILABLE, failureReason: null, downloadLeaseId: null, downloadLeaseUntil: null,
+        status: MediaStatus.AVAILABLE, failureReason: null, terminalTransitionId: null,
+        downloadLeaseId: null, downloadLeaseUntil: null,
         downloadNextAttemptAt: null,
       },
     });
     return result.count === 1;
   },
-  async markPermanentFailure(id, leaseId, reason) {
+  async markPermanentFailure(id, leaseId, reason, transitionId) {
     const failed = await prisma.mediaObject.updateMany({
       where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
-      data: { status: MediaStatus.FAILED, failureReason: reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: null },
+      data: {
+        status: MediaStatus.FAILED,
+        failureReason: reason,
+        terminalTransitionId: transitionId,
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+        downloadNextAttemptAt: null,
+      },
     });
     return failed.count === 1;
   },
   async releaseTransientFailure(id, leaseId, input) {
     await prisma.mediaObject.updateMany({
       where: { id, status: MediaStatus.PENDING, downloadLeaseId: leaseId },
-      data: { failureReason: input.reason, downloadLeaseId: null, downloadLeaseUntil: null, downloadNextAttemptAt: input.nextAttemptAt },
+      data: {
+        failureReason: input.reason,
+        terminalTransitionId: null,
+        downloadLeaseId: null,
+        downloadLeaseUntil: null,
+        downloadNextAttemptAt: input.nextAttemptAt,
+      },
     });
   },
 };
@@ -237,6 +256,7 @@ async function publishTerminalUpdate(
 async function commitTerminalFailure(
   id: string,
   reason: string,
+  transitionId: string,
   dependencies: MediaServiceDependencies,
   commit: () => Promise<boolean>,
 ): Promise<boolean> {
@@ -249,7 +269,11 @@ async function commitTerminalFailure(
     } catch {
       throw error;
     }
-    if (current?.status !== MediaStatus.FAILED || current.failureReason !== reason) throw error;
+    if (
+      current?.status !== MediaStatus.FAILED ||
+      current.failureReason !== reason ||
+      current.terminalTransitionId !== transitionId
+    ) throw error;
     return true;
   }
 }
@@ -257,10 +281,11 @@ async function commitTerminalFailure(
 async function commitTerminalFailureAndPublish(
   id: string,
   reason: string,
+  transitionId: string,
   dependencies: MediaServiceDependencies,
   commit: () => Promise<boolean>,
 ): Promise<void> {
-  if (await commitTerminalFailure(id, reason, dependencies, commit)) {
+  if (await commitTerminalFailure(id, reason, transitionId, dependencies, commit)) {
     await publishTerminalUpdate(id, dependencies);
   }
 }
@@ -275,11 +300,13 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
   const now = clock();
   if (initial.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
     const reason = "Falha ao obter mídia; intervenção necessária";
+    const transitionId = (dependencies.createUuid ?? randomUUID)();
     await commitTerminalFailureAndPublish(
       id,
       reason,
+      transitionId,
       dependencies,
-      () => dependencies.repository.finalizeExhausted(id, now, reason),
+      () => dependencies.repository.finalizeExhausted(id, now, reason, transitionId),
     );
     return;
   }
@@ -386,16 +413,18 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
       await commitTerminalFailureAndPublish(
         id,
         reason,
+        leaseId,
         dependencies,
-        () => dependencies.repository.markPermanentFailure(id, leaseId, reason),
+        () => dependencies.repository.markPermanentFailure(id, leaseId, reason, leaseId),
       );
     } else if (media.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
       const reason = "Falha ao obter mídia; intervenção necessária";
       await commitTerminalFailureAndPublish(
         id,
         reason,
+        leaseId,
         dependencies,
-        () => dependencies.repository.markPermanentFailure(id, leaseId, reason),
+        () => dependencies.repository.markPermanentFailure(id, leaseId, reason, leaseId),
       );
     } else {
       const attempt = media.downloadAttempts;

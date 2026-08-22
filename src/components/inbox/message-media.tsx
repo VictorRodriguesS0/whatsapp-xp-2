@@ -12,6 +12,12 @@ const MAX_TIMER_DELAY = 2_147_483_647;
 const MAX_RECOVERY_REARM_DELAY = 30_000;
 const recoveryError = "Não foi possível baixar a mídia.";
 
+class RecoveryRequestError extends Error {
+  constructor(readonly retryable: boolean) {
+    super("Media recovery failed");
+  }
+}
+
 const mediaNames = {
   IMAGE: "imagem",
   AUDIO: "áudio",
@@ -35,20 +41,36 @@ function pendingRecoveryIsDue(state: MediaStateDto, now: number) {
 }
 
 async function requestRecovery(mediaId: string, manual: boolean, signal: AbortSignal) {
-  const response = await fetch(`/api/media/${encodeURIComponent(mediaId)}/recover`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ manual }),
-    signal,
-  });
-  const payload = (await response.json()) as { data?: MediaStateDto | null };
-  if (!response.ok || !payload.data) throw new Error("Media recovery failed");
+  let response: Response;
+  try {
+    response = await fetch(`/api/media/${encodeURIComponent(mediaId)}/recover`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ manual }),
+      signal,
+    });
+  } catch {
+    throw new RecoveryRequestError(true);
+  }
+  if (!response.ok) {
+    throw new RecoveryRequestError(
+      response.status === 408 || response.status === 429 || response.status >= 500,
+    );
+  }
+  let payload: { data?: MediaStateDto | null };
+  try {
+    payload = (await response.json()) as { data?: MediaStateDto | null };
+  } catch {
+    throw new RecoveryRequestError(false);
+  }
+  if (!payload.data) throw new RecoveryRequestError(false);
   return payload.data;
 }
 
 export function MessageMedia({ message }: { message: InboxMessage }) {
   const [manualRequestKey, setManualRequestKey] = useState<string | null>(null);
   const [manualError, setManualError] = useState<{ key: string; message: string } | null>(null);
+  const [automaticError, setAutomaticError] = useState<{ identity: string; sourceKey: string } | null>(null);
   const automaticAttempt = useRef<string | null>(null);
   const manualController = useRef<AbortController | null>(null);
   const focusAfterManualRequest = useRef<HTMLButtonElement | null>(null);
@@ -113,6 +135,7 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
       controller = requestController;
       void requestRecovery(recoveryMediaId, false, requestController.signal).then((state) => {
         if (requestController.signal.aborted || mediaIdentityRef.current !== mediaIdentity) return;
+        setAutomaticError((current) => current?.identity === mediaIdentity ? null : current);
         if (pendingRecoveryIsDue(state, Date.now())) {
           if (mediaStateKey(state) === mediaStateKey(mediaState)) {
             setRecoveredMediaState({ identity: mediaIdentity, sourceKey: sourceMediaStateKey, state });
@@ -122,8 +145,14 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
         }
         automaticAttempt.current = attemptKey;
         setRecoveredMediaState({ identity: mediaIdentity, sourceKey: sourceMediaStateKey, state });
-      }, () => {
-        if (!requestController.signal.aborted && mediaIdentityRef.current === mediaIdentity) rearm();
+      }, (error: unknown) => {
+        if (requestController.signal.aborted || mediaIdentityRef.current !== mediaIdentity) return;
+        if (error instanceof RecoveryRequestError && error.retryable) {
+          rearm();
+          return;
+        }
+        automaticAttempt.current = attemptKey;
+        setAutomaticError({ identity: mediaIdentity, sourceKey: sourceMediaStateKey });
       });
     }
 
@@ -145,6 +174,7 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
     try {
       const state = await requestRecovery(mediaId, true, controller.signal);
       if (!controller.signal.aborted && mediaIdentityRef.current === requestIdentity) {
+        setAutomaticError((current) => current?.identity === requestIdentity ? null : current);
         setRecoveredMediaState({ identity: requestIdentity, sourceKey: sourceMediaStateKey, state });
       }
     } catch {
@@ -166,6 +196,33 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
   }
 
   const mediaName = mediaNames[message.type];
+  const automaticRecoveryFailed = automaticError?.identity === mediaIdentity &&
+    automaticError.sourceKey === sourceMediaStateKey;
+  if (mediaState?.status === "PENDING" && automaticRecoveryFailed) {
+    const pending = manualRequestKey === mediaIdentity;
+    return (
+      <div
+        className="text-sm text-[var(--muted)]"
+        ref={(element) => { reconciledFocusTarget.current = element; }}
+        tabIndex={-1}
+      >
+        <p role="alert">{recoveryError}</p>
+        {mediaId ? (
+          <Button
+            aria-busy={pending || undefined}
+            className="mt-1 px-0 text-[var(--accent)]"
+            data-media-identity={mediaIdentity}
+            disabled={pending}
+            onClick={(event) => void retryManually(event.currentTarget)}
+            size="small"
+            variant="ghost"
+          >
+            {pending ? "Tentando novamente…" : "Tentar novamente"}
+          </Button>
+        ) : null}
+      </div>
+    );
+  }
   if (mediaState?.status === "PENDING") {
     return (
       <span

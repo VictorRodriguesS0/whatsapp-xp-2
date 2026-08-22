@@ -170,6 +170,7 @@ export const MediaObjectScalarFieldEnum = {
   metaMediaId: 'metaMediaId',
   status: 'status',
   failureReason: 'failureReason',
+  terminalTransitionId: 'terminalTransitionId',
   downloadLeaseId: 'downloadLeaseId',
   downloadLeaseUntil: 'downloadLeaseUntil',
   downloadNextAttemptAt: 'downloadNextAttemptAt',
