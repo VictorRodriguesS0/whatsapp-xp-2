@@ -127,6 +127,8 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     sentBy: { id: actor.id, name: actor.name },
     status: "PENDING",
     failureReason: null,
+    revokedAt: null,
+    reactions: [],
     externalTimestamp: now,
     createdAt: now,
     previewUrl: pending.kind === "media" ? pending.previewUrl : undefined,

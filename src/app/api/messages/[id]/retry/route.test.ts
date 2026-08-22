@@ -27,6 +27,8 @@ describe("message retry route", () => {
           sentBy: { id: actor.id, name: actor.name },
           status: MessageStatus.SENT,
           failureReason: null,
+          revokedAt: null,
+          reactions: [],
           externalTimestamp: new Date(0).toISOString(),
           createdAt: new Date(0).toISOString(),
         };

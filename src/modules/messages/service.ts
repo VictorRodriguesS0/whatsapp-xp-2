@@ -588,6 +588,8 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     sentBy: { id: message.sentByUser.id, name: message.sentByUser.name },
     status: message.status,
     failureReason: message.failureReason,
+    revokedAt: null,
+    reactions: [],
     externalTimestamp: message.externalTimestamp.toISOString(),
     createdAt: message.createdAt.toISOString(),
   };

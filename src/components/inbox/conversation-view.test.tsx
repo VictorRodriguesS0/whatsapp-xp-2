@@ -35,6 +35,8 @@ const message: InboxMessage = {
   sentBy: null,
   status: "RECEIVED",
   failureReason: null,
+  revokedAt: null,
+  reactions: [],
   externalTimestamp: "2026-08-20T14:30:00.000Z",
   createdAt: "2026-08-20T14:30:00.000Z",
 };

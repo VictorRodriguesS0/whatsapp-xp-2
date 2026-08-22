@@ -81,6 +81,8 @@ describe("conversation history route", () => {
           sentBy: { id: actor.id, name: actor.name },
           status: MessageStatus.SENT,
           failureReason: null,
+          revokedAt: null,
+          reactions: [],
           externalTimestamp: new Date(0).toISOString(),
           createdAt: new Date(0).toISOString(),
         };
@@ -131,6 +133,8 @@ describe("conversation history route", () => {
           sentBy: { id: actor.id, name: actor.name },
           status: MessageStatus.SENT,
           failureReason: null,
+          revokedAt: null,
+          reactions: [],
           externalTimestamp: new Date(0).toISOString(),
           createdAt: new Date(0).toISOString(),
         };
@@ -182,6 +186,8 @@ describe("conversation history route", () => {
           sentBy: { id: actor.id, name: actor.name },
           status: calls === 1 ? MessageStatus.FAILED : MessageStatus.SENT,
           failureReason: calls === 1 ? "Falha local" : null,
+          revokedAt: null,
+          reactions: [],
           externalTimestamp: new Date(0).toISOString(),
           createdAt: new Date(0).toISOString(),
         };

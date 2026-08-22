@@ -16,6 +16,8 @@ const outboundFixture: MessageDto = {
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
   status: "DELIVERED",
   failureReason: null,
+  revokedAt: null,
+  reactions: [],
   externalTimestamp: "2026-08-20T14:31:00.000Z",
   createdAt: "2026-08-20T14:31:00.000Z",
 };
