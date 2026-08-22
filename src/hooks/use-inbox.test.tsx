@@ -232,7 +232,7 @@ describe("useInbox", () => {
     expect(saveCall?.[1]).toMatchObject({
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tagIds: [contactTag.id, priorityTag.id] }),
+      body: JSON.stringify([contactTag.id, priorityTag.id]),
     });
 
     resolveSave(await response({ data: authoritativeContact, error: null }));

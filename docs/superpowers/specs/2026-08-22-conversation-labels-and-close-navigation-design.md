@@ -1,6 +1,6 @@
 # Conversation labels and close navigation
 
-Date: 2026-08-22  
+Date: 2026-08-22
 Status: approved for implementation
 
 ## Goal

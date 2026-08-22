@@ -574,7 +574,7 @@ export function useInbox(initialUser: SessionUser) {
         const response = await fetch(`/api/contacts/${contactId}/tags`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tagIds }),
+          body: JSON.stringify(tagIds),
         });
         const updated = await readEnvelope<UpdatedContactDto>(response);
         if (!mounted.current) return false;
