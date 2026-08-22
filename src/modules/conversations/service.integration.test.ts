@@ -171,6 +171,66 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
     );
   });
 
+  it("selects one safe quoted target and keeps unresolved official IDs private", async () => {
+    const { conversation, user } = await seedEqualTimestampFixture();
+    const original = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.integration-original",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Tem esse produto?",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-19T12:02:00.000Z"),
+      },
+    });
+    const linked = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.integration-linked",
+        replyToMessageId: original.id,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+        direction: MessageDirection.OUTBOUND,
+        type: MessageType.TEXT,
+        body: "Sim",
+        sentByUserId: user.id,
+        status: MessageStatus.SENT,
+        externalTimestamp: new Date("2026-08-19T12:03:00.000Z"),
+      },
+    });
+    const unresolved = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.integration-unresolved",
+        replyToWhatsappMessageId: "wamid.integration-deleted",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Outra resposta",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-19T12:04:00.000Z"),
+      },
+    });
+
+    const detail = await getConversation(user.id, conversation.id);
+    const linkedDto = detail.messages.find(({ id }) => id === linked.id);
+    const unresolvedDto = detail.messages.find(({ id }) => id === unresolved.id);
+
+    expect(linkedDto).toMatchObject({
+      canReply: true,
+      replyTo: {
+        available: true,
+        messageId: original.id,
+        author: "Cliente",
+        summary: "Tem esse produto?",
+      },
+    });
+    expect(unresolvedDto).toMatchObject({
+      canReply: true,
+      replyTo: { available: false },
+    });
+    expect(JSON.stringify(detail)).not.toContain("wamid.");
+  });
+
   it("reparses corrupt database JSON to a safe null DTO", async () => {
     const { conversation, user } = await seedEqualTimestampFixture();
     const corruptMessage = await prisma.message.create({

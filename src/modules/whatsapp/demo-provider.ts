@@ -2,7 +2,12 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
-import type { MediaMessageType, MediaUploadSource, WhatsAppProvider } from "./provider";
+import type {
+  MediaMessageType,
+  MediaUploadSource,
+  ProviderReplyContext,
+  WhatsAppProvider,
+} from "./provider";
 
 export class DemoWhatsAppProvider implements WhatsAppProvider {
   constructor(private readonly createUuid: () => string = randomUUID) {}
@@ -11,7 +16,7 @@ export class DemoWhatsAppProvider implements WhatsAppProvider {
     return `demo-${this.createUuid()}`;
   }
 
-  async sendText(_input: { to: string; body: string }) {
+  async sendText(_input: { to: string; body: string } & ProviderReplyContext) {
     return { whatsappMessageId: this.id(), status: "SENT" as const };
   }
 
@@ -25,7 +30,7 @@ export class DemoWhatsAppProvider implements WhatsAppProvider {
     mediaId: string;
     caption?: string;
     filename?: string;
-  }) {
+  } & ProviderReplyContext) {
     return { whatsappMessageId: this.id(), status: "SENT" as const };
   }
 

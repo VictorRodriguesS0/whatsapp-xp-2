@@ -1,14 +1,16 @@
 "use client";
 
-import { AlertCircle, Check, CheckCheck, Clock3 } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Clock3, Reply } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { InboxMessage } from "@/hooks/use-inbox";
+import { useMessageReplyGesture } from "@/hooks/use-message-reply-gesture";
 import { cn } from "@/lib/utils";
 import type { MessageDto } from "@/modules/conversations/types";
 
 import { MessageMedia } from "./message-media";
 import { MessageRichContent } from "./message-rich-content";
+import { QuotedReplyPreview } from "./quoted-reply-preview";
 
 const statusCopy = {
   PENDING: "Enviando",
@@ -31,38 +33,86 @@ function StatusIcon({ status }: { status: MessageDto["status"] }) {
   return <Check aria-hidden="true" className="size-3.5" />;
 }
 
-export function MessageBubble({ message, onRetry, searchHighlighted = false }: { message: InboxMessage; onRetry?: (id: string) => void; searchHighlighted?: boolean }) {
+type MessageBubbleProps = {
+  message: InboxMessage;
+  highlighted?: boolean;
+  searchHighlighted?: boolean;
+  onReply?: (message: InboxMessage) => void;
+  onNavigateReply?: (messageId: string) => void;
+  onRetry?: (id: string) => void;
+  registerElement?: (messageId: string, element: HTMLElement | null) => void;
+};
+
+export function MessageBubble({
+  message,
+  highlighted = false,
+  searchHighlighted = false,
+  onReply,
+  onNavigateReply,
+  onRetry,
+  registerElement,
+}: MessageBubbleProps) {
+  const isHighlighted = highlighted || searchHighlighted;
   const outbound = message.direction === "OUTBOUND";
   const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
+  const canReply = message.canReply && Boolean(onReply);
+  const gesture = useMessageReplyGesture(canReply, () => onReply?.(message));
+  const replyAction = canReply ? (
+    <Button
+      aria-label="Responder à mensagem"
+      className="min-h-11 min-w-11 shrink-0 opacity-100 transition-opacity min-[720px]:opacity-0 min-[720px]:group-hover/message:opacity-100 min-[720px]:group-focus-within/message:opacity-100"
+      onClick={() => onReply?.(message)}
+      size="icon"
+      type="button"
+      variant="ghost"
+    >
+      <Reply aria-hidden="true" className="size-4" />
+    </Button>
+  ) : null;
   return (
     <article
+      {...gesture.handlers}
       className={cn(
-        "message-row flex rounded-lg outline-none transition-[background-color,box-shadow] duration-300",
+        "message-row group/message flex items-center gap-1 rounded-lg [touch-action:pan-y] outline-none transition-[transform,background-color,box-shadow] duration-300 motion-reduce:transition-none",
         outbound ? "justify-end" : "justify-start",
-        searchHighlighted && "bg-[color-mix(in_srgb,var(--search-mark)_45%,transparent)] shadow-[0_0_0_3px_var(--search-mark)]",
+        isHighlighted && "bg-[color-mix(in_srgb,var(--search-mark)_45%,transparent)] shadow-[0_0_0_3px_var(--search-mark)]",
       )}
+      data-highlighted={isHighlighted ? "true" : undefined}
       data-message-id={message.id}
-      data-search-highlighted={searchHighlighted || undefined}
+      data-search-highlighted={isHighlighted ? "true" : undefined}
+      ref={(element) => registerElement?.(message.id, element)}
+      style={{ transform: gesture.offset ? `translateX(${gesture.offset}px)` : undefined }}
       tabIndex={-1}
     >
+      {outbound ? replyAction : null}
       <div className={cn("max-w-[min(78%,42rem)] rounded-lg border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)]", outbound ? "bg-[var(--outbound)]" : "bg-[var(--inbound)]")}>
-        {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
+        {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]" data-reply-swipe-ignore="true">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
+        {message.replyTo ? (
+          <div className="mb-2">
+            <QuotedReplyPreview
+              compact
+              onNavigate={onNavigateReply}
+              reply={message.replyTo}
+            />
+          </div>
+        ) : null}
         <MessageMedia message={message} />
         <MessageRichContent message={message} />
-        {message.body ? <p className={cn("whitespace-pre-wrap break-words text-[var(--text)]", message.type !== "TEXT" && "mt-2")}>{message.body}</p> : null}
-        <div className={cn("mt-1 flex items-center justify-end gap-1 text-[11px] tabular-nums", message.status === "FAILED" ? "text-[var(--danger)]" : "text-[var(--muted)]")}>
+        {message.body ? <p className={cn("whitespace-pre-wrap break-words text-[var(--text)]", message.type !== "TEXT" && "mt-2")} data-reply-swipe-ignore="true">{message.body}</p> : null}
+        <div className={cn("mt-1 flex items-center justify-end gap-1 text-[11px] tabular-nums", message.status === "FAILED" ? "text-[var(--danger)]" : "text-[var(--muted)]")} data-reply-swipe-ignore="true">
           <time dateTime={message.externalTimestamp}>{time}</time>
           {outbound ? <StatusIcon status={message.status} /> : null}
           {outbound ? <span>{statusCopy[message.status]}</span> : null}
         </div>
         {message.status === "FAILED" ? (
-          <div className="mt-2 border-t border-[color-mix(in_srgb,var(--danger)_22%,transparent)] pt-2">
+          <div className="mt-2 border-t border-[color-mix(in_srgb,var(--danger)_22%,transparent)] pt-2" data-reply-swipe-ignore="true">
             <p className="text-xs text-[var(--danger)]">Não foi possível enviar esta mensagem.</p>
             {onRetry && canRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
           </div>
         ) : null}
       </div>
+      {!outbound ? replyAction : null}
     </article>
   );
 }

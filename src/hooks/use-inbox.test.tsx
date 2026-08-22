@@ -88,6 +88,31 @@ function conversationDetail(id = "conversation-id", messages: unknown[] = []) {
   };
 }
 
+function replyableMessage(
+  id = "11111111-1111-4111-8111-111111111111",
+  overrides: Partial<InboxMessage> = {},
+): InboxMessage {
+  const now = "2026-08-20T14:30:00.000Z";
+  return {
+    id,
+    clientRequestId: null,
+    direction: "INBOUND",
+    type: "TEXT",
+    body: "Tem esse produto?",
+    content: null,
+    canReply: true,
+    replyTo: null,
+    mediaObjectId: null,
+    mediaState: null,
+    sentBy: null,
+    status: "RECEIVED",
+    failureReason: null,
+    externalTimestamp: now,
+    createdAt: now,
+    ...overrides,
+  };
+}
+
 class FakeEventSource {
   static instances: FakeEventSource[] = [];
   onopen: (() => void) | null = null;
@@ -735,6 +760,273 @@ describe("useInbox", () => {
     expect(body.body).toBe("Sem assinatura no corpo");
     expect(body.body).not.toContain("Marcos");
     expect(body.clientRequestId).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
+  it("sends a quoted text and mirrors its preview before and after confirmation", async () => {
+    const original = replyableMessage();
+    const confirmed = replyableMessage("22222222-2222-4222-8222-222222222222", {
+      direction: "OUTBOUND",
+      body: "Sim, temos.",
+      canReply: true,
+      replyTo: {
+        available: true,
+        messageId: original.id,
+        direction: original.direction,
+        type: original.type,
+        author: "Cliente",
+        summary: original.body!,
+      },
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+    });
+    let resolveSend!: (value: Response) => void;
+    let postedBody: Record<string, unknown> | null = null;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages" && !init?.method) {
+        return response({ data: conversationDetail("conversation-id", [original]), error: null });
+      }
+      if (url.endsWith("/messages") && init?.method === "POST") {
+        postedBody = JSON.parse(String(init.body)) as Record<string, unknown>;
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let send!: Promise<InboxMessage | null>;
+    act(() => {
+      send = hook.result.current.sendText(
+        "conversation-id",
+        "Sim, temos.",
+        original.id,
+      );
+    });
+
+    expect(postedBody).toMatchObject({
+      type: "TEXT",
+      body: "Sim, temos.",
+      replyToMessageId: original.id,
+    });
+    expect(hook.result.current.conversation?.messages.at(-1)).toMatchObject({
+      status: "PENDING",
+      canReply: false,
+      replyTo: {
+        available: true,
+        messageId: original.id,
+        author: "Cliente",
+        summary: "Tem esse produto?",
+      },
+    });
+
+    resolveSend(await response({ data: confirmed, error: null }, true, 201));
+    await act(() => send);
+
+    expect(hook.result.current.conversation?.messages.at(-1)).toEqual(confirmed);
+  });
+
+  it("does not send when the selected quote is unavailable", async () => {
+    const unavailable = replyableMessage(undefined, { canReply: false });
+    let posts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [], nextCursor: null }, error: null });
+      }
+      if (url.endsWith("/messages") && !init?.method) {
+        return response({ data: conversationDetail("conversation-id", [unavailable]), error: null });
+      }
+      if (init?.method === "POST") posts += 1;
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    const result = await act(() => hook.result.current.sendText(
+      "conversation-id",
+      "Resposta",
+      unavailable.id,
+    ));
+
+    expect(result).toBeNull();
+    expect(posts).toBe(0);
+    expect(hook.result.current.conversation?.messages).toEqual([unavailable]);
+  });
+
+  it("keeps the same quote on attachment retry and sends it with recordings", async () => {
+    const original = replyableMessage();
+    const attachment = new File(["image"], "produto.png", { type: "image/png" });
+    const recording = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
+    const recordingRequestId = "33333333-3333-4333-8333-333333333333";
+    vi.spyOn(URL, "createObjectURL")
+      .mockReturnValueOnce("blob:quoted-image")
+      .mockReturnValueOnce("blob:quoted-recording");
+    vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+    const attachmentForms: FormData[] = [];
+    const recordingForms: FormData[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [], nextCursor: null }, error: null });
+      }
+      if (url.endsWith("/messages") && !init?.method) {
+        return response({ data: conversationDetail("conversation-id", [original]), error: null });
+      }
+      if (url.endsWith("/messages") && init?.method === "POST") {
+        const form = init.body as FormData;
+        attachmentForms.push(form);
+        if (attachmentForms.length === 1) return Promise.reject(new Error("offline"));
+        return response({
+          data: replyableMessage("44444444-4444-4444-8444-444444444444", {
+            direction: "OUTBOUND",
+            type: "IMAGE",
+            body: "Foto",
+            canReply: true,
+            replyTo: {
+              available: true,
+              messageId: original.id,
+              direction: original.direction,
+              type: original.type,
+              author: "Cliente",
+              summary: original.body!,
+            },
+            mediaObjectId: "media-image",
+            mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+            sentBy: { id: user.id, name: user.name },
+            status: "SENT",
+          }),
+          error: null,
+        }, true, 201);
+      }
+      if (url.endsWith("/recordings") && init?.method === "POST") {
+        const form = init.body as FormData;
+        recordingForms.push(form);
+        return response({
+          data: replyableMessage("55555555-5555-4555-8555-555555555555", {
+            direction: "OUTBOUND",
+            type: "AUDIO",
+            body: null,
+            canReply: true,
+            replyTo: {
+              available: true,
+              messageId: original.id,
+              direction: original.direction,
+              type: original.type,
+              author: "Cliente",
+              summary: original.body!,
+            },
+            mediaObjectId: "media-audio",
+            mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+            sentBy: { id: user.id, name: user.name },
+            status: "SENT",
+          }),
+          error: null,
+        }, true, 201);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.sendMedia(
+      "conversation-id",
+      attachment,
+      "Foto",
+      original.id,
+    ));
+    const failed = hook.result.current.conversation?.messages.at(-1);
+    expect(failed).toMatchObject({
+      status: "FAILED",
+      replyTo: { available: true, messageId: original.id },
+    });
+
+    await act(() => hook.result.current.retryMessage(failed!.id));
+    await act(() => hook.result.current.sendRecording(
+      "conversation-id",
+      recording,
+      recordingRequestId,
+      original.id,
+    ));
+
+    expect(attachmentForms).toHaveLength(2);
+    expect(attachmentForms.map((form) => form.get("replyToMessageId"))).toEqual([
+      original.id,
+      original.id,
+    ]);
+    expect(recordingForms).toHaveLength(1);
+    expect(recordingForms[0].get("replyToMessageId")).toBe(original.id);
+  });
+
+  it("isolates a quoted send response after switching conversations", async () => {
+    const original = replyableMessage();
+    const confirmed = replyableMessage("66666666-6666-4666-8666-666666666666", {
+      direction: "OUTBOUND",
+      body: "Resposta da A",
+      canReply: true,
+      replyTo: {
+        available: true,
+        messageId: original.id,
+        direction: original.direction,
+        type: original.type,
+        author: "Cliente",
+        summary: original.body!,
+      },
+      sentBy: { id: user.id, name: user.name },
+      status: "SENT",
+    });
+    let resolveSend!: (value: Response) => void;
+    let posts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages" && !init?.method) {
+        return response({ data: conversationDetail("conversation-a", [original]), error: null });
+      }
+      if (url === "/api/conversations/conversation-b/messages" && !init?.method) {
+        return response({ data: conversationDetail("conversation-b"), error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages" && init?.method === "POST") {
+        posts += 1;
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    let send!: Promise<InboxMessage | null>;
+    act(() => {
+      send = hook.result.current.sendText(
+        "conversation-a",
+        "Resposta da A",
+        original.id,
+      );
+    });
+    await act(() => hook.result.current.openConversation("conversation-b"));
+    const rejected = await act(() => hook.result.current.sendText(
+      "conversation-b",
+      "Não deve enviar",
+      original.id,
+    ));
+
+    expect(rejected).toBeNull();
+    expect(posts).toBe(1);
+    resolveSend(await response({ data: confirmed, error: null }, true, 201));
+    await act(() => send);
+    expect(hook.result.current.conversation).toMatchObject({
+      id: "conversation-b",
+      messages: [],
+    });
   });
 
   it("keeps an optimistic failed row with the original request id", async () => {

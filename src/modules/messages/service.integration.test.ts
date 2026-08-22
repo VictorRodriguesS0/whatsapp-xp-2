@@ -56,6 +56,346 @@ describe("outbound message PostgreSQL concurrency", () => {
   beforeEach(resetTestDatabase);
   afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
 
+  it("persists and sends one same-conversation quoted target", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const original = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.pg-original",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Tem esse produto?",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-21T10:00:00.000Z"),
+      },
+    });
+    const provider = new DemoWhatsAppProvider();
+    const textInputs: Array<Parameters<typeof provider.sendText>[0]> = [];
+    provider.sendText = async (input) => {
+      textInputs.push(input);
+      return { whatsappMessageId: "wamid.pg-reply", status: "SENT" };
+    };
+    const clientRequestId = randomUUID();
+
+    const result = await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: original.id,
+    }, {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    });
+
+    expect(textInputs).toEqual([{
+      to: "+55 11 99999-0000",
+      body: "Sim",
+      contextMessageId: original.whatsappMessageId,
+    }]);
+    await expect(prisma.message.findUniqueOrThrow({
+      where: { clientRequestId },
+      select: { replyToMessageId: true, replyToWhatsappMessageId: true },
+    })).resolves.toEqual({
+      replyToMessageId: original.id,
+      replyToWhatsappMessageId: original.whatsappMessageId,
+    });
+    expect(result.replyTo).toMatchObject({
+      available: true,
+      messageId: original.id,
+      summary: "Tem esse produto?",
+    });
+  });
+
+  it("merges an echo that arrives before the provider response is committed", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    await prisma.contact.update({
+      where: { id: conversation.contactId },
+      data: { phone: "5511999990000" },
+    });
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const original = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.pg-race-original",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Tem esse produto?",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-21T10:00:00.000Z"),
+      },
+    });
+    const clientRequestId = randomUUID();
+    const providerMessageId = "wamid.pg-echo-before-mark-sent";
+    const echoTimestamp = new Date("2026-08-21T10:01:00.000Z");
+    let echoBeforeProviderReturn: {
+      id: string;
+      sentByUserId: string | null;
+      status: MessageStatus;
+      failureReason: string | null;
+    } | null = null;
+    let apiBeforeProviderReturn: {
+      id: string;
+      operationalState: MessageOperationalState;
+    } | null = null;
+    let echoProcessResult: {
+      processed: number;
+      duplicates: number;
+      quarantined?: number;
+    } | null = null;
+    let echoEventStatus: string | null = null;
+    const provider = new DemoWhatsAppProvider();
+    provider.sendText = async () => {
+      echoProcessResult = await processWebhookEvents([{
+        kind: "messageEcho",
+        whatsappMessageId: providerMessageId,
+        to: "5511999990000",
+        toUserId: null,
+        toParentUserId: null,
+        timestamp: echoTimestamp,
+        timestampRaw: String(echoTimestamp.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Sim",
+        content: null,
+        media: null,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+        origin: "WHATSAPP_BUSINESS_APP",
+      }, {
+        kind: "status",
+        whatsappMessageId: providerMessageId,
+        timestamp: new Date(echoTimestamp.getTime() + 1_000),
+        timestampRaw: String(echoTimestamp.getTime() / 1_000 + 1),
+        status: MessageStatus.FAILED,
+        failureReason: "Falha confirmada pela Meta",
+      }]);
+      echoBeforeProviderReturn = await prisma.message.findUnique({
+        where: { whatsappMessageId: providerMessageId },
+        select: {
+          id: true,
+          sentByUserId: true,
+          status: true,
+          failureReason: true,
+        },
+      });
+      apiBeforeProviderReturn = await prisma.message.findUnique({
+        where: { clientRequestId },
+        select: { id: true, operationalState: true },
+      });
+      echoEventStatus = (await prisma.webhookEvent.findUnique({
+        where: { deduplicationKey: `message-echo:${providerMessageId}` },
+        select: { status: true },
+      }))?.status ?? null;
+      return { whatsappMessageId: providerMessageId, status: "SENT" };
+    };
+
+    const result = await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: original.id,
+    }, {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    });
+
+    expect(result).toMatchObject({
+      status: MessageStatus.FAILED,
+      failureReason: "Falha confirmada pela Meta",
+      replyTo: expect.objectContaining({ messageId: original.id }),
+    });
+    expect(echoProcessResult).toMatchObject({ processed: 2, duplicates: 0 });
+    expect(echoEventStatus).toBe("PROCESSED");
+    expect(echoBeforeProviderReturn).toEqual({
+      id: expect.any(String),
+      sentByUserId: null,
+      status: MessageStatus.FAILED,
+      failureReason: "Falha confirmada pela Meta",
+    });
+    expect(apiBeforeProviderReturn).toEqual({
+      id: result.id,
+      operationalState: MessageOperationalState.SEND_IN_FLIGHT,
+    });
+    expect(echoBeforeProviderReturn!.id).not.toBe(result.id);
+    await expect(prisma.message.findMany({
+      where: { whatsappMessageId: providerMessageId },
+      select: {
+        id: true,
+        clientRequestId: true,
+        sentByUserId: true,
+        replyToMessageId: true,
+        replyToWhatsappMessageId: true,
+        status: true,
+        failureReason: true,
+        operationalState: true,
+      },
+    })).resolves.toEqual([{
+      id: result.id,
+      clientRequestId,
+      sentByUserId: victor.id,
+      replyToMessageId: original.id,
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      status: MessageStatus.FAILED,
+      failureReason: "Falha confirmada pela Meta",
+      operationalState: MessageOperationalState.SENT,
+    }]);
+    await expect(prisma.message.count()).resolves.toBe(2);
+  });
+
+  it("rejects missing, cross-conversation, and official-ID-less quoted targets", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const localWithoutOfficialId = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Sem ID",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-21T10:00:00.000Z"),
+      },
+    });
+    const otherContact = await prisma.contact.create({
+      data: {
+        whatsappId: "556151111111",
+        phone: "556151111111",
+        name: "Outra conversa",
+      },
+    });
+    const otherConversation = await prisma.conversation.create({
+      data: { contactId: otherContact.id, lastMessageAt: new Date() },
+    });
+    const foreign = await prisma.message.create({
+      data: {
+        conversationId: otherConversation.id,
+        whatsappMessageId: "wamid.pg-foreign",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Outra conversa",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-21T10:01:00.000Z"),
+      },
+    });
+    const provider = new DemoWhatsAppProvider();
+    let providerCalls = 0;
+    provider.sendText = async () => {
+      providerCalls += 1;
+      return { whatsappMessageId: "unused", status: "SENT" };
+    };
+    const dependencies: MessageServiceDependencies = {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    };
+
+    for (const replyToMessageId of [
+      randomUUID(),
+      localWithoutOfficialId.id,
+      foreign.id,
+    ]) {
+      await expect(sendMessage(actor, conversation.id, {
+        type: MessageType.TEXT,
+        clientRequestId: randomUUID(),
+        body: "Não enviar",
+        replyToMessageId,
+      }, dependencies)).rejects.toMatchObject({ status: 409 });
+    }
+
+    expect(providerCalls).toBe(0);
+  });
+
+  it("rejects idempotent reuse with another quote without another provider call", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const originals = await Promise.all(["first", "second"].map((suffix, index) =>
+      prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          whatsappMessageId: `wamid.pg-${suffix}`,
+          direction: MessageDirection.INBOUND,
+          type: MessageType.TEXT,
+          body: suffix,
+          status: MessageStatus.RECEIVED,
+          externalTimestamp: new Date(`2026-08-21T10:0${index}:00.000Z`),
+        },
+      })
+    ));
+    const provider = new DemoWhatsAppProvider();
+    let providerCalls = 0;
+    provider.sendText = async () => {
+      providerCalls += 1;
+      return { whatsappMessageId: "wamid.pg-sent", status: "SENT" };
+    };
+    const dependencies: MessageServiceDependencies = {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      idempotencyInFlight: new Map(),
+      publishRealtime: () => undefined,
+    };
+    const clientRequestId = randomUUID();
+
+    await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: originals[0]!.id,
+    }, dependencies);
+    await expect(sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: originals[1]!.id,
+    }, dependencies)).rejects.toMatchObject({ status: 409 });
+
+    expect(providerCalls).toBe(1);
+  });
+
+  it("backfills replies that arrived before markSent assigned the original official ID", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const futureOfficialId = "wamid.pg-future-original";
+    const earlyReply = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.pg-early-reply",
+        replyToWhatsappMessageId: futureOfficialId,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Chegou antes",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-21T10:02:00.000Z"),
+      },
+    });
+    const provider = new DemoWhatsAppProvider();
+    provider.sendText = async () => ({ whatsappMessageId: futureOfficialId, status: "SENT" });
+
+    const original = await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId: randomUUID(),
+      body: "Original tardia",
+    }, {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    });
+
+    await expect(prisma.message.findUniqueOrThrow({
+      where: { id: earlyReply.id },
+      select: { replyToMessageId: true },
+    })).resolves.toEqual({ replyToMessageId: original.id });
+  });
+
   it("persists one UI record for concurrent sends with one clientRequestId", async () => {
     const { conversation, victor } = await seedReadFixture();
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
@@ -119,6 +459,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Primeira mensagem",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
     await processWebhookEvents([
@@ -133,6 +474,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Segunda mensagem",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
 
@@ -161,6 +503,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Mensagem recebida primeiro",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
     await processWebhookEvents([
@@ -175,6 +518,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Mensagem atrasada",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
 
@@ -212,6 +556,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           body: "Mensagem inbound",
           content: null,
           media: null,
+          replyToWhatsappMessageId: null,
         },
       ]);
     }
@@ -228,6 +573,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Resposta atrasada",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
         origin: "WHATSAPP_BUSINESS_APP",
       },
     ]);
@@ -332,6 +678,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Mensagem atrasada",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
 
@@ -392,6 +739,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           body: "Mensagem concorrente posterior",
           content: null,
           media: null,
+          replyToWhatsappMessageId: null,
         },
       ]);
       await barrier.query("SELECT pg_advisory_unlock($1)", [barrierLock]);

@@ -1,17 +1,18 @@
 "use client";
 
 import { ArrowLeft, CircleDot, Info, LoaderCircle } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
+import { quotedReplyPreview } from "@/modules/messages/reply-context";
 
+import { ConversationMessageSearch } from "./conversation-message-search";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
-import { ConversationMessageSearch } from "./conversation-message-search";
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -118,6 +119,9 @@ export function ConversationView({
   searchTargetMessageId = null,
   onSearchTarget,
   onSearchTargetHandled,
+  replyToMessageId = null,
+  onCancelReply,
+  onReplyToMessage,
 }: {
   conversation: InboxConversation | null;
   detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
@@ -130,13 +134,16 @@ export function ConversationView({
   onOpenDetails: () => void;
   onRetryLoad: () => void;
   onVisibleMessage: (messageId: string) => void;
-  onSendText: (body: string) => Promise<unknown>;
-  onSendMedia: (file: File, caption: string) => Promise<unknown>;
-  onSendRecording: (file: File, clientRequestId: string) => Promise<unknown>;
+  onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
   onRetryMessage: (id: string) => void;
   searchTargetMessageId?: string | null;
   onSearchTarget?: (result: MessageSearchResultDto) => void;
   onSearchTargetHandled?: () => void;
+  replyToMessageId?: string | null;
+  onCancelReply?: () => void;
+  onReplyToMessage?: (message: InboxMessage) => void;
 }) {
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
@@ -146,10 +153,57 @@ export function ConversationView({
   const latestMessageId = conversation ? lastConfirmedMessageId(conversation.messages) : null;
   const latestMessageIdRef = useRef(latestMessageId);
   const reportedMessageId = useRef<string | null>(null);
+  const messageElements = useRef(new Map<string, HTMLElement>());
+  const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const replyTarget = conversation?.messages.find(
+    (item) => item.id === replyToMessageId && item.canReply,
+  ) ?? null;
+  const replyPreview = replyTarget
+    ? quotedReplyPreview({
+        id: replyTarget.id,
+        direction: replyTarget.direction,
+        type: replyTarget.type,
+        body: replyTarget.body,
+        content: replyTarget.content,
+        sentBy: replyTarget.sentBy,
+      })
+    : null;
 
   visibleMessageCallback.current = onVisibleMessage;
   latestMessageIdRef.current = latestMessageId;
+
+  const registerMessageElement = useCallback((messageId: string, element: HTMLElement | null) => {
+    if (element) messageElements.current.set(messageId, element);
+    else messageElements.current.delete(messageId);
+  }, []);
+
+  const navigateToMessage = useCallback((messageId: string) => {
+    const element = messageElements.current.get(messageId);
+    if (!element) return;
+    element.scrollIntoView({
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+      block: "center",
+    });
+    element.focus({ preventScroll: true });
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    setHighlightedMessageId(messageId);
+    highlightTimer.current = setTimeout(() => {
+      highlightTimer.current = null;
+      setHighlightedMessageId(null);
+    }, 1_500);
+  }, []);
+
+  useEffect(() => {
+    setHighlightedMessageId(null);
+    if (highlightTimer.current) {
+      clearTimeout(highlightTimer.current);
+      highlightTimer.current = null;
+    }
+    return () => {
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+    };
+  }, [conversation?.id]);
 
   useEffect(() => {
     const history = historyRef.current;
@@ -201,17 +255,24 @@ export function ConversationView({
     const target = [...history.querySelectorAll<HTMLElement>("[data-message-id]")]
       .find((element) => element.dataset.messageId === searchTargetMessageId);
     if (!target) return;
+    if (highlightTimer.current) clearTimeout(highlightTimer.current);
     setHighlightedMessageId(searchTargetMessageId);
     target.scrollIntoView({
       block: "center",
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
     target.focus({ preventScroll: true });
-    const timer = window.setTimeout(() => {
+    highlightTimer.current = setTimeout(() => {
+      highlightTimer.current = null;
       setHighlightedMessageId(null);
       onSearchTargetHandled?.();
     }, 3_000);
-    return () => window.clearTimeout(timer);
+    return () => {
+      if (highlightTimer.current) {
+        clearTimeout(highlightTimer.current);
+        highlightTimer.current = null;
+      }
+    };
   }, [conversation?.messages, onSearchTargetHandled, searchTargetMessageId]);
 
   return (
@@ -253,15 +314,27 @@ export function ConversationView({
         role="log"
       >
         {conversation.messages.length === 0 ? <p className="py-12 text-center text-sm text-[var(--muted)]">Ainda não há mensagens nesta conversa.</p> : null}
-        {conversation.messages.map((message) => <MessageBubble key={message.id} message={message} onRetry={onRetryMessage} searchHighlighted={highlightedMessageId === message.id} />)}
+        {conversation.messages.map((message) => (
+          <MessageBubble
+            highlighted={highlightedMessageId === message.id}
+            key={message.id}
+            message={message}
+            onNavigateReply={navigateToMessage}
+            onReply={onReplyToMessage}
+            onRetry={onRetryMessage}
+            registerElement={registerMessageElement}
+          />
+        ))}
       </div> : null}
       {conversation ? (
         <MessageComposer
           conversationId={conversation.id}
           disabled={loading}
+          onCancelReply={onCancelReply}
           onSendMedia={onSendMedia}
           onSendRecording={onSendRecording}
           onSendText={onSendText}
+          replyTo={replyPreview}
         />
       ) : null}
     </div>

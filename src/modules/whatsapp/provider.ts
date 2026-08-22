@@ -8,6 +8,7 @@ export type SendResult = {
 };
 
 export type MediaMessageType = "image" | "audio" | "video" | "document";
+export type ProviderReplyContext = { contextMessageId?: string };
 
 export type MediaMetadata = {
   id: string;
@@ -31,9 +32,15 @@ export type MediaDownload = {
 };
 
 export interface WhatsAppProvider {
-  sendText(input: { to: string; body: string }): Promise<SendResult>;
+  sendText(input: { to: string; body: string } & ProviderReplyContext): Promise<SendResult>;
   uploadMedia(input: MediaUploadSource): Promise<{ mediaId: string }>;
-  sendMedia(input: { to: string; type: MediaMessageType; mediaId: string; caption?: string; filename?: string }): Promise<SendResult>;
+  sendMedia(input: {
+    to: string;
+    type: MediaMessageType;
+    mediaId: string;
+    caption?: string;
+    filename?: string;
+  } & ProviderReplyContext): Promise<SendResult>;
   getMediaMetadata(mediaId: string): Promise<MediaMetadata>;
   downloadMedia(input: { url: string; maximumBytes: number }): Promise<MediaDownload>;
 }

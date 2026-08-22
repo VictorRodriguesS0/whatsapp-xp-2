@@ -20,7 +20,11 @@ const richCardClass =
 
 function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <section aria-label={label} className={richCardClass}>
+    <section
+      aria-label={label}
+      className={richCardClass}
+      data-reply-swipe-ignore="true"
+    >
       {children}
     </section>
   );
@@ -185,7 +189,11 @@ export function MessageRichContent({ message }: { message: InboxMessage }) {
     return <UnknownCard rawType={content?.kind === "unknown" ? content.rawType : undefined} />;
   }
   if (structuredTypes.has(message.type)) {
-    return <p role="status">Conteúdo desta mensagem indisponível.</p>;
+    return (
+      <p data-reply-swipe-ignore="true" role="status">
+        Conteúdo desta mensagem indisponível.
+      </p>
+    );
   }
   return null;
 }

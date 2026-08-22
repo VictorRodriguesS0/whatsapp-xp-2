@@ -11,6 +11,8 @@ const outboundFixture: MessageDto = {
   type: "TEXT",
   body: "Temos disponível sim.",
   content: null,
+  canReply: false,
+  replyTo: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
@@ -27,6 +29,72 @@ describe("MessageBubble", () => {
     expect(article).toHaveAttribute("data-message-id", outboundFixture.id);
     expect(article).toHaveAttribute("tabindex", "-1");
     expect(article).toHaveAttribute("data-search-highlighted", "true");
+  });
+
+  it("offers an accessible reply action only for replyable messages", () => {
+    const reply = vi.fn();
+    const { rerender } = render(
+      <MessageBubble
+        message={{ ...outboundFixture, canReply: true }}
+        onReply={reply}
+      />,
+    );
+
+    const action = screen.getByRole("button", { name: "Responder à mensagem" });
+    expect(action).toHaveClass("min-h-11", "min-w-11");
+    expect(action).toHaveClass("opacity-100", "min-[720px]:opacity-0");
+    expect(action).not.toHaveClass("sm:opacity-0");
+    fireEvent.click(action);
+    expect(reply).toHaveBeenCalledWith(expect.objectContaining({ id: outboundFixture.id }));
+
+    rerender(<MessageBubble message={outboundFixture} onReply={reply} />);
+    expect(screen.queryByRole("button", { name: "Responder à mensagem" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("renders a quoted preview before the message body and navigates to it", () => {
+    const navigate = vi.fn();
+    render(
+      <MessageBubble
+        message={{
+          ...outboundFixture,
+          replyTo: {
+            available: true,
+            messageId: "40000000-0000-4000-8000-000000000001",
+            direction: "INBOUND",
+            type: "TEXT",
+            author: "Cliente",
+            summary: "Tem esse produto?",
+          },
+        }}
+        onNavigateReply={navigate}
+      />,
+    );
+
+    const preview = screen.getByRole("button", { name: /^Ir para mensagem original/ });
+    const body = screen.getByText(outboundFixture.body!);
+    expect(preview.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING)
+      .toBeTruthy();
+    fireEvent.click(preview);
+    expect(navigate).toHaveBeenCalledWith("40000000-0000-4000-8000-000000000001");
+  });
+
+  it("registers a focusable article and exposes reduced-motion-safe highlight state", () => {
+    const register = vi.fn();
+    const { unmount } = render(
+      <MessageBubble
+        highlighted
+        message={outboundFixture}
+        registerElement={register}
+      />,
+    );
+
+    const article = screen.getByText(outboundFixture.body!).closest("article");
+    expect(article).toHaveAttribute("tabindex", "-1");
+    expect(article).toHaveAttribute("data-highlighted", "true");
+    expect(register).toHaveBeenCalledWith(outboundFixture.id, article);
+    unmount();
+    expect(register).toHaveBeenLastCalledWith(outboundFixture.id, null);
   });
 
   it("labels an outbound message with its internal sender", () => {
@@ -139,7 +207,9 @@ describe("MessageBubble", () => {
     );
 
     expect(screen.getByRole("link", { name: "Abrir no Google Maps" })).toBeVisible();
-    expect(screen.getByText("XP Eletrônicos").closest("article")?.firstElementChild).toHaveClass(
+    const heading = screen.getByRole("heading", { name: "XP Eletrônicos" });
+    expect(heading.closest('[data-reply-swipe-ignore="true"]')).not.toBeNull();
+    expect(heading.closest("article")?.firstElementChild).toHaveClass(
       "max-w-[min(78%,42rem)]",
     );
   });

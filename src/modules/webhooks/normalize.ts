@@ -107,6 +107,14 @@ function exactIdentifier(value: unknown, maximumLength: number): string | null {
   return value;
 }
 
+function replyContextId(message: UnknownRecord): string | null | undefined {
+  if (!hasOwn(message, "context")) return null;
+  const context = record(message.context);
+  if (!context) return undefined;
+  if (!hasOwn(context, "id")) return null;
+  return exactIdentifier(context.id, 512) ?? undefined;
+}
+
 function businessScopedUserId(value: unknown): string | null {
   return typeof value === "string" && /^[A-Z]{2}\.[A-Za-z0-9]{1,128}$/.test(value)
     ? value
@@ -534,6 +542,9 @@ function normalizeMessage(
     return null;
   }
 
+  const replyToWhatsappMessageId = replyContextId(message);
+  if (replyToWhatsappMessageId === undefined) return null;
+
   const type = typeMap.get(rawType) ?? MessageType.UNSUPPORTED;
   let body: string | null = null;
   let content: MessageContent | null = null;
@@ -587,6 +598,7 @@ function normalizeMessage(
     body,
     content,
     media,
+    replyToWhatsappMessageId,
   };
 }
 
@@ -644,6 +656,9 @@ function normalizeMessageEcho(
     };
   }
 
+  const replyToWhatsappMessageId = replyContextId(message);
+  if (replyToWhatsappMessageId === undefined) return null;
+
   const type = typeMap.get(rawType) ?? MessageType.UNSUPPORTED;
   let body: string | null = null;
   let content: MessageContent | null = null;
@@ -698,6 +713,7 @@ function normalizeMessageEcho(
     body,
     content,
     media,
+    replyToWhatsappMessageId,
     origin: "WHATSAPP_BUSINESS_APP",
   };
 }

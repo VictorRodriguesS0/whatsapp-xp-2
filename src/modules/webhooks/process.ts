@@ -17,6 +17,11 @@ import {
 } from "@/modules/conversations/shared-state";
 import { publishRealtime } from "@/modules/realtime/hub";
 import type { RealtimeEvent } from "@/modules/realtime/events";
+import {
+  reconcileConversationReplyLinks,
+  reconcileReplyLinks,
+} from "@/modules/messages/reply-linking.server";
+import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
 
 import type {
   NormalizedMedia,
@@ -65,6 +70,7 @@ export type WebhookRepository = {
     body: string | null;
     content: MessageContent | null;
     mediaObjectId: string | null;
+    replyToWhatsappMessageId: string | null;
     direction: MessageDirection;
     status: MessageStatusValue;
     sentByUserId: string | null;
@@ -209,6 +215,7 @@ export function createPrismaWebhookRepository(
       where: { conversationId: sourceConversation.id },
       data: { conversationId: targetConversation.id },
     });
+    await reconcileConversationReplyLinks(client, targetConversation.id);
 
     for (const sourceRead of sourceReads) {
       const targetRead = targetReadsByUser.get(sourceRead.userId);
@@ -542,8 +549,17 @@ export function createPrismaWebhookRepository(
         select: { id: true },
       });
     },
-    createMessage(input) {
-      return client.message.create({
+    async createMessage(input) {
+      const replyTarget = input.replyToWhatsappMessageId
+        ? await client.message.findFirst({
+            where: {
+              conversationId: input.conversationId,
+              whatsappMessageId: input.replyToWhatsappMessageId,
+            },
+            select: { id: true },
+          })
+        : null;
+      const message = await client.message.create({
         data: {
           conversationId: input.conversationId,
           whatsappMessageId: input.whatsappMessageId,
@@ -551,6 +567,8 @@ export function createPrismaWebhookRepository(
           body: input.body,
           content: messageContentForPrisma(input.content),
           mediaObjectId: input.mediaObjectId,
+          replyToMessageId: replyTarget?.id ?? null,
+          replyToWhatsappMessageId: input.replyToWhatsappMessageId,
           sentByUserId: input.sentByUserId,
           status: input.status,
           direction: input.direction,
@@ -558,6 +576,12 @@ export function createPrismaWebhookRepository(
         },
         select: { id: true, conversationId: true },
       });
+      await reconcileReplyLinks(client, {
+        conversationId: input.conversationId,
+        messageId: message.id,
+        whatsappMessageId: input.whatsappMessageId,
+      });
+      return message;
     },
     refreshResponseState(conversationId) {
       return refreshResponseState(client, conversationId);
@@ -670,32 +694,6 @@ function safeErrorSummary(error: unknown): string {
   return `processing_error:${name || "Unknown"}`;
 }
 
-function shouldApplyStatus(
-  current: MessageStatusValue,
-  next: NormalizedStatusEvent["status"],
-): boolean {
-  if (current === MessageStatus.RECEIVED || current === MessageStatus.READ) {
-    return false;
-  }
-
-  if (next === MessageStatus.FAILED) {
-    return current === MessageStatus.PENDING || current === MessageStatus.SENT;
-  }
-
-  if (current === MessageStatus.FAILED) {
-    return false;
-  }
-
-  const rank: Partial<Record<MessageStatusValue, number>> = {
-    [MessageStatus.PENDING]: 0,
-    [MessageStatus.SENT]: 1,
-    [MessageStatus.DELIVERED]: 2,
-    [MessageStatus.READ]: 3,
-  };
-
-  return (rank[next] ?? -1) > (rank[current] ?? -1);
-}
-
 async function processMessage(
   event: NormalizedMessageEvent,
   key: string,
@@ -726,6 +724,7 @@ async function processMessage(
     body: event.body,
     content: event.content,
     mediaObjectId: media?.id ?? null,
+    replyToWhatsappMessageId: event.replyToWhatsappMessageId,
     direction: MessageDirection.INBOUND,
     status: MessageStatus.RECEIVED,
     sentByUserId: null,
@@ -785,6 +784,7 @@ async function processMessageEcho(
     body: event.body,
     content: event.content,
     mediaObjectId: media?.id ?? null,
+    replyToWhatsappMessageId: event.replyToWhatsappMessageId,
     direction: MessageDirection.OUTBOUND,
     status: MessageStatus.SENT,
     sentByUserId: null,
@@ -838,7 +838,7 @@ async function processStatus(
 
   let realtime: RealtimeEvent[] = [];
 
-  if (shouldApplyStatus(message.status, event.status)) {
+  if (shouldApplyMessageStatus(message.status, event.status)) {
     const updated = await repository.updateMessageStatus(
       message.id,
       event.status,

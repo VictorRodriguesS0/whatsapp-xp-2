@@ -1,19 +1,32 @@
 "use client";
 
 import { Mic, Paperclip, Send, Square, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+import type { AvailableQuotedReplyDto } from "@/modules/messages/reply-context";
 
 import { QuickReplyMenu, type QuickReplyOption } from "./quick-reply-menu";
+import { QuotedReplyPreview } from "./quoted-reply-preview";
 
 type MessageComposerProps = {
   conversationId: string;
   disabled?: boolean;
-  onSendText: (body: string) => Promise<unknown>;
-  onSendMedia: (file: File, caption: string) => Promise<unknown>;
-  onSendRecording: (file: File, clientRequestId: string) => Promise<unknown>;
+  replyTo?: AvailableQuotedReplyDto | null;
+  onCancelReply?: () => void;
+  onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
 };
 
 function formatDuration(durationMs: number) {
@@ -25,6 +38,8 @@ function formatDuration(durationMs: number) {
 export function MessageComposer({
   conversationId,
   disabled,
+  replyTo = null,
+  onCancelReply,
   onSendText,
   onSendMedia,
   onSendRecording,
@@ -103,15 +118,25 @@ export function MessageComposer({
     const text = body.trim();
     if (file) {
       const selectedFile = file;
+      const replyToMessageId = replyTo?.messageId ?? null;
       setFile(null);
       setBody("");
       if (fileInputRef.current) fileInputRef.current.value = "";
-      void onSendMedia(selectedFile, text);
+      const operation = replyToMessageId
+        ? onSendMedia(selectedFile, text, replyToMessageId)
+        : onSendMedia(selectedFile, text);
+      if (replyToMessageId) onCancelReply?.();
+      void operation;
       return;
     }
     if (!text) return;
+    const replyToMessageId = replyTo?.messageId ?? null;
     setBody("");
-    void onSendText(text);
+    const operation = replyToMessageId
+      ? onSendText(text, replyToMessageId)
+      : onSendText(text);
+    if (replyToMessageId) onCancelReply?.();
+    void operation;
   }
 
   function cancelRecording() {
@@ -136,10 +161,15 @@ export function MessageComposer({
     if (!recording || sendingRecording || disabled) return;
     const scopeAtSend = conversationId;
     const requestIdAtSend = recording.clientRequestId;
+    const replyToMessageId = replyTo?.messageId ?? null;
     setSendingRecording(true);
     setSendError(null);
     try {
-      const result = await onSendRecording(recording.file, recording.clientRequestId);
+      const operation = replyToMessageId
+        ? onSendRecording(recording.file, recording.clientRequestId, replyToMessageId)
+        : onSendRecording(recording.file, recording.clientRequestId);
+      if (replyToMessageId) onCancelReply?.();
+      const result = await operation;
       if (
         result
         && scopeRef.current === scopeAtSend
@@ -174,8 +204,37 @@ export function MessageComposer({
     textareaRef.current?.focus();
   }
 
+  function handleComposerKeyDown(event: ReactKeyboardEvent<HTMLFormElement>) {
+    if (
+      event.key !== "Escape" ||
+      event.repeat ||
+      event.nativeEvent.isComposing ||
+      event.defaultPrevented
+    ) return;
+    if (quickReplyMenuOpen) {
+      event.preventDefault();
+      event.stopPropagation();
+      setQuickReplyDismissed(true);
+      return;
+    }
+    if (replyTo && onCancelReply) {
+      event.preventDefault();
+      event.stopPropagation();
+      onCancelReply();
+    }
+  }
+
   return (
-    <form className="border-t border-[var(--border)] bg-[var(--panel)] p-3" onSubmit={submit}>
+    <form
+      className="border-t border-[var(--border)] bg-[var(--panel)] p-3"
+      onKeyDown={handleComposerKeyDown}
+      onSubmit={submit}
+    >
+      {replyTo ? (
+        <div className="mb-2">
+          <QuotedReplyPreview onCancel={onCancelReply} reply={replyTo} />
+        </div>
+      ) : null}
       {recorder.phase === "requesting" ? (
         <div className="flex min-h-11 items-center gap-3" role="status" aria-live="polite">
           <span className="min-w-0 flex-1 truncate text-sm text-[var(--muted)]">Aguardando permissão do microfone</span>

@@ -19,6 +19,7 @@ export type NormalizedMessageEvent = {
   body: string | null;
   content: MessageContent | null;
   media: NormalizedMedia | null;
+  replyToWhatsappMessageId: string | null;
 };
 
 export type NormalizedStatusEvent = {
@@ -42,6 +43,7 @@ export type NormalizedMessageEchoEvent = {
   body: string | null;
   content: MessageContent | null;
   media: NormalizedMedia | null;
+  replyToWhatsappMessageId: string | null;
   origin: "WHATSAPP_BUSINESS_APP";
 };
 

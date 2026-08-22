@@ -28,7 +28,7 @@
 
 **Files:**
 - Modify: `prisma/schema.prisma`
-- Create: `prisma/migrations/202608220003_quoted_replies/migration.sql`
+- Create: `prisma/migrations/202608220004_quoted_replies/migration.sql`
 - Create: `prisma/quoted-reply-contract.test.ts`
 - Create: `src/modules/messages/reply-context.ts`
 - Create: `src/modules/messages/reply-context.test.ts`
@@ -236,7 +236,7 @@ Expected: PASS with available/fallback previews, no recursive payload and no off
 - [ ] **Step 10: Commit Task 1**
 
 ```bash
-git add prisma/schema.prisma prisma/migrations/202608220003_quoted_replies prisma/quoted-reply-contract.test.ts src/modules/messages/reply-context.ts src/modules/messages/reply-context.test.ts src/modules/conversations/types.ts src/modules/conversations/service.ts src/modules/conversations/service.test.ts src/modules/conversations/service.integration.test.ts
+git add prisma/schema.prisma prisma/migrations/202608220004_quoted_replies prisma/quoted-reply-contract.test.ts src/modules/messages/reply-context.ts src/modules/messages/reply-context.test.ts src/modules/conversations/types.ts src/modules/conversations/service.ts src/modules/conversations/service.test.ts src/modules/conversations/service.integration.test.ts
 git commit -m "feat: persist quoted reply references"
 ```
 
@@ -889,7 +889,7 @@ Create an LF-only Git archive from the clean code commit, set `REVISION` to that
 - revision label equals the full commit;
 - runtime container user resolves to UID/GID `1001:1001` through Compose;
 - healthcheck, FFmpeg and FFprobe present;
-- migration `202608220003_quoted_replies` present;
+- migration `202608220004_quoted_replies` present;
 - no application `.env`, test or spec files in runtime layers;
 - standalone startup and `/api/health` return 200.
 

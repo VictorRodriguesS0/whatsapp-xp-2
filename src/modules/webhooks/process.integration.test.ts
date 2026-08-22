@@ -38,6 +38,7 @@ function echoEvent(
     content?: NormalizedMessageEchoEvent["content"];
     media?: NormalizedMessageEchoEvent["media"];
     type?: NormalizedMessageEchoEvent["type"];
+    replyToWhatsappMessageId?: string | null;
   } = {},
 ): NormalizedMessageEchoEvent {
   const timestamp = options.timestamp ?? new Date("2026-08-21T12:00:00.000Z");
@@ -54,6 +55,7 @@ function echoEvent(
     body: options.body === undefined ? "echo body" : options.body,
     content: options.content ?? null,
     media: options.media ?? null,
+    replyToWhatsappMessageId: options.replyToWhatsappMessageId ?? null,
     origin: "WHATSAPP_BUSINESS_APP",
   };
 }
@@ -62,6 +64,7 @@ function inboundEvent(
   whatsappMessageId: string,
   from: string,
   timestamp: Date,
+  replyToWhatsappMessageId: string | null = null,
 ): NormalizedMessageEvent {
   return {
     kind: "message",
@@ -74,6 +77,7 @@ function inboundEvent(
     body: "inbound body",
     content: null,
     media: null,
+    replyToWhatsappMessageId,
   };
 }
 
@@ -143,6 +147,113 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         sentByUserId: null,
         body: "echo body",
       });
+    });
+
+    it("links a reply to an original already stored in the same conversation", async () => {
+      const original = inboundEvent(
+        "wamid.reply-original-first",
+        "551100000031",
+        new Date("2026-08-21T12:00:00.000Z"),
+      );
+      const reply = inboundEvent(
+        "wamid.reply-child-second",
+        original.from,
+        new Date("2026-08-21T12:01:00.000Z"),
+        original.whatsappMessageId,
+      );
+
+      await processWebhookEvents([original, reply]);
+
+      const storedOriginal = await prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: original.whatsappMessageId },
+      });
+      await expect(prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: reply.whatsappMessageId },
+        select: { replyToMessageId: true, replyToWhatsappMessageId: true },
+      })).resolves.toEqual({
+        replyToMessageId: storedOriginal.id,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+      });
+    });
+
+    it("backfills the local reply link when the original arrives after its reply", async () => {
+      const original = inboundEvent(
+        "wamid.reply-original-late",
+        "551100000032",
+        new Date("2026-08-21T12:00:00.000Z"),
+      );
+      const reply = inboundEvent(
+        "wamid.reply-child-first",
+        original.from,
+        new Date("2026-08-21T12:01:00.000Z"),
+        original.whatsappMessageId,
+      );
+
+      await processWebhookEvents([reply]);
+      await expect(prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: reply.whatsappMessageId },
+        select: { replyToMessageId: true, replyToWhatsappMessageId: true },
+      })).resolves.toEqual({
+        replyToMessageId: null,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+      });
+
+      await processWebhookEvents([original]);
+
+      const storedOriginal = await prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: original.whatsappMessageId },
+      });
+      await expect(prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: reply.whatsappMessageId },
+        select: { replyToMessageId: true, replyToWhatsappMessageId: true },
+      })).resolves.toEqual({
+        replyToMessageId: storedOriginal.id,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+      });
+    });
+
+    it("keeps unknown and cross-conversation reply references unresolved", async () => {
+      const original = inboundEvent(
+        "wamid.reply-cross-original",
+        "551100000033",
+        new Date("2026-08-21T12:00:00.000Z"),
+      );
+      const crossConversationReply = inboundEvent(
+        "wamid.reply-cross-child",
+        "551100000034",
+        new Date("2026-08-21T12:01:00.000Z"),
+        original.whatsappMessageId,
+      );
+      const unknownReply = inboundEvent(
+        "wamid.reply-unknown-child",
+        original.from,
+        new Date("2026-08-21T12:02:00.000Z"),
+        "wamid.reply-unknown-original",
+      );
+
+      await processWebhookEvents([original, crossConversationReply, unknownReply]);
+
+      await expect(prisma.message.findMany({
+        where: {
+          whatsappMessageId: {
+            in: [
+              crossConversationReply.whatsappMessageId,
+              unknownReply.whatsappMessageId,
+            ],
+          },
+        },
+        orderBy: { whatsappMessageId: "asc" },
+        select: { replyToMessageId: true, replyToWhatsappMessageId: true },
+      })).resolves.toEqual([
+        {
+          replyToMessageId: null,
+          replyToWhatsappMessageId: original.whatsappMessageId,
+        },
+        {
+          replyToMessageId: null,
+          replyToWhatsappMessageId: "wamid.reply-unknown-original",
+        },
+      ]);
     });
 
     it("creates a BSUID-only contact and later attaches the overlapping phone", async () => {
@@ -216,6 +327,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         echoEvent("wamid.echo-separated-bsuid", {
           to: null,
           toUserId: "BR.SeparateCustomer",
+          replyToWhatsappMessageId: "wamid.echo-separated-phone",
         }),
       ]);
 
@@ -243,6 +355,16 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       expect(new Set(messages.map(({ conversationId }) => conversationId))).toHaveLength(
         1,
       );
+      const original = await prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: "wamid.echo-separated-phone" },
+      });
+      await expect(prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: "wamid.echo-separated-bsuid" },
+        select: { replyToMessageId: true, replyToWhatsappMessageId: true },
+      })).resolves.toEqual({
+        replyToMessageId: original.id,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+      });
     });
 
     it("refreshes an answered target from a merged newer inbound on a duplicate API echo", async () => {
@@ -1008,6 +1130,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           sentByUserId: user.id,
           status: MessageStatus.DELIVERED,
           externalTimestamp: new Date("2026-08-21T12:00:00.000Z"),
+          replyToWhatsappMessageId: "wamid.api-authoritative-target",
         },
       });
 
@@ -1019,6 +1142,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
             toUserId: "BR.ApiDuplicate",
             body: null,
             type: MessageType.STICKER,
+            replyToWhatsappMessageId: "wamid.echo-must-not-overwrite-target",
             media: {
               metaMediaId: "meta-incoming-must-not-be-created",
               mimeType: "image/webp",
@@ -1038,6 +1162,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           mediaObjectId: media.id,
           sentByUserId: user.id,
           status: MessageStatus.DELIVERED,
+          replyToMessageId: null,
+          replyToWhatsappMessageId: "wamid.api-authoritative-target",
         });
       await expect(
         prisma.contact.findUniqueOrThrow({ where: { id: contact.id } }),

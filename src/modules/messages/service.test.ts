@@ -54,6 +54,14 @@ function minimalVideoMp4(): Uint8Array {
 class MemoryRepository implements MessageServiceRepository {
   readonly records = new Map<string, MessageServiceRecord>();
   readonly clientIds = new Map<string, string>();
+  readonly replyTargets = new Map<string, {
+    id: string;
+    conversationId: string;
+    whatsappMessageId: string | null;
+    direction: MessageDirection;
+    type: MessageType;
+    body: string | null;
+  }>();
   readonly history: string[] = [];
   private sequence = 0;
   failMarkSent = false;
@@ -73,10 +81,36 @@ class MemoryRepository implements MessageServiceRepository {
     this.sequence += 1;
     const id = `20000000-0000-4000-8000-${String(this.sequence).padStart(12, "0")}`;
     const now = new Date(this.sequence);
+    const replyTarget = input.replyToMessageId
+      ? this.replyTargets.get(input.replyToMessageId) ?? null
+      : null;
+    if (
+      input.replyToMessageId &&
+      (!replyTarget ||
+        replyTarget.conversationId !== input.conversationId ||
+        !replyTarget.whatsappMessageId)
+    ) {
+      throw Object.assign(new Error("Mensagem original indisponível para resposta"), {
+        status: 409,
+      });
+    }
     const message: MessageServiceRecord = {
       id,
       conversationId: input.conversationId,
       whatsappMessageId: null,
+      replyToMessageId: replyTarget?.id ?? null,
+      replyToWhatsappMessageId: replyTarget?.whatsappMessageId ?? null,
+      replyToMessage: replyTarget
+        ? {
+            id: replyTarget.id,
+            direction: replyTarget.direction,
+            type: replyTarget.type,
+            body: replyTarget.body,
+            content: null,
+            sentByUser: null,
+            mediaObject: null,
+          }
+        : null,
       clientRequestId: input.clientRequestId,
       direction: MessageDirection.OUTBOUND,
       type: input.type,
@@ -231,7 +265,10 @@ class MemoryStorage implements MediaStorage {
 
 class FakeProvider implements WhatsAppProvider {
   calls: string[] = [];
+  textInputs: Array<Parameters<WhatsAppProvider["sendText"]>[0]> = [];
+  mediaInputs: Array<Parameters<WhatsAppProvider["sendMedia"]>[0]> = [];
   failWith: Error | null = null;
+  mediaFailWith: Error | null = null;
   onCall?: () => void;
 
   private result() {
@@ -240,7 +277,8 @@ class FakeProvider implements WhatsAppProvider {
     return { whatsappMessageId: `wamid.${this.calls.length}`, status: "SENT" as const };
   }
 
-  async sendText() {
+  async sendText(input: Parameters<WhatsAppProvider["sendText"]>[0]) {
+    this.textInputs.push(input);
     this.calls.push("text");
     return this.result();
   }
@@ -252,8 +290,10 @@ class FakeProvider implements WhatsAppProvider {
     return { mediaId: `meta-${this.calls.length}` };
   }
 
-  async sendMedia(input: { type: string }) {
+  async sendMedia(input: Parameters<WhatsAppProvider["sendMedia"]>[0]) {
+    this.mediaInputs.push(input);
     this.calls.push(input.type);
+    if (this.mediaFailWith) throw this.mediaFailWith;
     return this.result();
   }
 
@@ -293,6 +333,128 @@ function harness() {
 }
 
 describe("outbound message service", () => {
+  it("persists and delivers a quoted text using the original official ID", async () => {
+    const state = harness();
+    const originalId = "21000000-0000-4000-8000-000000000001";
+    state.repository.replyTargets.set(originalId, {
+      id: originalId,
+      conversationId,
+      whatsappMessageId: "wamid.unit-original",
+      direction: MessageDirection.INBOUND,
+      type: MessageType.TEXT,
+      body: "Tem esse produto?",
+    });
+
+    const result = await sendMessage(actor, conversationId, {
+      type: MessageType.TEXT,
+      clientRequestId: randomUUID(),
+      body: "Sim",
+      replyToMessageId: originalId,
+    }, state.dependencies);
+
+    expect(state.provider.textInputs).toEqual([{
+      to: "5561999999999",
+      body: "Sim",
+      contextMessageId: "wamid.unit-original",
+    }]);
+    expect(result.replyTo).toMatchObject({
+      available: true,
+      messageId: originalId,
+      summary: "Tem esse produto?",
+    });
+  });
+
+  it("rejects an unavailable quoted target before calling the provider", async () => {
+    const state = harness();
+
+    await expect(sendMessage(actor, conversationId, {
+      type: MessageType.TEXT,
+      clientRequestId: randomUUID(),
+      body: "Sim",
+      replyToMessageId: "21000000-0000-4000-8000-999999999999",
+    }, state.dependencies)).rejects.toMatchObject({ status: 409 });
+    expect(state.provider.calls).toEqual([]);
+  });
+
+  it("rejects reuse of a clientRequestId with a different quoted target", async () => {
+    const state = harness();
+    const firstOriginalId = "21000000-0000-4000-8000-000000000001";
+    const secondOriginalId = "21000000-0000-4000-8000-000000000002";
+    for (const [id, officialId] of [
+      [firstOriginalId, "wamid.unit-first"],
+      [secondOriginalId, "wamid.unit-second"],
+    ] as const) {
+      state.repository.replyTargets.set(id, {
+        id,
+        conversationId,
+        whatsappMessageId: officialId,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Original",
+      });
+    }
+    const clientRequestId = randomUUID();
+
+    await sendMessage(actor, conversationId, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: firstOriginalId,
+    }, state.dependencies);
+    await expect(sendMessage(actor, conversationId, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: secondOriginalId,
+    }, state.dependencies)).rejects.toMatchObject({ status: 409 });
+
+    expect(state.provider.calls).toEqual(["text"]);
+  });
+
+  it("does not coalesce concurrent sends whose quoted targets differ", async () => {
+    const state = harness();
+    const firstOriginalId = "21000000-0000-4000-8000-000000000001";
+    const secondOriginalId = "21000000-0000-4000-8000-000000000002";
+    for (const [id, officialId] of [
+      [firstOriginalId, "wamid.concurrent-first"],
+      [secondOriginalId, "wamid.concurrent-second"],
+    ] as const) {
+      state.repository.replyTargets.set(id, {
+        id,
+        conversationId,
+        whatsappMessageId: officialId,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Original",
+      });
+    }
+    const clientRequestId = randomUUID();
+
+    const results = await Promise.allSettled([
+      sendMessage(actor, conversationId, {
+        type: MessageType.TEXT,
+        clientRequestId,
+        body: "Sim",
+        replyToMessageId: firstOriginalId,
+      }, state.dependencies),
+      sendMessage(actor, conversationId, {
+        type: MessageType.TEXT,
+        clientRequestId,
+        body: "Sim",
+        replyToMessageId: secondOriginalId,
+      }, state.dependencies),
+    ]);
+
+    expect(results.map(({ status }) => status).sort()).toEqual([
+      "fulfilled",
+      "rejected",
+    ]);
+    expect(results.find(({ status }) => status === "rejected")).toMatchObject({
+      reason: { status: 409 },
+    });
+    expect(state.provider.calls).toEqual(["text"]);
+  });
+
   it("keeps CAS_LOST authoritative when the outer attachment runner rejects", async () => {
     const repository = createPrismaMessageRepository({
       attachmentMutation: async () => "CAS_LOST",
@@ -456,6 +618,44 @@ describe("outbound message service", () => {
       canRetry: false,
     });
     expect(state.provider.calls).toEqual(["upload", providerType]);
+  });
+
+  it("preserves the quoted official ID when retrying a failed media message", async () => {
+    const state = harness();
+    const originalId = "21000000-0000-4000-8000-000000000001";
+    state.repository.replyTargets.set(originalId, {
+      id: originalId,
+      conversationId,
+      whatsappMessageId: "wamid.unit-media-original",
+      direction: MessageDirection.INBOUND,
+      type: MessageType.IMAGE,
+      body: "Foto do produto",
+    });
+    state.provider.mediaFailWith = new WhatsAppProviderError("rejected", "first failure");
+
+    const failed = await sendMessage(actor, conversationId, {
+      type: MessageType.IMAGE,
+      clientRequestId: randomUUID(),
+      body: "Temos disponível",
+      replyToMessageId: originalId,
+      file: {
+        mimeType: "image/jpeg",
+        filename: "produto.jpg",
+        bytes: Uint8Array.from([0xff, 0xd8, 0xff, 0xe0]),
+      },
+    }, state.dependencies);
+    state.provider.mediaFailWith = null;
+
+    const retried = await retryMessage(actor, failed.id, state.dependencies);
+
+    expect(failed.status).toBe(MessageStatus.FAILED);
+    expect(retried).toMatchObject({ id: failed.id, status: MessageStatus.SENT });
+    expect(state.provider.mediaInputs).toHaveLength(2);
+    expect(state.provider.mediaInputs.map(({ contextMessageId }) => contextMessageId)).toEqual([
+      "wamid.unit-media-original",
+      "wamid.unit-media-original",
+    ]);
+    expect(state.repository.records).toHaveLength(1);
   });
 
   it("retries only a failed outbound record and never duplicates the UI message", async () => {

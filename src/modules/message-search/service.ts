@@ -3,6 +3,7 @@ import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import { parseMessageContent } from "@/modules/messages/content";
 import { toMediaStateDto, type MessageDto } from "@/modules/conversations/types";
+import { quotedReplyPreview, whatsappMessageIdSchema } from "@/modules/messages/reply-context";
 
 import { normalizeSearchText } from "./text";
 import type {
@@ -77,9 +78,22 @@ function toResult(record: MessageSearchRecord, query: string): MessageSearchResu
   };
 }
 
-type ContextMessage = Prisma.MessageGetPayload<{
-  include: { sentByUser: { select: { id: true; name: true } }; mediaObject: true };
-}>;
+const contextInclude = {
+  sentByUser: { select: { id: true, name: true } },
+  mediaObject: true,
+  replyToMessage: {
+    select: {
+      id: true,
+      direction: true,
+      type: true,
+      body: true,
+      content: true,
+      sentByUser: { select: { id: true, name: true } },
+    },
+  },
+} as const;
+
+type ContextMessage = Prisma.MessageGetPayload<{ include: typeof contextInclude }>;
 
 function contextMessageDto(message: ContextMessage, now: Date): MessageDto {
   return {
@@ -89,6 +103,19 @@ function contextMessageDto(message: ContextMessage, now: Date): MessageDto {
     type: message.type,
     body: message.body,
     content: parseMessageContent(message.content),
+    canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
+    replyTo: message.replyToMessage
+      ? quotedReplyPreview({
+          id: message.replyToMessage.id,
+          direction: message.replyToMessage.direction,
+          type: message.replyToMessage.type,
+          body: message.replyToMessage.body,
+          content: message.replyToMessage.content,
+          sentBy: message.replyToMessage.sentByUser,
+        })
+      : message.replyToWhatsappMessageId
+        ? { available: false }
+        : null,
     mediaObjectId: message.mediaObjectId,
     mediaState: message.mediaObject ? toMediaStateDto(message.mediaObject, now) : null,
     sentBy: message.sentByUser,
@@ -136,7 +163,7 @@ export const prismaMessageSearchRepository: MessageSearchRepository = {
   async loadContext(conversationId, messageId) {
     const target = await prisma.message.findFirst({
       where: { id: messageId, conversationId },
-      include: { sentByUser: { select: { id: true, name: true } }, mediaObject: true },
+      include: contextInclude,
     });
     if (!target) return null;
     const boundary = {
@@ -151,10 +178,9 @@ export const prismaMessageSearchRepository: MessageSearchRepository = {
         { externalTimestamp: target.externalTimestamp, id: { gt: target.id } },
       ],
     };
-    const include = { sentByUser: { select: { id: true, name: true } }, mediaObject: true } as const;
     const [before, after] = await Promise.all([
-      prisma.message.findMany({ where: { conversationId, ...boundary }, orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }], take: 20, include }),
-      prisma.message.findMany({ where: { conversationId, ...afterBoundary }, orderBy: [{ externalTimestamp: "asc" }, { id: "asc" }], take: 20, include }),
+      prisma.message.findMany({ where: { conversationId, ...boundary }, orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }], take: 20, include: contextInclude }),
+      prisma.message.findMany({ where: { conversationId, ...afterBoundary }, orderBy: [{ externalTimestamp: "asc" }, { id: "asc" }], take: 20, include: contextInclude }),
     ]);
     const now = new Date();
     return {
