@@ -16,6 +16,7 @@ import {
   createContactType,
   deactivateContactTag,
   getContactTag,
+  listActiveContactTags,
   listContactTags,
   normalizeContactDefinitionName,
   replaceContactTags,
@@ -84,6 +85,7 @@ function createRepository(options: {
   transactionFailures?: unknown[];
   afterTransactionFailures?: Array<() => unknown>;
 } = {}): ContactRepository & {
+  listActiveContactTags(): Promise<DefinitionRecord[]>;
   contactRecord: ContactRecord | null;
   typeRecords: DefinitionRecord[];
   tagRecords: DefinitionRecord[];
@@ -115,6 +117,7 @@ function createRepository(options: {
   };
 
   const repository: ContactRepository & {
+    listActiveContactTags(): Promise<DefinitionRecord[]>;
     contactRecord: ContactRecord | null;
     typeRecords: DefinitionRecord[];
     tagRecords: DefinitionRecord[];
@@ -160,6 +163,9 @@ function createRepository(options: {
       return current;
     },
     listContactTags: async () => tagRecords,
+    listActiveContactTags: async () => tagRecords
+      .filter((item) => item.active)
+      .sort((left, right) => left.position - right.position || left.id.localeCompare(right.id)),
     findContactTag: async (id) => tagRecords.find((item) => item.id === id) ?? null,
     findActiveContactTags: async (ids) =>
       tagRecords.filter((item) => ids.includes(item.id) && item.active),
@@ -358,6 +364,37 @@ describe("contact classification service", () => {
       ),
     ).rejects.toMatchObject({ status: 403 });
     expect(repository.contactUpdates).toEqual([]);
+  });
+
+  it("lists only active labels for an active attendant in repository order", async () => {
+    const first = definition(tagId, "Aguardando peça", { position: 10 });
+    const second = definition(secondTagId, "VIP", { position: 20 });
+    const repository = createRepository({
+      tags: [second, definition("30000000-0000-4000-8000-000000000003", "Antiga", {
+        active: false,
+        position: 5,
+      }), first],
+    });
+
+    await expect(listActiveContactTags(attendant, repository)).resolves.toEqual([
+      { id: first.id, displayName: first.displayName, color: first.color, position: 10, active: true },
+      { id: second.id, displayName: second.displayName, color: second.color, position: 20, active: true },
+    ]);
+  });
+
+  it("rejects an inactive actor before reading active labels", async () => {
+    const repository = createRepository({ tags: [definition(tagId, "VIP")] });
+    let catalogReads = 0;
+    repository.isActorActive = async () => false;
+    repository.listActiveContactTags = async () => {
+      catalogReads += 1;
+      return repository.tagRecords;
+    };
+
+    await expect(listActiveContactTags(attendant, repository)).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(catalogReads).toBe(0);
   });
 
   it("maps missing tags to 404 and inactive tags to 400 before replacing assignments", async () => {

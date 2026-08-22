@@ -93,6 +93,12 @@ function createRepositoryForClient(
         orderBy: [{ position: "asc" }, { id: "asc" }],
         select: definitionSelect,
       }),
+    listActiveContactTags: () =>
+      client.contactTagDefinition.findMany({
+        where: { active: true },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        select: definitionSelect,
+      }),
     findContactTag: (id) =>
       client.contactTagDefinition.findUnique({
         where: { id },
@@ -476,6 +482,13 @@ export const listContactTags = (
   actor: ContactActor,
   repository: ContactRepository = contactRepository,
 ) => listDefinitions(actor, contactTagOperations, repository);
+export async function listActiveContactTags(
+  actor: ContactActor,
+  repository: ContactRepository = contactRepository,
+): Promise<DefinitionDto[]> {
+  await requireActiveActor(actor, repository);
+  return (await repository.listActiveContactTags()).map(toDefinitionDto);
+}
 export const getContactTag = (
   actor: ContactActor,
   id: string,

@@ -74,6 +74,7 @@ export type ContactRepository = {
   ): Promise<DefinitionRecord>;
 
   listContactTags(): Promise<DefinitionRecord[]>;
+  listActiveContactTags(): Promise<DefinitionRecord[]>;
   findContactTag(id: string): Promise<DefinitionRecord | null>;
   findActiveContactTags(ids: string[]): Promise<DefinitionRecord[]>;
   createContactTag(data: DefinitionCreateData): Promise<DefinitionRecord>;
