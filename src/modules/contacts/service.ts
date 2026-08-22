@@ -31,15 +31,12 @@ import type {
 type ContactActor = SessionUser & { active?: boolean };
 type PrismaContactRepositoryClient = Pick<
   PrismaClient,
-  "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment"
+  | "user"
+  | "contact"
+  | "contactType"
+  | "contactTagDefinition"
+  | "contactTagAssignment"
 >;
-
-export type SerializableContactTransactionClient<TTransaction = undefined> = {
-  $transaction<TResult>(
-    operation: (transaction: TTransaction) => Promise<TResult>,
-    options: { isolationLevel: Prisma.TransactionIsolationLevel },
-  ): Promise<TResult>;
-};
 
 const definitionSelect = {
   id: true,
@@ -57,7 +54,6 @@ const contactSelect = {
   name: true,
   preferredName: true,
   phone: true,
-  profilePictureUrl: true,
   contactTypeId: true,
   contactType: { select: definitionSelect },
   tagAssignments: { select: { tag: { select: definitionSelect } } },
@@ -69,30 +65,12 @@ function isPrismaError(error: unknown, code: string): boolean {
   );
 }
 
-export async function runSerializableContactTransaction<
-  TTransaction,
-  TResult,
->(
-  client: SerializableContactTransactionClient<TTransaction>,
-  operation: (transaction: TTransaction) => Promise<TResult>,
-): Promise<TResult> {
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    try {
-      return await client.$transaction(operation, {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      });
-    } catch (error) {
-      if (!isPrismaError(error, "P2034") || attempt === 2) throw error;
-    }
-  }
-
-  throw new Error("Unreachable transaction state");
-}
-
 function createRepositoryForClient(
   client: PrismaContactRepositoryClient,
 ): ContactRepository {
   const repository: ContactRepository = {
+    isActorActive: async (id) =>
+      (await client.user.count({ where: { id, active: true } })) === 1,
     findContact: (id) =>
       client.contact.findUnique({ where: { id }, select: contactSelect }),
     updateContact: (id, data) =>
@@ -195,7 +173,6 @@ function toContactClassificationDto({
 function toContactDto(contact: ContactRecord): ContactDto {
   return {
     id: contact.id,
-    profileName: contact.name,
     preferredName: contact.preferredName,
     name: resolveContactName({
       preferredName: contact.preferredName,
@@ -220,12 +197,20 @@ function toContactDto(contact: ContactRecord): ContactDto {
   };
 }
 
-function requireActiveActor(actor: ContactActor): void {
-  if (actor.active === false) throw new HttpError(403, "Acesso negado");
+async function requireActiveActor(
+  actor: ContactActor,
+  repository: ContactRepository,
+): Promise<void> {
+  if (!(await repository.isActorActive(actor.id))) {
+    throw new HttpError(403, "Acesso negado");
+  }
 }
 
-async function requireActiveAdmin(actor: ContactActor): Promise<void> {
-  requireActiveActor(actor);
+async function requireActiveAdmin(
+  actor: ContactActor,
+  repository: ContactRepository,
+): Promise<void> {
+  await requireActiveActor(actor, repository);
   await requireAdmin(async () => actor);
 }
 
@@ -281,7 +266,7 @@ export async function updateContact(
   input: unknown,
   repository: ContactRepository = contactRepository,
 ): Promise<ContactDto> {
-  requireActiveActor(actor);
+  await requireActiveActor(actor, repository);
   const parsedId = contactIdSchema.parse(contactId);
   const parsed = updateContactSchema.parse(input);
   await requireContact(parsedId, repository);
@@ -302,7 +287,7 @@ export async function replaceContactTags(
   tagIds: unknown,
   repository: ContactRepository = contactRepository,
 ): Promise<ContactDto> {
-  requireActiveActor(actor);
+  await requireActiveActor(actor, repository);
   const parsedContactId = contactIdSchema.parse(contactId);
   const parsedTagIds = contactTagIdsSchema.parse(tagIds);
 
@@ -369,7 +354,7 @@ async function listDefinitions(
   operations: DefinitionOperations,
   repository: ContactRepository,
 ): Promise<DefinitionDto[]> {
-  await requireActiveAdmin(actor);
+  await requireActiveAdmin(actor, repository);
   return (await operations.list(repository)).map(toDefinitionDto);
 }
 
@@ -379,7 +364,7 @@ async function getDefinition(
   operations: DefinitionOperations,
   repository: ContactRepository,
 ): Promise<DefinitionDto> {
-  await requireActiveAdmin(actor);
+  await requireActiveAdmin(actor, repository);
   const parsedId = contactDefinitionIdSchema.parse(id);
   const definition = await operations.find(repository, parsedId);
   if (!definition) throw new HttpError(404, operations.notFoundMessage);
@@ -392,7 +377,7 @@ async function createDefinition(
   operations: DefinitionOperations,
   repository: ContactRepository,
 ): Promise<DefinitionDto> {
-  await requireActiveAdmin(actor);
+  await requireActiveAdmin(actor, repository);
   const parsed: CreateContactDefinitionInput =
     createContactDefinitionSchema.parse(input);
   const normalizedName = await ensureUniqueDefinitionName(
@@ -415,7 +400,7 @@ async function updateDefinition(
   operations: DefinitionOperations,
   repository: ContactRepository,
 ): Promise<DefinitionDto> {
-  await requireActiveAdmin(actor);
+  await requireActiveAdmin(actor, repository);
   const parsedId = contactDefinitionIdSchema.parse(id);
   const parsed: UpdateContactDefinitionInput =
     updateContactDefinitionSchema.parse(input);
@@ -445,7 +430,7 @@ async function deactivateDefinition(
   operations: DefinitionOperations,
   repository: ContactRepository,
 ): Promise<DefinitionDto> {
-  await requireActiveAdmin(actor);
+  await requireActiveAdmin(actor, repository);
   const parsedId = contactDefinitionIdSchema.parse(id);
   if (!(await operations.find(repository, parsedId))) {
     throw new HttpError(404, operations.notFoundMessage);

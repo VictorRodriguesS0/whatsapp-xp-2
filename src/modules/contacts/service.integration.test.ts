@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { UserRole } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
@@ -13,6 +13,7 @@ import {
   createContactType,
   createPrismaContactRepository,
   replaceContactTags,
+  updateContact,
 } from "./service";
 import type { ContactRepository } from "./types";
 
@@ -46,6 +47,15 @@ async function resetClassificationDatabase(): Promise<void> {
 describe.skipIf(!process.env.TEST_DATABASE_URL)(
   "contact classification PostgreSQL repository",
   () => {
+    beforeAll(async () => {
+      const [database] = await prisma.$queryRaw<
+        Array<{ database: string; server_version_num: string }>
+      >`SELECT current_database() AS database, current_setting('server_version_num') AS server_version_num`;
+      expect(database?.database.endsWith("_test")).toBe(true);
+      expect(Number(database?.server_version_num)).toBeGreaterThanOrEqual(180_000);
+      expect(Number(database?.server_version_num)).toBeLessThan(190_000);
+    });
+
     beforeEach(resetClassificationDatabase);
 
     afterAll(async () => {
@@ -53,6 +63,9 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
     });
 
     it("maps two administrators racing to create canonically equivalent names to one success and one safe 409", async () => {
+      await prisma.user.create({
+        data: { ...admin, passwordHash: "not-used" },
+      });
       const baseRepository = createPrismaContactRepository(prisma);
       const barrier = deterministicBarrier(2);
       const withReadBarrier = (): ContactRepository => ({
@@ -124,6 +137,29 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ]);
     });
 
+    it("rejects an actor whose authoritative user row is inactive", async () => {
+      const actor = await prisma.user.create({
+        data: {
+          ...admin,
+          active: false,
+          passwordHash: "not-used",
+        },
+      });
+      const contact = await prisma.contact.create({
+        data: { name: "Contato Meta", phone: `+55${Date.now()}` },
+      });
+
+      await expect(
+        updateContact(actor, contact.id, { preferredName: "Bia" }),
+      ).rejects.toMatchObject({ status: 403 });
+      await expect(
+        prisma.contact.findUniqueOrThrow({
+          where: { id: contact.id },
+          select: { preferredName: true },
+        }),
+      ).resolves.toEqual({ preferredName: null });
+    });
+
     it("replacing the same tag set repeatedly stays unique and readable after deactivation", async () => {
       const actor = await prisma.user.create({
         data: {
@@ -166,6 +202,69 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           createdAt: originalCreatedAt,
         }),
       ]);
+    });
+
+    it("retries concurrent replace-set transactions without committing an empty or union set", async () => {
+      const actor = await prisma.user.create({
+        data: { ...admin, passwordHash: "not-used" },
+      });
+      const contact = await prisma.contact.create({
+        data: { name: "Contato Meta", phone: `+55${Date.now()}` },
+      });
+      const [oldTag, firstTag, secondTag] = await Promise.all(
+        ["Antiga", "Primeira", "Segunda"].map((displayName, position) =>
+          prisma.contactTagDefinition.create({
+            data: {
+              displayName,
+              normalizedName: `${displayName.toLowerCase()}-${randomUUID()}`,
+              color: "#176B52",
+              position,
+            },
+          }),
+        ),
+      );
+      await prisma.contactTagAssignment.create({
+        data: { contactId: contact.id, tagId: oldTag.id },
+      });
+
+      const baseRepository = createPrismaContactRepository(prisma);
+      const barrier = deterministicBarrier(2);
+      let transactionAttempts = 0;
+      const racingRepository: ContactRepository = {
+        ...baseRepository,
+        transaction: (operation) => {
+          transactionAttempts += 1;
+          return baseRepository.transaction(async (transaction) => {
+            let firstContactRead = true;
+            return operation({
+              ...transaction,
+              findContact: async (id) => {
+                const record = await transaction.findContact(id);
+                if (firstContactRead) {
+                  firstContactRead = false;
+                  await barrier();
+                }
+                return record;
+              },
+            });
+          });
+        },
+      };
+
+      const outcomes = await Promise.all([
+        replaceContactTags(actor, contact.id, [firstTag.id], racingRepository),
+        replaceContactTags(actor, contact.id, [secondTag.id], racingRepository),
+      ]);
+      expect(outcomes).toHaveLength(2);
+      expect(transactionAttempts).toBeGreaterThanOrEqual(3);
+
+      const storedTagIds = (
+        await prisma.contactTagAssignment.findMany({
+          where: { contactId: contact.id },
+          select: { tagId: true },
+        })
+      ).map(({ tagId }) => tagId);
+      expect([[firstTag.id], [secondTag.id]]).toContainEqual(storedTagIds);
     });
   },
 );

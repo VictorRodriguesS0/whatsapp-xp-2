@@ -6,6 +6,11 @@ type ContactNameSource = {
 
 export function formatContactPhone(value: string | null | undefined): string {
   const trimmed = value?.trim() ?? "";
+
+  if (!/^\+?[\d\s().-]+$/.test(trimmed)) {
+    return trimmed;
+  }
+
   const digits = trimmed.replace(/\D/g, "");
 
   if (/^55\d{2}\d{9}$/.test(digits)) {

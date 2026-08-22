@@ -46,6 +46,9 @@ describe("contact display helpers", () => {
     expect(formatContactPhone("+5511999991234")).toBe("+55 (11) 99999-1234");
     expect(formatContactPhone("55 11 3333-1234")).toBe("+55 (11) 3333-1234");
     expect(formatContactPhone("  +1 202 555 0100  ")).toBe("+1 202 555 0100");
+    expect(formatContactPhone("abc5511999991234xyz")).toBe(
+      "abc5511999991234xyz",
+    );
     expect(formatContactPhone("   ")).toBe("");
   });
 });

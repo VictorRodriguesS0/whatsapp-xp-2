@@ -68,7 +68,6 @@ function contact(overrides: Partial<ContactRecord> = {}): ContactRecord {
     name: "Nome Meta",
     preferredName: null,
     phone: "+5511999991234",
-    profilePictureUrl: "https://example.test/profile.jpg",
     contactTypeId: null,
     contactType: null,
     tagAssignments: [],
@@ -137,6 +136,7 @@ function createRepository(options: {
     set transactionAttempts(value) {
       transactionAttempts = value;
     },
+    isActorActive: async () => true,
     findContact: async (id) => (id === contactId ? hydrateContact() : null),
     updateContact: async (id, data) => {
       if (!contactRecord || id !== contactId) throw new Error("missing contact");
@@ -286,11 +286,19 @@ describe("contact classification service", () => {
     ]);
     expect(result).toMatchObject({
       name: "Bia",
-      profileName: "Nome Meta",
       phone: "+55 (11) 99999-1234",
       type: { id: typeId, name: "Cliente" },
     });
+    expect(Object.keys(result).sort()).toEqual([
+      "id",
+      "name",
+      "phone",
+      "preferredName",
+      "tags",
+      "type",
+    ]);
     expect(result).not.toHaveProperty("profilePictureUrl");
+    expect(result).not.toHaveProperty("profileName");
     expect(JSON.stringify(result)).not.toContain("normalizedName");
     expect(repository.contactRecord?.name).toBe("Nome Meta");
   });
@@ -317,14 +325,18 @@ describe("contact classification service", () => {
   });
 
   it("rejects explicitly inactive actors", async () => {
+    const repository = createRepository();
+    Object.assign(repository, { isActorActive: async () => false });
+
     await expect(
       updateContact(
-        { ...attendant, active: false },
+        attendant,
         contactId,
         { preferredName: "Bia" },
-        createRepository(),
+        repository,
       ),
     ).rejects.toMatchObject({ status: 403 });
+    expect(repository.contactUpdates).toEqual([]);
   });
 
   it("verifies every tag is active before replacing any assignment", async () => {

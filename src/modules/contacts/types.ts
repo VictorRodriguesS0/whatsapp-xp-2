@@ -30,7 +30,6 @@ export type ContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
-  profilePictureUrl: string | null;
   contactTypeId: string | null;
   contactType: DefinitionRecord | null;
   tagAssignments: Array<{ tag: DefinitionRecord }>;
@@ -38,7 +37,6 @@ export type ContactRecord = {
 
 export type ContactDto = {
   id: string;
-  profileName: string;
   preferredName: string | null;
   name: string;
   phone: string;
@@ -63,6 +61,7 @@ export type DefinitionUpdateData = UpdateContactDefinitionInput & {
 };
 
 export type ContactRepository = {
+  isActorActive(id: string): Promise<boolean>;
   findContact(id: string): Promise<ContactRecord | null>;
   updateContact(id: string, data: ContactUpdateData): Promise<ContactRecord>;
 
