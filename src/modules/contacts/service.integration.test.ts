@@ -129,7 +129,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
 
       await expect(
         replaceContactTags(actor, contact.id, [inactive.id]),
-      ).rejects.toMatchObject({ status: 409 });
+      ).rejects.toMatchObject({ status: 400 });
       await expect(
         prisma.contactTagAssignment.findMany({ where: { contactId: contact.id } }),
       ).resolves.toEqual([

@@ -329,15 +329,20 @@ describe("contact classification service", () => {
     ).resolves.toMatchObject({ preferredName: null, name: "Nome Meta" });
   });
 
-  it("rejects missing or inactive types before changing a contact", async () => {
-    const repository = createRepository({
+  it("maps a missing type to 404 and an inactive type to 400 before changing a contact", async () => {
+    const missingRepository = createRepository();
+    const inactiveRepository = createRepository({
       types: [definition(typeId, "Cliente", { active: false })],
     });
 
     await expect(
-      updateContact(attendant, contactId, { contactTypeId: typeId }, repository),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(repository.contactUpdates).toEqual([]);
+      updateContact(attendant, contactId, { contactTypeId: typeId }, missingRepository),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      updateContact(attendant, contactId, { contactTypeId: typeId }, inactiveRepository),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(missingRepository.contactUpdates).toEqual([]);
+    expect(inactiveRepository.contactUpdates).toEqual([]);
   });
 
   it("rejects explicitly inactive actors", async () => {
@@ -355,8 +360,12 @@ describe("contact classification service", () => {
     expect(repository.contactUpdates).toEqual([]);
   });
 
-  it("verifies every tag is active before replacing any assignment", async () => {
-    const repository = createRepository({
+  it("maps missing tags to 404 and inactive tags to 400 before replacing assignments", async () => {
+    const missingRepository = createRepository({
+      tags: [definition(tagId, "VIP")],
+      assignmentTagIds: [tagId],
+    });
+    const inactiveRepository = createRepository({
       tags: [
         definition(tagId, "VIP"),
         definition(secondTagId, "Retorno", { active: false }),
@@ -365,9 +374,13 @@ describe("contact classification service", () => {
     });
 
     await expect(
-      replaceContactTags(attendant, contactId, [secondTagId], repository),
-    ).rejects.toMatchObject({ status: 409 });
-    expect(repository.assignmentTagIds).toEqual([tagId]);
+      replaceContactTags(attendant, contactId, [secondTagId], missingRepository),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      replaceContactTags(attendant, contactId, [secondTagId], inactiveRepository),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(missingRepository.assignmentTagIds).toEqual([tagId]);
+    expect(inactiveRepository.assignmentTagIds).toEqual([tagId]);
   });
 
   it("rejects case-insensitive duplicate tag UUIDs before opening a transaction", async () => {

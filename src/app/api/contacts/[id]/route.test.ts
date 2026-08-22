@@ -190,13 +190,16 @@ describe("contact item route", () => {
     expect(events).toEqual([]);
   });
 
-  it("maps domain conflicts and does not publish", async () => {
+  it.each([
+    [new HttpError(404, "Tipo de contato não encontrado"), 404],
+    [new HttpError(400, "Tipo de contato indisponível"), 400],
+  ])("preserves safe type-reference errors without publishing", async (failure, status) => {
     const events: unknown[] = [];
     const { PATCH } = createContactRouteHandlers({
       assertSameOrigin: () => undefined,
       requireUser: async () => actor,
       updateContact: async () => {
-        throw new HttpError(409, "Tipo de contato indisponível");
+        throw failure;
       },
       publishRealtime: (event) => events.push(event),
     });
@@ -205,7 +208,7 @@ describe("contact item route", () => {
       params: Promise.resolve({ id: contactId }),
     });
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(status);
     expect(events).toEqual([]);
   });
 

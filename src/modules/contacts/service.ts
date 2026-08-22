@@ -273,9 +273,8 @@ export async function updateContact(
 
   if (parsed.contactTypeId) {
     const contactType = await repository.findContactType(parsed.contactTypeId);
-    if (!contactType || !contactType.active) {
-      throw new HttpError(409, "Tipo de contato indisponível");
-    }
+    if (!contactType) throw new HttpError(404, "Tipo de contato não encontrado");
+    if (!contactType.active) throw new HttpError(400, "Tipo de contato indisponível");
   }
 
   return toContactDto(await repository.updateContact(parsedId, parsed));
@@ -295,7 +294,13 @@ export async function replaceContactTags(
     const currentContact = await requireContact(parsedContactId, transaction);
     const activeTags = await transaction.findActiveContactTags(parsedTagIds);
     if (activeTags.length !== parsedTagIds.length) {
-      throw new HttpError(409, "Etiqueta indisponível");
+      const activeTagIds = new Set(activeTags.map(({ id }) => id));
+      const unavailableId = parsedTagIds.find((id) => !activeTagIds.has(id));
+      const unavailableTag = unavailableId
+        ? await transaction.findContactTag(unavailableId)
+        : null;
+      if (!unavailableTag) throw new HttpError(404, "Etiqueta não encontrada");
+      throw new HttpError(400, "Etiqueta indisponível");
     }
 
     const currentTagIds = currentContact.tagAssignments

@@ -133,9 +133,9 @@ describe("contact tags route", () => {
     expect(calls).toEqual([]);
   });
 
-  it("does not publish on domain or unexpected service failure", async () => {
+  it("does not publish on missing, inactive or unexpected service failure", async () => {
     const events: unknown[] = [];
-    let failure: unknown = new HttpError(409, "Etiqueta indisponível");
+    let failure: unknown = new HttpError(404, "Etiqueta não encontrada");
     const { PUT } = createContactTagsRouteHandlers({
       assertSameOrigin: () => undefined,
       requireUser: async () => actor,
@@ -145,11 +145,14 @@ describe("contact tags route", () => {
       publishRealtime: (event) => events.push(event),
     });
 
-    const conflict = await PUT(request([tagId]), { params: Promise.resolve({ id: contactId }) });
+    const missing = await PUT(request([tagId]), { params: Promise.resolve({ id: contactId }) });
+    failure = new HttpError(400, "Etiqueta indisponível");
+    const inactive = await PUT(request([tagId]), { params: Promise.resolve({ id: contactId }) });
     failure = new Error("raw provider/storage details");
     const unexpected = await PUT(request([tagId]), { params: Promise.resolve({ id: contactId }) });
 
-    expect(conflict.status).toBe(409);
+    expect(missing.status).toBe(404);
+    expect(inactive.status).toBe(400);
     expect(unexpected.status).toBe(500);
     await expect(unexpected.json()).resolves.toEqual({
       data: null,
