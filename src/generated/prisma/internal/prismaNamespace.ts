@@ -1535,6 +1535,7 @@ export const MessageScalarFieldEnum = {
   type: 'type',
   body: 'body',
   content: 'content',
+  searchText: 'searchText',
   mediaObjectId: 'mediaObjectId',
   sentByUserId: 'sentByUserId',
   status: 'status',

@@ -195,6 +195,7 @@ model Message {
   type                MessageType
   body                String?
   content             Json?
+  searchText          String                  @default("") @map("search_text")
   mediaObjectId       String?                 @unique @map("media_object_id") @db.Uuid
   sentByUserId        String?                 @map("sent_by_user_id") @db.Uuid
   status              MessageStatus
