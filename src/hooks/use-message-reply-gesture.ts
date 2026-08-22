@@ -21,6 +21,11 @@ const SWIPE_IGNORE_SELECTOR = [
   "select",
   "audio",
   "video",
+  "p",
+  "span",
+  "blockquote",
+  "code",
+  "pre",
   '[role="button"]',
   '[data-reply-swipe-ignore="true"]',
 ].join(", ");

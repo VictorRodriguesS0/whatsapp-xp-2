@@ -110,6 +110,122 @@ describe("outbound message PostgreSQL concurrency", () => {
     });
   });
 
+  it("merges an echo that arrives before the provider response is committed", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    await prisma.contact.update({
+      where: { id: conversation.contactId },
+      data: { phone: "5511999990000" },
+    });
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const original = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.pg-race-original",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Tem esse produto?",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-21T10:00:00.000Z"),
+      },
+    });
+    const clientRequestId = randomUUID();
+    const providerMessageId = "wamid.pg-echo-before-mark-sent";
+    const echoTimestamp = new Date("2026-08-21T10:01:00.000Z");
+    let echoBeforeProviderReturn: {
+      id: string;
+      sentByUserId: string | null;
+    } | null = null;
+    let apiBeforeProviderReturn: {
+      id: string;
+      operationalState: MessageOperationalState;
+    } | null = null;
+    let echoProcessResult: {
+      processed: number;
+      duplicates: number;
+      quarantined?: number;
+    } | null = null;
+    let echoEventStatus: string | null = null;
+    const provider = new DemoWhatsAppProvider();
+    provider.sendText = async () => {
+      echoProcessResult = await processWebhookEvents([{
+        kind: "messageEcho",
+        whatsappMessageId: providerMessageId,
+        to: "5511999990000",
+        toUserId: null,
+        toParentUserId: null,
+        timestamp: echoTimestamp,
+        timestampRaw: String(echoTimestamp.getTime() / 1_000),
+        type: MessageType.TEXT,
+        body: "Sim",
+        content: null,
+        media: null,
+        replyToWhatsappMessageId: original.whatsappMessageId,
+        origin: "WHATSAPP_BUSINESS_APP",
+      }]);
+      echoBeforeProviderReturn = await prisma.message.findUnique({
+        where: { whatsappMessageId: providerMessageId },
+        select: { id: true, sentByUserId: true },
+      });
+      apiBeforeProviderReturn = await prisma.message.findUnique({
+        where: { clientRequestId },
+        select: { id: true, operationalState: true },
+      });
+      echoEventStatus = (await prisma.webhookEvent.findUnique({
+        where: { deduplicationKey: `message-echo:${providerMessageId}` },
+        select: { status: true },
+      }))?.status ?? null;
+      return { whatsappMessageId: providerMessageId, status: "SENT" };
+    };
+
+    const result = await sendMessage(actor, conversation.id, {
+      type: MessageType.TEXT,
+      clientRequestId,
+      body: "Sim",
+      replyToMessageId: original.id,
+    }, {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    });
+
+    expect(result).toMatchObject({
+      status: MessageStatus.SENT,
+      replyTo: expect.objectContaining({ messageId: original.id }),
+    });
+    expect(echoProcessResult).toMatchObject({ processed: 1, duplicates: 0 });
+    expect(echoEventStatus).toBe("PROCESSED");
+    expect(echoBeforeProviderReturn).toEqual({
+      id: expect.any(String),
+      sentByUserId: null,
+    });
+    expect(apiBeforeProviderReturn).toEqual({
+      id: result.id,
+      operationalState: MessageOperationalState.SEND_IN_FLIGHT,
+    });
+    expect(echoBeforeProviderReturn!.id).not.toBe(result.id);
+    await expect(prisma.message.findMany({
+      where: { whatsappMessageId: providerMessageId },
+      select: {
+        id: true,
+        clientRequestId: true,
+        sentByUserId: true,
+        replyToMessageId: true,
+        replyToWhatsappMessageId: true,
+        operationalState: true,
+      },
+    })).resolves.toEqual([{
+      id: result.id,
+      clientRequestId,
+      sentByUserId: victor.id,
+      replyToMessageId: original.id,
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      operationalState: MessageOperationalState.SENT,
+    }]);
+    await expect(prisma.message.count()).resolves.toBe(2);
+  });
+
   it("rejects missing, cross-conversation, and official-ID-less quoted targets", async () => {
     const { conversation, victor } = await seedReadFixture();
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };

@@ -165,7 +165,6 @@ function pendingReply(
       body: target.body,
       content: target.content,
       sentBy: target.sentBy,
-      mediaOriginalFilename: target.localFileName ?? null,
     }),
   };
 }

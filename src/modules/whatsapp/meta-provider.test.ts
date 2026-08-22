@@ -80,6 +80,7 @@ describe("Meta WhatsApp provider", () => {
 
     const mediaBodies = fetchMock.mock.calls.slice(1).map((call) => JSON.parse(String(call[1]?.body)));
     expect(mediaBodies.map((body) => body.type)).toEqual(["image", "audio", "video", "document"]);
+    expect(mediaBodies.every((body) => !("context" in body))).toBe(true);
     expect(mediaBodies[3].document).toEqual({ id: "media-1", caption: "Legenda", filename: "nota.pdf" });
   });
 

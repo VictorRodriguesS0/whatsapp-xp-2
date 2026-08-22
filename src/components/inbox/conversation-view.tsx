@@ -154,7 +154,6 @@ export function ConversationView({
         body: replyTarget.body,
         content: replyTarget.content,
         sentBy: replyTarget.sentBy,
-        mediaOriginalFilename: replyTarget.localFileName ?? null,
       })
     : null;
 

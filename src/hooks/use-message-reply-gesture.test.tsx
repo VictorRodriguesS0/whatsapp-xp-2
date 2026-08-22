@@ -115,4 +115,18 @@ describe("useMessageReplyGesture", () => {
     expect(reply).not.toHaveBeenCalled();
     expect(target).toHaveAttribute("data-offset", "0");
   });
+
+  it("leaves pen gestures on message text available for selection", () => {
+    const reply = vi.fn();
+    render(<Harness onReply={reply} />);
+    const target = screen.getByTestId("gesture");
+    const messageText = screen.getByText("Mensagem");
+
+    pointer(messageText, "down", { x: 0, y: 0, pointerType: "pen" });
+    pointer(messageText, "move", { x: 70, y: 0, pointerType: "pen" });
+    pointer(messageText, "up", { x: 70, y: 0, pointerType: "pen" });
+
+    expect(reply).not.toHaveBeenCalled();
+    expect(target).toHaveAttribute("data-offset", "0");
+  });
 });

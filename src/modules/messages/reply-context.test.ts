@@ -43,24 +43,23 @@ describe("quoted reply public contract", () => {
   });
 
   it.each([
-    [MessageType.IMAGE, null, null, "foto.jpg", "foto.jpg"],
-    [MessageType.VIDEO, null, null, null, "Vídeo"],
-    [MessageType.DOCUMENT, null, null, "manual.pdf", "manual.pdf"],
-    [MessageType.AUDIO, null, null, null, "Áudio"],
-    [MessageType.STICKER, null, null, null, "Figurinha"],
-    [MessageType.LOCATION, null, { kind: "location", latitude: -15, longitude: -47, name: "Loja", address: null }, null, "Loja"],
-    [MessageType.CONTACTS, null, { kind: "contacts", contacts: [{ name: "Maria", phones: [] }], truncated: false }, null, "Maria"],
-    [MessageType.INTERACTIVE, null, { kind: "interactive", interaction: "button", id: "yes", title: "Sim" }, null, "Sim"],
-    [MessageType.ORDER, null, { kind: "order", catalogId: null, productCount: 2 }, null, "Pedido"],
-    [MessageType.SYSTEM, null, { kind: "system", text: "Número alterado" }, null, "Número alterado"],
-    [MessageType.UNSUPPORTED, null, { kind: "unknown", rawType: "reaction" }, null, "Mensagem"],
-  ])("summarizes %s safely", (type, body, content, mediaOriginalFilename, summary) => {
+    [MessageType.IMAGE, null, null, "Imagem"],
+    [MessageType.VIDEO, null, null, "Vídeo"],
+    [MessageType.DOCUMENT, null, null, "Documento"],
+    [MessageType.AUDIO, null, null, "Áudio"],
+    [MessageType.STICKER, null, null, "Figurinha"],
+    [MessageType.LOCATION, null, { kind: "location", latitude: -15, longitude: -47, name: "Loja", address: null }, "Loja"],
+    [MessageType.CONTACTS, null, { kind: "contacts", contacts: [{ name: "Maria", phones: [] }], truncated: false }, "Maria"],
+    [MessageType.INTERACTIVE, null, { kind: "interactive", interaction: "button", id: "yes", title: "Sim" }, "Sim"],
+    [MessageType.ORDER, null, { kind: "order", catalogId: null, productCount: 2 }, "Pedido"],
+    [MessageType.SYSTEM, null, { kind: "system", text: "Número alterado" }, "Número alterado"],
+    [MessageType.UNSUPPORTED, null, { kind: "unknown", rawType: "reaction" }, "Mensagem"],
+  ])("summarizes %s safely", (type, body, content, summary) => {
     expect(quotedReplyPreview({
       ...baseSource,
       type,
       body,
       content,
-      mediaOriginalFilename,
     }).summary).toBe(summary);
   });
 

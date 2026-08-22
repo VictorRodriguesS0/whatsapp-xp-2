@@ -35,8 +35,26 @@ export type QuotedReplySource = {
   body: string | null;
   content: unknown;
   sentBy: { name: string } | null;
-  mediaOriginalFilename?: string | null;
 };
+
+const quotedReplyTypeLabels = {
+  TEXT: "Texto",
+  IMAGE: "Imagem",
+  VIDEO: "Vídeo",
+  DOCUMENT: "Documento",
+  AUDIO: "Áudio",
+  STICKER: "Figurinha",
+  LOCATION: "Localização",
+  CONTACTS: "Contato",
+  INTERACTIVE: "Resposta interativa",
+  ORDER: "Pedido",
+  SYSTEM: "Atualização do WhatsApp",
+  UNSUPPORTED: "Mensagem",
+} satisfies Record<MessageType, string>;
+
+export function quotedReplyTypeLabel(type: MessageType): string {
+  return quotedReplyTypeLabels[type];
+}
 
 export function quotedReplyPreview(
   source: QuotedReplySource,
@@ -45,19 +63,6 @@ export function quotedReplyPreview(
   const author = source.direction === "INBOUND"
     ? "Cliente"
     : source.sentBy?.name ?? "WhatsApp";
-  const typeFallback: Record<string, string> = {
-    IMAGE: "Imagem",
-    VIDEO: "Vídeo",
-    DOCUMENT: "Documento",
-    AUDIO: "Áudio",
-    STICKER: "Figurinha",
-    LOCATION: "Localização",
-    CONTACTS: "Contato",
-    INTERACTIVE: "Resposta interativa",
-    ORDER: "Pedido",
-    SYSTEM: "Atualização do WhatsApp",
-    UNSUPPORTED: "Mensagem",
-  };
   const structured = content?.kind === "interactive"
     ? content.title
     : content?.kind === "location"
@@ -69,8 +74,7 @@ export function quotedReplyPreview(
           : null;
   const raw = source.body ||
     structured ||
-    source.mediaOriginalFilename ||
-    typeFallback[source.type] ||
+    quotedReplyTypeLabel(source.type) ||
     "Mensagem";
   const summary = raw.length > 160 ? `${raw.slice(0, 157)}…` : raw;
 

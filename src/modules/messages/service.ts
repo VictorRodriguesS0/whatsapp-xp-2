@@ -569,25 +569,94 @@ export const prismaMessageRepository: MessageServiceRepository = {
     const parsedWhatsappMessageId = whatsappMessageIdSchema.parse(
       whatsappMessageId,
     );
-    await runConversationTransaction(prisma, async (transaction) => {
-      const updated = await transaction.message.update({
-        where: { id: messageId },
-        data: {
-          whatsappMessageId: parsedWhatsappMessageId,
-          status: MessageStatus.SENT,
-          failureReason: null,
-          operationalState: MessageOperationalState.SENT,
-          deliveryLeaseId: null,
-          deliveryLeaseUntil: null,
-        },
-        select: { id: true, conversationId: true },
-      });
-      await reconcileReplyLinks(transaction, {
-        conversationId: updated.conversationId,
-        messageId: updated.id,
-        whatsappMessageId: parsedWhatsappMessageId,
-      });
-    });
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        await runConversationTransaction(prisma, async (transaction) => {
+          const outbound = await transaction.message.findUniqueOrThrow({
+            where: { id: messageId },
+            select: {
+              id: true,
+              conversationId: true,
+              direction: true,
+              clientRequestId: true,
+              sentByUserId: true,
+            },
+          });
+          const echo = await transaction.message.findUnique({
+            where: { whatsappMessageId: parsedWhatsappMessageId },
+            select: {
+              id: true,
+              conversationId: true,
+              direction: true,
+              clientRequestId: true,
+              sentByUserId: true,
+              mediaObjectId: true,
+              mediaObject: { select: { storageKey: true } },
+            },
+          });
+
+          if (echo && echo.id !== outbound.id) {
+            const isMatchingEcho = (
+              outbound.direction === MessageDirection.OUTBOUND
+              && outbound.clientRequestId !== null
+              && outbound.sentByUserId !== null
+              && echo.conversationId === outbound.conversationId
+              && echo.direction === MessageDirection.OUTBOUND
+              && echo.clientRequestId === null
+              && echo.sentByUserId === null
+            );
+            if (!isMatchingEcho) {
+              throw new Error("Provider message id already belongs to another message");
+            }
+
+            await transaction.conversationRead.updateMany({
+              where: { lastReadMessageId: echo.id },
+              data: { lastReadMessageId: outbound.id },
+            });
+            await transaction.conversation.updateMany({
+              where: { teamLastReadMessageId: echo.id },
+              data: { teamLastReadMessageId: outbound.id },
+            });
+            await transaction.message.updateMany({
+              where: { replyToMessageId: echo.id },
+              data: { replyToMessageId: outbound.id },
+            });
+            await transaction.conversationAuditEvent.updateMany({
+              where: { messageId: echo.id },
+              data: { messageId: outbound.id },
+            });
+            await transaction.message.delete({ where: { id: echo.id } });
+            if (echo.mediaObjectId && echo.mediaObject?.storageKey === null) {
+              await transaction.mediaObject.deleteMany({
+                where: { id: echo.mediaObjectId, message: null },
+              });
+            }
+          }
+
+          const updated = await transaction.message.update({
+            where: { id: messageId },
+            data: {
+              whatsappMessageId: parsedWhatsappMessageId,
+              status: MessageStatus.SENT,
+              failureReason: null,
+              operationalState: MessageOperationalState.SENT,
+              deliveryLeaseId: null,
+              deliveryLeaseUntil: null,
+            },
+            select: { id: true, conversationId: true },
+          });
+          await reconcileReplyLinks(transaction, {
+            conversationId: updated.conversationId,
+            messageId: updated.id,
+            whatsappMessageId: parsedWhatsappMessageId,
+          });
+        });
+        break;
+      } catch (error) {
+        if (attempt === 0 && isPrismaUnique(error)) continue;
+        throw error;
+      }
+    }
     const hydrated = await this.findById(messageId);
     if (!hydrated) throw new Error("Committed outbound message could not be hydrated");
     return hydrated;
@@ -661,8 +730,6 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
-          mediaOriginalFilename:
-            message.replyToMessage.mediaObject?.originalFilename ?? null,
         })
       : message.replyToWhatsappMessageId
         ? { available: false }

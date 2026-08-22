@@ -34,6 +34,8 @@ describe("MessageBubble", () => {
 
     const action = screen.getByRole("button", { name: "Responder à mensagem" });
     expect(action).toHaveClass("min-h-11", "min-w-11");
+    expect(action).toHaveClass("opacity-100", "min-[720px]:opacity-0");
+    expect(action).not.toHaveClass("sm:opacity-0");
     fireEvent.click(action);
     expect(reply).toHaveBeenCalledWith(expect.objectContaining({ id: outboundFixture.id }));
 
@@ -61,7 +63,7 @@ describe("MessageBubble", () => {
       />,
     );
 
-    const preview = screen.getByRole("button", { name: "Ir para mensagem original" });
+    const preview = screen.getByRole("button", { name: /^Ir para mensagem original/ });
     const body = screen.getByText(outboundFixture.body!);
     expect(preview.compareDocumentPosition(body) & Node.DOCUMENT_POSITION_FOLLOWING)
       .toBeTruthy();

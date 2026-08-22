@@ -4,7 +4,10 @@ import { X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { QuotedReplyDto } from "@/modules/messages/reply-context";
+import {
+  quotedReplyTypeLabel,
+  type QuotedReplyDto,
+} from "@/modules/messages/reply-context";
 
 export type QuotedReplyPreviewProps = {
   reply: QuotedReplyDto;
@@ -19,10 +22,12 @@ export function QuotedReplyPreview({
   onCancel,
   compact = false,
 }: QuotedReplyPreviewProps) {
+  const typeLabel = reply.available ? quotedReplyTypeLabel(reply.type) : null;
   const content = reply.available ? (
     <>
       <span className="block truncate text-xs font-bold text-[var(--accent)]">
         {reply.author}
+        <span className="font-medium text-[var(--muted)]"> · {typeLabel}</span>
       </span>
       <span className="mt-0.5 block line-clamp-2 break-words text-xs leading-4 text-[var(--muted)]">
         {reply.summary}
@@ -42,7 +47,7 @@ export function QuotedReplyPreview({
     <div className={cn("flex min-w-0 items-stretch", compact ? "gap-1" : "gap-2")}>
       {reply.available && onNavigate ? (
         <button
-          aria-label="Ir para mensagem original"
+          aria-label={`Ir para mensagem original — ${reply.author} · ${typeLabel}: ${reply.summary}`}
           className={cn(contentClass, "cursor-pointer outline-none hover:bg-[color-mix(in_srgb,var(--accent)_10%,white)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]")}
           onClick={() => onNavigate(reply.messageId)}
           type="button"

@@ -20,8 +20,12 @@ describe("QuotedReplyPreview", () => {
     render(<QuotedReplyPreview onNavigate={navigate} reply={availableReply} />);
 
     expect(screen.getByText("Cliente")).toBeVisible();
+    expect(screen.getByText(/Texto/)).toBeVisible();
     expect(screen.getByText("Tem esse produto?")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Ir para mensagem original" }));
+    const action = screen.getByRole("button", {
+      name: "Ir para mensagem original — Cliente · Texto: Tem esse produto?",
+    });
+    fireEvent.click(action);
     expect(navigate).toHaveBeenCalledWith(availableReply.messageId);
   });
 

@@ -58,7 +58,7 @@ export function MessageBubble({
   const replyAction = canReply ? (
     <Button
       aria-label="Responder à mensagem"
-      className="min-h-11 min-w-11 shrink-0 opacity-100 transition-opacity sm:opacity-0 sm:group-hover/message:opacity-100 sm:group-focus-within/message:opacity-100"
+      className="min-h-11 min-w-11 shrink-0 opacity-100 transition-opacity min-[720px]:opacity-0 min-[720px]:group-hover/message:opacity-100 min-[720px]:group-focus-within/message:opacity-100"
       onClick={() => onReply?.(message)}
       size="icon"
       type="button"

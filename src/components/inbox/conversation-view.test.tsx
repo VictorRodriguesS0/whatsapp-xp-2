@@ -306,7 +306,7 @@ describe("ConversationView", () => {
     };
     render(<ConversationView {...handlers} conversation={{ ...conversation, messages: [original, quoted] }} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Ir para mensagem original" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Ir para mensagem original/ }));
     const originalBody = screen
       .getAllByText("Mensagem original")
       .find((element) => element.tagName === "P");

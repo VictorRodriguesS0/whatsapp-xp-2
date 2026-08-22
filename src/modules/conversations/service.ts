@@ -219,8 +219,6 @@ function toMessageDto(message: MessageRecord): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
-          mediaOriginalFilename:
-            message.replyToMessage.mediaObject?.originalFilename ?? null,
         })
       : message.replyToWhatsappMessageId
         ? { available: false }
