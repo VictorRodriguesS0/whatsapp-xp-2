@@ -252,7 +252,18 @@ describe("contact classification schemas", () => {
       tagId,
       secondTagId,
     ]);
+    expect(contactTagIdsSchema.parse([tagId.toUpperCase()])).toEqual([tagId]);
     expect(() => contactTagIdsSchema.parse([tagId, tagId])).toThrow();
+    expect(() =>
+      contactTagIdsSchema.parse([tagId, tagId.toUpperCase()]),
+    ).toThrow();
+    expect(
+      contactTagIdsSchema.parse(
+        Array.from({ length: 20 }, (_, index) =>
+          `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`,
+        ),
+      ),
+    ).toHaveLength(20);
     expect(() =>
       contactTagIdsSchema.parse(
         Array.from({ length: 21 }, (_, index) =>
@@ -359,6 +370,24 @@ describe("contact classification service", () => {
     expect(repository.assignmentTagIds).toEqual([tagId]);
   });
 
+  it("rejects case-insensitive duplicate tag UUIDs before opening a transaction", async () => {
+    const repository = createRepository({
+      tags: [definition(tagId, "VIP")],
+      assignmentTagIds: [tagId],
+    });
+
+    await expect(
+      replaceContactTags(
+        attendant,
+        contactId,
+        [tagId, tagId.toUpperCase()],
+        repository,
+      ),
+    ).rejects.toMatchObject({ name: "ZodError" });
+    expect(repository.transactionAttempts).toBe(0);
+    expect(repository.assignmentTagIds).toEqual([tagId]);
+  });
+
   it("replaces tags atomically, returns inactive existing tags, and is idempotent", async () => {
     const repository = createRepository({
       tags: [
@@ -368,7 +397,12 @@ describe("contact classification service", () => {
       assignmentTagIds: [secondTagId],
     });
 
-    const first = await replaceContactTags(attendant, contactId, [tagId], repository);
+    const first = await replaceContactTags(
+      attendant,
+      contactId,
+      [tagId.toUpperCase()],
+      repository,
+    );
     const second = await replaceContactTags(attendant, contactId, [tagId], repository);
 
     expect(repository.assignmentTagIds).toEqual([tagId]);

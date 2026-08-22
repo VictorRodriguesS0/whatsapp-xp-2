@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-const uuidSchema = z.string().uuid();
+const uuidSchema = z
+  .string()
+  .uuid()
+  .transform((value) => value.toLowerCase());
 const preferredNameSchema = z.string().trim().min(1).max(80);
 const displayNameSchema = z.string().trim().min(1).max(80);
 const colorSchema = z.string().regex(/^#[0-9A-F]{6}$/);
