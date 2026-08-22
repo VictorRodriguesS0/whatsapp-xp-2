@@ -18,6 +18,10 @@ import { hashPassword } from "../src/modules/auth/password";
 export const DEMO_PASSWORD = "Senha-Demo-2026!";
 
 const ids = {
+  clienteType: "10000000-0000-4000-8000-000000000001",
+  interessadoType: "10000000-0000-4000-8000-000000000002",
+  fornecedorParceiroType: "10000000-0000-4000-8000-000000000003",
+  naoClienteType: "10000000-0000-4000-8000-000000000004",
   victor: "00000000-0000-4000-8000-000000000001",
   marcos: "00000000-0000-4000-8000-000000000002",
   joao: "00000000-0000-4000-8000-000000000003",
@@ -48,6 +52,46 @@ export async function seedDemoData(prisma: PrismaClient): Promise<void> {
 
   await prisma.$transaction(async (prisma) => {
     const initialSharedStateConversationIds = new Set<string>();
+
+    const contactTypes = [
+      {
+        id: ids.clienteType,
+        displayName: "Cliente",
+        normalizedName: "cliente",
+        color: "#176B52",
+        position: 10,
+        active: true,
+      },
+      {
+        id: ids.interessadoType,
+        displayName: "Interessado",
+        normalizedName: "interessado",
+        color: "#2563EB",
+        position: 20,
+        active: true,
+      },
+      {
+        id: ids.fornecedorParceiroType,
+        displayName: "Fornecedor/Parceiro",
+        normalizedName: "fornecedor/parceiro",
+        color: "#B7791F",
+        position: 30,
+        active: true,
+      },
+      {
+        id: ids.naoClienteType,
+        displayName: "Não cliente",
+        normalizedName: "não cliente",
+        color: "#6D746F",
+        position: 40,
+        active: true,
+      },
+    ];
+
+    await prisma.contactType.createMany({
+      data: contactTypes,
+      skipDuplicates: true,
+    });
 
     const users = [
       {

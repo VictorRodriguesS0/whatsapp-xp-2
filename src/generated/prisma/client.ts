@@ -57,6 +57,21 @@ export type Session = Prisma.SessionModel
  */
 export type Contact = Prisma.ContactModel
 /**
+ * Model ContactType
+ * 
+ */
+export type ContactType = Prisma.ContactTypeModel
+/**
+ * Model ContactTagDefinition
+ * 
+ */
+export type ContactTagDefinition = Prisma.ContactTagDefinitionModel
+/**
+ * Model ContactTagAssignment
+ * 
+ */
+export type ContactTagAssignment = Prisma.ContactTagAssignmentModel
+/**
  * Model Conversation
  * 
  */

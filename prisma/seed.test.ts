@@ -7,8 +7,63 @@ import { verifyPassword } from "@/modules/auth/password";
 import { resetTestDatabase } from "@/test/database";
 import { DEMO_PASSWORD, seedDemoData } from "./seed";
 
+const defaultContactTypes = [
+  {
+    id: "10000000-0000-4000-8000-000000000001",
+    displayName: "Cliente",
+    normalizedName: "cliente",
+    color: "#176B52",
+    position: 10,
+    active: true,
+  },
+  {
+    id: "10000000-0000-4000-8000-000000000002",
+    displayName: "Interessado",
+    normalizedName: "interessado",
+    color: "#2563EB",
+    position: 20,
+    active: true,
+  },
+  {
+    id: "10000000-0000-4000-8000-000000000003",
+    displayName: "Fornecedor/Parceiro",
+    normalizedName: "fornecedor/parceiro",
+    color: "#B7791F",
+    position: 30,
+    active: true,
+  },
+  {
+    id: "10000000-0000-4000-8000-000000000004",
+    displayName: "Não cliente",
+    normalizedName: "não cliente",
+    color: "#6D746F",
+    position: 40,
+    active: true,
+  },
+] as const;
+
+async function resetContactClassification(): Promise<void> {
+  const [tables] = await prisma.$queryRaw<
+    [{ contactTypes: string | null; tagDefinitions: string | null }]
+  >`
+    SELECT
+      to_regclass('public.contact_types')::text AS "contactTypes",
+      to_regclass('public.contact_tag_definitions')::text AS "tagDefinitions"
+  `;
+
+  if (tables.contactTypes) {
+    await prisma.$executeRawUnsafe('DELETE FROM "contact_types"');
+  }
+  if (tables.tagDefinitions) {
+    await prisma.$executeRawUnsafe('DELETE FROM "contact_tag_definitions"');
+  }
+}
+
 describe("demonstration seed", () => {
-  beforeEach(resetTestDatabase);
+  beforeEach(async () => {
+    await resetTestDatabase();
+    await resetContactClassification();
+  });
 
   afterAll(async () => {
     await prisma.$disconnect();
@@ -28,6 +83,28 @@ describe("demonstration seed", () => {
         prisma.conversationRead.count(),
       ]),
     ).resolves.toEqual([3, 3, 3, 9, 3, 4]);
+
+    const contactTypes = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        displayName: string;
+        normalizedName: string;
+        color: string;
+        position: number;
+        active: boolean;
+      }>
+    >`
+      SELECT
+        id::text,
+        display_name AS "displayName",
+        normalized_name AS "normalizedName",
+        color,
+        position,
+        active
+      FROM contact_types
+      ORDER BY position
+    `;
+    expect(contactTypes).toEqual(defaultContactTypes);
 
     const users = await prisma.user.findMany({ orderBy: { email: "asc" } });
     expect(users.map(({ name, role }) => ({ name, role }))).toEqual([
@@ -198,5 +275,125 @@ describe("demonstration seed", () => {
       lastReadMessageId: "00000000-0000-4000-8000-000000000303",
       lastReadAt: preservedReadTime,
     });
+  });
+
+  it("restores missing default contact types without overwriting administrator changes", async () => {
+    await seedDemoData(prisma);
+
+    await prisma.$executeRaw`
+      UPDATE contact_types
+      SET display_name = 'Cliente prioritário',
+          normalized_name = 'cliente prioritário',
+          color = '#112233',
+          position = 5,
+          active = false
+      WHERE id = '10000000-0000-4000-8000-000000000001'::uuid
+    `;
+    await prisma.$executeRaw`
+      DELETE FROM contact_types
+      WHERE id = '10000000-0000-4000-8000-000000000002'::uuid
+    `;
+
+    await seedDemoData(prisma);
+
+    const preserved = await prisma.$queryRaw<
+      Array<{
+        displayName: string;
+        normalizedName: string;
+        color: string;
+        position: number;
+        active: boolean;
+      }>
+    >`
+      SELECT
+        display_name AS "displayName",
+        normalized_name AS "normalizedName",
+        color,
+        position,
+        active
+      FROM contact_types
+      WHERE id = '10000000-0000-4000-8000-000000000001'::uuid
+    `;
+    expect(preserved).toEqual([
+      {
+        displayName: "Cliente prioritário",
+        normalizedName: "cliente prioritário",
+        color: "#112233",
+        position: 5,
+        active: false,
+      },
+    ]);
+
+    const restored = await prisma.$queryRaw<
+      Array<{
+        id: string;
+        displayName: string;
+        normalizedName: string;
+        color: string;
+        position: number;
+        active: boolean;
+      }>
+    >`
+      SELECT
+        id::text,
+        display_name AS "displayName",
+        normalized_name AS "normalizedName",
+        color,
+        position,
+        active
+      FROM contact_types
+      WHERE id = '10000000-0000-4000-8000-000000000002'::uuid
+    `;
+    expect(restored).toEqual([defaultContactTypes[1]]);
+  });
+
+  it("keeps an administrator replacement that reuses a default normalized name", async () => {
+    await seedDemoData(prisma);
+
+    await prisma.$executeRaw`
+      DELETE FROM contact_types
+      WHERE id = '10000000-0000-4000-8000-000000000001'::uuid
+    `;
+    await prisma.$executeRaw`
+      INSERT INTO contact_types (
+        id,
+        display_name,
+        normalized_name,
+        color,
+        position,
+        active,
+        updated_at
+      ) VALUES (
+        '40000000-0000-4000-8000-000000000001'::uuid,
+        'Cliente personalizado',
+        'cliente',
+        '#445566',
+        7,
+        false,
+        CURRENT_TIMESTAMP
+      )
+    `;
+
+    await expect(seedDemoData(prisma)).resolves.toBeUndefined();
+    await expect(
+      prisma.$queryRaw`
+        SELECT
+          id::text,
+          display_name AS "displayName",
+          color,
+          position,
+          active
+        FROM contact_types
+        WHERE normalized_name = 'cliente'
+      `,
+    ).resolves.toEqual([
+      {
+        id: "40000000-0000-4000-8000-000000000001",
+        displayName: "Cliente personalizado",
+        color: "#445566",
+        position: 7,
+        active: false,
+      },
+    ]);
   });
 });

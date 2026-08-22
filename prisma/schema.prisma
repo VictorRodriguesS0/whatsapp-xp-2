@@ -95,17 +95,63 @@ model Session {
 }
 
 model Contact {
-  id                String        @id @default(uuid()) @db.Uuid
-  whatsappId        String?       @unique @map("whatsapp_id")
-  whatsappUserId    String?       @unique @map("whatsapp_user_id")
-  phone             String?       @unique
+  id                String                 @id @default(uuid()) @db.Uuid
+  whatsappId        String?                @unique @map("whatsapp_id")
+  whatsappUserId    String?                @unique @map("whatsapp_user_id")
+  phone             String?                @unique
   name              String
-  profilePictureUrl String?       @map("profile_picture_url")
-  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  preferredName     String?                @map("preferred_name")
+  profilePictureUrl String?                @map("profile_picture_url")
+  contactTypeId     String?                @map("contact_type_id") @db.Uuid
+  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
   conversation      Conversation?
+  contactType       ContactType?           @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
+  tagAssignments    ContactTagAssignment[]
 
   @@map("contacts")
+}
+
+model ContactType {
+  id             String    @id @default(uuid()) @db.Uuid
+  displayName    String    @map("display_name")
+  normalizedName String    @unique @map("normalized_name")
+  color          String
+  position       Int
+  active         Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  contacts       Contact[]
+
+  @@index([active, position])
+  @@map("contact_types")
+}
+
+model ContactTagDefinition {
+  id             String                 @id @default(uuid()) @db.Uuid
+  displayName    String                 @map("display_name")
+  normalizedName String                 @unique @map("normalized_name")
+  color          String
+  position       Int
+  active         Boolean                @default(true)
+  createdAt      DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assignments    ContactTagAssignment[]
+
+  @@index([active, position])
+  @@map("contact_tag_definitions")
+}
+
+model ContactTagAssignment {
+  contactId String               @map("contact_id") @db.Uuid
+  tagId     String               @map("tag_id") @db.Uuid
+  createdAt DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  contact   Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag       ContactTagDefinition @relation(fields: [tagId], references: [id], onDelete: Restrict)
+
+  @@id([contactId, tagId])
+  @@index([tagId, contactId])
+  @@map("contact_tag_assignments")
 }
 
 model Conversation {

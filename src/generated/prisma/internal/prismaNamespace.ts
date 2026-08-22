@@ -400,6 +400,9 @@ export const ModelName = {
   User: 'User',
   Session: 'Session',
   Contact: 'Contact',
+  ContactType: 'ContactType',
+  ContactTagDefinition: 'ContactTagDefinition',
+  ContactTagAssignment: 'ContactTagAssignment',
   Conversation: 'Conversation',
   Message: 'Message',
   MediaObject: 'MediaObject',
@@ -421,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "conversation" | "message" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent"
+    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -644,6 +647,228 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ContactCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ContactCountAggregateOutputType> | number
+        }
+      }
+    }
+    ContactType: {
+      payload: Prisma.$ContactTypePayload<ExtArgs>
+      fields: Prisma.ContactTypeFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ContactTypeFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ContactTypeFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>
+        }
+        findFirst: {
+          args: Prisma.ContactTypeFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ContactTypeFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>
+        }
+        findMany: {
+          args: Prisma.ContactTypeFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>[]
+        }
+        create: {
+          args: Prisma.ContactTypeCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>
+        }
+        createMany: {
+          args: Prisma.ContactTypeCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ContactTypeCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>[]
+        }
+        delete: {
+          args: Prisma.ContactTypeDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>
+        }
+        update: {
+          args: Prisma.ContactTypeUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>
+        }
+        deleteMany: {
+          args: Prisma.ContactTypeDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ContactTypeUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ContactTypeUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>[]
+        }
+        upsert: {
+          args: Prisma.ContactTypeUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTypePayload>
+        }
+        aggregate: {
+          args: Prisma.ContactTypeAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateContactType>
+        }
+        groupBy: {
+          args: Prisma.ContactTypeGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactTypeGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ContactTypeCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactTypeCountAggregateOutputType> | number
+        }
+      }
+    }
+    ContactTagDefinition: {
+      payload: Prisma.$ContactTagDefinitionPayload<ExtArgs>
+      fields: Prisma.ContactTagDefinitionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ContactTagDefinitionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ContactTagDefinitionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>
+        }
+        findFirst: {
+          args: Prisma.ContactTagDefinitionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ContactTagDefinitionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>
+        }
+        findMany: {
+          args: Prisma.ContactTagDefinitionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>[]
+        }
+        create: {
+          args: Prisma.ContactTagDefinitionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>
+        }
+        createMany: {
+          args: Prisma.ContactTagDefinitionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ContactTagDefinitionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>[]
+        }
+        delete: {
+          args: Prisma.ContactTagDefinitionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>
+        }
+        update: {
+          args: Prisma.ContactTagDefinitionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>
+        }
+        deleteMany: {
+          args: Prisma.ContactTagDefinitionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ContactTagDefinitionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ContactTagDefinitionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>[]
+        }
+        upsert: {
+          args: Prisma.ContactTagDefinitionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagDefinitionPayload>
+        }
+        aggregate: {
+          args: Prisma.ContactTagDefinitionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateContactTagDefinition>
+        }
+        groupBy: {
+          args: Prisma.ContactTagDefinitionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactTagDefinitionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ContactTagDefinitionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactTagDefinitionCountAggregateOutputType> | number
+        }
+      }
+    }
+    ContactTagAssignment: {
+      payload: Prisma.$ContactTagAssignmentPayload<ExtArgs>
+      fields: Prisma.ContactTagAssignmentFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ContactTagAssignmentFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ContactTagAssignmentFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>
+        }
+        findFirst: {
+          args: Prisma.ContactTagAssignmentFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ContactTagAssignmentFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>
+        }
+        findMany: {
+          args: Prisma.ContactTagAssignmentFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>[]
+        }
+        create: {
+          args: Prisma.ContactTagAssignmentCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>
+        }
+        createMany: {
+          args: Prisma.ContactTagAssignmentCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ContactTagAssignmentCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>[]
+        }
+        delete: {
+          args: Prisma.ContactTagAssignmentDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>
+        }
+        update: {
+          args: Prisma.ContactTagAssignmentUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>
+        }
+        deleteMany: {
+          args: Prisma.ContactTagAssignmentDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ContactTagAssignmentUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ContactTagAssignmentUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>[]
+        }
+        upsert: {
+          args: Prisma.ContactTagAssignmentUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactTagAssignmentPayload>
+        }
+        aggregate: {
+          args: Prisma.ContactTagAssignmentAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateContactTagAssignment>
+        }
+        groupBy: {
+          args: Prisma.ContactTagAssignmentGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactTagAssignmentGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ContactTagAssignmentCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactTagAssignmentCountAggregateOutputType> | number
         }
       }
     }
@@ -1162,12 +1387,51 @@ export const ContactScalarFieldEnum = {
   whatsappUserId: 'whatsappUserId',
   phone: 'phone',
   name: 'name',
+  preferredName: 'preferredName',
   profilePictureUrl: 'profilePictureUrl',
+  contactTypeId: 'contactTypeId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ContactScalarFieldEnum = (typeof ContactScalarFieldEnum)[keyof typeof ContactScalarFieldEnum]
+
+
+export const ContactTypeScalarFieldEnum = {
+  id: 'id',
+  displayName: 'displayName',
+  normalizedName: 'normalizedName',
+  color: 'color',
+  position: 'position',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContactTypeScalarFieldEnum = (typeof ContactTypeScalarFieldEnum)[keyof typeof ContactTypeScalarFieldEnum]
+
+
+export const ContactTagDefinitionScalarFieldEnum = {
+  id: 'id',
+  displayName: 'displayName',
+  normalizedName: 'normalizedName',
+  color: 'color',
+  position: 'position',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContactTagDefinitionScalarFieldEnum = (typeof ContactTagDefinitionScalarFieldEnum)[keyof typeof ContactTagDefinitionScalarFieldEnum]
+
+
+export const ContactTagAssignmentScalarFieldEnum = {
+  contactId: 'contactId',
+  tagId: 'tagId',
+  createdAt: 'createdAt'
+} as const
+
+export type ContactTagAssignmentScalarFieldEnum = (typeof ContactTagAssignmentScalarFieldEnum)[keyof typeof ContactTagAssignmentScalarFieldEnum]
 
 
 export const ConversationScalarFieldEnum = {
@@ -1350,6 +1614,20 @@ export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaM
 
 
 /**
+ * Reference to a field of type 'Int'
+ */
+export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
+    
+
+
+/**
+ * Reference to a field of type 'Int[]'
+ */
+export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
+    
+
+
+/**
  * Reference to a field of type 'MessageDirection'
  */
 export type EnumMessageDirectionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MessageDirection'>
@@ -1430,20 +1708,6 @@ export type EnumMediaStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$Pris
  * Reference to a field of type 'MediaStatus[]'
  */
 export type ListEnumMediaStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MediaStatus[]'>
-    
-
-
-/**
- * Reference to a field of type 'Int'
- */
-export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
-
-
-/**
- * Reference to a field of type 'Int[]'
- */
-export type ListIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int[]'>
     
 
 
@@ -1642,6 +1906,9 @@ export type GlobalOmitConfig = {
   user?: Prisma.UserOmit
   session?: Prisma.SessionOmit
   contact?: Prisma.ContactOmit
+  contactType?: Prisma.ContactTypeOmit
+  contactTagDefinition?: Prisma.ContactTagDefinitionOmit
+  contactTagAssignment?: Prisma.ContactTagAssignmentOmit
   conversation?: Prisma.ConversationOmit
   message?: Prisma.MessageOmit
   mediaObject?: Prisma.MediaObjectOmit

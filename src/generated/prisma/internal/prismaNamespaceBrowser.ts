@@ -54,6 +54,9 @@ export const ModelName = {
   User: 'User',
   Session: 'Session',
   Contact: 'Contact',
+  ContactType: 'ContactType',
+  ContactTagDefinition: 'ContactTagDefinition',
+  ContactTagAssignment: 'ContactTagAssignment',
   Conversation: 'Conversation',
   Message: 'Message',
   MediaObject: 'MediaObject',
@@ -110,12 +113,51 @@ export const ContactScalarFieldEnum = {
   whatsappUserId: 'whatsappUserId',
   phone: 'phone',
   name: 'name',
+  preferredName: 'preferredName',
   profilePictureUrl: 'profilePictureUrl',
+  contactTypeId: 'contactTypeId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ContactScalarFieldEnum = (typeof ContactScalarFieldEnum)[keyof typeof ContactScalarFieldEnum]
+
+
+export const ContactTypeScalarFieldEnum = {
+  id: 'id',
+  displayName: 'displayName',
+  normalizedName: 'normalizedName',
+  color: 'color',
+  position: 'position',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContactTypeScalarFieldEnum = (typeof ContactTypeScalarFieldEnum)[keyof typeof ContactTypeScalarFieldEnum]
+
+
+export const ContactTagDefinitionScalarFieldEnum = {
+  id: 'id',
+  displayName: 'displayName',
+  normalizedName: 'normalizedName',
+  color: 'color',
+  position: 'position',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ContactTagDefinitionScalarFieldEnum = (typeof ContactTagDefinitionScalarFieldEnum)[keyof typeof ContactTagDefinitionScalarFieldEnum]
+
+
+export const ContactTagAssignmentScalarFieldEnum = {
+  contactId: 'contactId',
+  tagId: 'tagId',
+  createdAt: 'createdAt'
+} as const
+
+export type ContactTagAssignmentScalarFieldEnum = (typeof ContactTagAssignmentScalarFieldEnum)[keyof typeof ContactTagAssignmentScalarFieldEnum]
 
 
 export const ConversationScalarFieldEnum = {
