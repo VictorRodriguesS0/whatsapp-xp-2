@@ -45,6 +45,15 @@ function previewRecording(): AudioRecording {
 }
 
 describe("MessageComposer", () => {
+  const reply = {
+    available: true as const,
+    messageId: "11111111-1111-4111-8111-111111111111",
+    direction: "INBOUND" as const,
+    type: "TEXT" as const,
+    author: "Cliente",
+    summary: "Tem esse produto?",
+  };
+
   beforeEach(() => {
     recorder.phase = "idle";
     recorder.supported = true;
@@ -91,6 +100,103 @@ describe("MessageComposer", () => {
     fireEvent.keyDown(message, { key: "Escape" });
     expect(screen.queryByRole("listbox", { name: "Respostas rápidas" })).not.toBeInTheDocument();
     expect(message).toHaveValue("/");
+  });
+
+  it("shows the quoted draft in idle and file states and sends the captured target", () => {
+    const sendText = vi.fn().mockResolvedValue(null);
+    const sendMedia = vi.fn().mockResolvedValue(null);
+    const cancelReply = vi.fn();
+    const rendered = render(<MessageComposer {...props({
+      onCancelReply: cancelReply,
+      onSendMedia: sendMedia,
+      onSendText: sendText,
+      replyTo: reply,
+    })} />);
+
+    expect(screen.getByText("Tem esse produto?")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Mensagem"), { target: { value: "Sim" } });
+    fireEvent.keyDown(screen.getByLabelText("Mensagem"), { key: "Enter" });
+    expect(sendText).toHaveBeenCalledWith("Sim", reply.messageId);
+    expect(cancelReply).toHaveBeenCalledOnce();
+
+    cancelReply.mockClear();
+    rendered.rerender(<MessageComposer {...props({
+      onCancelReply: cancelReply,
+      onSendMedia: sendMedia,
+      onSendText: sendText,
+      replyTo: reply,
+    })} />);
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    const file = new File(["image"], "produto.png", { type: "image/png" });
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(screen.getByText("Tem esse produto?")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar mensagem" }));
+    expect(sendMedia).toHaveBeenCalledWith(file, "", reply.messageId);
+    expect(cancelReply).toHaveBeenCalledOnce();
+  });
+
+  it("keeps the quoted draft visible throughout recording and sends its target", async () => {
+    const cancelReply = vi.fn();
+    const sendRecording = vi.fn().mockResolvedValue({ id: "sent" });
+    recorder.phase = "requesting";
+    const rendered = render(<MessageComposer {...props({
+      onCancelReply: cancelReply,
+      onSendRecording: sendRecording,
+      replyTo: reply,
+    })} />);
+    expect(screen.getByText("Tem esse produto?")).toBeVisible();
+
+    recorder.phase = "recording";
+    rendered.rerender(<MessageComposer {...props({
+      onCancelReply: cancelReply,
+      onSendRecording: sendRecording,
+      replyTo: reply,
+    })} />);
+    expect(screen.getByText("Tem esse produto?")).toBeVisible();
+
+    recorder.phase = "preview";
+    recorder.recording = previewRecording();
+    rendered.rerender(<MessageComposer {...props({
+      onCancelReply: cancelReply,
+      onSendRecording: sendRecording,
+      replyTo: reply,
+    })} />);
+    expect(screen.getByText("Tem esse produto?")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar gravação" }));
+
+    await waitFor(() => expect(sendRecording).toHaveBeenCalledWith(
+      recorder.recording!.file,
+      recorder.recording!.clientRequestId,
+      reply.messageId,
+    ));
+    expect(cancelReply).toHaveBeenCalledOnce();
+  });
+
+  it("lets quick replies consume Escape before cancelling the quoted draft", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
+      { id: "1", shortcut: "horario", message: "Das 9h às 17h30.", position: 10, active: true },
+    ] }, error: null })));
+    const cancelReply = vi.fn();
+    render(<MessageComposer {...props({ onCancelReply: cancelReply, replyTo: reply })} />);
+    const message = screen.getByLabelText("Mensagem");
+    fireEvent.change(message, { target: { value: "/" } });
+    await screen.findByRole("listbox", { name: "Respostas rápidas" });
+
+    fireEvent.keyDown(message, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Respostas rápidas" })).not.toBeInTheDocument();
+    expect(cancelReply).not.toHaveBeenCalled();
+    fireEvent.keyDown(message, { key: "Escape" });
+    expect(cancelReply).toHaveBeenCalledOnce();
+  });
+
+  it("renders a separate 44px cancel control for the quoted draft", () => {
+    const cancelReply = vi.fn();
+    render(<MessageComposer {...props({ onCancelReply: cancelReply, replyTo: reply })} />);
+
+    const cancel = screen.getByRole("button", { name: "Cancelar resposta citada" });
+    expect(cancel).toHaveClass("min-h-11", "min-w-11");
+    fireEvent.click(cancel);
+    expect(cancelReply).toHaveBeenCalledOnce();
   });
 
   it("keeps the composer usable and offers retry when the catalog fails", async () => {

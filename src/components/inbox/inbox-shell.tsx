@@ -40,14 +40,17 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsTrigger = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
   const selectedIdRef = useRef<string | null>(inbox.selectedId);
   const detailsOpenRef = useRef(detailsOpen);
+  const replyToMessageIdRef = useRef(replyToMessageId);
   const cancelScheduledFocus = useRef<(() => void) | null>(null);
   selectedIdRef.current = inbox.selectedId;
   detailsOpenRef.current = detailsOpen;
+  replyToMessageIdRef.current = replyToMessageId;
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
     ? inbox.conversation
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
@@ -58,6 +61,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     const idToRestore = lastSelectedId.current ?? selectedId;
     setMobileView("list");
     setDetailsOpen(false);
+    setReplyToMessageId(null);
     closeConversation();
     if (idToRestore) {
       cancelScheduledFocus.current?.();
@@ -77,6 +81,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
 
   function selectConversation(id: string) {
     lastSelectedId.current = id;
+    setReplyToMessageId(null);
     if (isMobileViewport()) {
       if (mobileView === "thread") mobileHistory.switchThread();
       else mobileHistory.enterThread();
@@ -102,6 +107,18 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   useEffect(() => () => cancelScheduledFocus.current?.(), []);
 
   useEffect(() => {
+    setReplyToMessageId(null);
+  }, [inbox.selectedId]);
+
+  useEffect(() => {
+    if (!replyToMessageId) return;
+    const target = inbox.conversation?.id === inbox.selectedId
+      ? inbox.conversation.messages.find((message) => message.id === replyToMessageId)
+      : null;
+    if (!target?.canReply) setReplyToMessageId(null);
+  }, [inbox.conversation, inbox.selectedId, replyToMessageId]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (
         event.key !== "Escape" ||
@@ -110,9 +127,14 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
         event.defaultPrevented ||
         isMobileViewport() ||
         !selectedIdRef.current ||
-        detailsOpenRef.current ||
-        hasOpenDismissibleOverlay()
+        detailsOpenRef.current
       ) return;
+      if (hasOpenDismissibleOverlay()) return;
+      if (replyToMessageIdRef.current) {
+        event.preventDefault();
+        setReplyToMessageId(null);
+        return;
+      }
       event.preventDefault();
       closeThreadLocally();
     }
@@ -181,18 +203,37 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onBack={mobileHistory.leaveThread}
               onMarkUnread={inbox.markUnread}
               onOpenDetails={openDetails}
+              onCancelReply={() => setReplyToMessageId(null)}
+              onReplyToMessage={(message) => setReplyToMessageId(message.id)}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
-              onSendMedia={(file, caption) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendMedia(inbox.selectedId, file, caption) : Promise.resolve(null)}
-              onSendRecording={(file, clientRequestId) => (
+              onSendMedia={(file, caption, targetMessageId) => {
+                if (!inbox.selectedId || inbox.conversation?.id !== inbox.selectedId) {
+                  return Promise.resolve(null);
+                }
+                return targetMessageId
+                  ? inbox.sendMedia(inbox.selectedId, file, caption, targetMessageId)
+                  : inbox.sendMedia(inbox.selectedId, file, caption);
+              }}
+              onSendRecording={(file, clientRequestId, targetMessageId) => (
                 inbox.selectedId && inbox.conversation?.id === inbox.selectedId
-                  ? inbox.sendRecording(inbox.selectedId, file, clientRequestId)
+                  ? targetMessageId
+                    ? inbox.sendRecording(inbox.selectedId, file, clientRequestId, targetMessageId)
+                    : inbox.sendRecording(inbox.selectedId, file, clientRequestId)
                   : Promise.resolve(null)
               )}
-              onSendText={(body) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendText(inbox.selectedId, body) : Promise.resolve(null)}
+              onSendText={(body, targetMessageId) => {
+                if (!inbox.selectedId || inbox.conversation?.id !== inbox.selectedId) {
+                  return Promise.resolve(null);
+                }
+                return targetMessageId
+                  ? inbox.sendText(inbox.selectedId, body, targetMessageId)
+                  : inbox.sendText(inbox.selectedId, body);
+              }}
               onVisibleMessage={(messageId) => {
                 if (inbox.selectedId && inbox.conversation?.id === inbox.selectedId) void inbox.markRead(inbox.selectedId, messageId);
               }}
+              replyToMessageId={replyToMessageId}
             />
           </section>
 
