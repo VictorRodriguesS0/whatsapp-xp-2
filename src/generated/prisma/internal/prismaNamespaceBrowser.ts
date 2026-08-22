@@ -59,6 +59,7 @@ export const ModelName = {
   ContactTagAssignment: 'ContactTagAssignment',
   Conversation: 'Conversation',
   Message: 'Message',
+  MessageReaction: 'MessageReaction',
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
@@ -191,6 +192,7 @@ export const MessageScalarFieldEnum = {
   sentByUserId: 'sentByUserId',
   status: 'status',
   failureReason: 'failureReason',
+  revokedAt: 'revokedAt',
   operationalState: 'operationalState',
   providerAttemptedAt: 'providerAttemptedAt',
   deliveryLeaseId: 'deliveryLeaseId',
@@ -201,6 +203,26 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const MessageReactionScalarFieldEnum = {
+  id: 'id',
+  messageId: 'messageId',
+  reactor: 'reactor',
+  emoji: 'emoji',
+  status: 'status',
+  clientRequestId: 'clientRequestId',
+  providerMessageId: 'providerMessageId',
+  providerEventId: 'providerEventId',
+  providerTimestamp: 'providerTimestamp',
+  providerAttemptedAt: 'providerAttemptedAt',
+  sentByUserId: 'sentByUserId',
+  failureReason: 'failureReason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MessageReactionScalarFieldEnum = (typeof MessageReactionScalarFieldEnum)[keyof typeof MessageReactionScalarFieldEnum]
 
 
 export const MediaObjectScalarFieldEnum = {

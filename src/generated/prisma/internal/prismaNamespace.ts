@@ -405,6 +405,7 @@ export const ModelName = {
   ContactTagAssignment: 'ContactTagAssignment',
   Conversation: 'Conversation',
   Message: 'Message',
+  MessageReaction: 'MessageReaction',
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
@@ -425,7 +426,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent" | "quickReply"
+    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent" | "quickReply"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1021,6 +1022,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MessageReaction: {
+      payload: Prisma.$MessageReactionPayload<ExtArgs>
+      fields: Prisma.MessageReactionFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MessageReactionFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MessageReactionFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>
+        }
+        findFirst: {
+          args: Prisma.MessageReactionFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MessageReactionFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>
+        }
+        findMany: {
+          args: Prisma.MessageReactionFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>[]
+        }
+        create: {
+          args: Prisma.MessageReactionCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>
+        }
+        createMany: {
+          args: Prisma.MessageReactionCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MessageReactionCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>[]
+        }
+        delete: {
+          args: Prisma.MessageReactionDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>
+        }
+        update: {
+          args: Prisma.MessageReactionUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>
+        }
+        deleteMany: {
+          args: Prisma.MessageReactionDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MessageReactionUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MessageReactionUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>[]
+        }
+        upsert: {
+          args: Prisma.MessageReactionUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MessageReactionPayload>
+        }
+        aggregate: {
+          args: Prisma.MessageReactionAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMessageReaction>
+        }
+        groupBy: {
+          args: Prisma.MessageReactionGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MessageReactionGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MessageReactionCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MessageReactionCountAggregateOutputType> | number
+        }
+      }
+    }
     MediaObject: {
       payload: Prisma.$MediaObjectPayload<ExtArgs>
       fields: Prisma.MediaObjectFieldRefs
@@ -1539,6 +1614,7 @@ export const MessageScalarFieldEnum = {
   sentByUserId: 'sentByUserId',
   status: 'status',
   failureReason: 'failureReason',
+  revokedAt: 'revokedAt',
   operationalState: 'operationalState',
   providerAttemptedAt: 'providerAttemptedAt',
   deliveryLeaseId: 'deliveryLeaseId',
@@ -1549,6 +1625,26 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const MessageReactionScalarFieldEnum = {
+  id: 'id',
+  messageId: 'messageId',
+  reactor: 'reactor',
+  emoji: 'emoji',
+  status: 'status',
+  clientRequestId: 'clientRequestId',
+  providerMessageId: 'providerMessageId',
+  providerEventId: 'providerEventId',
+  providerTimestamp: 'providerTimestamp',
+  providerAttemptedAt: 'providerAttemptedAt',
+  sentByUserId: 'sentByUserId',
+  failureReason: 'failureReason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MessageReactionScalarFieldEnum = (typeof MessageReactionScalarFieldEnum)[keyof typeof MessageReactionScalarFieldEnum]
 
 
 export const MediaObjectScalarFieldEnum = {
@@ -1804,6 +1900,34 @@ export type ListEnumMessageOperationalStateFieldRefInput<$PrismaModel> = FieldRe
 
 
 /**
+ * Reference to a field of type 'ReactionReactor'
+ */
+export type EnumReactionReactorFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReactionReactor'>
+    
+
+
+/**
+ * Reference to a field of type 'ReactionReactor[]'
+ */
+export type ListEnumReactionReactorFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReactionReactor[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ReactionStatus'
+ */
+export type EnumReactionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReactionStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'ReactionStatus[]'
+ */
+export type ListEnumReactionStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReactionStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'BigInt'
  */
 export type BigIntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'BigInt'>
@@ -2031,6 +2155,7 @@ export type GlobalOmitConfig = {
   contactTagAssignment?: Prisma.ContactTagAssignmentOmit
   conversation?: Prisma.ConversationOmit
   message?: Prisma.MessageOmit
+  messageReaction?: Prisma.MessageReactionOmit
   mediaObject?: Prisma.MediaObjectOmit
   conversationRead?: Prisma.ConversationReadOmit
   conversationAuditEvent?: Prisma.ConversationAuditEventOmit

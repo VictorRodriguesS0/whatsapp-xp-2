@@ -57,6 +57,18 @@ enum MessageOperationalState {
   LOCAL_FAILURE
 }
 
+enum ReactionReactor {
+  CONTACT
+  BUSINESS
+}
+
+enum ReactionStatus {
+  PENDING
+  SENT
+  FAILED
+  OUTCOME_UNKNOWN
+}
+
 enum WebhookStatus {
   PROCESSING
   PROCESSED
@@ -83,6 +95,7 @@ model User {
   conversationReads         ConversationRead[]
   manualUnreadConversations Conversation[]           @relation("ManualUnreadByUser")
   conversationAuditEvents   ConversationAuditEvent[]
+  sentReactions             MessageReaction[]          @relation("ReactionSentByUser")
 
   @@map("users")
 }
@@ -199,6 +212,7 @@ model Message {
   sentByUserId        String?                 @map("sent_by_user_id") @db.Uuid
   status              MessageStatus
   failureReason       String?                 @map("failure_reason")
+  revokedAt           DateTime?               @map("revoked_at") @db.Timestamptz(3)
   operationalState    MessageOperationalState @default(READY) @map("operational_state")
   providerAttemptedAt DateTime?               @map("provider_attempted_at") @db.Timestamptz(3)
   deliveryLeaseId     String?                 @map("delivery_lease_id") @db.Uuid
@@ -211,11 +225,35 @@ model Message {
   sentByUser          User?                   @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
   lastReadFor         ConversationRead[]      @relation("LastReadMessage")
   teamLastReadFor     Conversation[]          @relation("TeamLastReadMessage")
+  reactions           MessageReaction[]
 
   @@index([conversationId, externalTimestamp])
   @@index([conversationId, direction, externalTimestamp, id], map: "messages_response_state_idx")
   @@index([status, operationalState, deliveryLeaseUntil], map: "messages_delivery_claim_idx")
   @@map("messages")
+}
+
+model MessageReaction {
+  id                  String          @id @default(uuid()) @db.Uuid
+  messageId           String          @map("message_id") @db.Uuid
+  reactor             ReactionReactor
+  emoji               String
+  status              ReactionStatus
+  clientRequestId     String?         @unique @map("client_request_id") @db.Uuid
+  providerMessageId   String?         @map("provider_message_id")
+  providerEventId     String?         @map("provider_event_id")
+  providerTimestamp   DateTime?       @map("provider_timestamp") @db.Timestamptz(3)
+  providerAttemptedAt DateTime?       @map("provider_attempted_at") @db.Timestamptz(3)
+  sentByUserId        String?         @map("sent_by_user_id") @db.Uuid
+  failureReason       String?         @map("failure_reason")
+  createdAt           DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+  message             Message         @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  sentByUser          User?           @relation("ReactionSentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
+
+  @@unique([messageId, reactor])
+  @@index([providerMessageId])
+  @@map("message_reactions")
 }
 
 model MediaObject {

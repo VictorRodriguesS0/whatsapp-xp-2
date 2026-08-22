@@ -3,6 +3,8 @@ import type {
   MessageDirection,
   MessageStatus,
   MessageType,
+  ReactionReactor,
+  ReactionStatus,
 } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
 
@@ -97,8 +99,26 @@ export type MessageRecord = {
   sentByUser: ConversationUserRecord | null;
   status: MessageStatus;
   failureReason: string | null;
+  revokedAt: Date | null;
+  reactions: MessageReactionRecord[];
   externalTimestamp: Date;
   createdAt: Date;
+};
+
+export type MessageReactionRecord = {
+  id: string;
+  reactor: ReactionReactor;
+  emoji: string;
+  status: ReactionStatus;
+  sentByUser: ConversationUserRecord | null;
+};
+
+export type ReactionDto = {
+  id: string;
+  reactor: ReactionReactor;
+  emoji: string;
+  status: ReactionStatus;
+  sentBy: ResponsibleUserDto | null;
 };
 
 export type MessageDto = {
@@ -113,6 +133,8 @@ export type MessageDto = {
   sentBy: ResponsibleUserDto | null;
   status: MessageStatus;
   failureReason: string | null;
+  revokedAt: string | null;
+  reactions: ReactionDto[];
   externalTimestamp: string;
   createdAt: string;
 };

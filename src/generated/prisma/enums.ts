@@ -77,6 +77,24 @@ export const MessageOperationalState = {
 export type MessageOperationalState = (typeof MessageOperationalState)[keyof typeof MessageOperationalState]
 
 
+export const ReactionReactor = {
+  CONTACT: 'CONTACT',
+  BUSINESS: 'BUSINESS'
+} as const
+
+export type ReactionReactor = (typeof ReactionReactor)[keyof typeof ReactionReactor]
+
+
+export const ReactionStatus = {
+  PENDING: 'PENDING',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+  OUTCOME_UNKNOWN: 'OUTCOME_UNKNOWN'
+} as const
+
+export type ReactionStatus = (typeof ReactionStatus)[keyof typeof ReactionStatus]
+
+
 export const WebhookStatus = {
   PROCESSING: 'PROCESSING',
   PROCESSED: 'PROCESSED',

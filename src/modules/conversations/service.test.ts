@@ -71,6 +71,8 @@ function message(
         ? MessageStatus.RECEIVED
         : MessageStatus.SENT,
     failureReason: null,
+    revokedAt: null,
+    reactions: [],
     externalTimestamp,
     createdAt: externalTimestamp,
   };
@@ -802,5 +804,55 @@ describe("conversation service", () => {
 
     expect(repository.responsibleUpdates).toEqual([[conversationId, null]]);
     expect(result.responsible).toBeNull();
+  });
+
+  it("maps current reactions and revocation into message DTOs", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const timestamp = new Date("2026-08-22T12:00:00.000Z");
+    const target = message(
+      "20000000-0000-4000-8000-000000000001",
+      conversationId,
+      timestamp,
+    ) as MessageRecord & {
+      revokedAt: Date | null;
+      reactions: Array<{
+        id: string;
+        reactor: "CONTACT" | "BUSINESS";
+        emoji: string;
+        status: "SENT";
+        sentByUser: ConversationUserRecord | null;
+      }>;
+    };
+    target.revokedAt = new Date("2026-08-22T12:05:00.000Z");
+    target.reactions = [
+      {
+        id: "30000000-0000-4000-8000-000000000002",
+        reactor: "BUSINESS",
+        emoji: "❤️",
+        status: "SENT",
+        sentByUser: users[0]!,
+      },
+      {
+        id: "30000000-0000-4000-8000-000000000001",
+        reactor: "CONTACT",
+        emoji: "👍",
+        status: "SENT",
+        sentByUser: null,
+      },
+    ];
+    const repository = createRepository(
+      [conversation(conversationId, "Carlos", "1", timestamp, null, [target])],
+      [target],
+    );
+
+    const result = await getConversation(victor.id, conversationId, repository);
+
+    expect(result.messages[0]).toMatchObject({
+      revokedAt: "2026-08-22T12:05:00.000Z",
+      reactions: [
+        { reactor: "CONTACT", emoji: "👍", status: "SENT", sentBy: null },
+        { reactor: "BUSINESS", emoji: "❤️", status: "SENT", sentBy: { id: victor.id, name: victor.name } },
+      ],
+    });
   });
 });

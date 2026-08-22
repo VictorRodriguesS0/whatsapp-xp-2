@@ -47,6 +47,7 @@ const messageSelect = {
   mediaObjectId: true,
   status: true,
   failureReason: true,
+  revokedAt: true,
   externalTimestamp: true,
   createdAt: true,
   sentByUser: { select: userSelect },
@@ -56,6 +57,16 @@ const messageSelect = {
       downloadLeaseUntil: true,
       downloadNextAttemptAt: true,
       downloadAttempts: true,
+    },
+  },
+  reactions: {
+    orderBy: { reactor: "desc" },
+    select: {
+      id: true,
+      reactor: true,
+      emoji: true,
+      status: true,
+      sentByUser: { select: userSelect },
     },
   },
 } as const;
@@ -201,6 +212,21 @@ function toMessageDto(message: MessageRecord): MessageDto {
       : null,
     status: message.status,
     failureReason: message.failureReason,
+    revokedAt: message.revokedAt?.toISOString() ?? null,
+    reactions: [...message.reactions]
+      .sort((left, right) => (
+        (left.reactor === "CONTACT" ? 0 : 1) -
+        (right.reactor === "CONTACT" ? 0 : 1)
+      ))
+      .map((reaction) => ({
+        id: reaction.id,
+        reactor: reaction.reactor,
+        emoji: reaction.emoji,
+        status: reaction.status,
+        sentBy: reaction.sentByUser
+          ? { id: reaction.sentByUser.id, name: reaction.sentByUser.name }
+          : null,
+      })),
     externalTimestamp: message.externalTimestamp.toISOString(),
     createdAt: message.createdAt.toISOString(),
   };
