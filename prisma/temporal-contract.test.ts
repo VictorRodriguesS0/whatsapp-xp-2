@@ -1,6 +1,9 @@
 // @vitest-environment node
 
-import { readFile } from "node:fs/promises";
+import { execFile } from "node:child_process";
+import { readdir, readFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { promisify } from "node:util";
 
 import { Pool } from "pg";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
@@ -16,10 +19,16 @@ if (!testDatabaseUrl) {
 
 const connectionString: string = testDatabaseUrl;
 const pg = new Pool({ connectionString });
+const execFileAsync = promisify(execFile);
 
 const migrationDatabaseName = `xp_atendimento_shared_inbox_${process.pid}_test`;
 const contactMigrationDatabaseName = `xp_atendimento_contact_types_${process.pid}_test`;
+const deployDatabaseName = `xp_atendimento_migrate_deploy_${process.pid}_test`;
 const contactMigration = "202608210006_contact_classification";
+const projectRoot = fileURLToPath(new URL("../", import.meta.url));
+const prismaCli = fileURLToPath(
+  new URL("../node_modules/prisma/build/index.js", import.meta.url),
+);
 
 function connectionStringForDatabase(database: string): string {
   const url = new URL(connectionString);
@@ -43,6 +52,19 @@ async function resetContactClassification(): Promise<void> {
   if (tables.rows[0]?.tag_definitions) {
     await pg.query('DELETE FROM "contact_tag_definitions"');
   }
+}
+
+async function deployMigrations(databaseUrl: string): Promise<void> {
+  await execFileAsync(process.execPath, [prismaCli, "migrate", "deploy"], {
+    cwd: projectRoot,
+    env: {
+      ...process.env,
+      DATABASE_URL: databaseUrl,
+      TEST_DATABASE_URL: databaseUrl,
+    },
+    maxBuffer: 1024 * 1024,
+    timeout: 60_000,
+  });
 }
 
 describe("shared inbox temporal schema contract", () => {
@@ -135,6 +157,124 @@ describe("shared inbox temporal schema contract", () => {
     expect(sql).toMatch(
       /ON CONFLICT \("normalized_name"\) DO NOTHING/i,
     );
+    expect(sql).toContain(
+      `CONSTRAINT "contact_types_color_check" CHECK ("color" ~ '^#[0-9A-F]{6}$')`,
+    );
+    expect(sql).toContain(
+      `CONSTRAINT "contact_tag_definitions_color_check" CHECK ("color" ~ '^#[0-9A-F]{6}$')`,
+    );
+  });
+
+  it.each([
+    {
+      table: "contact_types",
+      constraint: "contact_types_color_check",
+    },
+    {
+      table: "contact_tag_definitions",
+      constraint: "contact_tag_definitions_color_check",
+    },
+  ])("rejects non-#RRGGBB colors in $table", async ({ table, constraint }) => {
+    for (const [index, color] of [
+      "123456",
+      "#12345",
+      "#12345G",
+      "#abcdef",
+      "#1234567",
+    ].entries()) {
+      await expect(
+        pg.query(
+          `
+            INSERT INTO "${table}" (
+              id, display_name, normalized_name, color, position, updated_at
+            ) VALUES ($1::uuid, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+          `,
+          [
+            `50000000-0000-4000-8000-00000000000${index + 1}`,
+            `Invalid color ${index}`,
+            `invalid-color-${index}`,
+            color,
+            index,
+          ],
+        ),
+      ).rejects.toMatchObject({ code: "23514", constraint });
+    }
+  });
+
+  it("keeps Prisma migrate deploy idempotent on a fresh dedicated database", async () => {
+    const admin = new Pool({
+      connectionString: connectionStringForDatabase("postgres"),
+    });
+    const deployDatabaseUrl = connectionStringForDatabase(deployDatabaseName);
+    let deployed: Pool | undefined;
+
+    try {
+      await admin.query(
+        `DROP DATABASE IF EXISTS "${deployDatabaseName}" WITH (FORCE)`,
+      );
+      await admin.query(`CREATE DATABASE "${deployDatabaseName}"`);
+
+      await deployMigrations(deployDatabaseUrl);
+      deployed = new Pool({ connectionString: deployDatabaseUrl });
+      const firstLedger = await deployed.query<{
+        migration_name: string;
+        checksum: string;
+        finished: boolean;
+        active: boolean;
+      }>(`
+        SELECT
+          migration_name,
+          checksum,
+          finished_at IS NOT NULL AS finished,
+          rolled_back_at IS NULL AS active
+        FROM _prisma_migrations
+        ORDER BY migration_name
+      `);
+
+      await deployMigrations(deployDatabaseUrl);
+      const secondLedger = await deployed.query<{
+        migration_name: string;
+        checksum: string;
+        finished: boolean;
+        active: boolean;
+      }>(`
+        SELECT
+          migration_name,
+          checksum,
+          finished_at IS NOT NULL AS finished,
+          rolled_back_at IS NULL AS active
+        FROM _prisma_migrations
+        ORDER BY migration_name
+      `);
+
+      const expectedMigrations = (
+        await readdir(new URL("./migrations/", import.meta.url), {
+          withFileTypes: true,
+        })
+      )
+        .filter((entry) => entry.isDirectory())
+        .map((entry) => entry.name)
+        .sort();
+      expect(firstLedger.rows.map(({ migration_name }) => migration_name)).toEqual(
+        expectedMigrations,
+      );
+      expect(firstLedger.rows.every(({ finished, active }) => finished && active)).toBe(
+        true,
+      );
+      expect(secondLedger.rows).toEqual(firstLedger.rows);
+    } finally {
+      try {
+        await deployed?.end();
+      } finally {
+        try {
+          await admin.query(
+            `DROP DATABASE IF EXISTS "${deployDatabaseName}" WITH (FORCE)`,
+          );
+        } finally {
+          await admin.end();
+        }
+      }
+    }
   });
 
   it("stores every contact-classification timestamp with timezone awareness", async () => {

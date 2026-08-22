@@ -9,6 +9,7 @@ CREATE TABLE "contact_types" (
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
+    CONSTRAINT "contact_types_color_check" CHECK ("color" ~ '^#[0-9A-F]{6}$'),
     CONSTRAINT "contact_types_pkey" PRIMARY KEY ("id")
 );
 
@@ -23,6 +24,7 @@ CREATE TABLE "contact_tag_definitions" (
     "created_at" TIMESTAMPTZ(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(3) NOT NULL,
 
+    CONSTRAINT "contact_tag_definitions_color_check" CHECK ("color" ~ '^#[0-9A-F]{6}$'),
     CONSTRAINT "contact_tag_definitions_pkey" PRIMARY KEY ("id")
 );
 

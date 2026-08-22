@@ -116,6 +116,7 @@ model ContactType {
   id             String    @id @default(uuid()) @db.Uuid
   displayName    String    @map("display_name")
   normalizedName String    @unique @map("normalized_name")
+  /// Stored as uppercase #RRGGBB; enforced by the database migration.
   color          String
   position       Int
   active         Boolean   @default(true)
@@ -131,6 +132,7 @@ model ContactTagDefinition {
   id             String                 @id @default(uuid()) @db.Uuid
   displayName    String                 @map("display_name")
   normalizedName String                 @unique @map("normalized_name")
+  /// Stored as uppercase #RRGGBB; enforced by the database migration.
   color          String
   position       Int
   active         Boolean                @default(true)

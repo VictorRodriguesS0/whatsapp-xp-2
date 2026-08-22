@@ -605,6 +605,9 @@ export type $ContactTypePayload<ExtArgs extends runtime.Types.Extensions.Interna
     id: string
     displayName: string
     normalizedName: string
+    /**
+     * Stored as uppercase #RRGGBB; enforced by the database migration.
+     */
     color: string
     position: number
     active: boolean
