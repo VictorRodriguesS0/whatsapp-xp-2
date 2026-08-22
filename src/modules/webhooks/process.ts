@@ -9,10 +9,8 @@ import {
   type MessageStatus as MessageStatusValue,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
-import {
-  messageContentForPrisma,
-  type MessageContent,
-} from "@/modules/messages/content";
+import type { MessageContent } from "@/modules/messages/content";
+import { messageContentForPrisma } from "@/modules/messages/content.server";
 import {
   compareBoundary,
   refreshResponseState,

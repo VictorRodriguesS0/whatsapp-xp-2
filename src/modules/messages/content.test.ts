@@ -1,6 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { describe, expect, it } from "vitest";
-import { messageContentForPrisma, parseMessageContent } from "./content";
+import { parseMessageContent } from "./content";
+import { messageContentForPrisma } from "./content.server";
 
 describe("parseMessageContent", () => {
   it("accepts a bounded location", () => {

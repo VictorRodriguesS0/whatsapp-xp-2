@@ -1,4 +1,3 @@
-import { Prisma } from "@/generated/prisma/client";
 import { z } from "zod";
 
 const short = z.string().min(1).max(256);
@@ -45,10 +44,4 @@ export type MessageContent = z.infer<typeof schema>;
 export function parseMessageContent(value: unknown): MessageContent | null {
   const result = schema.safeParse(value);
   return result.success ? result.data : null;
-}
-
-export function messageContentForPrisma(
-  content: MessageContent | null,
-): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput {
-  return content === null ? Prisma.DbNull : (content as Prisma.InputJsonValue);
 }
