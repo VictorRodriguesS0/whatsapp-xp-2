@@ -277,6 +277,39 @@ describe("MessageMedia", () => {
     expect(container.querySelector("audio")).toHaveAttribute("aria-label", "Reproduzir áudio");
   });
 
+  it("renders an available sticker from the authenticated route", () => {
+    render(
+      <MessageMedia
+        message={{
+          ...baseMessage,
+          type: "STICKER",
+          mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("img", { name: "Figurinha" })).toHaveAttribute(
+      "src",
+      `/api/media/${baseMessage.mediaObjectId}`,
+    );
+  });
+
+  it("uses sticker-specific pending and failed copy", () => {
+    const view = render(<MessageMedia message={{ ...baseMessage, type: "STICKER" }} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Baixando figurinha");
+    view.rerender(
+      <MessageMedia
+        message={{
+          ...baseMessage,
+          type: "STICKER",
+          mediaState: { status: "FAILED", nextAttemptAt: null, canRetry: false },
+        }}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Figurinha indisponível");
+  });
+
   it("uses a pending recovery response to schedule the next bounded attempt", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));

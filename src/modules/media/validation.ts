@@ -24,6 +24,7 @@ type MediaRule = {
 const detectedMimeAliases: Readonly<Record<string, readonly string[]>> = {
   "image/jpeg": ["image/jpeg"],
   "image/png": ["image/png"],
+  "image/webp": ["image/webp"],
   "audio/aac": ["audio/aac"],
   "audio/mpeg": ["audio/mpeg"],
   "audio/amr": ["audio/amr"],
@@ -42,6 +43,9 @@ const prefix = (expected: readonly number[]) => (bytes: Uint8Array) =>
   expected.every((value, index) => bytes[index] === value);
 const asciiPrefix = (expected: string) => (bytes: Uint8Array) =>
   prefix([...Buffer.from(expected, "ascii")])(bytes);
+const isWebp = (bytes: Uint8Array) =>
+  bytes.byteLength >= 12 && asciiPrefix("RIFF")(bytes) &&
+  Buffer.from(bytes.subarray(8, 12)).toString("ascii") === "WEBP";
 const containsAscii = (expected: string, maximum = 64) => (bytes: Uint8Array) =>
   Buffer.from(bytes.subarray(0, maximum)).includes(Buffer.from(expected, "ascii"));
 const isIsoBaseMedia = (bytes: Uint8Array) =>
@@ -61,6 +65,7 @@ const isZip = prefix([0x50, 0x4b, 0x03, 0x04]);
 const rules: Readonly<Record<string, MediaRule>> = {
   "image/jpeg": { kind: "image", maximumBytes: IMAGE_MAX_BYTES, extensions: [".jpg", ".jpeg"], signature: prefix([0xff, 0xd8, 0xff]) },
   "image/png": { kind: "image", maximumBytes: IMAGE_MAX_BYTES, extensions: [".png"], signature: prefix([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) },
+  "image/webp": { kind: "image", maximumBytes: IMAGE_MAX_BYTES, extensions: [".webp"], signature: isWebp },
   "audio/aac": { kind: "audio", maximumBytes: AUDIO_MAX_BYTES, extensions: [".aac"], signature: (bytes) => bytes[0] === 0xff && (bytes[1]! & 0xf6) === 0xf0 },
   "audio/mp4": { kind: "audio", maximumBytes: AUDIO_MAX_BYTES, extensions: [".m4a", ".mp4"], signature: isIsoBaseMedia },
   "audio/mpeg": { kind: "audio", maximumBytes: AUDIO_MAX_BYTES, extensions: [".mp3"], signature: (bytes) => asciiPrefix("ID3")(bytes) || (bytes[0] === 0xff && (bytes[1]! & 0xe0) === 0xe0) },

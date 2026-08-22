@@ -103,6 +103,7 @@ afterEach(async () => Promise.all(tempRoots.splice(0).map((root) => rm(root, { r
 const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
 const png = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const pdf = new TextEncoder().encode("%PDF-1.7\n");
+const webp = Uint8Array.from(Buffer.from("RIFF\u0010\u0000\u0000\u0000WEBPVP8 ", "binary"));
 
 describe("media validation", () => {
   it("canonicalizes an allowlisted MIME type that includes valid parameters", () => {
@@ -130,6 +131,23 @@ describe("media validation", () => {
     bytes.set(jpeg);
     expect(validateMedia({ mimeType: "image/jpeg", filename: "foto.jpeg", bytes }).sizeBytes)
       .toBe(BigInt(IMAGE_MAX_BYTES));
+  });
+
+  it("accepts a signed WEBP sticker within the image limit", () => {
+    expect(validateMedia({ mimeType: "image/webp", filename: "sticker.webp", bytes: webp })).toMatchObject({
+      mimeType: "image/webp",
+      kind: "image",
+    });
+  });
+
+  it("requires a WEBP detected MIME after download", async () => {
+    const webpPath = await tempFile("sticker.webp", webp);
+    const pngPath = await tempFile("not-a-sticker.webp", png);
+
+    await expect(validateMediaFile({ path: webpPath, mimeType: "image/webp", filename: "sticker.webp" }))
+      .resolves.toMatchObject({ mimeType: "image/webp", kind: "image" });
+    await expect(validateMediaFile({ path: pngPath, mimeType: "image/webp", filename: "not-a-sticker.webp" }))
+      .rejects.toBeInstanceOf(MediaValidationError);
   });
 
   it("rejects a document one byte above its exact limit", () => {

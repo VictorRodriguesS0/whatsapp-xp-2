@@ -23,6 +23,7 @@ const mediaNames = {
   AUDIO: "áudio",
   VIDEO: "vídeo",
   DOCUMENT: "documento",
+  STICKER: "figurinha",
 } as const;
 
 function isMediaMessageType(
@@ -278,6 +279,10 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
 
   if (message.type === "IMAGE") {
     return <span className="block" ref={(element) => { reconciledFocusTarget.current = element; }} tabIndex={-1}><Image alt={message.body || message.localFileName || "Imagem da conversa"} className="max-h-80 h-auto w-auto max-w-full rounded-md object-contain" height={480} src={source} unoptimized width={640} /></span>;
+  }
+  if (message.type === "STICKER") {
+    // eslint-disable-next-line @next/next/no-img-element -- Native img preserves animated WEBP sticker frames without image transformation.
+    return <img alt="Figurinha" className="h-auto max-h-48 w-auto max-w-48 object-contain" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} tabIndex={-1} />;
   }
   if (message.type === "AUDIO") return <audio aria-label="Reproduzir áudio" className="max-w-full" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
   if (message.type === "VIDEO") return <video aria-label={message.body || "Vídeo da conversa"} className="max-h-80 max-w-full rounded-md" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
