@@ -94,4 +94,29 @@ describe("realtime hub", () => {
     expect(removeEventListener).toHaveBeenCalledWith("abort", abortListener);
     expect(realtimeSubscriberCount()).toBe(0);
   });
+
+  it.each([
+    [{ type: "contact.updated", contactId: "contact-1" }, '{"type":"contact.updated","contactId":"contact-1"}'],
+    [{ type: "settings.updated", scope: "contact-types" }, '{"type":"settings.updated","scope":"contact-types"}'],
+    [{ type: "settings.updated", scope: "contact-tags" }, '{"type":"settings.updated","scope":"contact-tags"}'],
+  ] as const)("publishes the safe invalidation %o", async (event, payload) => {
+    const controller = new AbortController();
+    const reader = subscribeRealtime(controller.signal).getReader();
+    await reader.read();
+
+    publishRealtime(event);
+
+    expect(new TextDecoder().decode((await reader.read()).value)).toBe(
+      `event: update\ndata: ${payload}\n\n`,
+    );
+    controller.abort();
+  });
+
+  it.each([
+    { type: "contact.updated", contactId: "contact-1", phone: "5511999999999" },
+    { type: "settings.updated", scope: "contact-tags", displayName: "VIP" },
+    { type: "settings.updated", scope: "contact-types", providerPayload: { secret: true } },
+  ])("rejects realtime invalidations with extra PII or payload fields", (event) => {
+    expect(() => publishRealtime(event as never)).toThrow();
+  });
 });

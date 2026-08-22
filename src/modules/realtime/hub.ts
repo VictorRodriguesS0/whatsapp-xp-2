@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { RealtimeEvent } from "./events";
+import { realtimeEventSchema, type RealtimeEvent } from "./events";
 
 const HEARTBEAT_INTERVAL_MS = 20_000;
 const encoder = new TextEncoder();
@@ -33,7 +33,8 @@ function removeSubscriber(subscriber: Subscriber): void {
 }
 
 export function publishRealtime(event: RealtimeEvent): void {
-  const payload = frame(`event: update\ndata: ${JSON.stringify(event)}\n\n`);
+  const validatedEvent = realtimeEventSchema.parse(event);
+  const payload = frame(`event: update\ndata: ${JSON.stringify(validatedEvent)}\n\n`);
 
   for (const subscriber of getHub().subscribers) {
     try {
@@ -43,7 +44,10 @@ export function publishRealtime(event: RealtimeEvent): void {
       continue;
     }
 
-    if (event.type === "user.updated" && subscriber.userId === event.userId) {
+    if (
+      validatedEvent.type === "user.updated" &&
+      subscriber.userId === validatedEvent.userId
+    ) {
       subscriber.close();
     }
   }
