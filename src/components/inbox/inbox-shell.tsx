@@ -1,6 +1,7 @@
 "use client";
 
-import { LogOut, Search, Settings } from "lucide-react";
+import { LogOut, Search, Settings, Tags } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ function afterPaint(callback: () => void) {
 }
 
 export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
+  const router = useRouter();
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -68,11 +70,8 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   useEffect(() => () => cancelScheduledFocus.current?.(), []);
 
   async function logout() {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } finally {
-      window.location.assign("/login");
-    }
+    try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* internal navigation remains available */ }
+    try { await Promise.resolve(router.replace("/login")); } catch { /* navigation cancellation is non-fatal */ }
   }
 
   return (
@@ -85,7 +84,12 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               <div className="flex min-h-11 items-center justify-between gap-3">
                 <div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">XP Eletrônicos</p><h1 className="text-lg font-bold tracking-tight text-[var(--text)]">Atendimento</h1></div>
                 <div className="flex">
-                  {initialUser.role === "ADMIN" ? <Button asChild aria-label="Configurar usuários" size="icon" variant="ghost"><a href="/configuracoes/usuarios"><Settings aria-hidden="true" className="size-4" /></a></Button> : null}
+                  {initialUser.role === "ADMIN" ? (
+                    <>
+                      <Button asChild aria-label="Configurar classificações" size="icon" variant="ghost"><a href="/configuracoes/atendimento"><Tags aria-hidden="true" className="size-4" /></a></Button>
+                      <Button asChild aria-label="Configurar usuários" size="icon" variant="ghost"><a href="/configuracoes/usuarios"><Settings aria-hidden="true" className="size-4" /></a></Button>
+                    </>
+                  ) : null}
                   <Button aria-label="Sair" onClick={() => void logout()} size="icon" variant="ghost"><LogOut aria-hidden="true" className="size-4" /></Button>
                 </div>
               </div>

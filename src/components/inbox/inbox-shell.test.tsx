@@ -7,6 +7,7 @@ import type { SessionUser } from "@/modules/auth/session";
 import { InboxShell } from "./inbox-shell";
 
 const useInboxMock = vi.hoisted(() => vi.fn());
+const routerReplaceMock = vi.hoisted(() => vi.fn());
 const audioRecorder = vi.hoisted(() => ({
   phase: "idle",
   supported: true,
@@ -26,6 +27,7 @@ const audioRecorder = vi.hoisted(() => ({
 
 vi.mock("@/hooks/use-inbox", () => ({ useInbox: useInboxMock }));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => audioRecorder) }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
 
 const defaultInbox = {
   conversations: [{
@@ -74,6 +76,27 @@ describe("InboxShell", () => {
     audioRecorder.phase = "idle";
     audioRecorder.recording = null;
     useInboxMock.mockReturnValue(defaultInbox);
+    routerReplaceMock.mockReset();
+  });
+
+  it("shows both admin settings actions only to administrators", () => {
+    const { rerender } = render(<InboxShell initialUser={user} />);
+    expect(screen.queryByRole("link", { name: "Configurar classificações" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Configurar usuários" })).not.toBeInTheDocument();
+
+    rerender(<InboxShell initialUser={{ ...user, role: "ADMIN" }} />);
+    expect(screen.getByRole("link", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
+    expect(screen.getByRole("link", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
+  });
+
+  it("uses the app router for logout and handles rejected logout and navigation promises", async () => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
+    routerReplaceMock.mockRejectedValue(new Error("navigation cancelled"));
+    render(<InboxShell initialUser={user} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sair" }));
+
+    await waitFor(() => expect(routerReplaceMock).toHaveBeenCalledWith("/login"));
   });
 
   it("labels the main regions and keeps customer context available", () => {
