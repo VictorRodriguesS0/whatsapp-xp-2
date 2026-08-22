@@ -383,6 +383,24 @@ describe("contact classification service", () => {
     expect(inactiveRepository.assignmentTagIds).toEqual([tagId]);
   });
 
+  it.each([
+    [secondTagId, "30000000-0000-4000-8000-000000000003"],
+    ["30000000-0000-4000-8000-000000000003", secondTagId],
+  ])("maps a mixed inactive/missing tag set to 404 independent of order", async (...tagIds) => {
+    const repository = createRepository({
+      tags: [
+        definition(tagId, "VIP"),
+        definition(secondTagId, "Retorno", { active: false }),
+      ],
+      assignmentTagIds: [tagId],
+    });
+
+    await expect(
+      replaceContactTags(attendant, contactId, tagIds, repository),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(repository.assignmentTagIds).toEqual([tagId]);
+  });
+
   it("rejects case-insensitive duplicate tag UUIDs before opening a transaction", async () => {
     const repository = createRepository({
       tags: [definition(tagId, "VIP")],

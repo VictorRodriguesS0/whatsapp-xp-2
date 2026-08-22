@@ -295,11 +295,12 @@ export async function replaceContactTags(
     const activeTags = await transaction.findActiveContactTags(parsedTagIds);
     if (activeTags.length !== parsedTagIds.length) {
       const activeTagIds = new Set(activeTags.map(({ id }) => id));
-      const unavailableId = parsedTagIds.find((id) => !activeTagIds.has(id));
-      const unavailableTag = unavailableId
-        ? await transaction.findContactTag(unavailableId)
-        : null;
-      if (!unavailableTag) throw new HttpError(404, "Etiqueta não encontrada");
+      const unavailableIds = parsedTagIds.filter((id) => !activeTagIds.has(id));
+      for (const unavailableId of unavailableIds) {
+        if (!(await transaction.findContactTag(unavailableId))) {
+          throw new HttpError(404, "Etiqueta não encontrada");
+        }
+      }
       throw new HttpError(400, "Etiqueta indisponível");
     }
 
