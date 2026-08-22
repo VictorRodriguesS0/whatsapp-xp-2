@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionUser } from "@/modules/auth/session";
 
@@ -29,6 +29,14 @@ vi.mock("@/hooks/use-inbox", () => ({ useInbox: useInboxMock }));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => audioRecorder) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
 
+const availableType = {
+  id: "type-id",
+  displayName: "Cliente",
+  color: "#176B52",
+  position: 10,
+  active: true,
+};
+
 const defaultInbox = {
   conversations: [{
       id: "conversation-id",
@@ -52,6 +60,7 @@ const defaultInbox = {
   }],
   conversation: null,
   users: [],
+  contactTypes: [availableType],
   contactTags: [],
   selectedId: null,
   search: "",
@@ -61,6 +70,10 @@ const defaultInbox = {
   loadMoreError: null,
   nextCursor: null,
   responsiblePending: false,
+  contactTypesLoading: false,
+  contactTypesError: null,
+  contactTypeSavePendingId: null,
+  contactTypeSaveError: null,
   contactTagsLoading: false,
   contactTagsError: null,
   contactTagSavePendingId: null,
@@ -73,6 +86,7 @@ const defaultInbox = {
   closeConversation: vi.fn(),
   refreshList: vi.fn(),
   refreshConversation: vi.fn(),
+  loadContactTypes: vi.fn(),
   loadContactTags: vi.fn(),
   loadMore: vi.fn(),
   sendText: vi.fn(),
@@ -84,12 +98,22 @@ const defaultInbox = {
   markUnreadPending: false,
   markUnreadError: null,
   setResponsible: vi.fn(),
+  setContactType: vi.fn().mockResolvedValue(true),
   replaceContactTags: vi.fn().mockResolvedValue(true),
 };
 
 const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT" };
 
 describe("InboxShell", () => {
+  beforeAll(() => {
+    Object.defineProperties(HTMLElement.prototype, {
+      hasPointerCapture: { configurable: true, value: () => false },
+      releasePointerCapture: { configurable: true, value: () => undefined },
+      scrollIntoView: { configurable: true, value: () => undefined },
+      setPointerCapture: { configurable: true, value: () => undefined },
+    });
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     window.history.replaceState(null, "", window.location.href);
@@ -335,6 +359,42 @@ describe("InboxShell", () => {
     const panel = screen.getByRole("complementary", { name: "Dados do cliente" });
     expect(within(panel).getAllByText("Responsável atual")).not.toHaveLength(0);
     expect(within(panel).queryByText("Sem responsável")).not.toBeInTheDocument();
+  });
+
+  it("wires contact type changes in desktop and mobile customer panels", async () => {
+    const userEventController = userEvent.setup();
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 719px)",
+    })));
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+
+    const desktopPanel = screen.getByRole("complementary", { name: "Dados do cliente" });
+    await userEventController.click(
+      within(desktopPanel).getByRole("combobox", { name: "Tipo de contato" }),
+    );
+    await userEventController.click(screen.getByRole("option", { name: "Cliente" }));
+    expect(defaultInbox.setContactType).toHaveBeenCalledWith("contact-id", "type-id");
+
+    await userEventController.click(screen.getByRole("button", { name: "Abrir dados do cliente" }));
+    const dialog = await screen.findByRole("dialog", { name: "Dados do cliente" });
+    await userEventController.click(
+      within(dialog).getByRole("combobox", { name: "Tipo de contato" }),
+    );
+    await userEventController.click(screen.getByRole("option", { name: "Cliente" }));
+    expect(defaultInbox.setContactType).toHaveBeenCalledTimes(2);
+    vi.unstubAllGlobals();
   });
 
   it("routes a voice preview through the selected conversation", async () => {

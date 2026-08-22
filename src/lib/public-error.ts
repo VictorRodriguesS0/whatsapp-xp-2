@@ -7,6 +7,8 @@ export type PublicErrorOperation =
   | "retry"
   | "responsible"
   | "unread"
+  | "contact-types"
+  | "contact-type-save"
   | "contact-tags"
   | "contact-tag-save";
 
@@ -19,6 +21,8 @@ const fallback: Record<PublicErrorOperation, string> = {
   retry: "Não foi possível reenviar a mensagem.",
   responsible: "Não foi possível alterar o responsável.",
   unread: "Não foi possível marcar como não lida.",
+  "contact-types": "Não foi possível carregar os tipos de contato.",
+  "contact-type-save": "Não foi possível atualizar o tipo de contato.",
   "contact-tags": "Não foi possível carregar as etiquetas.",
   "contact-tag-save": "Não foi possível salvar as etiquetas.",
 };
