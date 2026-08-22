@@ -54,14 +54,15 @@ function preview(item: ConversationListItem) {
   if (mediaName && item.latestMessage.mediaState?.status === "PENDING") return `Baixando ${mediaName}`;
   if (mediaName && item.latestMessage.mediaState?.status === "FAILED") return `${mediaName[0].toUpperCase()}${mediaName.slice(1)} indisponível`;
   if (item.latestMessage.body) return item.latestMessage.body;
-  return {
+  const fallbackPreviews: Partial<Record<LatestMessageType, string>> = {
     IMAGE: "Imagem",
     AUDIO: "Áudio",
     VIDEO: "Vídeo",
     DOCUMENT: "Documento",
     UNSUPPORTED: "Mensagem não compatível",
     TEXT: "Mensagem",
-  }[item.latestMessage.type];
+  };
+  return fallbackPreviews[item.latestMessage.type] ?? "Mensagem não compatível";
 }
 
 export function ConversationList({

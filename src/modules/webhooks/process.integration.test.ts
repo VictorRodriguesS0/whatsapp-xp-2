@@ -50,6 +50,7 @@ function echoEvent(
     timestampRaw: String(timestamp.getTime() / 1000),
     type: options.media ? MessageType.IMAGE : MessageType.TEXT,
     body: options.body === undefined ? "echo body" : options.body,
+    content: null,
     media: options.media ?? null,
     origin: "WHATSAPP_BUSINESS_APP",
   };
@@ -69,6 +70,7 @@ function inboundEvent(
     timestampRaw: String(timestamp.getTime() / 1000),
     type: MessageType.TEXT,
     body: "inbound body",
+    content: null,
     media: null,
   };
 }

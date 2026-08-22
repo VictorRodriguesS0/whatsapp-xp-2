@@ -388,6 +388,72 @@ function normalizeInteractive(
   });
 }
 
+function exactBoundedProviderString(
+  value: unknown,
+  maximumLength: number,
+): string | null {
+  const cleaned = strictCleanString(value, maximumLength);
+  return cleaned === value ? cleaned : null;
+}
+
+function validOrderProductItem(value: unknown): boolean {
+  const item = record(value);
+
+  if (!item) {
+    return false;
+  }
+
+  const productRetailerId = exactBoundedProviderString(
+    item.product_retailer_id,
+    256,
+  );
+  const hasRetailerId = hasOwn(item, "retailer_id");
+  const retailerId = hasRetailerId
+    ? exactBoundedProviderString(item.retailer_id, 256)
+    : null;
+
+  if (!productRetailerId || (hasRetailerId && !retailerId)) {
+    return false;
+  }
+
+  if (
+    typeof item.quantity !== "string" ||
+    !/^[1-9]\d{0,3}$/.test(item.quantity)
+  ) {
+    return false;
+  }
+
+  const quantity = Number(item.quantity);
+
+  if (!Number.isSafeInteger(quantity) || quantity > 1_000) {
+    return false;
+  }
+
+  const hasItemPrice = hasOwn(item, "item_price");
+  const hasCurrency = hasOwn(item, "currency");
+
+  if (hasItemPrice !== hasCurrency) {
+    return false;
+  }
+
+  if (!hasItemPrice) {
+    return true;
+  }
+
+  const itemPrice = exactBoundedProviderString(item.item_price, 64);
+  const currency = exactBoundedProviderString(item.currency, 3);
+  const numericItemPrice = itemPrice === null ? Number.NaN : Number(itemPrice);
+
+  return Boolean(
+    itemPrice &&
+      /^(?:0|[1-9]\d*)(?:\.\d+)?$/.test(itemPrice) &&
+      Number.isFinite(numericItemPrice) &&
+      numericItemPrice <= Number.MAX_SAFE_INTEGER &&
+      currency &&
+      /^[A-Z]{3}$/.test(currency),
+  );
+}
+
 function normalizeOrder(message: UnknownRecord): MessageContent | null {
   const order = record(message.order);
 
@@ -397,7 +463,10 @@ function normalizeOrder(message: UnknownRecord): MessageContent | null {
 
   const catalogId = optionalStrictString(order.catalog_id, 256);
 
-  if (!catalogId.valid) {
+  if (
+    !catalogId.valid ||
+    !order.product_items.every(validOrderProductItem)
+  ) {
     return null;
   }
 
@@ -454,7 +523,7 @@ function normalizeMessage(
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const from = whatsappUserId(message?.from);
-  const rawType = cleanString(message?.type, 64);
+  const rawType = exactBoundedProviderString(message?.type, 64);
   const parsedTimestamp = parseTimestamp(message?.timestamp);
 
   if (!message || !whatsappMessageId || !from || !rawType || !parsedTimestamp) {
@@ -530,7 +599,7 @@ function normalizeMessageEcho(
   const toParentUserId = hasParentUserId
     ? parentBusinessScopedUserId(message?.to_parent_user_id)
     : null;
-  const rawType = strictCleanString(message?.type, 64);
+  const rawType = exactBoundedProviderString(message?.type, 64);
   const parsedTimestamp = parseTimestamp(message?.timestamp);
 
   if (

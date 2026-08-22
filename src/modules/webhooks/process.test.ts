@@ -267,6 +267,7 @@ describe("webhook event processing", () => {
       timestampRaw: "1787313600",
       type: "TEXT",
       body: "synthetic echo",
+      content: null,
       media: null,
       origin: "WHATSAPP_BUSINESS_APP",
     } satisfies NormalizedMessageEchoEvent;

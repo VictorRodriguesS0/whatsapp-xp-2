@@ -95,6 +95,13 @@ function messageEchoControlFixture(action: "edit" | "revoke") {
   return payload;
 }
 
+function orderFixtureWithProductItems(productItems: unknown[]) {
+  const payload = structuredClone(inboundOrderFixture) as Record<string, any>;
+  payload.entry[0].changes[0].value.messages[0].order.product_items =
+    productItems;
+  return payload;
+}
+
 describe("Meta webhook normalization", () => {
   it.each([
     null,
@@ -298,6 +305,90 @@ describe("Meta webhook normalization", () => {
     expect(normalizeWebhook(inboundSystemFixture)[0]).not.toHaveProperty(
       "content.wa_id",
     );
+  });
+
+  it.each([
+    ["a non-object item", null],
+    [
+      "a missing product retailer ID",
+      { quantity: "1", item_price: "99.90", currency: "BRL" },
+    ],
+    [
+      "an empty product retailer ID",
+      {
+        product_retailer_id: "",
+        quantity: "1",
+        item_price: "99.90",
+        currency: "BRL",
+      },
+    ],
+    [
+      "an overlong product retailer ID",
+      {
+        product_retailer_id: "x".repeat(257),
+        quantity: "1",
+        item_price: "99.90",
+        currency: "BRL",
+      },
+    ],
+    [
+      "an invalid optional retailer ID",
+      {
+        retailer_id: "",
+        product_retailer_id: "sku-1",
+        quantity: "1",
+        item_price: "99.90",
+        currency: "BRL",
+      },
+    ],
+    [
+      "a fractional quantity",
+      {
+        product_retailer_id: "sku-1",
+        quantity: "1.5",
+        item_price: "99.90",
+        currency: "BRL",
+      },
+    ],
+    [
+      "a zero quantity",
+      {
+        product_retailer_id: "sku-1",
+        quantity: "0",
+        item_price: "99.90",
+        currency: "BRL",
+      },
+    ],
+    [
+      "an excessive quantity",
+      {
+        product_retailer_id: "sku-1",
+        quantity: "1001",
+        item_price: "99.90",
+        currency: "BRL",
+      },
+    ],
+    [
+      "a non-numeric item price",
+      {
+        product_retailer_id: "sku-1",
+        quantity: "1",
+        item_price: "free",
+        currency: "BRL",
+      },
+    ],
+    [
+      "an invalid currency",
+      {
+        product_retailer_id: "sku-1",
+        quantity: "1",
+        item_price: "99.90",
+        currency: "",
+      },
+    ],
+  ])("rejects an order containing %s", (_name, item) => {
+    expect(() => normalizeWebhook(orderFixtureWithProductItems([item])))
+      .toThrow(WebhookPayloadError);
   });
 
   it("records an unknown inbound message type as unsupported", () => {
@@ -583,6 +674,9 @@ describe("Meta webhook normalization", () => {
     ["timestamp", undefined],
     ["timestamp", "not-an-epoch"],
     ["timestamp", "9".repeat(16)],
+    ["type", " text"],
+    ["type", "text "],
+    ["type", "te\u0000xt"],
   ])("rejects an app echo with invalid required %s metadata", (field, value) => {
     const payload = messageEchoFixture() as Record<string, any>;
     payload.entry[0].changes[0].value.message_echoes[0][field] = value;
@@ -719,6 +813,16 @@ describe("Meta webhook normalization", () => {
 
     expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
+
+  it.each([" text", "text ", "te\u0000xt", "x".repeat(65)])(
+    "rejects a non-exact inbound message type discriminator: %j",
+    (type) => {
+      const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+      payload.entry[0].changes[0].value.messages[0].type = type;
+
+      expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+    },
+  );
 
   it.each([undefined, 42, "\u0000"])(
     "rejects an invalid required text body: %s",

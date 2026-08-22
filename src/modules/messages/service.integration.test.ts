@@ -117,6 +117,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         timestampRaw: String(firstInbound.getTime() / 1_000),
         type: MessageType.TEXT,
         body: "Primeira mensagem",
+        content: null,
         media: null,
       },
     ]);
@@ -130,6 +131,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         timestampRaw: String(secondInbound.getTime() / 1_000),
         type: MessageType.TEXT,
         body: "Segunda mensagem",
+        content: null,
         media: null,
       },
     ]);
@@ -157,6 +159,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         timestampRaw: String(firstPersistedInbound.getTime() / 1_000),
         type: MessageType.TEXT,
         body: "Mensagem recebida primeiro",
+        content: null,
         media: null,
       },
     ]);
@@ -170,6 +173,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         timestampRaw: String(delayedInbound.getTime() / 1_000),
         type: MessageType.TEXT,
         body: "Mensagem atrasada",
+        content: null,
         media: null,
       },
     ]);
@@ -206,6 +210,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           timestampRaw: String(timestamp.getTime() / 1_000),
           type: MessageType.TEXT,
           body: "Mensagem inbound",
+          content: null,
           media: null,
         },
       ]);
@@ -221,6 +226,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         timestampRaw: String(delayedOutbound.getTime() / 1_000),
         type: MessageType.TEXT,
         body: "Resposta atrasada",
+        content: null,
         media: null,
         origin: "WHATSAPP_BUSINESS_APP",
       },
@@ -324,6 +330,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         timestampRaw: String(delayedInbound.getTime() / 1_000),
         type: MessageType.TEXT,
         body: "Mensagem atrasada",
+        content: null,
         media: null,
       },
     ]);
@@ -383,6 +390,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           timestampRaw: String(laterInbound.getTime() / 1_000),
           type: MessageType.TEXT,
           body: "Mensagem concorrente posterior",
+          content: null,
           media: null,
         },
       ]);

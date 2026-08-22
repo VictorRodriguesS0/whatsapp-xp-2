@@ -25,6 +25,12 @@ const mediaNames = {
   DOCUMENT: "documento",
 } as const;
 
+function isMediaMessageType(
+  type: InboxMessage["type"],
+): type is keyof typeof mediaNames {
+  return type in mediaNames;
+}
+
 function mediaStateKey(state: MediaStateDto | null) {
   return state ? `${state.status}:${state.nextAttemptAt ?? "none"}:${state.canRetry}` : "none";
 }
@@ -194,6 +200,7 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
   if (message.type === "UNSUPPORTED") {
     return <p className="text-sm italic text-[var(--muted)]">Tipo de mensagem não compatível.</p>;
   }
+  if (!isMediaMessageType(message.type)) return null;
 
   const mediaName = mediaNames[message.type];
   const automaticRecoveryFailed = automaticError?.identity === mediaIdentity &&
