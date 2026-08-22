@@ -13,6 +13,7 @@ import type {
   MessageDto,
   SharedConversationStateDto,
 } from "@/modules/conversations/types";
+import type { MessageContextDto } from "@/modules/message-search/types";
 import type { ContactDto as UpdatedContactDto } from "@/modules/contacts/types";
 import type { RealtimeEvent } from "@/modules/realtime/events";
 
@@ -142,6 +143,14 @@ function appendConversationPage(current: ConversationListItem[], incoming: Conve
     if (!existingIds.has(item.id)) merged.push(item);
   }
   return merged;
+}
+
+function mergeContextMessages(current: InboxMessage[], incoming: InboxMessage[]) {
+  const messages = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) messages.set(message.id, { ...messages.get(message.id), ...message });
+  return [...messages.values()].sort((left, right) => (
+    left.externalTimestamp.localeCompare(right.externalTimestamp) || left.id.localeCompare(right.id)
+  ));
 }
 
 function mergeRefreshedPage(firstPage: ConversationListItem[], current: ConversationListItem[]) {
@@ -581,6 +590,30 @@ export function useInbox(initialUser: SessionUser) {
     lastReadRequest.current = null;
     await fetchConversation(id, true);
   }, [fetchConversation]);
+
+  const loadMessageContext = useCallback(async (conversationId: string, messageId: string) => {
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/context`,
+        { headers: { Accept: "application/json" } },
+      );
+      const context = await readEnvelope<MessageContextDto>(response);
+      if (selectedIdRef.current !== conversationId) return null;
+      setConversation((current) => current?.id === conversationId
+        ? { ...current, messages: mergeContextMessages(current.messages, context.messages) }
+        : current);
+      return context;
+    } catch (error) {
+      if (selectedIdRef.current === conversationId) {
+        setConversationErrorState({
+          conversationId,
+          operation: "conversation",
+          message: publicErrorMessage("conversation", errorStatus(error)),
+        });
+      }
+      return null;
+    }
+  }, []);
 
   const closeConversation = useCallback(() => {
     selectedIdRef.current = null;
@@ -1164,6 +1197,7 @@ export function useInbox(initialUser: SessionUser) {
     connected: realtime.connected,
     setSearch: changeSearch,
     openConversation,
+    loadMessageContext,
     closeConversation,
     refreshList,
     loadMore,

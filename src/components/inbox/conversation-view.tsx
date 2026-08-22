@@ -1,15 +1,17 @@
 "use client";
 
 import { ArrowLeft, CircleDot, Info, LoaderCircle } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
+import type { MessageSearchResultDto } from "@/modules/message-search/types";
 
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
+import { ConversationMessageSearch } from "./conversation-message-search";
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -26,6 +28,8 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
+const messageUuidPattern = /^[0-9a-f-]{36}$/iu;
+
 function ConversationHeader({
   conversation,
   detailsTriggerRef,
@@ -34,6 +38,7 @@ function ConversationHeader({
   onBack,
   onMarkUnread,
   onOpenDetails,
+  onSearchTarget,
 }: {
   conversation: InboxConversation | null;
   detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
@@ -42,6 +47,7 @@ function ConversationHeader({
   onBack: () => void;
   onMarkUnread?: (conversationId: string) => Promise<unknown>;
   onOpenDetails: () => void;
+  onSearchTarget?: (result: MessageSearchResultDto) => void;
 }) {
   async function handleMarkUnread(action: HTMLButtonElement) {
     if (!conversation || !onMarkUnread) return;
@@ -59,7 +65,7 @@ function ConversationHeader({
     : null;
 
   return (
-    <header className="flex min-h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
+    <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
       <Button aria-label="Voltar para conversas" className="mobile-back" onClick={onBack} size="icon" variant="ghost"><ArrowLeft aria-hidden="true" className="size-5" /></Button>
       {conversation ? (
         <>
@@ -88,6 +94,7 @@ function ConversationHeader({
       <Button asChild aria-label="Abrir dados do cliente" className="details-trigger" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost">
         <button ref={detailsTriggerRef} type="button"><Info aria-hidden="true" className="size-5" /></button>
       </Button>
+      {conversation && onSearchTarget ? <ConversationMessageSearch conversationId={conversation.id} onTarget={onSearchTarget} /> : null}
     </header>
   );
 }
@@ -108,6 +115,9 @@ export function ConversationView({
   onSendMedia,
   onSendRecording,
   onRetryMessage,
+  searchTargetMessageId = null,
+  onSearchTarget,
+  onSearchTargetHandled,
 }: {
   conversation: InboxConversation | null;
   detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
@@ -124,6 +134,9 @@ export function ConversationView({
   onSendMedia: (file: File, caption: string) => Promise<unknown>;
   onSendRecording: (file: File, clientRequestId: string) => Promise<unknown>;
   onRetryMessage: (id: string) => void;
+  searchTargetMessageId?: string | null;
+  onSearchTarget?: (result: MessageSearchResultDto) => void;
+  onSearchTargetHandled?: () => void;
 }) {
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
@@ -133,6 +146,7 @@ export function ConversationView({
   const latestMessageId = conversation ? lastConfirmedMessageId(conversation.messages) : null;
   const latestMessageIdRef = useRef(latestMessageId);
   const reportedMessageId = useRef<string | null>(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
 
   visibleMessageCallback.current = onVisibleMessage;
   latestMessageIdRef.current = latestMessageId;
@@ -180,6 +194,26 @@ export function ConversationView({
     previousMessageCount.current = conversation.messages.length;
   }, [conversation, latestMessageId]);
 
+  useEffect(() => {
+    if (!searchTargetMessageId || !messageUuidPattern.test(searchTargetMessageId)) return;
+    const history = historyRef.current;
+    if (!history) return;
+    const target = [...history.querySelectorAll<HTMLElement>("[data-message-id]")]
+      .find((element) => element.dataset.messageId === searchTargetMessageId);
+    if (!target) return;
+    setHighlightedMessageId(searchTargetMessageId);
+    target.scrollIntoView({
+      block: "center",
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+    target.focus({ preventScroll: true });
+    const timer = window.setTimeout(() => {
+      setHighlightedMessageId(null);
+      onSearchTargetHandled?.();
+    }, 3_000);
+    return () => window.clearTimeout(timer);
+  }, [conversation?.messages, onSearchTargetHandled, searchTargetMessageId]);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ConversationHeader
@@ -190,6 +224,7 @@ export function ConversationView({
         onBack={onBack}
         onMarkUnread={onMarkUnread}
         onOpenDetails={onOpenDetails}
+        onSearchTarget={onSearchTarget}
       />
 
       {loading && !conversation ? <div className="flex flex-1 items-center justify-center"><Spinner label="Carregando histórico" /></div> : null}
@@ -218,7 +253,7 @@ export function ConversationView({
         role="log"
       >
         {conversation.messages.length === 0 ? <p className="py-12 text-center text-sm text-[var(--muted)]">Ainda não há mensagens nesta conversa.</p> : null}
-        {conversation.messages.map((message) => <MessageBubble key={message.id} message={message} onRetry={onRetryMessage} />)}
+        {conversation.messages.map((message) => <MessageBubble key={message.id} message={message} onRetry={onRetryMessage} searchHighlighted={highlightedMessageId === message.id} />)}
       </div> : null}
       {conversation ? (
         <MessageComposer

@@ -31,12 +31,21 @@ function StatusIcon({ status }: { status: MessageDto["status"] }) {
   return <Check aria-hidden="true" className="size-3.5" />;
 }
 
-export function MessageBubble({ message, onRetry }: { message: InboxMessage; onRetry?: (id: string) => void }) {
+export function MessageBubble({ message, onRetry, searchHighlighted = false }: { message: InboxMessage; onRetry?: (id: string) => void; searchHighlighted?: boolean }) {
   const outbound = message.direction === "OUTBOUND";
   const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
   return (
-    <article className={cn("message-row flex", outbound ? "justify-end" : "justify-start")}>
+    <article
+      className={cn(
+        "message-row flex rounded-lg outline-none transition-[background-color,box-shadow] duration-300",
+        outbound ? "justify-end" : "justify-start",
+        searchHighlighted && "bg-[color-mix(in_srgb,var(--search-mark)_45%,transparent)] shadow-[0_0_0_3px_var(--search-mark)]",
+      )}
+      data-message-id={message.id}
+      data-search-highlighted={searchHighlighted || undefined}
+      tabIndex={-1}
+    >
       <div className={cn("max-w-[min(78%,42rem)] rounded-lg border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)]", outbound ? "bg-[var(--outbound)]" : "bg-[var(--inbound)]")}>
         {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
         <MessageMedia message={message} />

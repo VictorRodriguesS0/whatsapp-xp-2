@@ -21,6 +21,14 @@ const outboundFixture: MessageDto = {
 };
 
 describe("MessageBubble", () => {
+  it("exposes a focusable message target and a semantic search highlight", () => {
+    render(<MessageBubble message={outboundFixture} searchHighlighted />);
+    const article = screen.getByRole("article");
+    expect(article).toHaveAttribute("data-message-id", outboundFixture.id);
+    expect(article).toHaveAttribute("tabindex", "-1");
+    expect(article).toHaveAttribute("data-search-highlighted", "true");
+  });
+
   it("labels an outbound message with its internal sender", () => {
     render(<MessageBubble message={outboundFixture} />);
 

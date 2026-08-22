@@ -44,7 +44,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [searchMode, setSearchMode] = useState<"conversations" | "messages">("conversations");
-  const [, setSearchTargetMessageId] = useState<string | null>(null);
+  const [searchTargetMessageId, setSearchTargetMessageId] = useState<string | null>(null);
   const globalMessageSearch = useMessageSearch({ scope: "global" });
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsTrigger = useRef<HTMLButtonElement>(null);
@@ -81,15 +81,15 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     closeDetails: closeDetailsLocally,
   });
 
-  function selectConversation(id: string, targetMessageId: string | null = null) {
+  function selectConversation(id: string, open = true) {
     lastSelectedId.current = id;
-    setSearchTargetMessageId(targetMessageId);
+    setSearchTargetMessageId(null);
     if (isMobileViewport()) {
       if (mobileView === "thread") mobileHistory.switchThread();
       else mobileHistory.enterThread();
     }
     setMobileView("thread");
-    void inbox.openConversation(id);
+    if (open) void inbox.openConversation(id);
     if (isMobileViewport()) {
       cancelScheduledFocus.current?.();
       cancelScheduledFocus.current = afterPaint(() => document.querySelector<HTMLElement>("[data-thread-heading]")?.focus());
@@ -97,7 +97,20 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   }
 
   function selectMessageResult(result: MessageSearchResultDto) {
-    selectConversation(result.conversationId, result.messageId);
+    selectConversation(result.conversationId, false);
+    void (async () => {
+      await inbox.openConversation(result.conversationId);
+      const context = await inbox.loadMessageContext(result.conversationId, result.messageId);
+      if (context) setSearchTargetMessageId(result.messageId);
+    })();
+  }
+
+  function selectMessageInOpenConversation(result: MessageSearchResultDto) {
+    setSearchTargetMessageId(null);
+    void (async () => {
+      const context = await inbox.loadMessageContext(result.conversationId, result.messageId);
+      if (context) setSearchTargetMessageId(result.messageId);
+    })();
   }
 
   function openDetails() {
@@ -226,6 +239,8 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onOpenDetails={openDetails}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
+              onSearchTarget={selectMessageInOpenConversation}
+              onSearchTargetHandled={() => setSearchTargetMessageId(null)}
               onSendMedia={(file, caption) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendMedia(inbox.selectedId, file, caption) : Promise.resolve(null)}
               onSendRecording={(file, clientRequestId) => (
                 inbox.selectedId && inbox.conversation?.id === inbox.selectedId
@@ -236,6 +251,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onVisibleMessage={(messageId) => {
                 if (inbox.selectedId && inbox.conversation?.id === inbox.selectedId) void inbox.markRead(inbox.selectedId, messageId);
               }}
+              searchTargetMessageId={searchTargetMessageId}
             />
           </section>
 

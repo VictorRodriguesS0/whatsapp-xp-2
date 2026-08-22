@@ -2265,4 +2265,52 @@ describe("useInbox", () => {
     expect(hook.result.current.listError).toBe("Não foi possível carregar as conversas.");
     expect(hook.result.current.listError).not.toContain("Failed to fetch");
   });
+
+  it("merges exact message context without marking the conversation read", async () => {
+    const first = {
+      id: "30000000-0000-4000-8000-000000000001",
+      clientRequestId: null,
+      direction: "INBOUND",
+      type: "TEXT",
+      body: "Primeira",
+      content: null,
+      mediaObjectId: null,
+      mediaState: null,
+      sentBy: null,
+      status: "DELIVERED",
+      failureReason: null,
+      externalTimestamp: "2026-08-20T14:30:00.000Z",
+      createdAt: "2026-08-20T14:30:00.000Z",
+    };
+    const target = {
+      ...first,
+      id: "30000000-0000-4000-8000-000000000002",
+      body: "Produto localizado",
+      externalTimestamp: "2026-08-20T14:31:00.000Z",
+      createdAt: "2026-08-20T14:31:00.000Z",
+    };
+    const readRequests: string[] = [];
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [], nextCursor: null }, error: null });
+      if (url.endsWith("/messages")) return response({ data: conversationDetail("conversation-id", [first]), error: null });
+      if (url.endsWith(`/messages/${target.id}/context`)) {
+        return response({ data: { conversationId: "conversation-id", targetMessageId: target.id, messages: [first, target] }, error: null });
+      }
+      if (url.endsWith("/read")) {
+        readRequests.push(String(init?.method));
+        return response({ data: {}, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.loadMessageContext("conversation-id", target.id));
+
+    expect(hook.result.current.conversation?.messages.map((message) => message.id)).toEqual([first.id, target.id]);
+    expect(readRequests).toEqual([]);
+  });
 });

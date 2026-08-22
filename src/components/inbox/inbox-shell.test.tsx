@@ -109,6 +109,7 @@ const defaultInbox = {
   connected: true,
   setSearch: vi.fn(),
   openConversation: vi.fn(),
+  loadMessageContext: vi.fn().mockResolvedValue(null),
   closeConversation: vi.fn(),
   refreshList: vi.fn(),
   refreshConversation: vi.fn(),
@@ -178,7 +179,7 @@ describe("InboxShell", () => {
     expect(screen.getByRole("button", { name: "Abrir dados do cliente" })).toBeVisible();
   });
 
-  it("switches between conversation and message search and opens a selected result", () => {
+  it("switches between conversation and message search and opens a selected result", async () => {
     render(<InboxShell initialUser={user} />);
 
     expect(screen.getByRole("button", { name: "Conversas" })).toHaveAttribute("aria-pressed", "true");
@@ -188,6 +189,7 @@ describe("InboxShell", () => {
     expect(screen.getByRole("searchbox", { name: "Buscar nas mensagens" })).toHaveAttribute("placeholder", "Buscar nas mensagens");
     fireEvent.click(screen.getByRole("button", { name: /Carlos.*cliente pediu produto vermelho/i }));
     expect(defaultInbox.openConversation).toHaveBeenCalledWith("conversation-id");
+    await waitFor(() => expect(defaultInbox.loadMessageContext).toHaveBeenCalledWith("conversation-id", "30000000-0000-4000-8000-000000000001"));
   });
 
   it("moves focus into the mobile thread and restores the selected conversation on back", async () => {

@@ -158,6 +158,36 @@ describe("ConversationView", () => {
     vi.unstubAllGlobals();
   });
 
+  it("centers, focuses, and temporarily highlights an exact searched message", async () => {
+    vi.useFakeTimers();
+    const scrollIntoView = vi.fn();
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
+    const target = { ...message, id: "30000000-0000-4000-8000-000000000001" };
+    const onSearchTargetHandled = vi.fn();
+
+    render(
+      <ConversationView
+        {...handlers}
+        conversation={{ ...conversation, messages: [target] }}
+        onSearchTargetHandled={onSearchTargetHandled}
+        searchTargetMessageId={target.id}
+      />,
+    );
+
+    const article = screen.getByRole("article");
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "smooth" });
+    expect(article).toHaveFocus();
+    expect(article).toHaveAttribute("data-search-highlighted", "true");
+
+    await act(() => vi.advanceTimersByTimeAsync(3_000));
+    expect(article).not.toHaveAttribute("data-search-highlighted");
+    expect(onSearchTargetHandled).toHaveBeenCalledOnce();
+    if (original) Object.defineProperty(HTMLElement.prototype, "scrollIntoView", original);
+    else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    vi.useRealTimers();
+  });
+
   it("scopes the recorder to the active conversation and propagates recorded sends", async () => {
     const file = new File(["voice"], "gravacao.webm", { type: "audio/webm" });
     audioRecorder.phase = "preview";
