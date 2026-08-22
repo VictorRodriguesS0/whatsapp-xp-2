@@ -1,9 +1,9 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
-import type { ConversationListItem } from "@/modules/conversations/types";
+import type { ConversationListItem, MessageDto } from "@/modules/conversations/types";
 
-import { ConversationList } from "./conversation-list";
+import { ConversationList, richMessagePreview } from "./conversation-list";
 
 const fixture: ConversationListItem = {
   id: "10000000-0000-4000-8000-000000000001",
@@ -38,6 +38,19 @@ const fixture: ConversationListItem = {
   awaitingResponseSince: "2026-08-20T14:30:00.000Z",
   revision: "2026-08-20T14:30:00.000Z",
 };
+
+const richPreviewCases: Array<[
+  MessageDto["type"],
+  MessageDto["content"],
+  string,
+]> = [
+  ["STICKER", null, "Figurinha"],
+  ["LOCATION", { kind: "location", latitude: -15.793889, longitude: -47.882778, name: null, address: null }, "Localização"],
+  ["CONTACTS", { kind: "contacts", contacts: [{ name: "Maria", phones: [] }], truncated: false }, "Contato compartilhado"],
+  ["INTERACTIVE", { kind: "interactive", interaction: "list", id: "private-id", title: "Assistência técnica" }, "Assistência técnica"],
+  ["ORDER", { kind: "order", catalogId: null, productCount: 2 }, "Pedido recebido"],
+  ["SYSTEM", { kind: "system", text: "Número alterado" }, "Atualização do WhatsApp"],
+];
 
 describe("ConversationList", () => {
   it("shows unread count and the responsible employee", () => {
@@ -198,5 +211,69 @@ describe("ConversationList", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Tentar carregar novamente" }));
     expect(loadMore).toHaveBeenCalledOnce();
+  });
+
+  it.each(richPreviewCases)("builds a useful %s list preview", (type, content, expected) => {
+    expect(richMessagePreview({ ...fixture.latestMessage!, type, body: null, content })).toBe(expected);
+  });
+
+  it("does not expose an interactive title until its content passes validation", () => {
+    const malformed = {
+      ...fixture.latestMessage!,
+      type: "INTERACTIVE",
+      body: null,
+      content: {
+        kind: "interactive",
+        interaction: "list",
+        id: "",
+        title: "private payload title",
+        extra: "token",
+      },
+    } as unknown as NonNullable<ConversationListItem["latestMessage"]>;
+
+    expect(richMessagePreview(malformed)).toBe("Resposta interativa");
+    render(
+      <ConversationList
+        items={[{ ...fixture, latestMessage: malformed }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Resposta interativa")).toBeVisible();
+    expect(screen.queryByText(/private|payload|token/i)).toBeNull();
+  });
+
+  it("preserves media state priority and ordinary caption precedence", () => {
+    const image = {
+      ...fixture.latestMessage!,
+      type: "IMAGE" as const,
+      body: "Produto em estoque",
+      mediaObjectId: "50000000-0000-4000-8000-000000000001",
+      mediaState: { status: "AVAILABLE" as const, nextAttemptAt: null, canRetry: false },
+    };
+    const view = render(
+      <ConversationList
+        items={[{ ...fixture, latestMessage: image }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Produto em estoque")).toBeVisible();
+
+    view.rerender(
+      <ConversationList
+        items={[{
+          ...fixture,
+          latestMessage: {
+            ...image,
+            mediaState: { status: "PENDING", nextAttemptAt: null, canRetry: false },
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+    expect(screen.getByText("Baixando imagem")).toBeVisible();
+    expect(screen.queryByText("Produto em estoque")).toBeNull();
   });
 });

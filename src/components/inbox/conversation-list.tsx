@@ -11,6 +11,9 @@ import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/modules/conversations/types";
 
 import { ContactTagChip } from "./contact-tag-chip";
+import { richMessagePreview } from "./message-rich-content";
+
+export { richMessagePreview } from "./message-rich-content";
 
 type ConversationListProps = {
   items: ConversationListItem[];
@@ -53,6 +56,8 @@ function preview(item: ConversationListItem) {
   const mediaName = previewMediaNames[item.latestMessage.type];
   if (mediaName && item.latestMessage.mediaState?.status === "PENDING") return `Baixando ${mediaName}`;
   if (mediaName && item.latestMessage.mediaState?.status === "FAILED") return `${mediaName[0].toUpperCase()}${mediaName.slice(1)} indisponível`;
+  const richPreview = richMessagePreview(item.latestMessage);
+  if (richPreview) return richPreview;
   if (item.latestMessage.body) return item.latestMessage.body;
   const fallbackPreviews: Partial<Record<LatestMessageType, string>> = {
     IMAGE: "Imagem",

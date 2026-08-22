@@ -108,4 +108,31 @@ describe("MessageBubble", () => {
     );
     expect(screen.getByRole("img", { name: "Produto" })).toHaveAttribute("src", "/api/media/media-id");
   });
+
+  it("renders structured content inside the existing mobile-width bubble", () => {
+    render(
+      <MessageBubble
+        message={{
+          ...outboundFixture,
+          direction: "INBOUND",
+          type: "LOCATION",
+          body: null,
+          content: {
+            kind: "location",
+            latitude: -15.793889,
+            longitude: -47.882778,
+            name: "XP Eletrônicos",
+            address: null,
+          },
+          sentBy: null,
+          status: "RECEIVED",
+        }}
+      />,
+    );
+
+    expect(screen.getByRole("link", { name: "Abrir no Google Maps" })).toBeVisible();
+    expect(screen.getByText("XP Eletrônicos").closest("article")?.firstElementChild).toHaveClass(
+      "max-w-[min(78%,42rem)]",
+    );
+  });
 });
