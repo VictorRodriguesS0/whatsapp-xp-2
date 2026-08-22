@@ -5,14 +5,20 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
 $ProjectRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
-$GitAttributes = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot '.gitattributes')
+function Read-NormalizedText {
+  param([Parameter(Mandatory)] [string] $Path)
+
+  return (Get-Content -Raw -LiteralPath $Path).Replace("`r`n", "`n")
+}
+
+$GitAttributes = Read-NormalizedText (Join-Path $ProjectRoot '.gitattributes')
 if ($GitAttributes -notmatch '(?m)^\*\.sh text eol=lf$') {
   throw 'Scripts POSIX devem ser normalizados como LF no Git para releases Linux.'
 }
-$EnvExample = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot '.env.example')
-$Dockerfile = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'Dockerfile')
-$RecordingConverter = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'src/modules/recordings/converter.ts')
-$NginxFinal = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'deploy/nginx/whatsapp.xpeletronicos.com.conf')
+$EnvExample = Read-NormalizedText (Join-Path $ProjectRoot '.env.example')
+$Dockerfile = Read-NormalizedText (Join-Path $ProjectRoot 'Dockerfile')
+$RecordingConverter = Read-NormalizedText (Join-Path $ProjectRoot 'src/modules/recordings/converter.ts')
+$NginxFinal = Read-NormalizedText (Join-Path $ProjectRoot 'deploy/nginx/whatsapp.xpeletronicos.com.conf')
 if ($EnvExample -notmatch '(?m)^NEXT_PUBLIC_APP_URL=https://whatsapp\.xpeletronicos\.com$') {
   throw 'NEXT_PUBLIC_APP_URL do ambiente versionado deve usar a origem HTTPS aprovada.'
 }
@@ -32,12 +38,12 @@ if (
   throw 'O proxy HTTPS documentado deve permitir microfone somente para a própria origem.'
 }
 
-$BackupShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.sh')
-$RestoreShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/restore.sh')
-$BackupPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/backup.ps1')
-$HelperShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.sh')
-$HelperPowerShell = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'scripts/docker-helper-lib.ps1')
-$Readme = Get-Content -Raw -LiteralPath (Join-Path $ProjectRoot 'README.md')
+$BackupShell = Read-NormalizedText (Join-Path $ProjectRoot 'scripts/backup.sh')
+$RestoreShell = Read-NormalizedText (Join-Path $ProjectRoot 'scripts/restore.sh')
+$BackupPowerShell = Read-NormalizedText (Join-Path $ProjectRoot 'scripts/backup.ps1')
+$HelperShell = Read-NormalizedText (Join-Path $ProjectRoot 'scripts/docker-helper-lib.sh')
+$HelperPowerShell = Read-NormalizedText (Join-Path $ProjectRoot 'scripts/docker-helper-lib.ps1')
+$Readme = Read-NormalizedText (Join-Path $ProjectRoot 'README.md')
 $MigrationHeading = '### Migration de dados com writers drenados'
 $MigrationStart = $Readme.IndexOf($MigrationHeading, [StringComparison]::Ordinal)
 $RollbackStart = $Readme.IndexOf("`n## Rollback", $MigrationStart, [StringComparison]::Ordinal)
@@ -195,7 +201,7 @@ try {
     throw 'A configuração original deveria passar antes dos mutation tests.'
   }
 
-  $OriginalCompose = Get-Content -Raw -LiteralPath (Join-Path $TemporaryRoot 'docker-compose.yml')
+  $OriginalCompose = Read-NormalizedText (Join-Path $TemporaryRoot 'docker-compose.yml')
 
   function Assert-MutationFails {
     param(
