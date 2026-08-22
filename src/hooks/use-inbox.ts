@@ -257,6 +257,13 @@ export function useInbox(initialUser: SessionUser) {
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [conversationErrorState, setConversationErrorState] = useState<ConversationErrorState | null>(null);
   const [responsiblePending, setResponsiblePending] = useState(false);
+  const [contactTypes, setContactTypes] = useState<ContactClassificationRecord[]>([]);
+  const [contactTypesLoading, setContactTypesLoading] = useState(true);
+  const [contactTypesError, setContactTypesError] = useState<string | null>(null);
+  const [contactTypeSavePendingId, setContactTypeSavePendingId] = useState<string | null>(null);
+  const [contactTypeSaveErrors, setContactTypeSaveErrors] = useState<Map<string, string>>(
+    () => new Map(),
+  );
   const [contactTags, setContactTags] = useState<ContactClassificationRecord[]>([]);
   const [contactTagsLoading, setContactTagsLoading] = useState(true);
   const [contactTagsError, setContactTagsError] = useState<string | null>(null);
@@ -271,6 +278,8 @@ export function useInbox(initialUser: SessionUser) {
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const pageRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const conversationRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
+  const contactTypesRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
+  const contactTypeSaveRequests = useRef(new Map<string, Promise<boolean>>());
   const contactTagsRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const contactTagSaveRequests = useRef(new Map<string, Promise<boolean>>());
   const selectedContactIdRef = useRef<string | null>(null);
@@ -406,6 +415,33 @@ export function useInbox(initialUser: SessionUser) {
       setUsers([{ id: initialUser.id, name: initialUser.name, active: true }]);
     }
   }, [initialUser.id, initialUser.name]);
+
+  const loadContactTypes = useCallback(async () => {
+    contactTypesRequest.current?.controller.abort();
+    const sequence = (contactTypesRequest.current?.sequence ?? 0) + 1;
+    const controller = new AbortController();
+    contactTypesRequest.current = { sequence, controller };
+    setContactTypesLoading(true);
+    setContactTypesError(null);
+    try {
+      const response = await fetch("/api/contact-types", {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
+      const result = await readEnvelope<{ items: ContactClassificationRecord[] }>(response);
+      if (contactTypesRequest.current?.sequence === sequence) {
+        setContactTypes(result.items);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted && contactTypesRequest.current?.sequence === sequence) {
+        setContactTypesError(publicErrorMessage("contact-types", errorStatus(error)));
+      }
+    } finally {
+      if (contactTypesRequest.current?.sequence === sequence) {
+        setContactTypesLoading(false);
+      }
+    }
+  }, []);
 
   const loadContactTags = useCallback(async () => {
     contactTagsRequest.current?.controller.abort();
@@ -558,6 +594,66 @@ export function useInbox(initialUser: SessionUser) {
     const id = selectedIdRef.current;
     if (id) await fetchConversation(id, false);
   }, [fetchConversation]);
+
+  const setContactType = useCallback((
+    contactId: string,
+    contactTypeId: string | null,
+  ): Promise<boolean> => {
+    const inFlight = contactTypeSaveRequests.current.get(contactId);
+    if (inFlight) return inFlight;
+
+    const operation = (async () => {
+      setContactTypeSavePendingId(contactId);
+      setContactTypeSaveErrors((current) => {
+        const next = new Map(current);
+        next.delete(contactId);
+        return next;
+      });
+      try {
+        const response = await fetch(`/api/contacts/${contactId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ contactTypeId }),
+        });
+        const updated = await readEnvelope<UpdatedContactDto>(response);
+        if (!mounted.current) return false;
+        setConversations((current) => current.map((item) =>
+          item.contact.id === contactId
+            ? { ...item, contact: mergeUpdatedContact(item.contact, updated) }
+            : item,
+        ));
+        setConversation((current) => current?.contact.id === contactId
+          ? { ...current, contact: mergeUpdatedContact(current.contact, updated) }
+          : current);
+        void refreshList();
+        return true;
+      } catch (error) {
+        if (!mounted.current) return false;
+        const selectedConversationId = selectedContactIdRef.current === contactId
+          ? selectedIdRef.current
+          : null;
+        if (selectedConversationId) {
+          await fetchConversation(selectedConversationId, false);
+        }
+        void refreshList();
+        setContactTypeSaveErrors((current) => {
+          const next = new Map(current);
+          next.set(
+            contactId,
+            publicErrorMessage("contact-type-save", errorStatus(error)),
+          );
+          return next;
+        });
+        return false;
+      } finally {
+        contactTypeSaveRequests.current.delete(contactId);
+        setContactTypeSavePendingId((current) => current === contactId ? null : current);
+      }
+    })();
+
+    contactTypeSaveRequests.current.set(contactId, operation);
+    return operation;
+  }, [fetchConversation, refreshList]);
 
   const replaceContactTags = useCallback((contactId: string, tagIds: string[]): Promise<boolean> => {
     const inFlight = contactTagSaveRequests.current.get(contactId);
@@ -910,9 +1006,10 @@ export function useInbox(initialUser: SessionUser) {
       refreshList({ reset: true }),
       refreshConversation(),
       loadUsers(),
+      loadContactTypes(),
       loadContactTags(),
     ]);
-  }, [loadContactTags, loadUsers, refreshConversation, refreshList]);
+  }, [loadContactTags, loadContactTypes, loadUsers, refreshConversation, refreshList]);
 
   const onRealtimeEvent = useCallback((event: RealtimeEvent) => {
     if (event.type === "conversation.merged") {
@@ -970,10 +1067,21 @@ export function useInbox(initialUser: SessionUser) {
       void Promise.all([loadUsers(), refreshList(), refreshConversation()]);
       return;
     }
+    if (event.type === "settings.updated" && event.scope === "contact-types") {
+      void Promise.all([loadContactTypes(), refreshList(), refreshConversation()]);
+      return;
+    }
     if (event.type === "settings.updated" && event.scope === "contact-tags") {
       void Promise.all([loadContactTags(), refreshList(), refreshConversation()]);
     }
-  }, [fetchConversation, loadContactTags, loadUsers, refreshConversation, refreshList]);
+  }, [
+    fetchConversation,
+    loadContactTags,
+    loadContactTypes,
+    loadUsers,
+    refreshConversation,
+    refreshList,
+  ]);
 
   const realtime = useRealtime({ onSync: onRealtimeSync, onEvent: onRealtimeEvent });
 
@@ -985,12 +1093,14 @@ export function useInbox(initialUser: SessionUser) {
   useEffect(() => {
     mounted.current = true;
     void loadUsers();
+    void loadContactTypes();
     void loadContactTags();
     return () => {
       mounted.current = false;
       listRequest.current?.controller.abort();
       pageRequest.current?.controller.abort();
       conversationRequest.current?.controller.abort();
+      contactTypesRequest.current?.controller.abort();
       contactTagsRequest.current?.controller.abort();
       const releasedRequestIds = new Set<string>();
       const previewUrls: string[] = [];
@@ -1008,6 +1118,7 @@ export function useInbox(initialUser: SessionUser) {
       inFlightSends.current.clear();
       confirmedSends.current.clear();
       markUnreadRequests.current.clear();
+      contactTypeSaveRequests.current.clear();
       contactTagSaveRequests.current.clear();
       for (const previewUrl of previewUrls) {
         try {
@@ -1017,12 +1128,13 @@ export function useInbox(initialUser: SessionUser) {
         }
       }
     };
-  }, [loadContactTags, loadUsers]);
+  }, [loadContactTags, loadContactTypes, loadUsers]);
 
   return {
     conversations,
     conversation,
     users,
+    contactTypes,
     contactTags,
     selectedId,
     search,
@@ -1030,11 +1142,17 @@ export function useInbox(initialUser: SessionUser) {
     loadingList,
     loadingMore,
     loadingConversation,
+    contactTypesLoading,
+    contactTypeSavePendingId,
     contactTagsLoading,
     contactTagSavePendingId,
     listError,
     loadMoreError,
     conversationError: conversationErrorState?.message ?? null,
+    contactTypesError,
+    contactTypeSaveError: selectedContactIdRef.current === null
+      ? null
+      : contactTypeSaveErrors.get(selectedContactIdRef.current) ?? null,
     contactTagsError,
     contactTagSaveError: selectedContactIdRef.current === null
       ? null
@@ -1049,7 +1167,9 @@ export function useInbox(initialUser: SessionUser) {
     refreshList,
     loadMore,
     refreshConversation,
+    loadContactTypes,
     loadContactTags,
+    setContactType,
     replaceContactTags,
     sendText,
     sendMedia,
