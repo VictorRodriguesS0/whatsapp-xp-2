@@ -30,6 +30,8 @@ function message() {
     type: MessageType.AUDIO,
     body: null,
     content: null,
+    canReply: false,
+    replyTo: null,
     mediaObjectId: conversationId,
     mediaState: { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false },
     sentBy: { id: actor.id, name: actor.name },

@@ -196,6 +196,8 @@ model Message {
   body                String?
   content             Json?
   searchText          String                  @default("") @map("search_text")
+  replyToMessageId    String?                 @map("reply_to_message_id") @db.Uuid
+  replyToWhatsappMessageId String?             @map("reply_to_whatsapp_message_id")
   mediaObjectId       String?                 @unique @map("media_object_id") @db.Uuid
   sentByUserId        String?                 @map("sent_by_user_id") @db.Uuid
   status              MessageStatus
@@ -210,12 +212,16 @@ model Message {
   conversation        Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   mediaObject         MediaObject?            @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
   sentByUser          User?                   @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
+  replyToMessage      Message?                @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies             Message[]               @relation("MessageReplies")
   lastReadFor         ConversationRead[]      @relation("LastReadMessage")
   teamLastReadFor     Conversation[]          @relation("TeamLastReadMessage")
 
   @@index([conversationId, externalTimestamp])
   @@index([conversationId, direction, externalTimestamp, id], map: "messages_response_state_idx")
   @@index([status, operationalState, deliveryLeaseUntil], map: "messages_delivery_claim_idx")
+  @@index([replyToMessageId], map: "messages_reply_to_message_id_idx")
+  @@index([conversationId, replyToWhatsappMessageId], map: "messages_reply_external_lookup_idx")
   @@map("messages")
 }
 

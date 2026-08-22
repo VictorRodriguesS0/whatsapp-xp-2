@@ -11,6 +11,8 @@ const outboundFixture: MessageDto = {
   type: "TEXT",
   body: "Temos disponível sim.",
   content: null,
+  canReply: false,
+  replyTo: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },

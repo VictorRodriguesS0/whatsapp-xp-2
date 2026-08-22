@@ -11,6 +11,8 @@ const baseMessage: InboxMessage = {
   type: "LOCATION",
   body: null,
   content: null,
+  canReply: false,
+  replyTo: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: null,

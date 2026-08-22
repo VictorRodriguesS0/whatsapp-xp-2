@@ -1536,6 +1536,8 @@ export const MessageScalarFieldEnum = {
   body: 'body',
   content: 'content',
   searchText: 'searchText',
+  replyToMessageId: 'replyToMessageId',
+  replyToWhatsappMessageId: 'replyToWhatsappMessageId',
   mediaObjectId: 'mediaObjectId',
   sentByUserId: 'sentByUserId',
   status: 'status',

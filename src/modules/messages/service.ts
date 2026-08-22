@@ -28,6 +28,7 @@ import { getServerEnv } from "@/lib/env";
 import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { MediaMessageType, WhatsAppProvider } from "@/modules/whatsapp/provider";
+import { whatsappMessageIdSchema } from "@/modules/messages/reply-context";
 
 import {
   clientRequestIdSchema,
@@ -581,6 +582,8 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     type: message.type,
     body: message.body,
     content: null,
+    canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
+    replyTo: null,
     mediaObjectId: message.mediaObjectId,
     mediaState: message.mediaObject
       ? { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false }

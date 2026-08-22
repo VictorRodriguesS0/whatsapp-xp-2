@@ -76,6 +76,8 @@ describe("conversation history route", () => {
           type: MessageType.TEXT,
           body: "Oi",
           content: null,
+          canReply: false,
+          replyTo: null,
           mediaObjectId: null,
           mediaState: null,
           sentBy: { id: actor.id, name: actor.name },
@@ -126,6 +128,8 @@ describe("conversation history route", () => {
           type: MessageType.DOCUMENT,
           body: null,
           content: null,
+          canReply: false,
+          replyTo: null,
           mediaObjectId: id,
           mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
           sentBy: { id: actor.id, name: actor.name },
@@ -175,6 +179,8 @@ describe("conversation history route", () => {
           type: MessageType.DOCUMENT,
           body: null,
           content: null,
+          canReply: false,
+          replyTo: null,
           mediaObjectId: calls === 1 ? null : id,
           mediaState: calls === 1
             ? null
