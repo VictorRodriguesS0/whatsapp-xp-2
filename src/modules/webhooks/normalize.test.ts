@@ -95,6 +95,13 @@ function messageEchoControlFixture(action: "edit" | "revoke") {
   return payload;
 }
 
+function messageCollection(
+  payload: Record<string, any>,
+  field: "messages" | "message_echoes",
+): Record<string, any>[] {
+  return payload.entry[0].changes[0].value[field];
+}
+
 function orderFixtureWithProductItems(productItems: unknown[]) {
   const payload = structuredClone(inboundOrderFixture) as Record<string, any>;
   payload.entry[0].changes[0].value.messages[0].order.product_items =
@@ -178,7 +185,66 @@ describe("Meta webhook normalization", () => {
       body: "Hi!",
       content: null,
       media: null,
+      replyToWhatsappMessageId: null,
     });
+  });
+
+  it.each([
+    ["inbound text", () => structuredClone(inboundTextFixture), "messages", "message"],
+    ["inbound media", () => inboundMediaFixture("image"), "messages", "message"],
+    ["inbound interactive", () => structuredClone(inboundListReplyFixture), "messages", "message"],
+    ["WhatsApp Business App echo", () => messageEchoFixture(), "message_echoes", "messageEcho"],
+  ] as const)("normalizes reply context on %s", (_name, fixture, field, kind) => {
+    const payload = fixture() as Record<string, any>;
+    messageCollection(payload, field)[0]!.context = {
+      from: "5511999990001",
+      id: "wamid.original-inbound-1",
+    };
+
+    expect(normalizeWebhook(payload)[0]).toMatchObject({
+      kind,
+      replyToWhatsappMessageId: "wamid.original-inbound-1",
+    });
+  });
+
+  it.each([
+    ["absent context", undefined],
+    ["forwarded-only context", { forwarded: true }],
+  ] as const)("normalizes %s as no reply reference", (_name, context) => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    const message = messageCollection(payload, "messages")[0]!;
+    if (context === undefined) delete message.context;
+    else message.context = context;
+
+    expect(normalizeWebhook(payload)[0]).toMatchObject({
+      kind: "message",
+      replyToWhatsappMessageId: null,
+    });
+  });
+
+  it.each([
+    ["null context", null],
+    ["array context", []],
+    ["string context", "invalid"],
+    ["empty id", { id: "" }],
+    ["oversized id", { id: "x".repeat(513) }],
+    ["whitespace in id", { id: "wamid. original" }],
+    ["control character in id", { id: "wamid.\u0000original" }],
+  ])("rejects an inbound message with %s", (_name, context) => {
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    messageCollection(payload, "messages")[0]!.context = context;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it.each([
+    ["non-object context", false],
+    ["invalid explicit id", { id: "wamid. invalid" }],
+  ])("rejects an app echo with %s", (_name, context) => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    messageCollection(payload, "message_echoes")[0]!.context = context;
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
 
   it.each([
@@ -460,6 +526,7 @@ describe("Meta webhook normalization", () => {
         body: "Resposta pelo aplicativo",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
         origin: "WHATSAPP_BUSINESS_APP",
       },
     ]);

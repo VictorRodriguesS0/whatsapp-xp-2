@@ -322,6 +322,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Primeira mensagem",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
     await processWebhookEvents([
@@ -336,6 +337,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Segunda mensagem",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
 
@@ -364,6 +366,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Mensagem recebida primeiro",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
     await processWebhookEvents([
@@ -378,6 +381,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Mensagem atrasada",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
 
@@ -415,6 +419,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           body: "Mensagem inbound",
           content: null,
           media: null,
+          replyToWhatsappMessageId: null,
         },
       ]);
     }
@@ -431,6 +436,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Resposta atrasada",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
         origin: "WHATSAPP_BUSINESS_APP",
       },
     ]);
@@ -535,6 +541,7 @@ describe("outbound message PostgreSQL concurrency", () => {
         body: "Mensagem atrasada",
         content: null,
         media: null,
+        replyToWhatsappMessageId: null,
       },
     ]);
 
@@ -595,6 +602,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           body: "Mensagem concorrente posterior",
           content: null,
           media: null,
+          replyToWhatsappMessageId: null,
         },
       ]);
       await barrier.query("SELECT pg_advisory_unlock($1)", [barrierLock]);
