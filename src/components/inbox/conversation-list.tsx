@@ -25,6 +25,15 @@ type ConversationListProps = {
   onButtonRef?: (id: string, element: HTMLButtonElement | null) => void;
 };
 
+type LatestMessageType = NonNullable<ConversationListItem["latestMessage"]>["type"];
+
+const previewMediaNames: Partial<Record<LatestMessageType, string>> = {
+  IMAGE: "imagem",
+  AUDIO: "áudio",
+  VIDEO: "vídeo",
+  DOCUMENT: "documento",
+};
+
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
 }
@@ -39,6 +48,9 @@ function conversationTime(value: string) {
 
 function preview(item: ConversationListItem) {
   if (!item.latestMessage) return "Conversa iniciada";
+  const mediaName = previewMediaNames[item.latestMessage.type];
+  if (mediaName && item.latestMessage.mediaState?.status === "PENDING") return `Baixando ${mediaName}`;
+  if (mediaName && item.latestMessage.mediaState?.status === "FAILED") return `${mediaName[0].toUpperCase()}${mediaName.slice(1)} indisponível`;
   if (item.latestMessage.body) return item.latestMessage.body;
   return {
     IMAGE: "Imagem",

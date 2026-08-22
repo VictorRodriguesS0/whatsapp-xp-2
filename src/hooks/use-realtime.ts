@@ -33,6 +33,8 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
     sourceConversationId?: unknown;
     targetConversationId?: unknown;
     userId?: unknown;
+    messageId?: unknown;
+    mediaId?: unknown;
   };
   if (typeof event.type !== "string") return false;
   if (event.type === "user.updated") return typeof event.userId === "string";
@@ -40,6 +42,13 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
     return (
       typeof event.sourceConversationId === "string" &&
       typeof event.targetConversationId === "string"
+    );
+  }
+  if (event.type === "media.updated") {
+    return (
+      typeof event.conversationId === "string" &&
+      typeof event.messageId === "string" &&
+      typeof event.mediaId === "string"
     );
   }
   return ["conversation.updated", "message.created", "message.status", "read.updated", "responsible.updated"].includes(event.type)

@@ -832,7 +832,11 @@ export function useInbox(initialUser: SessionUser) {
       void fetchConversation(event.targetConversationId, true);
       return;
     }
-    if (event.type === "message.created" || event.type === "message.status") {
+    if (
+      event.type === "message.created" ||
+      event.type === "message.status" ||
+      event.type === "media.updated"
+    ) {
       void refreshList();
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
       return;

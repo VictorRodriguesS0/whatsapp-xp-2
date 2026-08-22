@@ -766,6 +766,50 @@ describe("useInbox", () => {
     expect(detailFetches).toBe(2);
   });
 
+  it("refreshes the first page for media updates and reloads detail only when the conversation is selected", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [listItem("conversation-a"), listItem("conversation-b")], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail("conversation-a"), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "media.updated",
+        conversationId: "conversation-a",
+        messageId: "message-a",
+        mediaId: "media-a",
+      });
+    });
+    await waitFor(() => expect(detailFetches).toBe(2));
+    expect(listFetches).toBe(2);
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "media.updated",
+        conversationId: "conversation-b",
+        messageId: "message-b",
+        mediaId: "media-b",
+      });
+    });
+    await waitFor(() => expect(listFetches).toBe(3));
+    expect(detailFetches).toBe(2);
+  });
+
   it("acknowledges the selected conversation with its own manual-unread revision", async () => {
     const revisionA = "2026-08-21T12:00:00.000Z";
     const revisionB = "2026-08-21T12:01:00.000Z";

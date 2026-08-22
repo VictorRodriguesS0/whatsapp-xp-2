@@ -60,6 +60,29 @@ describe("ConversationList", () => {
     expect(screen.getAllByText("Aguardando resposta")).toHaveLength(1);
   });
 
+  it("describes pending media without merging its state with unread or response indicators", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          latestMessage: {
+            ...fixture.latestMessage!,
+            type: "AUDIO",
+            body: null,
+            mediaObjectId: "50000000-0000-4000-8000-000000000001",
+            mediaState: { status: "PENDING", nextAttemptAt: "2099-08-21T15:00:00.000Z", canRetry: false },
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Baixando áudio")).toBeVisible();
+    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
+  });
+
   it("exposes the selected conversation and a 44px interaction target", () => {
     const onSelect = vi.fn();
     render(<ConversationList items={[fixture]} selectedId={fixture.id} onSelect={onSelect} />);

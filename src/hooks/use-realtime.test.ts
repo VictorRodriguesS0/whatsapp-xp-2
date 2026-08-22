@@ -102,6 +102,29 @@ describe("useRealtime", () => {
     hook.unmount();
   });
 
+  it("routes complete media invalidations", () => {
+    const onEvent = vi.fn();
+    const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent }));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "media.updated",
+        conversationId: "conversation-id",
+        messageId: "message-id",
+        mediaId: "media-id",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "media.updated",
+        conversationId: "conversation-id",
+        messageId: "message-id",
+      });
+    });
+
+    expect(onEvent).toHaveBeenCalledOnce();
+    expect(onEvent).toHaveBeenCalledWith(expect.objectContaining({ type: "media.updated" }));
+    hook.unmount();
+  });
+
   it("reconnects exponentially with a 15 second cap", () => {
     const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent: vi.fn() }));
 

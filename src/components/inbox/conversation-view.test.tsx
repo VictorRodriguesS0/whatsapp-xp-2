@@ -219,4 +219,37 @@ describe("ConversationView", () => {
     expect(action).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível marcar como não lida.");
   });
+
+  it("replaces a pending audio status with the player after reconciliation", () => {
+    const pendingAudio: InboxMessage = {
+      ...message,
+      id: "40000000-0000-4000-8000-000000000002",
+      type: "AUDIO",
+      body: null,
+      mediaObjectId: "50000000-0000-4000-8000-000000000001",
+      mediaState: { status: "PENDING", nextAttemptAt: "2099-08-21T15:00:00.000Z", canRetry: false },
+    };
+    const pendingConversation = { ...conversation, messages: [pendingAudio] };
+    const view = render(<ConversationView {...handlers} conversation={pendingConversation} />);
+
+    expect(screen.getByRole("status")).toHaveTextContent("Baixando áudio");
+    expect(view.container.querySelector("audio")).toBeNull();
+
+    view.rerender(
+      <ConversationView
+        {...handlers}
+        conversation={{
+          ...pendingConversation,
+          messages: [{
+            ...pendingAudio,
+            mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+          }],
+        }}
+      />,
+    );
+    expect(view.container.querySelector("audio")).toHaveAttribute(
+      "src",
+      `/api/media/${pendingAudio.mediaObjectId}`,
+    );
+  });
 });
