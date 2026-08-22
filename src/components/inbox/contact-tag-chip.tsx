@@ -8,8 +8,10 @@ type ContactTagChipProps = {
   compact?: boolean;
 };
 
+const HEX_COLOR = /^#[0-9A-F]{6}$/i;
+
 function safeBorderStyle(color: string): CSSProperties | undefined {
-  return /^#[0-9A-F]{6}$/i.test(color) ? { borderColor: color } : undefined;
+  return HEX_COLOR.test(color) ? { borderColor: color } : undefined;
 }
 
 export function ContactTagChip({ color, name, compact = false }: ContactTagChipProps) {

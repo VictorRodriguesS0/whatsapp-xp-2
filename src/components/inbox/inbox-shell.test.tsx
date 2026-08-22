@@ -92,6 +92,7 @@ const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.tes
 describe("InboxShell", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, "", window.location.href);
     audioRecorder.phase = "idle";
     audioRecorder.recording = null;
     useInboxMock.mockReturnValue(defaultInbox);
@@ -127,6 +128,7 @@ describe("InboxShell", () => {
 
   it("moves focus into the mobile thread and restores the selected conversation on back", async () => {
     vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
     render(<InboxShell initialUser={user} />);
     const conversationButton = screen.getByRole("button", { name: /Carlos/i });
     fireEvent.click(conversationButton);
@@ -134,6 +136,9 @@ describe("InboxShell", () => {
     await waitFor(() => expect(screen.getByRole("heading", { name: "Conversa" })).toHaveFocus());
 
     fireEvent.click(screen.getByRole("button", { name: "Voltar para conversas" }));
+    expect(back).toHaveBeenCalledOnce();
+    window.history.replaceState(null, "", window.location.href);
+    fireEvent(window, new PopStateEvent("popstate", { state: null }));
     expect(screen.getByTestId("inbox-shell")).toHaveAttribute("data-mobile-view", "list");
     await waitFor(() => expect(conversationButton).toHaveFocus());
     vi.unstubAllGlobals();
@@ -174,6 +179,140 @@ describe("InboxShell", () => {
     await userEventController.keyboard("{Escape}");
 
     await waitFor(() => expect(trigger).toHaveFocus());
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+  });
+
+  it("lets the label editor consume Escape before the desktop conversation", async () => {
+    const userEventController = userEvent.setup();
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      contactTags: [{
+        id: "tag-id",
+        displayName: "Prioridade",
+        color: "#B4443C",
+        position: 10,
+        active: true,
+      }],
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+
+    await userEventController.click(screen.getByRole("button", { name: "Gerenciar etiquetas" }));
+    expect(screen.getByRole("dialog", { name: "Gerenciar etiquetas" })).toBeVisible();
+    await userEventController.keyboard("{Escape}");
+
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Gerenciar etiquetas" })).not.toBeInTheDocument());
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+  });
+
+  it("closes the desktop conversation with Escape and restores its exact list button", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+    const row = screen.getByRole("button", { name: /Carlos/i });
+
+    fireEvent.keyDown(window, { key: "Escape" });
+
+    expect(defaultInbox.closeConversation).toHaveBeenCalledOnce();
+    await waitFor(() => expect(row).toHaveFocus());
+  });
+
+  it("ignores Escape without a selection and ignores repeated, composing or prevented events", () => {
+    const { rerender } = render(<InboxShell initialUser={user} />);
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+
+    useInboxMock.mockReturnValue({ ...defaultInbox, selectedId: "conversation-id" });
+    rerender(<InboxShell initialUser={user} />);
+    fireEvent.keyDown(window, { key: "Escape", repeat: true });
+    fireEvent.keyDown(window, { key: "Escape", isComposing: true });
+    const prevented = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    prevented.preventDefault();
+    window.dispatchEvent(prevented);
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+  });
+
+  it("uses two mobile history layers so browser back closes details before the thread", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+    fireEvent.click(screen.getByRole("button", { name: /Carlos/i }));
+    expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
+
+    fireEvent.click(screen.getByRole("button", { name: "Abrir dados do cliente" }));
+    expect(await screen.findByRole("dialog", { name: "Dados do cliente" })).toBeVisible();
+    expect(window.history.state).toEqual({ __xpInboxLayer: "details" });
+
+    window.history.replaceState({ __xpInboxLayer: "thread" }, "", window.location.href);
+    fireEvent(window, new PopStateEvent("popstate", { state: { __xpInboxLayer: "thread" } }));
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Dados do cliente" })).not.toBeInTheDocument());
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", window.location.href);
+    fireEvent(window, new PopStateEvent("popstate", { state: null }));
+    expect(defaultInbox.closeConversation).toHaveBeenCalledOnce();
+    expect(screen.getByTestId("inbox-shell")).toHaveAttribute("data-mobile-view", "list");
+  });
+
+  it("does not stack mobile history when switching conversations and leaves list-level back alone", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
+    const pushState = vi.spyOn(window.history, "pushState");
+    const replaceState = vi.spyOn(window.history, "replaceState");
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      conversations: [
+        ...defaultInbox.conversations,
+        {
+          ...defaultInbox.conversations[0],
+          id: "conversation-two",
+          contact: { ...defaultInbox.conversations[0].contact, id: "contact-two", name: "Beatriz", profileName: "Beatriz" },
+        },
+      ],
+    });
+    render(<InboxShell initialUser={user} />);
+
+    fireEvent(window, new PopStateEvent("popstate", { state: null }));
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Carlos/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Beatriz/i }));
+
+    expect(pushState).toHaveBeenCalledOnce();
+    expect(replaceState).toHaveBeenCalledWith(
+      { __xpInboxLayer: "thread" },
+      "",
+      window.location.href,
+    );
   });
 
   it("prefers fresh selected conversation metadata over a stale list row", () => {

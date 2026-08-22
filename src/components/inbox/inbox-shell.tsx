@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useInbox } from "@/hooks/use-inbox";
+import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
 import type { SessionUser } from "@/modules/auth/session";
 
 import { ConnectionBanner } from "./connection-banner";
@@ -28,6 +29,12 @@ function afterPaint(callback: () => void) {
   return () => window.clearTimeout(timer);
 }
 
+function hasOpenDismissibleOverlay() {
+  return Boolean(document.querySelector(
+    '[role="dialog"][data-state="open"], [role="listbox"][data-state="open"], [role="menu"][data-state="open"]',
+  ));
+}
+
 export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const router = useRouter();
   const inbox = useInbox(initialUser);
@@ -36,13 +43,44 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsTrigger = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
+  const selectedIdRef = useRef<string | null>(inbox.selectedId);
+  const detailsOpenRef = useRef(detailsOpen);
   const cancelScheduledFocus = useRef<(() => void) | null>(null);
+  selectedIdRef.current = inbox.selectedId;
+  detailsOpenRef.current = detailsOpen;
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
     ? inbox.conversation
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
+  const selectedId = inbox.selectedId;
+  const closeConversation = inbox.closeConversation;
+
+  const closeThreadLocally = useCallback(() => {
+    const idToRestore = lastSelectedId.current ?? selectedId;
+    setMobileView("list");
+    setDetailsOpen(false);
+    closeConversation();
+    if (idToRestore) {
+      cancelScheduledFocus.current?.();
+      cancelScheduledFocus.current = afterPaint(() => conversationButtons.current.get(idToRestore)?.focus());
+    }
+  }, [closeConversation, selectedId]);
+
+  const closeDetailsLocally = useCallback(() => setDetailsOpen(false), []);
+
+  const mobileHistory = useMobileInboxHistory({
+    isMobile: isMobileViewport,
+    threadOpen: mobileView === "thread",
+    detailsOpen,
+    closeThread: closeThreadLocally,
+    closeDetails: closeDetailsLocally,
+  });
 
   function selectConversation(id: string) {
     lastSelectedId.current = id;
+    if (isMobileViewport()) {
+      if (mobileView === "thread") mobileHistory.switchThread();
+      else mobileHistory.enterThread();
+    }
     setMobileView("thread");
     void inbox.openConversation(id);
     if (isMobileViewport()) {
@@ -51,15 +89,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     }
   }
 
-  function backToList() {
-    const idToRestore = lastSelectedId.current ?? inbox.selectedId;
-    setMobileView("list");
-    setDetailsOpen(false);
-    inbox.closeConversation();
-    if (isMobileViewport() && idToRestore) {
-      cancelScheduledFocus.current?.();
-      cancelScheduledFocus.current = afterPaint(() => conversationButtons.current.get(idToRestore)?.focus());
-    }
+  function openDetails() {
+    setDetailsOpen(true);
+    mobileHistory.enterDetails();
   }
 
   const registerConversationButton = useCallback((id: string, element: HTMLButtonElement | null) => {
@@ -68,6 +100,26 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   }, []);
 
   useEffect(() => () => cancelScheduledFocus.current?.(), []);
+
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent) {
+      if (
+        event.key !== "Escape" ||
+        event.repeat ||
+        event.isComposing ||
+        event.defaultPrevented ||
+        isMobileViewport() ||
+        !selectedIdRef.current ||
+        detailsOpenRef.current ||
+        hasOpenDismissibleOverlay()
+      ) return;
+      event.preventDefault();
+      closeThreadLocally();
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [closeThreadLocally]);
 
   async function logout() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* internal navigation remains available */ }
@@ -125,9 +177,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               loading={inbox.loadingConversation}
               markUnreadError={inbox.markUnreadError}
               markUnreadPending={inbox.markUnreadPending}
-              onBack={backToList}
+              onBack={mobileHistory.leaveThread}
               onMarkUnread={inbox.markUnread}
-              onOpenDetails={() => setDetailsOpen(true)}
+              onOpenDetails={openDetails}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
               onSendMedia={(file, caption) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendMedia(inbox.selectedId, file, caption) : Promise.resolve(null)}
@@ -162,7 +214,13 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
         </div>
       </div>
 
-      <Dialog onOpenChange={setDetailsOpen} open={detailsOpen}>
+      <Dialog
+        onOpenChange={(open) => {
+          if (open) openDetails();
+          else if (detailsOpenRef.current) mobileHistory.leaveDetails();
+        }}
+        open={detailsOpen}
+      >
         <DialogContent
           className="customer-dialog"
           onCloseAutoFocus={(event) => {

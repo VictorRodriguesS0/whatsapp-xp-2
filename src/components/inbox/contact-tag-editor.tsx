@@ -28,8 +28,10 @@ type ContactTagEditorProps = {
   onSave: (contactId: string, tagIds: string[]) => Promise<boolean>;
 };
 
+const HEX_COLOR = /^#[0-9A-F]{6}$/i;
+
 function isSafeColor(color: string) {
-  return /^#[0-9A-F]{6}$/i.test(color);
+  return HEX_COLOR.test(color);
 }
 
 export function ContactTagEditor({
