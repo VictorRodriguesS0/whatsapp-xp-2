@@ -88,7 +88,14 @@ describe("ContactTagEditor", () => {
     await user.click(screen.getByRole("button", { name: "Salvar etiquetas" }));
 
     expect(screen.getByRole("dialog", { name: "Gerenciar etiquetas" })).toBeVisible();
-    rerender(<ContactTagEditor {...baseProps} error="Não foi possível salvar as etiquetas." onSave={onSave} />);
+    rerender(
+      <ContactTagEditor
+        {...baseProps}
+        availableTags={[...baseProps.availableTags]}
+        error="Não foi possível salvar as etiquetas."
+        onSave={onSave}
+      />,
+    );
     expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível salvar as etiquetas.");
 
     await user.click(screen.getByRole("button", { name: "Salvar etiquetas" }));

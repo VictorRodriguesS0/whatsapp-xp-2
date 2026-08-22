@@ -52,6 +52,8 @@ export function ContactTagEditor({
     () => new Set(availableTags.map((tag) => tag.id)),
     [availableTags],
   );
+  const selectionSource = useRef({ assignedTags, availableIds });
+  selectionSource.current = { assignedTags, availableIds };
   const unavailableAssigned = assignedTags.filter((tag) => !availableIds.has(tag.id));
 
   function resetDraft() {
@@ -67,11 +69,14 @@ export function ContactTagEditor({
 
   useEffect(() => {
     if (open) {
+      const source = selectionSource.current;
       setDraft(new Set(
-        assignedTags.filter((tag) => availableIds.has(tag.id)).map((tag) => tag.id),
+        source.assignedTags
+          .filter((tag) => source.availableIds.has(tag.id))
+          .map((tag) => tag.id),
       ));
     }
-  }, [assignedTags, availableIds, contactId, open]);
+  }, [contactId, open]);
 
   function toggleTag(tagId: string, checked: boolean) {
     setDraft((current) => {
