@@ -73,8 +73,8 @@ The canonical KVM Compose recreated only `xp-whatsapp-app` with `--no-deps --for
 
 The safe production media aggregate after rollout was 45 inbound `AVAILABLE`, 3 inbound `FAILED`, 0 due `PENDING`, and 0 terminal transitions since deployment. No identifier, payload, storage path or content hash tied to a conversation was inspected or emitted.
 
-## Rollback and remaining acceptance
+## Rollback and production acceptance
 
 The immediate prior release `cd61d93b66597d35c00394aca6ebe5d722ba7e74` remains available for app-only rollback. The older compatibility image `xp-whatsapp:ef61c05` is also preserved at image ID `sha256:0778e0539b01001923819a715931e2f3ede8fa4e67020f586399c022fb03f7cf`. Migration 005 is additive and nullable, so the prior binary ignores it. A rollback must recreate only the app and must not revert committed data.
 
-One exact human action remains: in an authorized test conversation, send one short non-sensitive inbound audio while the conversation is open and confirm that `Baixando áudio` becomes the audio player without reload. If that authorized row reaches `FAILED`, click `Tentar novamente` once and confirm the player appears. Report only timestamp and pass/fail, never contact, message, provider or storage identifiers.
+After rollout, the user sent one authorized short inbound audio and confirmed that recovery and playback succeeded in production without a page reload. This closes the human acceptance for checkpoint B. No contact, message, provider or storage identifier was recorded for that test.
