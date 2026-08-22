@@ -62,7 +62,8 @@ export const ModelName = {
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
-  WebhookEvent: 'WebhookEvent'
+  WebhookEvent: 'WebhookEvent',
+  QuickReply: 'QuickReply'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -259,6 +260,19 @@ export const WebhookEventScalarFieldEnum = {
 } as const
 
 export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[keyof typeof WebhookEventScalarFieldEnum]
+
+
+export const QuickReplyScalarFieldEnum = {
+  id: 'id',
+  shortcut: 'shortcut',
+  message: 'message',
+  position: 'position',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type QuickReplyScalarFieldEnum = (typeof QuickReplyScalarFieldEnum)[keyof typeof QuickReplyScalarFieldEnum]
 
 
 export const SortOrder = {

@@ -408,7 +408,8 @@ export const ModelName = {
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
-  WebhookEvent: 'WebhookEvent'
+  WebhookEvent: 'WebhookEvent',
+  QuickReply: 'QuickReply'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -424,7 +425,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent"
+    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent" | "quickReply"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1316,6 +1317,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    QuickReply: {
+      payload: Prisma.$QuickReplyPayload<ExtArgs>
+      fields: Prisma.QuickReplyFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.QuickReplyFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.QuickReplyFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>
+        }
+        findFirst: {
+          args: Prisma.QuickReplyFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.QuickReplyFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>
+        }
+        findMany: {
+          args: Prisma.QuickReplyFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>[]
+        }
+        create: {
+          args: Prisma.QuickReplyCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>
+        }
+        createMany: {
+          args: Prisma.QuickReplyCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.QuickReplyCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>[]
+        }
+        delete: {
+          args: Prisma.QuickReplyDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>
+        }
+        update: {
+          args: Prisma.QuickReplyUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>
+        }
+        deleteMany: {
+          args: Prisma.QuickReplyDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.QuickReplyUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.QuickReplyUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>[]
+        }
+        upsert: {
+          args: Prisma.QuickReplyUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$QuickReplyPayload>
+        }
+        aggregate: {
+          args: Prisma.QuickReplyAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateQuickReply>
+        }
+        groupBy: {
+          args: Prisma.QuickReplyGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.QuickReplyGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.QuickReplyCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.QuickReplyCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1533,6 +1608,19 @@ export const WebhookEventScalarFieldEnum = {
 } as const
 
 export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[keyof typeof WebhookEventScalarFieldEnum]
+
+
+export const QuickReplyScalarFieldEnum = {
+  id: 'id',
+  shortcut: 'shortcut',
+  message: 'message',
+  position: 'position',
+  active: 'active',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type QuickReplyScalarFieldEnum = (typeof QuickReplyScalarFieldEnum)[keyof typeof QuickReplyScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1947,6 +2035,7 @@ export type GlobalOmitConfig = {
   conversationRead?: Prisma.ConversationReadOmit
   conversationAuditEvent?: Prisma.ConversationAuditEventOmit
   webhookEvent?: Prisma.WebhookEventOmit
+  quickReply?: Prisma.QuickReplyOmit
 }
 
 /* Types for Logging */

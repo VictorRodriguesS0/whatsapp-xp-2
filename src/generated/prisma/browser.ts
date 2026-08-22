@@ -77,3 +77,8 @@ export type ConversationAuditEvent = Prisma.ConversationAuditEventModel
  * 
  */
 export type WebhookEvent = Prisma.WebhookEventModel
+/**
+ * Model QuickReply
+ * 
+ */
+export type QuickReply = Prisma.QuickReplyModel
