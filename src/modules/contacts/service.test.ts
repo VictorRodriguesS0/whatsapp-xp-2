@@ -82,6 +82,7 @@ function createRepository(options: {
   assignmentTagIds?: string[];
   failTagCreation?: boolean;
   transactionFailures?: unknown[];
+  afterTransactionFailures?: Array<() => unknown>;
 } = {}): ContactRepository & {
   contactRecord: ContactRecord | null;
   typeRecords: DefinitionRecord[];
@@ -97,6 +98,7 @@ function createRepository(options: {
   const assignmentTagIds = [...(options.assignmentTagIds ?? [])];
   const contactUpdates: ContactUpdateData[] = [];
   const transactionFailures = [...(options.transactionFailures ?? [])];
+  const afterTransactionFailures = [...(options.afterTransactionFailures ?? [])];
   let transactionAttempts = 0;
 
   const hydrateContact = (): ContactRecord | null => {
@@ -193,7 +195,10 @@ function createRepository(options: {
         assignmentTagIds,
         failTagCreation: options.failTagCreation,
       });
+      staged.isActorActive = repository.isActorActive;
       const result = await operation(staged);
+      const afterFailure = afterTransactionFailures.shift();
+      if (afterFailure) throw afterFailure();
       contactRecord = staged.contactRecord;
       typeRecords.splice(0, typeRecords.length, ...staged.typeRecords);
       tagRecords.splice(0, tagRecords.length, ...staged.tagRecords);
@@ -394,6 +399,25 @@ describe("contact classification service", () => {
       replaceContactTags(attendant, contactId, [tagId], repository),
     ).resolves.toMatchObject({ tags: [expect.objectContaining({ id: tagId })] });
     expect(repository.transactionAttempts).toBe(3);
+  });
+
+  it("rechecks actor activity inside a fresh retry before mutating tags", async () => {
+    let actorActive = true;
+    const repository = createRepository({
+      tags: [definition(tagId, "VIP"), definition(secondTagId, "Retorno")],
+      assignmentTagIds: [tagId],
+      afterTransactionFailures: [() => {
+        actorActive = false;
+        return serializationFailure();
+      }],
+    });
+    repository.isActorActive = async () => actorActive;
+
+    await expect(
+      replaceContactTags(attendant, contactId, [secondTagId], repository),
+    ).rejects.toMatchObject({ status: 403 });
+    expect(repository.transactionAttempts).toBe(2);
+    expect(repository.assignmentTagIds).toEqual([tagId]);
   });
 
   it("allows only administrators to manage definitions", async () => {

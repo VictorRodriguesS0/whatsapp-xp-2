@@ -287,11 +287,11 @@ export async function replaceContactTags(
   tagIds: unknown,
   repository: ContactRepository = contactRepository,
 ): Promise<ContactDto> {
-  await requireActiveActor(actor, repository);
   const parsedContactId = contactIdSchema.parse(contactId);
   const parsedTagIds = contactTagIdsSchema.parse(tagIds);
 
   return runContactRepositoryTransaction(repository, async (transaction) => {
+    await requireActiveActor(actor, transaction);
     const currentContact = await requireContact(parsedContactId, transaction);
     const activeTags = await transaction.findActiveContactTags(parsedTagIds);
     if (activeTags.length !== parsedTagIds.length) {
