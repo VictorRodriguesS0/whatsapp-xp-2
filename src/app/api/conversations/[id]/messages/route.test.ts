@@ -75,6 +75,7 @@ describe("conversation history route", () => {
           direction: MessageDirection.OUTBOUND,
           type: MessageType.TEXT,
           body: "Oi",
+          content: null,
           mediaObjectId: null,
           mediaState: null,
           sentBy: { id: actor.id, name: actor.name },
@@ -124,6 +125,7 @@ describe("conversation history route", () => {
           direction: MessageDirection.OUTBOUND,
           type: MessageType.DOCUMENT,
           body: null,
+          content: null,
           mediaObjectId: id,
           mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
           sentBy: { id: actor.id, name: actor.name },
@@ -172,6 +174,7 @@ describe("conversation history route", () => {
           direction: MessageDirection.OUTBOUND,
           type: MessageType.DOCUMENT,
           body: null,
+          content: null,
           mediaObjectId: calls === 1 ? null : id,
           mediaState: calls === 1
             ? null

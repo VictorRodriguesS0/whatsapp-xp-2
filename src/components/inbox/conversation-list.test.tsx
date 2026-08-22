@@ -23,6 +23,7 @@ const fixture: ConversationListItem = {
     direction: "INBOUND",
     type: "TEXT",
     body: "Vocês têm esse modelo em estoque?",
+    content: null,
     mediaObjectId: null,
     mediaState: null,
     sentBy: null,

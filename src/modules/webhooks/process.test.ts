@@ -8,7 +8,12 @@ import {
   WebhookStatus,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
-import { inboundMediaFixture, inboundTextFixture, statusFixture } from "@/test/fixtures/meta-webhooks";
+import {
+  inboundLocationFixture,
+  inboundMediaFixture,
+  inboundTextFixture,
+  statusFixture,
+} from "@/test/fixtures/meta-webhooks";
 import { resetTestDatabase } from "@/test/database";
 
 import { normalizeWebhook } from "./normalize";
@@ -53,6 +58,7 @@ type State = {
       direction: MessageDirection;
       status: MessageStatus;
       body: string | null;
+      content: unknown;
       sentByUserId: string | null;
       externalTimestamp: Date;
       mediaObjectId: string | null;
@@ -187,6 +193,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
           direction: message.direction,
           status: message.status,
           body: message.body,
+          content: message.content,
           sentByUserId: message.sentByUserId,
           externalTimestamp: message.externalTimestamp,
           mediaObjectId: message.mediaObjectId,
@@ -393,6 +400,25 @@ describe("webhook event processing", () => {
     ]);
   });
 
+  it("threads normalized location content into the inbound repository input", async () => {
+    const harness = createHarness();
+    const event = normalizeWebhook(inboundLocationFixture)[0]!;
+
+    await processWebhookEvents([event, event], harness.dependencies);
+
+    expect([...harness.state.messages.values()]).toEqual([
+      expect.objectContaining({
+        content: {
+          kind: "location",
+          latitude: -15.793889,
+          longitude: -47.882778,
+          name: "XP Eletrônicos",
+          address: "Brasília - DF",
+        },
+      }),
+    ]);
+  });
+
   it("does not schedule a second media download for a duplicate webhook", async () => {
     const harness = createHarness();
     const events = normalizeWebhook(inboundMediaFixture("image"));
@@ -537,6 +563,7 @@ describe("webhook event processing", () => {
       direction: MessageDirection.OUTBOUND,
       status: MessageStatus.SENT,
       body: "racing message",
+      content: null,
       sentByUserId: null,
       externalTimestamp: now,
       mediaObjectId: null,
@@ -568,6 +595,27 @@ describe("webhook PostgreSQL integration", () => {
         select: { status: true },
       }),
     ).resolves.toEqual({ status: WebhookStatus.PROCESSED });
+  });
+
+  it("persists a normalized location exactly once", async () => {
+    const event = normalizeWebhook(inboundLocationFixture)[0]!;
+
+    await processWebhookEvents([event, event]);
+
+    await expect(
+      prisma.message.findMany({ select: { type: true, content: true } }),
+    ).resolves.toEqual([
+      {
+        type: "LOCATION",
+        content: {
+          kind: "location",
+          latitude: -15.793889,
+          longitude: -47.882778,
+          name: "XP Eletrônicos",
+          address: "Brasília - DF",
+        },
+      },
+    ]);
   });
 
   it("serializes concurrent deliveries into one committed message", async () => {

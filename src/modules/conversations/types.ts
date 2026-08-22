@@ -4,6 +4,7 @@ import type {
   MessageStatus,
   MessageType,
 } from "@/generated/prisma/enums";
+import type { MessageContent } from "@/modules/messages/content";
 
 export const MAX_MEDIA_DOWNLOAD_ATTEMPTS = 5;
 
@@ -90,6 +91,7 @@ export type MessageRecord = {
   direction: MessageDirection;
   type: MessageType;
   body: string | null;
+  content: unknown;
   mediaObjectId: string | null;
   mediaObject?: SafeMessageMediaRecord | null;
   sentByUser: ConversationUserRecord | null;
@@ -105,6 +107,7 @@ export type MessageDto = {
   direction: MessageDirection;
   type: MessageType;
   body: string | null;
+  content: MessageContent | null;
   mediaObjectId: string | null;
   mediaState: MediaStateDto | null;
   sentBy: ResponsibleUserDto | null;

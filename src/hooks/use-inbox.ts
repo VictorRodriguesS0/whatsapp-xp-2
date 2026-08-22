@@ -121,6 +121,7 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     direction: "OUTBOUND",
     type: pending.kind === "text" ? "TEXT" : pending.type,
     body: pending.body || null,
+    content: null,
     mediaObjectId: null,
     mediaState: null,
     sentBy: { id: actor.id, name: actor.name },

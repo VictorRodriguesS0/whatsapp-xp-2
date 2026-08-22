@@ -29,6 +29,7 @@ function message() {
     direction: MessageDirection.OUTBOUND,
     type: MessageType.AUDIO,
     body: null,
+    content: null,
     mediaObjectId: conversationId,
     mediaState: { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false },
     sentBy: { id: actor.id, name: actor.name },

@@ -29,6 +29,7 @@ const message: InboxMessage = {
   direction: "INBOUND",
   type: "TEXT",
   body: "Olá",
+  content: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: null,

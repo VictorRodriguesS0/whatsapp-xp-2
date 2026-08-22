@@ -10,6 +10,10 @@ import {
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import {
+  messageContentForPrisma,
+  type MessageContent,
+} from "@/modules/messages/content";
+import {
   compareBoundary,
   refreshResponseState,
 } from "@/modules/conversations/shared-state";
@@ -61,6 +65,7 @@ export type WebhookRepository = {
     whatsappMessageId: string;
     type: NormalizedMessageEvent["type"];
     body: string | null;
+    content: MessageContent | null;
     mediaObjectId: string | null;
     direction: MessageDirection;
     status: MessageStatusValue;
@@ -546,6 +551,7 @@ export function createPrismaWebhookRepository(
           whatsappMessageId: input.whatsappMessageId,
           type: input.type,
           body: input.body,
+          content: messageContentForPrisma(input.content),
           mediaObjectId: input.mediaObjectId,
           sentByUserId: input.sentByUserId,
           status: input.status,
@@ -720,6 +726,7 @@ async function processMessage(
     whatsappMessageId: event.whatsappMessageId,
     type: event.type,
     body: event.body,
+    content: event.content,
     mediaObjectId: media?.id ?? null,
     direction: MessageDirection.INBOUND,
     status: MessageStatus.RECEIVED,
@@ -778,6 +785,7 @@ async function processMessageEcho(
     whatsappMessageId: event.whatsappMessageId,
     type: event.type,
     body: event.body,
+    content: event.content,
     mediaObjectId: media?.id ?? null,
     direction: MessageDirection.OUTBOUND,
     status: MessageStatus.SENT,

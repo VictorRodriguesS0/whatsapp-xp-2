@@ -10,6 +10,7 @@ const outboundFixture: MessageDto = {
   direction: "OUTBOUND",
   type: "TEXT",
   body: "Temos disponível sim.",
+  content: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },

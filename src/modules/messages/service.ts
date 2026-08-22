@@ -580,6 +580,7 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     direction: message.direction,
     type: message.type,
     body: message.body,
+    content: null,
     mediaObjectId: message.mediaObjectId,
     mediaState: message.mediaObject
       ? { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false }

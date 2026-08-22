@@ -35,7 +35,9 @@ function echoEvent(
     toUserId?: string | null;
     timestamp?: Date;
     body?: string | null;
+    content?: NormalizedMessageEchoEvent["content"];
     media?: NormalizedMessageEchoEvent["media"];
+    type?: NormalizedMessageEchoEvent["type"];
   } = {},
 ): NormalizedMessageEchoEvent {
   const timestamp = options.timestamp ?? new Date("2026-08-21T12:00:00.000Z");
@@ -48,9 +50,9 @@ function echoEvent(
     toParentUserId: null,
     timestamp,
     timestampRaw: String(timestamp.getTime() / 1000),
-    type: options.media ? MessageType.IMAGE : MessageType.TEXT,
+    type: options.type ?? (options.media ? MessageType.IMAGE : MessageType.TEXT),
     body: options.body === undefined ? "echo body" : options.body,
-    content: null,
+    content: options.content ?? null,
     media: options.media ?? null,
     origin: "WHATSAPP_BUSINESS_APP",
   };
@@ -931,6 +933,35 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       await expect(prisma.webhookEvent.count()).resolves.toBe(1);
     });
 
+    it("persists WhatsApp Business App location content exactly once", async () => {
+      const content = {
+        kind: "location",
+        latitude: -15.793889,
+        longitude: -47.882778,
+        name: "XP Eletrônicos",
+        address: "Brasília - DF",
+      } as const;
+      const event = echoEvent("wamid.echo-location", {
+        type: MessageType.LOCATION,
+        body: null,
+        content,
+      });
+
+      await processWebhookEvents([event, event]);
+
+      await expect(
+        prisma.message.findMany({
+          select: { direction: true, type: true, content: true },
+        }),
+      ).resolves.toEqual([
+        {
+          direction: MessageDirection.OUTBOUND,
+          type: MessageType.LOCATION,
+          content,
+        },
+      ]);
+    });
+
     it("does not clobber an API-created message when its echo overlaps", async () => {
       const user = await prisma.user.create({
         data: {
@@ -972,6 +1003,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           direction: MessageDirection.OUTBOUND,
           type: MessageType.IMAGE,
           body: "authoritative API content",
+          content: { kind: "system", text: "authoritative API metadata" },
           mediaObjectId: media.id,
           sentByUserId: user.id,
           status: MessageStatus.DELIVERED,
@@ -979,17 +1011,30 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         },
       });
 
-      await processWebhookEvents([
-        echoEvent("wamid.echo-api-duplicate", {
-          to: "551100000005",
-          toUserId: "BR.ApiDuplicate",
-          body: "must not replace",
-        }),
-      ]);
+      const scheduled: string[] = [];
+      await processWebhookEvents(
+        [
+          echoEvent("wamid.echo-api-duplicate", {
+            to: "551100000005",
+            toUserId: "BR.ApiDuplicate",
+            body: null,
+            type: MessageType.STICKER,
+            media: {
+              metaMediaId: "meta-incoming-must-not-be-created",
+              mimeType: "image/webp",
+              sha256: null,
+              filename: null,
+            },
+          }),
+        ],
+        undefined,
+        (id) => scheduled.push(id),
+      );
 
       await expect(prisma.message.findUniqueOrThrow({ where: { id: original.id } }))
         .resolves.toMatchObject({
           body: "authoritative API content",
+          content: { kind: "system", text: "authoritative API metadata" },
           mediaObjectId: media.id,
           sentByUserId: user.id,
           status: MessageStatus.DELIVERED,
@@ -1001,6 +1046,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         whatsappUserId: "BR.ApiDuplicate",
       });
       await expect(prisma.message.count()).resolves.toBe(1);
+      await expect(prisma.mediaObject.count()).resolves.toBe(1);
+      expect(scheduled).toEqual([]);
       await expect(
         prisma.webhookEvent.findUnique({
           where: {

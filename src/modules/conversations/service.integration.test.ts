@@ -144,6 +144,51 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
     expect(serialized).not.toContain("99999999-9999-4999-8999-999999999999");
   });
 
+  it("selects and exposes validated message content", async () => {
+    const { conversation, user } = await seedEqualTimestampFixture();
+    const content = {
+      kind: "location",
+      latitude: -15.793889,
+      longitude: -47.882778,
+      name: "XP Eletrônicos",
+      address: "Brasília - DF",
+    } as const;
+    const richMessage = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.LOCATION,
+        content,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-19T12:01:00.000Z"),
+      },
+    });
+
+    const detail = await getConversation(user.id, conversation.id);
+
+    expect(detail.messages.find(({ id }) => id === richMessage.id)?.content).toEqual(
+      content,
+    );
+  });
+
+  it("reparses corrupt database JSON to a safe null DTO", async () => {
+    const { conversation, user } = await seedEqualTimestampFixture();
+    const corruptMessage = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.LOCATION,
+        content: { kind: "location", latitude: 999, longitude: 0 },
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-19T12:01:00.000Z"),
+      },
+    });
+
+    const detail = await getConversation(user.id, conversation.id);
+
+    expect(detail.messages.find(({ id }) => id === corruptMessage.id)?.content).toBeNull();
+  });
+
   it("searches canonical contact fields and applies inactive type plus multiple tags with AND semantics", async () => {
     const user = await prisma.user.create({
       data: {

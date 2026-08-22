@@ -6,6 +6,7 @@ import { formatContactPhone, resolveContactName } from "@/lib/contact-display";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
+import { parseMessageContent } from "@/modules/messages/content";
 
 import {
   conversationCursorSchema,
@@ -42,6 +43,7 @@ const messageSelect = {
   direction: true,
   type: true,
   body: true,
+  content: true,
   mediaObjectId: true,
   status: true,
   failureReason: true,
@@ -191,6 +193,7 @@ function toMessageDto(message: MessageRecord): MessageDto {
     direction: message.direction,
     type: message.type,
     body: message.body,
+    content: parseMessageContent(message.content),
     mediaObjectId: message.mediaObjectId,
     mediaState,
     sentBy: message.sentByUser

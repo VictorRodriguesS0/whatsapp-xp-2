@@ -63,6 +63,7 @@ function message(
     direction,
     type: MessageType.TEXT,
     body,
+    content: null,
     mediaObjectId: null,
     sentByUser: direction === MessageDirection.OUTBOUND ? users[0]! : null,
     status:
@@ -580,6 +581,29 @@ describe("conversation service", () => {
     expect(result.messages.map((item) => item.id)).toEqual([first.id, latest.id]);
     expect(result).not.toHaveProperty("contactId");
     expect(result.messages[0]).not.toHaveProperty("whatsappMessageId");
+  });
+
+  it("replaces corrupt stored content with a safe null DTO", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const stored = message(
+      "20000000-0000-4000-8000-000000000001",
+      conversationId,
+      new Date(1),
+    );
+    stored.content = { kind: "location", latitude: 999, longitude: 0 };
+    const record = conversation(
+      conversationId,
+      "Carlos",
+      "5511999990001",
+      new Date(1),
+      null,
+      [stored],
+    );
+    const repository = createRepository([record], [stored]);
+
+    const detail = await getConversation(victor.id, conversationId, repository);
+
+    expect(detail.messages[0]?.content).toBeNull();
   });
 
   it("marks only the actor read state", async () => {
