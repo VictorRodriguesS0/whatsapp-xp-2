@@ -3,7 +3,10 @@ import { HttpError } from "@/lib/http";
 import { assertSameOrigin, requireUser } from "@/modules/auth/guards";
 import { conversationIdSchema } from "@/modules/conversations/schemas";
 import { getConversation } from "@/modules/conversations/service";
-import { clientRequestIdSchema } from "@/modules/messages/schemas";
+import {
+  clientRequestIdSchema,
+  messageUuidSchema,
+} from "@/modules/messages/schemas";
 import { sendMessage } from "@/modules/messages/service";
 import { parseRecordingMultipartRequest } from "@/modules/recordings/multipart";
 import { convertRecording, RAW_RECORDING_MIME_TYPES } from "@/modules/recordings/converter";
@@ -64,11 +67,15 @@ export function createConversationRecordingsRouteHandler(
             throw new HttpError(400, "Tipo de gravação não permitido");
           }
           const clientRequestId = clientRequestIdSchema.parse(form.fields.clientRequestId);
+          const replyToMessageId = form.fields.replyToMessageId
+            ? messageUuidSchema.parse(form.fields.replyToMessageId)
+            : undefined;
           const converted = await dependencies.convertRecording({ root: dependencies.mediaRoot, source: raw });
           try {
             const message = await dependencies.sendMessage(actor, conversationId, {
               type: "AUDIO",
               clientRequestId,
+              ...(replyToMessageId ? { replyToMessageId } : {}),
               file: {
                 filename: "gravacao.ogg",
                 mimeType: "audio/ogg",

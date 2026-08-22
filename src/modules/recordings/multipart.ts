@@ -18,6 +18,6 @@ export function parseRecordingMultipartRequest(request: Request, root: string): 
     maximumFileBytes: RAW_RECORDING_MAX_BYTES,
     maximumRequestBytes: RAW_RECORDING_MAX_BYTES + RECORDING_MULTIPART_OVERHEAD_MAX_BYTES,
     maximumDurationMs: RECORDING_MULTIPART_MAX_DURATION_MS,
-    allowedFields: ["clientRequestId"],
+    allowedFields: ["clientRequestId", "replyToMessageId"],
   });
 }

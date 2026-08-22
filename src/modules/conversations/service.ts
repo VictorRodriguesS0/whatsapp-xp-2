@@ -7,6 +7,10 @@ import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
 import { parseMessageContent } from "@/modules/messages/content";
+import {
+  quotedReplyPreview,
+  whatsappMessageIdSchema,
+} from "@/modules/messages/reply-context";
 
 import {
   conversationCursorSchema,
@@ -36,10 +40,22 @@ import { toMediaStateDto } from "./types";
 export const CONVERSATION_PAGE_SIZE = 50;
 
 const userSelect = { id: true, name: true, active: true } as const;
+const replyPreviewSelect = {
+  id: true,
+  direction: true,
+  type: true,
+  body: true,
+  content: true,
+  sentByUser: { select: userSelect },
+  mediaObject: { select: { originalFilename: true } },
+} as const;
 const messageSelect = {
   id: true,
   clientRequestId: true,
   conversationId: true,
+  whatsappMessageId: true,
+  replyToWhatsappMessageId: true,
+  replyToMessage: { select: replyPreviewSelect },
   direction: true,
   type: true,
   body: true,
@@ -206,6 +222,19 @@ function toMessageDto(message: MessageRecord): MessageDto {
     type: message.type,
     body: message.body,
     content: parseMessageContent(message.content),
+    canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
+    replyTo: message.replyToMessage
+      ? quotedReplyPreview({
+          id: message.replyToMessage.id,
+          direction: message.replyToMessage.direction,
+          type: message.replyToMessage.type,
+          body: message.replyToMessage.body,
+          content: message.replyToMessage.content,
+          sentBy: message.replyToMessage.sentByUser,
+        })
+      : message.replyToWhatsappMessageId
+        ? { available: false }
+        : null,
     mediaObjectId: message.mediaObjectId,
     mediaState,
     sentBy: message.sentByUser

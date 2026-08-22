@@ -35,6 +35,12 @@ function Assert-NotMatch {
   }
 }
 
+function Read-NormalizedText {
+  param([Parameter(Mandatory)] [string] $Path)
+
+  return (Get-Content -Raw -LiteralPath $Path).Replace("`r`n", "`n")
+}
+
 foreach ($RequiredPath in @(
   $ComposePath,
   $DockerfilePath,
@@ -47,11 +53,11 @@ foreach ($RequiredPath in @(
   }
 }
 
-$Compose = Get-Content -Raw -LiteralPath $ComposePath
-$Dockerfile = Get-Content -Raw -LiteralPath $DockerfilePath
-$Entrypoint = Get-Content -Raw -LiteralPath $EntrypointPath
-$Nginx = Get-Content -Raw -LiteralPath $NginxPath
-$EnvExample = Get-Content -Raw -LiteralPath $EnvExamplePath
+$Compose = Read-NormalizedText $ComposePath
+$Dockerfile = Read-NormalizedText $DockerfilePath
+$Entrypoint = Read-NormalizedText $EntrypointPath
+$Nginx = Read-NormalizedText $NginxPath
+$EnvExample = Read-NormalizedText $EnvExamplePath
 
 Assert-Match $Compose '(?m)^\s{2}database:\s*$' 'O serviço database é obrigatório.'
 Assert-Match $Compose '(?m)^\s{2}app:\s*$' 'O serviço app é obrigatório.'

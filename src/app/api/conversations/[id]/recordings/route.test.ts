@@ -30,6 +30,8 @@ function message() {
     type: MessageType.AUDIO,
     body: null,
     content: null,
+    canReply: false,
+    replyTo: null,
     mediaObjectId: conversationId,
     mediaState: { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false },
     sentBy: { id: actor.id, name: actor.name },
@@ -132,7 +134,13 @@ describe("conversation recordings route", () => {
       requireUser: async () => actor,
       getConversation: async () => ({}) as any,
       limiter: { tryAcquire: () => ({ release }) } as any,
-      parseRecordingMultipartRequest: async () => ({ fields: { clientRequestId }, file: raw }),
+      parseRecordingMultipartRequest: async () => ({
+        fields: {
+          clientRequestId,
+          replyToMessageId: "20000000-0000-4000-8000-000000000001",
+        },
+        file: raw,
+      }),
       convertRecording,
       sendMessage,
     });
@@ -143,6 +151,7 @@ describe("conversation recordings route", () => {
     expect(sendMessage).toHaveBeenCalledWith(actor, conversationId, {
       type: "AUDIO",
       clientRequestId,
+      replyToMessageId: "20000000-0000-4000-8000-000000000001",
       file: {
         filename: "gravacao.ogg",
         mimeType: "audio/ogg",

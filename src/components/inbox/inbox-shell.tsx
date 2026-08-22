@@ -8,13 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useInbox } from "@/hooks/use-inbox";
+import { useMessageSearch } from "@/hooks/use-message-search";
 import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
 import type { SessionUser } from "@/modules/auth/session";
+import type { MessageSearchResultDto } from "@/modules/message-search/types";
 
 import { ConnectionBanner } from "./connection-banner";
 import { ConversationList } from "./conversation-list";
 import { ConversationView } from "./conversation-view";
 import { CustomerPanel } from "./customer-panel";
+import { MessageSearchResults } from "./message-search-results";
 
 function isMobileViewport() {
   return typeof window !== "undefined" && window.matchMedia?.("(max-width: 719px)").matches;
@@ -40,14 +43,20 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState<"conversations" | "messages">("conversations");
+  const [searchTargetMessageId, setSearchTargetMessageId] = useState<string | null>(null);
+  const globalMessageSearch = useMessageSearch({ scope: "global" });
+  const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsTrigger = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
   const selectedIdRef = useRef<string | null>(inbox.selectedId);
   const detailsOpenRef = useRef(detailsOpen);
+  const replyToMessageIdRef = useRef(replyToMessageId);
   const cancelScheduledFocus = useRef<(() => void) | null>(null);
   selectedIdRef.current = inbox.selectedId;
   detailsOpenRef.current = detailsOpen;
+  replyToMessageIdRef.current = replyToMessageId;
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
     ? inbox.conversation
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
@@ -58,6 +67,8 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     const idToRestore = lastSelectedId.current ?? selectedId;
     setMobileView("list");
     setDetailsOpen(false);
+    setSearchTargetMessageId(null);
+    setReplyToMessageId(null);
     closeConversation();
     if (idToRestore) {
       cancelScheduledFocus.current?.();
@@ -75,18 +86,37 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     closeDetails: closeDetailsLocally,
   });
 
-  function selectConversation(id: string) {
+  function selectConversation(id: string, open = true) {
     lastSelectedId.current = id;
+    setSearchTargetMessageId(null);
+    setReplyToMessageId(null);
     if (isMobileViewport()) {
       if (mobileView === "thread") mobileHistory.switchThread();
       else mobileHistory.enterThread();
     }
     setMobileView("thread");
-    void inbox.openConversation(id);
+    if (open) void inbox.openConversation(id);
     if (isMobileViewport()) {
       cancelScheduledFocus.current?.();
       cancelScheduledFocus.current = afterPaint(() => document.querySelector<HTMLElement>("[data-thread-heading]")?.focus());
     }
+  }
+
+  function selectMessageResult(result: MessageSearchResultDto) {
+    selectConversation(result.conversationId, false);
+    void (async () => {
+      await inbox.openConversation(result.conversationId);
+      const context = await inbox.loadMessageContext(result.conversationId, result.messageId);
+      if (context) setSearchTargetMessageId(result.messageId);
+    })();
+  }
+
+  function selectMessageInOpenConversation(result: MessageSearchResultDto) {
+    setSearchTargetMessageId(null);
+    void (async () => {
+      const context = await inbox.loadMessageContext(result.conversationId, result.messageId);
+      if (context) setSearchTargetMessageId(result.messageId);
+    })();
   }
 
   function openDetails() {
@@ -102,6 +132,18 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   useEffect(() => () => cancelScheduledFocus.current?.(), []);
 
   useEffect(() => {
+    setReplyToMessageId(null);
+  }, [inbox.selectedId]);
+
+  useEffect(() => {
+    if (!replyToMessageId) return;
+    const target = inbox.conversation?.id === inbox.selectedId
+      ? inbox.conversation.messages.find((message) => message.id === replyToMessageId)
+      : null;
+    if (!target?.canReply) setReplyToMessageId(null);
+  }, [inbox.conversation, inbox.selectedId, replyToMessageId]);
+
+  useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       if (
         event.key !== "Escape" ||
@@ -110,9 +152,14 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
         event.defaultPrevented ||
         isMobileViewport() ||
         !selectedIdRef.current ||
-        detailsOpenRef.current ||
-        hasOpenDismissibleOverlay()
+        detailsOpenRef.current
       ) return;
+      if (hasOpenDismissibleOverlay()) return;
+      if (replyToMessageIdRef.current) {
+        event.preventDefault();
+        setReplyToMessageId(null);
+        return;
+      }
       event.preventDefault();
       closeThreadLocally();
     }
@@ -146,14 +193,36 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                   <Button aria-label="Sair" onClick={() => void logout()} size="icon" variant="ghost"><LogOut aria-hidden="true" className="size-4" /></Button>
                 </div>
               </div>
-              <label className="relative mt-3 block" htmlFor="conversation-search">
-                <span className="sr-only">Buscar conversas</span>
+              <div aria-label="Tipo de busca" className="mt-3 grid grid-cols-2 rounded-md bg-[var(--canvas)] p-1" role="group">
+                <button
+                  aria-pressed={searchMode === "conversations"}
+                  className="min-h-9 rounded px-3 text-xs font-semibold text-[var(--muted)] transition-colors aria-pressed:bg-[var(--panel)] aria-pressed:text-[var(--accent)] aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  onClick={() => setSearchMode("conversations")}
+                  type="button"
+                >Conversas</button>
+                <button
+                  aria-pressed={searchMode === "messages"}
+                  className="min-h-9 rounded px-3 text-xs font-semibold text-[var(--muted)] transition-colors aria-pressed:bg-[var(--panel)] aria-pressed:text-[var(--accent)] aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  onClick={() => setSearchMode("messages")}
+                  type="button"
+                >Mensagens</button>
+              </div>
+              <label className="relative mt-2 block" htmlFor="conversation-search">
+                <span className="sr-only">{searchMode === "messages" ? "Buscar nas mensagens" : "Buscar conversas"}</span>
                 <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 size-4 text-[var(--muted)]" />
-                <Input className="pl-9" id="conversation-search" onChange={(event) => inbox.setSearch(event.target.value)} placeholder="Buscar por nome ou telefone" type="search" value={inbox.search} />
+                <Input
+                  aria-label={searchMode === "messages" ? "Buscar nas mensagens" : "Buscar conversas"}
+                  className="pl-9"
+                  id="conversation-search"
+                  onChange={(event) => searchMode === "messages" ? globalMessageSearch.setQuery(event.target.value) : inbox.setSearch(event.target.value)}
+                  placeholder={searchMode === "messages" ? "Buscar nas mensagens" : "Buscar por nome ou telefone"}
+                  type="search"
+                  value={searchMode === "messages" ? globalMessageSearch.query : inbox.search}
+                />
               </label>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <ConversationList
+              {searchMode === "conversations" ? <ConversationList
                 error={inbox.listError}
                 hasMore={Boolean(inbox.nextCursor)}
                 items={inbox.conversations}
@@ -166,7 +235,17 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                 onSelect={selectConversation}
                 search={inbox.search}
                 selectedId={inbox.selectedId}
-              />
+              /> : <MessageSearchResults
+                error={globalMessageSearch.error}
+                hasMore={Boolean(globalMessageSearch.nextCursor)}
+                items={globalMessageSearch.items}
+                loading={globalMessageSearch.loading}
+                loadingMore={globalMessageSearch.loadingMore}
+                onLoadMore={() => void globalMessageSearch.loadMore()}
+                onRetry={globalMessageSearch.retry}
+                onSelect={selectMessageResult}
+                query={globalMessageSearch.query}
+              />}
             </div>
           </aside>
 
@@ -181,21 +260,43 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onBack={mobileHistory.leaveThread}
               onMarkUnread={inbox.markUnread}
               onOpenDetails={openDetails}
+              onCancelReply={() => setReplyToMessageId(null)}
+              onReplyToMessage={(message) => setReplyToMessageId(message.id)}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
               onReactMessage={(messageId, emoji) => inbox.reactToMessage(messageId, emoji)}
               onRetryReaction={(messageId, reactionId) => inbox.retryReaction(messageId, reactionId)}
               reactionStateFor={inbox.reactionStateFor}
-              onSendMedia={(file, caption) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendMedia(inbox.selectedId, file, caption) : Promise.resolve(null)}
-              onSendRecording={(file, clientRequestId) => (
+              onSearchTarget={selectMessageInOpenConversation}
+              onSearchTargetHandled={() => setSearchTargetMessageId(null)}
+              onSendMedia={(file, caption, targetMessageId) => {
+                if (!inbox.selectedId || inbox.conversation?.id !== inbox.selectedId) {
+                  return Promise.resolve(null);
+                }
+                return targetMessageId
+                  ? inbox.sendMedia(inbox.selectedId, file, caption, targetMessageId)
+                  : inbox.sendMedia(inbox.selectedId, file, caption);
+              }}
+              onSendRecording={(file, clientRequestId, targetMessageId) => (
                 inbox.selectedId && inbox.conversation?.id === inbox.selectedId
-                  ? inbox.sendRecording(inbox.selectedId, file, clientRequestId)
+                  ? targetMessageId
+                    ? inbox.sendRecording(inbox.selectedId, file, clientRequestId, targetMessageId)
+                    : inbox.sendRecording(inbox.selectedId, file, clientRequestId)
                   : Promise.resolve(null)
               )}
-              onSendText={(body) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendText(inbox.selectedId, body) : Promise.resolve(null)}
+              onSendText={(body, targetMessageId) => {
+                if (!inbox.selectedId || inbox.conversation?.id !== inbox.selectedId) {
+                  return Promise.resolve(null);
+                }
+                return targetMessageId
+                  ? inbox.sendText(inbox.selectedId, body, targetMessageId)
+                  : inbox.sendText(inbox.selectedId, body);
+              }}
               onVisibleMessage={(messageId) => {
                 if (inbox.selectedId && inbox.conversation?.id === inbox.selectedId) void inbox.markRead(inbox.selectedId, messageId);
               }}
+              searchTargetMessageId={searchTargetMessageId}
+              replyToMessageId={replyToMessageId}
             />
           </section>
 

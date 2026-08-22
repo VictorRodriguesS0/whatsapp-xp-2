@@ -8,7 +8,12 @@ import { join } from "node:path";
 import { promisify } from "node:util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { MediaStatus, MessageStatus, MessageType } from "@/generated/prisma/enums";
+import {
+  MediaStatus,
+  MessageDirection,
+  MessageStatus,
+  MessageType,
+} from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { validateMediaFile } from "@/modules/media/validation";
 import { resetTestDatabase, seedReadFixture } from "@/test/database";
@@ -44,6 +49,17 @@ describe.skipIf(
 
   it("converts, stores, and delivers one voice message without retaining raw temporaries", async () => {
     const { conversation, victor } = await seedReadFixture();
+    const original = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        whatsappMessageId: "wamid.recording-original",
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Pode mandar um áudio?",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-22T12:00:00.000Z"),
+      },
+    });
     const sourceRoot = await mkdtemp(join(tmpdir(), "xp-audio-route-source-"));
     sourceRoots.push(sourceRoot);
     const sourcePath = join(sourceRoot, "capture.webm");
@@ -54,7 +70,9 @@ describe.skipIf(
     ]);
 
     const form = new FormData();
-    form.append("clientRequestId", randomUUID());
+    const clientRequestId = randomUUID();
+    form.append("clientRequestId", clientRequestId);
+    form.append("replyToMessageId", original.id);
     form.append("file", new File([await readFile(sourcePath)], "capture.webm", { type: "audio/webm; codecs=opus" }));
 
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
@@ -69,15 +87,25 @@ describe.skipIf(
     );
 
     expect(response.status).toBe(201);
-    await expect(prisma.message.count()).resolves.toBe(1);
+    await expect(prisma.message.count()).resolves.toBe(2);
     await expect(prisma.mediaObject.count()).resolves.toBe(1);
-    await expect(prisma.message.findFirstOrThrow({
-      select: { type: true, status: true, whatsappMessageId: true, mediaObjectId: true },
+    await expect(prisma.message.findUniqueOrThrow({
+      where: { clientRequestId },
+      select: {
+        type: true,
+        status: true,
+        whatsappMessageId: true,
+        mediaObjectId: true,
+        replyToMessageId: true,
+        replyToWhatsappMessageId: true,
+      },
     })).resolves.toMatchObject({
       type: MessageType.AUDIO,
       status: MessageStatus.SENT,
       whatsappMessageId: expect.stringMatching(/^demo-/),
       mediaObjectId: expect.any(String),
+      replyToMessageId: original.id,
+      replyToWhatsappMessageId: original.whatsappMessageId,
     });
     await expect(prisma.mediaObject.findFirstOrThrow({
       select: { mimeType: true, status: true, sizeBytes: true, storageKey: true },

@@ -60,6 +60,9 @@ function message(
   return {
     id,
     conversationId,
+    whatsappMessageId: null,
+    replyToWhatsappMessageId: null,
+    replyToMessage: null,
     direction,
     type: MessageType.TEXT,
     body,
@@ -583,6 +586,72 @@ describe("conversation service", () => {
     expect(result.messages.map((item) => item.id)).toEqual([first.id, latest.id]);
     expect(result).not.toHaveProperty("contactId");
     expect(result.messages[0]).not.toHaveProperty("whatsappMessageId");
+  });
+
+  it("exposes safe reply capability and previews without official IDs", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const original = {
+      ...message("20000000-0000-4000-8000-000000000001", conversationId, new Date(1)),
+      whatsappMessageId: "wamid.original-safe-contract",
+      replyToWhatsappMessageId: null,
+      replyToMessage: null,
+    };
+    const linked = {
+      ...message("20000000-0000-4000-8000-000000000002", conversationId, new Date(2)),
+      whatsappMessageId: "wamid.linked-safe-contract",
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      replyToMessage: {
+        id: original.id,
+        direction: original.direction,
+        type: original.type,
+        body: original.body,
+        content: original.content,
+        sentByUser: original.sentByUser,
+        mediaObject: null,
+      },
+    };
+    const unavailable = {
+      ...message("20000000-0000-4000-8000-000000000003", conversationId, new Date(3)),
+      whatsappMessageId: null,
+      replyToWhatsappMessageId: "wamid.deleted-original",
+      replyToMessage: null,
+    };
+    const record = conversation(
+      conversationId,
+      "Carlos",
+      "5511999990001",
+      new Date(3),
+      null,
+      [original, linked, unavailable],
+    );
+
+    const detail = await getConversation(
+      victor.id,
+      conversationId,
+      createRepository([record], [original, linked, unavailable]),
+    );
+
+    expect(detail.messages).toEqual([
+      expect.objectContaining({ id: original.id, canReply: true, replyTo: null }),
+      expect.objectContaining({
+        id: linked.id,
+        canReply: true,
+        replyTo: {
+          available: true,
+          messageId: original.id,
+          direction: MessageDirection.INBOUND,
+          type: MessageType.TEXT,
+          author: "Cliente",
+          summary: "mensagem",
+        },
+      }),
+      expect.objectContaining({
+        id: unavailable.id,
+        canReply: false,
+        replyTo: { available: false },
+      }),
+    ]);
+    expect(JSON.stringify(detail)).not.toContain("wamid.");
   });
 
   it("replaces corrupt stored content with a safe null DTO", async () => {

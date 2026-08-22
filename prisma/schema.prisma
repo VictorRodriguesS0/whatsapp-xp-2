@@ -95,7 +95,7 @@ model User {
   conversationReads         ConversationRead[]
   manualUnreadConversations Conversation[]           @relation("ManualUnreadByUser")
   conversationAuditEvents   ConversationAuditEvent[]
-  sentReactions             MessageReaction[]          @relation("ReactionSentByUser")
+  sentReactions             MessageReaction[]        @relation("ReactionSentByUser")
 
   @@map("users")
 }
@@ -200,36 +200,43 @@ model Conversation {
 }
 
 model Message {
-  id                  String                  @id @default(uuid()) @db.Uuid
-  conversationId      String                  @map("conversation_id") @db.Uuid
-  whatsappMessageId   String?                 @unique @map("whatsapp_message_id")
-  clientRequestId     String?                 @unique @map("client_request_id") @db.Uuid
-  direction           MessageDirection
-  type                MessageType
-  body                String?
-  content             Json?
-  mediaObjectId       String?                 @unique @map("media_object_id") @db.Uuid
-  sentByUserId        String?                 @map("sent_by_user_id") @db.Uuid
-  status              MessageStatus
-  failureReason       String?                 @map("failure_reason")
-  revokedAt           DateTime?               @map("revoked_at") @db.Timestamptz(3)
-  operationalState    MessageOperationalState @default(READY) @map("operational_state")
-  providerAttemptedAt DateTime?               @map("provider_attempted_at") @db.Timestamptz(3)
-  deliveryLeaseId     String?                 @map("delivery_lease_id") @db.Uuid
-  deliveryLeaseUntil  DateTime?               @map("delivery_lease_until") @db.Timestamptz(3)
-  externalTimestamp   DateTime                @map("external_timestamp") @db.Timestamptz(3)
-  createdAt           DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt           DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conversation        Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  mediaObject         MediaObject?            @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
-  sentByUser          User?                   @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
-  lastReadFor         ConversationRead[]      @relation("LastReadMessage")
-  teamLastReadFor     Conversation[]          @relation("TeamLastReadMessage")
-  reactions           MessageReaction[]
+  id                       String                  @id @default(uuid()) @db.Uuid
+  conversationId           String                  @map("conversation_id") @db.Uuid
+  whatsappMessageId        String?                 @unique @map("whatsapp_message_id")
+  clientRequestId          String?                 @unique @map("client_request_id") @db.Uuid
+  direction                MessageDirection
+  type                     MessageType
+  body                     String?
+  content                  Json?
+  searchText               String                  @default("") @map("search_text")
+  replyToMessageId         String?                 @map("reply_to_message_id") @db.Uuid
+  replyToWhatsappMessageId String?                 @map("reply_to_whatsapp_message_id")
+  mediaObjectId            String?                 @unique @map("media_object_id") @db.Uuid
+  sentByUserId             String?                 @map("sent_by_user_id") @db.Uuid
+  status                   MessageStatus
+  failureReason            String?                 @map("failure_reason")
+  revokedAt                DateTime?               @map("revoked_at") @db.Timestamptz(3)
+  operationalState         MessageOperationalState @default(READY) @map("operational_state")
+  providerAttemptedAt      DateTime?               @map("provider_attempted_at") @db.Timestamptz(3)
+  deliveryLeaseId          String?                 @map("delivery_lease_id") @db.Uuid
+  deliveryLeaseUntil       DateTime?               @map("delivery_lease_until") @db.Timestamptz(3)
+  externalTimestamp        DateTime                @map("external_timestamp") @db.Timestamptz(3)
+  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation             Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  mediaObject              MediaObject?            @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
+  sentByUser               User?                   @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
+  replyToMessage           Message?                @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies                  Message[]               @relation("MessageReplies")
+  lastReadFor              ConversationRead[]      @relation("LastReadMessage")
+  teamLastReadFor          Conversation[]          @relation("TeamLastReadMessage")
+  reactions                MessageReaction[]
 
   @@index([conversationId, externalTimestamp])
   @@index([conversationId, direction, externalTimestamp, id], map: "messages_response_state_idx")
   @@index([status, operationalState, deliveryLeaseUntil], map: "messages_delivery_claim_idx")
+  @@index([replyToMessageId], map: "messages_reply_to_message_id_idx")
+  @@index([conversationId, replyToWhatsappMessageId], map: "messages_reply_external_lookup_idx")
   @@map("messages")
 }
 

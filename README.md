@@ -225,6 +225,16 @@ A imagem genérica anterior às identidades de contato anuláveis não é um alv
 
 O registro sanitizado da implantação e do aceite de produção de 21 de agosto de 2026 está em `docs/verification/2026-08-21-whatsapp-business-app-message-echoes.md`. O registro inclui o rollback intermediário, sua investigação causal e a reativação final controlada.
 
+### Respostas citadas
+
+A central envia respostas citadas pela referência oficial `context.message_id` da WhatsApp Cloud API. O webhook recebe a mesma referência pelos eventos já assinados em `messages` e, na coexistência com o aplicativo WhatsApp Business, em `smb_message_echoes`. Não acrescente campo à assinatura Meta nem altere callback, número ou permissões para habilitar essa função.
+
+A mensagem original precisa pertencer à mesma conversa e já ter identificador oficial. Se a original ainda não chegou, o processamento preserva a referência oficial e liga as duas mensagens quando ela for persistida. Se foi removida ou não estiver disponível localmente, a conversa continua exibindo `Mensagem original indisponível`, sem expor IDs do provedor.
+
+Citar uma mensagem não amplia a janela de atendimento: texto livre, mídia e áudio continuam sujeitos às mesmas 24 horas e às demais políticas da Meta. Uma tentativa fora da janela pode ser recusada e deve seguir o fluxo normal de template aprovado ou aguardar nova mensagem do cliente.
+
+O rollback desta função recria somente `xp-whatsapp-app` com a imagem anterior compatível. A migration aditiva `202608220004_quoted_replies` permanece aplicada; não reverta colunas, referências, PostgreSQL, mídia, Caddy, redes, assinatura Meta nem outros serviços.
+
 ### Janela de atendimento de 24 horas
 
 Mensagens livres de atendimento só podem ser enviadas dentro da janela de 24 horas após a última mensagem do cliente. Fora dela, a Meta exige template aprovado e pode recusar o envio. Este MVP registra a falha retornada, mas não implementa seleção/envio de templates. Não tente contornar a política; responda após nova mensagem do cliente ou implemente templates oficiais em uma evolução controlada.
@@ -240,6 +250,7 @@ Use números autorizados e conteúdo não sensível. Verifique:
 - documento PDF/Office e limite de tamanho;
 - status `sent`, `delivered`, `read` e falha;
 - deduplicação de webhook;
+- resposta citada iniciada pela central e pelo aplicativo WhatsApp Business;
 - retry explícito de mensagem com falha;
 - duas sessões de funcionários recebendo SSE;
 - download autenticado de mídia após reiniciar o container;

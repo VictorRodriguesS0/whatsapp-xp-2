@@ -11,6 +11,8 @@ const baseMessage: InboxMessage = {
   type: "AUDIO",
   body: null,
   content: null,
+  canReply: false,
+  replyTo: null,
   mediaObjectId: "50000000-0000-4000-8000-000000000001",
   mediaState: {
     status: "PENDING",

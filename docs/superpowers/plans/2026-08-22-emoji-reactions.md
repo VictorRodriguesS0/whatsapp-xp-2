@@ -40,7 +40,7 @@
 
 **Files:**
 - Modify: `prisma/schema.prisma`
-- Create: `prisma/migrations/202608220003_message_reactions/migration.sql`
+- Create: `prisma/migrations/202608220005_message_reactions/migration.sql`
 - Create: `prisma/message-reactions-contract.test.ts`
 - Modify: `src/modules/conversations/types.ts`
 - Modify: `src/modules/conversations/service.ts`

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 
 const migrationPath = join(
   process.cwd(),
-  "prisma/migrations/202608220003_message_reactions/migration.sql",
+  "prisma/migrations/202608220005_message_reactions/migration.sql",
 );
 
 describe("message reactions migration contract", () => {

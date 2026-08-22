@@ -41,7 +41,8 @@ export function MessageReactions({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popTriggeredClose = useRef(false);
   const open = controlledOpen ?? internalOpen;
-  const businessReaction = message.reactions.find(({ reactor }) => reactor === "BUSINESS");
+  const reactions = message.reactions ?? [];
+  const businessReaction = reactions.find(({ reactor }) => reactor === "BUSINESS");
 
   function setOpen(next: boolean) {
     if (!next) setShowFullPicker(false);
@@ -93,9 +94,9 @@ export function MessageReactions({
 
   return (
     <div className="relative">
-      {message.reactions.length > 0 ? (
+      {reactions.length > 0 ? (
         <div aria-label="Reações da mensagem" className="-mb-3 mt-1 flex flex-wrap gap-1">
-          {message.reactions.map((reaction) => (
+          {reactions.map((reaction) => (
             <button
               aria-label={badgeLabel(reaction)}
               className={cn(

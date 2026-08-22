@@ -8,6 +8,31 @@ import { InboxShell } from "./inbox-shell";
 
 const useInboxMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
+const messageSearch = vi.hoisted(() => ({
+  query: "produto",
+  setQuery: vi.fn(),
+  items: [{
+    messageId: "30000000-0000-4000-8000-000000000001",
+    conversationId: "conversation-id",
+    direction: "INBOUND",
+    type: "TEXT",
+    externalTimestamp: "2026-08-22T12:00:00.000Z",
+    snippet: "cliente pediu produto vermelho",
+    matchedText: "produto",
+    contact: { id: "contact-id", name: "Carlos", phone: "+55 61 99999-9999" },
+  }],
+  loading: false,
+  loadingMore: false,
+  error: null,
+  nextCursor: null,
+  retry: vi.fn(),
+  loadMore: vi.fn(),
+  activeIndex: 0,
+  setActiveIndex: vi.fn(),
+  next: vi.fn(),
+  previous: vi.fn(),
+  reset: vi.fn(),
+}));
 const audioRecorder = vi.hoisted(() => ({
   phase: "idle",
   supported: true,
@@ -26,6 +51,7 @@ const audioRecorder = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/use-inbox", () => ({ useInbox: useInboxMock }));
+vi.mock("@/hooks/use-message-search", () => ({ useMessageSearch: vi.fn(() => messageSearch) }));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => audioRecorder) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
 
@@ -83,6 +109,7 @@ const defaultInbox = {
   connected: true,
   setSearch: vi.fn(),
   openConversation: vi.fn(),
+  loadMessageContext: vi.fn().mockResolvedValue(null),
   closeConversation: vi.fn(),
   refreshList: vi.fn(),
   refreshConversation: vi.fn(),
@@ -103,6 +130,40 @@ const defaultInbox = {
 };
 
 const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT" };
+
+const replyableMessage = {
+  id: "11111111-1111-4111-8111-111111111111",
+  clientRequestId: null,
+  direction: "INBOUND" as const,
+  type: "TEXT" as const,
+  body: "Tem esse produto?",
+  content: null,
+  canReply: true,
+  replyTo: null,
+  mediaObjectId: null,
+  mediaState: null,
+  sentBy: null,
+  status: "RECEIVED" as const,
+  failureReason: null,
+  externalTimestamp: "2026-08-20T14:30:00.000Z",
+  createdAt: "2026-08-20T14:30:00.000Z",
+};
+
+function inboxWithOpenConversation(id = "conversation-id") {
+  return {
+    ...defaultInbox,
+    selectedId: id,
+    conversation: {
+      ...defaultInbox.conversations[0],
+      id,
+      createdAt: "2026-08-20T14:30:00.000Z",
+      updatedAt: "2026-08-20T14:31:00.000Z",
+      messages: [replyableMessage],
+      lastReadMessageId: null,
+      lastReadAt: null,
+    },
+  };
+}
 
 describe("InboxShell", () => {
   beforeAll(() => {
@@ -150,6 +211,19 @@ describe("InboxShell", () => {
     expect(screen.getByRole("main", { name: "Central de atendimento" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Conversas" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Abrir dados do cliente" })).toBeVisible();
+  });
+
+  it("switches between conversation and message search and opens a selected result", async () => {
+    render(<InboxShell initialUser={user} />);
+
+    expect(screen.getByRole("button", { name: "Conversas" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Mensagens" }));
+
+    expect(screen.getByRole("button", { name: "Mensagens" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("searchbox", { name: "Buscar nas mensagens" })).toHaveAttribute("placeholder", "Buscar nas mensagens");
+    fireEvent.click(screen.getByRole("button", { name: /Carlos.*cliente pediu produto vermelho/i }));
+    expect(defaultInbox.openConversation).toHaveBeenCalledWith("conversation-id");
+    await waitFor(() => expect(defaultInbox.loadMessageContext).toHaveBeenCalledWith("conversation-id", "30000000-0000-4000-8000-000000000001"));
   });
 
   it("moves focus into the mobile thread and restores the selected conversation on back", async () => {
@@ -261,6 +335,55 @@ describe("InboxShell", () => {
 
     expect(defaultInbox.closeConversation).toHaveBeenCalledOnce();
     await waitFor(() => expect(row).toHaveFocus());
+  });
+
+  it("sends the selected quoted target and clears its draft immediately", async () => {
+    useInboxMock.mockReturnValue(inboxWithOpenConversation());
+    render(<InboxShell initialUser={user} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
+    expect(screen.getAllByText("Tem esse produto?")).toHaveLength(2);
+    const input = screen.getByLabelText("Mensagem");
+    fireEvent.change(input, { target: { value: "Sim" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(defaultInbox.sendText).toHaveBeenCalledWith(
+      "conversation-id",
+      "Sim",
+      replyableMessage.id,
+    );
+    expect(screen.queryByRole("button", { name: "Cancelar resposta citada" }))
+      .not.toBeInTheDocument();
+  });
+
+  it("uses the first Escape to cancel a quote and the second to close the desktop thread", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    useInboxMock.mockReturnValue(inboxWithOpenConversation());
+    render(<InboxShell initialUser={user} />);
+    fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("button", { name: "Cancelar resposta citada" }))
+      .not.toBeInTheDocument();
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(defaultInbox.closeConversation).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
+  it("clears a quoted draft when the selected conversation changes", () => {
+    const first = inboxWithOpenConversation();
+    useInboxMock.mockReturnValue(first);
+    const rendered = render(<InboxShell initialUser={user} />);
+    fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
+    expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
+
+    useInboxMock.mockReturnValue(inboxWithOpenConversation("conversation-two"));
+    rendered.rerender(<InboxShell initialUser={user} />);
+
+    expect(screen.queryByRole("button", { name: "Cancelar resposta citada" }))
+      .not.toBeInTheDocument();
   });
 
   it("ignores Escape without a selection and ignores repeated, composing or prevented events", () => {

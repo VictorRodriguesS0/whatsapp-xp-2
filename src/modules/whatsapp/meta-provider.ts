@@ -144,11 +144,15 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     });
   }
 
-  sendText(input: { to: string; body: string }) {
+  sendText(input: { to: string; body: string; contextMessageId?: string }) {
+    const context = input.contextMessageId
+      ? { context: { message_id: input.contextMessageId } }
+      : {};
     return this.send({
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: input.to,
+      ...context,
       type: "text",
       text: { body: input.body, preview_url: false },
     });
@@ -212,14 +216,18 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     });
   }
 
-  sendMedia(input: { to: string; type: "image" | "audio" | "video" | "document"; mediaId: string; caption?: string; filename?: string }) {
+  sendMedia(input: { to: string; type: "image" | "audio" | "video" | "document"; mediaId: string; caption?: string; filename?: string; contextMessageId?: string }) {
     const media: JsonRecord = { id: input.mediaId };
     if (input.caption && input.type !== "audio") media.caption = input.caption;
     if (input.filename && input.type === "document") media.filename = input.filename;
+    const context = input.contextMessageId
+      ? { context: { message_id: input.contextMessageId } }
+      : {};
     return this.send({
       messaging_product: "whatsapp",
       recipient_type: "individual",
       to: input.to,
+      ...context,
       type: input.type,
       [input.type]: media,
     });

@@ -1,4 +1,5 @@
 # Prisma 7 emits template whitespace in generated client sources. Keep the
 # repository-wide whitespace gate active while exempting only this generated output.
+/.gitattributes text eol=lf
 src/generated/prisma/** -whitespace
 *.sh text eol=lf

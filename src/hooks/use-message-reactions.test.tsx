@@ -13,6 +13,8 @@ const baseMessage: MessageDto = {
   type: "TEXT",
   body: "Oi",
   content: null,
+  canReply: false,
+  replyTo: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: null,

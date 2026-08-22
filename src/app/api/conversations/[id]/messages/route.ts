@@ -79,6 +79,7 @@ async function parseSendInput(request: Request, mediaRoot: string): Promise<Send
       type: form.fields.type,
       clientRequestId: form.fields.clientRequestId,
       body: form.fields.body || undefined,
+      replyToMessageId: form.fields.replyToMessageId || undefined,
     });
 
     return {

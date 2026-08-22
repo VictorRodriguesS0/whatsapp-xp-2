@@ -13,7 +13,12 @@ import type {
   MessageDto,
   SharedConversationStateDto,
 } from "@/modules/conversations/types";
+import type { MessageContextDto } from "@/modules/message-search/types";
 import type { ContactDto as UpdatedContactDto } from "@/modules/contacts/types";
+import {
+  quotedReplyPreview,
+  type QuotedReplyDto,
+} from "@/modules/messages/reply-context";
 import type { RealtimeEvent } from "@/modules/realtime/events";
 
 import { useRealtime } from "./use-realtime";
@@ -35,14 +40,19 @@ type ApiEnvelope<T> = {
   error: { code?: string; message: string } | null;
 };
 
-type PendingText = {
+type PendingReply = {
+  replyToMessageId: string | null;
+  replyTo: QuotedReplyDto | null;
+};
+
+type PendingText = PendingReply & {
   kind: "text";
   conversationId: string;
   clientRequestId: string;
   body: string;
 };
 
-type PendingMedia = {
+type PendingMedia = PendingReply & {
   kind: "media";
   source: "attachment" | "recording";
   conversationId: string;
@@ -123,6 +133,8 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     type: pending.kind === "text" ? "TEXT" : pending.type,
     body: pending.body || null,
     content: null,
+    canReply: false,
+    replyTo: pending.replyTo,
     mediaObjectId: null,
     mediaState: null,
     sentBy: { id: actor.id, name: actor.name },
@@ -137,6 +149,30 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
   };
 }
 
+function pendingReply(
+  conversation: InboxConversation | null,
+  replyToMessageId?: string | null,
+): PendingReply | null {
+  if (!replyToMessageId) {
+    return { replyToMessageId: null, replyTo: null };
+  }
+  const target = conversation?.messages.find(
+    (message) => message.id === replyToMessageId,
+  );
+  if (!target?.canReply) return null;
+  return {
+    replyToMessageId: target.id,
+    replyTo: quotedReplyPreview({
+      id: target.id,
+      direction: target.direction,
+      type: target.type,
+      body: target.body,
+      content: target.content,
+      sentBy: target.sentBy,
+    }),
+  };
+}
+
 function appendConversationPage(current: ConversationListItem[], incoming: ConversationListItem[]) {
   const incomingById = new Map(incoming.map((item) => [item.id, item]));
   const merged = current.map((item) => incomingById.get(item.id) ?? item);
@@ -145,6 +181,14 @@ function appendConversationPage(current: ConversationListItem[], incoming: Conve
     if (!existingIds.has(item.id)) merged.push(item);
   }
   return merged;
+}
+
+function mergeContextMessages(current: InboxMessage[], incoming: InboxMessage[]) {
+  const messages = new Map(current.map((message) => [message.id, message]));
+  for (const message of incoming) messages.set(message.id, { ...messages.get(message.id), ...message });
+  return [...messages.values()].sort((left, right) => (
+    left.externalTimestamp.localeCompare(right.externalTimestamp) || left.id.localeCompare(right.id)
+  ));
 }
 
 function mergeRefreshedPage(firstPage: ConversationListItem[], current: ConversationListItem[]) {
@@ -585,6 +629,30 @@ export function useInbox(initialUser: SessionUser) {
     await fetchConversation(id, true);
   }, [fetchConversation]);
 
+  const loadMessageContext = useCallback(async (conversationId: string, messageId: string) => {
+    try {
+      const response = await fetch(
+        `/api/conversations/${encodeURIComponent(conversationId)}/messages/${encodeURIComponent(messageId)}/context`,
+        { headers: { Accept: "application/json" } },
+      );
+      const context = await readEnvelope<MessageContextDto>(response);
+      if (selectedIdRef.current !== conversationId) return null;
+      setConversation((current) => current?.id === conversationId
+        ? { ...current, messages: mergeContextMessages(current.messages, context.messages) }
+        : current);
+      return context;
+    } catch (error) {
+      if (selectedIdRef.current === conversationId) {
+        setConversationErrorState({
+          conversationId,
+          operation: "conversation",
+          message: publicErrorMessage("conversation", errorStatus(error)),
+        });
+      }
+      return null;
+    }
+  }, []);
+
   const closeConversation = useCallback(() => {
     selectedIdRef.current = null;
     selectedContactIdRef.current = null;
@@ -774,10 +842,16 @@ export function useInbox(initialUser: SessionUser) {
             type: "TEXT",
             clientRequestId: pending.clientRequestId,
             body: pending.body,
+            ...(pending.replyToMessageId
+              ? { replyToMessageId: pending.replyToMessageId }
+              : {}),
           });
         } else {
           const form = new FormData();
           form.set("clientRequestId", pending.clientRequestId);
+          if (pending.replyToMessageId) {
+            form.set("replyToMessageId", pending.replyToMessageId);
+          }
           if (pending.source === "attachment") {
             form.set("type", pending.type);
             if (pending.body) form.set("body", pending.body);
@@ -863,23 +937,44 @@ export function useInbox(initialUser: SessionUser) {
     return operation;
   }, [confirmedResult, refreshList]);
 
-  const sendText = useCallback(async (conversationId: string, body: string) => {
+  const sendText = useCallback(async (
+    conversationId: string,
+    body: string,
+    replyToMessageId?: string | null,
+  ) => {
+    const trimmedBody = body.trim();
+    if (!trimmedBody) return null;
+    const reply = pendingReply(
+      conversation?.id === conversationId ? conversation : null,
+      replyToMessageId,
+    );
+    if (!reply) return null;
     const pending: PendingText = {
       kind: "text",
       conversationId,
       clientRequestId: crypto.randomUUID(),
-      body: body.trim(),
+      body: trimmedBody,
+      ...reply,
     };
-    if (!pending.body) return null;
     const optimistic = optimisticMessage(initialUser, pending);
     pendingSends.current.set(optimistic.id, pending);
     setConversation((current) => current?.id === conversationId
       ? { ...current, messages: [...current.messages, optimistic] }
       : current);
     return performSend(pending, optimistic.id);
-  }, [initialUser, performSend]);
+  }, [conversation, initialUser, performSend]);
 
-  const sendMedia = useCallback(async (conversationId: string, file: File, caption: string) => {
+  const sendMedia = useCallback(async (
+    conversationId: string,
+    file: File,
+    caption: string,
+    replyToMessageId?: string | null,
+  ) => {
+    const reply = pendingReply(
+      conversation?.id === conversationId ? conversation : null,
+      replyToMessageId,
+    );
+    if (!reply) return null;
     const previewUrl = typeof URL.createObjectURL === "function" ? URL.createObjectURL(file) : undefined;
     const pending: PendingMedia = {
       kind: "media",
@@ -890,6 +985,7 @@ export function useInbox(initialUser: SessionUser) {
       file,
       type: mediaType(file),
       previewUrl,
+      ...reply,
     };
     const optimistic = optimisticMessage(initialUser, pending);
     pendingSends.current.set(optimistic.id, pending);
@@ -897,12 +993,13 @@ export function useInbox(initialUser: SessionUser) {
       ? { ...current, messages: [...current.messages, optimistic] }
       : current);
     return performSend(pending, optimistic.id);
-  }, [initialUser, performSend]);
+  }, [conversation, initialUser, performSend]);
 
   const sendRecording = useCallback((
     conversationId: string,
     file: File,
     clientRequestId: string,
+    replyToMessageId?: string | null,
   ): Promise<InboxMessage | null> => {
     const confirmed = confirmedSends.current.get(clientRequestId);
     if (confirmed?.conversationId === conversationId) {
@@ -918,6 +1015,11 @@ export function useInbox(initialUser: SessionUser) {
       ) return Promise.resolve(null);
       return performSend(pending, rowId);
     }
+    const reply = pendingReply(
+      conversation?.id === conversationId ? conversation : null,
+      replyToMessageId,
+    );
+    if (!reply) return Promise.resolve(null);
     const ownedFile = new File([file], file.name, {
       type: file.type,
       lastModified: file.lastModified,
@@ -932,6 +1034,7 @@ export function useInbox(initialUser: SessionUser) {
       file: ownedFile,
       type: "AUDIO",
       previewUrl,
+      ...reply,
     };
     const optimistic = optimisticMessage(initialUser, pending);
     pendingSends.current.set(optimistic.id, pending);
@@ -939,7 +1042,7 @@ export function useInbox(initialUser: SessionUser) {
       ? { ...current, messages: [...current.messages, optimistic] }
       : current);
     return performSend(pending, optimistic.id);
-  }, [initialUser, performSend]);
+  }, [conversation, initialUser, performSend]);
 
   const retryMessage = useCallback((messageId: string) => {
     const pending = pendingSends.current.get(messageId);
@@ -1185,6 +1288,7 @@ export function useInbox(initialUser: SessionUser) {
     connected: realtime.connected,
     setSearch: changeSearch,
     openConversation,
+    loadMessageContext,
     closeConversation,
     refreshList,
     loadMore,

@@ -95,7 +95,12 @@ describe("database", () => {
       ORDER BY table_name, column_name
     `;
 
-    expect(temporalColumns).toHaveLength(26);
+    expect(temporalColumns).toHaveLength(27);
+    expect(temporalColumns).toContainEqual({
+      tableName: "messages",
+      columnName: "revoked_at",
+      dataType: "timestamp with time zone",
+    });
     expect(new Set(temporalColumns.map((column) => column.dataType))).toEqual(
       new Set(["timestamp with time zone"]),
     );

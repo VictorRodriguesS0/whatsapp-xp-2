@@ -62,6 +62,8 @@ type State = {
       sentByUserId: string | null;
       externalTimestamp: Date;
       mediaObjectId: string | null;
+      replyToMessageId: string | null;
+      replyToWhatsappMessageId: string | null;
     }
   >;
   media: Map<string, { id: string; status: string; metaMediaId: string }>;
@@ -186,6 +188,14 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       },
       createMessage: async (message) => {
         if (options.failCreateMessage) throw new Error("database secret-marker");
+        const replyToWhatsappMessageId = (
+          message as typeof message & { replyToWhatsappMessageId?: string | null }
+        ).replyToWhatsappMessageId ?? null;
+        const replyTarget = [...target.messages.values()].find(
+          (candidate) =>
+            candidate.conversationId === message.conversationId &&
+            candidate.whatsappMessageId === replyToWhatsappMessageId,
+        );
         const created = {
           id: `message-${target.messages.size + 1}`,
           conversationId: message.conversationId,
@@ -197,8 +207,19 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
           sentByUserId: message.sentByUserId,
           externalTimestamp: message.externalTimestamp,
           mediaObjectId: message.mediaObjectId,
+          replyToMessageId: replyTarget?.id ?? null,
+          replyToWhatsappMessageId,
         };
         target.messages.set(message.whatsappMessageId, created);
+        for (const candidate of target.messages.values()) {
+          if (
+            candidate.conversationId === created.conversationId &&
+            candidate.replyToMessageId === null &&
+            candidate.replyToWhatsappMessageId === created.whatsappMessageId
+          ) {
+            candidate.replyToMessageId = created.id;
+          }
+        }
         return { id: created.id, conversationId: created.conversationId };
       },
       refreshResponseState: async (conversationId) => {
@@ -279,6 +300,7 @@ describe("webhook event processing", () => {
       body: "synthetic echo",
       content: null,
       media: null,
+      replyToWhatsappMessageId: null,
       origin: "WHATSAPP_BUSINESS_APP",
     } satisfies NormalizedMessageEchoEvent;
   const control = {
@@ -324,6 +346,80 @@ describe("webhook event processing", () => {
         },
       },
     ]);
+  });
+
+  it("persists and locally links an echo reply in the same conversation", async () => {
+    const harness = createHarness();
+    const original = {
+      ...echo,
+      whatsappMessageId: "wamid.unit-reply-original",
+      body: "Mensagem original",
+    };
+    const reply = {
+      ...echo,
+      whatsappMessageId: "wamid.unit-reply-child",
+      body: "Resposta citada",
+      replyToWhatsappMessageId: original.whatsappMessageId,
+    };
+
+    await processWebhookEvents([original, reply], harness.dependencies);
+
+    expect(harness.state.messages.get(reply.whatsappMessageId)).toMatchObject({
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      replyToMessageId: harness.state.messages.get(original.whatsappMessageId)?.id,
+    });
+  });
+
+  it("backfills a reply that arrives before its original", async () => {
+    const harness = createHarness();
+    const original = {
+      ...echo,
+      whatsappMessageId: "wamid.unit-original-late",
+      body: "Mensagem original atrasada",
+    };
+    const reply = {
+      ...echo,
+      whatsappMessageId: "wamid.unit-reply-first",
+      body: "Resposta recebida primeiro",
+      replyToWhatsappMessageId: original.whatsappMessageId,
+    };
+
+    await processWebhookEvents([reply], harness.dependencies);
+    expect(harness.state.messages.get(reply.whatsappMessageId)).toMatchObject({
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      replyToMessageId: null,
+    });
+
+    await processWebhookEvents([original], harness.dependencies);
+
+    expect(harness.state.messages.get(reply.whatsappMessageId)).toMatchObject({
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      replyToMessageId: harness.state.messages.get(original.whatsappMessageId)?.id,
+    });
+  });
+
+  it("never links a reply to an original stored in another conversation", async () => {
+    const harness = createHarness();
+    const original = {
+      ...echo,
+      whatsappMessageId: "wamid.unit-cross-original",
+      to: "5511999990001",
+      toUserId: null,
+    };
+    const reply = {
+      ...echo,
+      whatsappMessageId: "wamid.unit-cross-reply",
+      to: "5511999990002",
+      toUserId: null,
+      replyToWhatsappMessageId: original.whatsappMessageId,
+    };
+
+    await processWebhookEvents([original, reply], harness.dependencies);
+
+    expect(harness.state.messages.get(reply.whatsappMessageId)).toMatchObject({
+      replyToWhatsappMessageId: original.whatsappMessageId,
+      replyToMessageId: null,
+    });
   });
 
   it("deduplicates controls without creating domain state", async () => {
@@ -570,6 +666,8 @@ describe("webhook event processing", () => {
       sentByUserId: null,
       externalTimestamp: now,
       mediaObjectId: null,
+      replyToMessageId: null,
+      replyToWhatsappMessageId: null,
     });
 
     await expect(processWebhookEvents(events, dependencies))

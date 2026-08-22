@@ -30,6 +30,8 @@ const message: InboxMessage = {
   type: "TEXT",
   body: "Olá",
   content: null,
+  canReply: false,
+  replyTo: null,
   mediaObjectId: null,
   mediaState: null,
   sentBy: null,
@@ -78,6 +80,8 @@ const handlers = {
   onSendMedia: vi.fn().mockResolvedValue(null),
   onSendRecording: vi.fn().mockResolvedValue(null),
   onRetryMessage: vi.fn(),
+  onCancelReply: vi.fn(),
+  onReplyToMessage: vi.fn(),
 };
 
 describe("ConversationView", () => {
@@ -158,6 +162,36 @@ describe("ConversationView", () => {
 
     expect(scrollTo).toHaveBeenCalledWith({ top: 1_000, behavior: "auto" });
     vi.unstubAllGlobals();
+  });
+
+  it("centers, focuses, and temporarily highlights an exact searched message", async () => {
+    vi.useFakeTimers();
+    const scrollIntoView = vi.fn();
+    const original = Object.getOwnPropertyDescriptor(HTMLElement.prototype, "scrollIntoView");
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", { configurable: true, value: scrollIntoView });
+    const target = { ...message, id: "30000000-0000-4000-8000-000000000001" };
+    const onSearchTargetHandled = vi.fn();
+
+    render(
+      <ConversationView
+        {...handlers}
+        conversation={{ ...conversation, messages: [target] }}
+        onSearchTargetHandled={onSearchTargetHandled}
+        searchTargetMessageId={target.id}
+      />,
+    );
+
+    const article = screen.getByRole("article");
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "center", behavior: "smooth" });
+    expect(article).toHaveFocus();
+    expect(article).toHaveAttribute("data-search-highlighted", "true");
+
+    await act(() => vi.advanceTimersByTimeAsync(3_000));
+    expect(article).not.toHaveAttribute("data-search-highlighted");
+    expect(onSearchTargetHandled).toHaveBeenCalledOnce();
+    if (original) Object.defineProperty(HTMLElement.prototype, "scrollIntoView", original);
+    else delete (HTMLElement.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+    vi.useRealTimers();
   });
 
   it("scopes the recorder to the active conversation and propagates recorded sends", async () => {
@@ -262,5 +296,68 @@ describe("ConversationView", () => {
       "src",
       `/api/media/${pendingAudio.mediaObjectId}`,
     );
+  });
+
+  it("selects a replyable bubble and shows its composer draft", () => {
+    const replyable = { ...message, canReply: true };
+    render(
+      <ConversationView
+        {...handlers}
+        conversation={{ ...conversation, messages: [replyable] }}
+        replyToMessageId={replyable.id}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
+    expect(handlers.onReplyToMessage).toHaveBeenCalledWith(replyable);
+    expect(screen.getAllByText("Olá")).toHaveLength(2);
+    expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
+  });
+
+  it("navigates to the quoted original, focuses and highlights it for 1500ms", () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const original = { ...message, id: "message-original", body: "Mensagem original", canReply: true };
+    const quoted = {
+      ...message,
+      id: "message-reply",
+      body: "Resposta",
+      replyTo: {
+        available: true as const,
+        messageId: original.id,
+        direction: original.direction,
+        type: original.type,
+        author: "Cliente",
+        summary: original.body!,
+      },
+    };
+    render(<ConversationView {...handlers} conversation={{ ...conversation, messages: [original, quoted] }} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /^Ir para mensagem original/ }));
+    const originalBody = screen
+      .getAllByText("Mensagem original")
+      .find((element) => element.tagName === "P");
+    const originalArticle = originalBody?.closest("article")!;
+    expect(scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
+    expect(originalArticle).toHaveFocus();
+    expect(originalArticle).toHaveAttribute("data-highlighted", "true");
+    act(() => vi.advanceTimersByTime(1_500));
+    expect(originalArticle).not.toHaveAttribute("data-highlighted");
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it("renders the unavailable-original fallback without navigation", () => {
+    const quoted = { ...message, replyTo: { available: false as const } };
+    render(<ConversationView {...handlers} conversation={{ ...conversation, messages: [quoted] }} />);
+
+    expect(screen.getByText("Mensagem original indisponível")).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Ir para mensagem original" }))
+      .not.toBeInTheDocument();
   });
 });

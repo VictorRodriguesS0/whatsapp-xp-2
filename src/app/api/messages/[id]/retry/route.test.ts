@@ -22,6 +22,8 @@ describe("message retry route", () => {
           type: MessageType.TEXT,
           body: "Oi",
           content: null,
+          canReply: false,
+          replyTo: null,
           mediaObjectId: null,
           mediaState: null,
           sentBy: { id: actor.id, name: actor.name },

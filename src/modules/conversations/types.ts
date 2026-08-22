@@ -7,6 +7,7 @@ import type {
   ReactionStatus,
 } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
+import type { QuotedReplyDto } from "@/modules/messages/reply-context";
 
 export const MAX_MEDIA_DOWNLOAD_ATTEMPTS = 5;
 
@@ -65,6 +66,16 @@ export type SafeMessageMediaRecord = {
   downloadAttempts: number;
 };
 
+export type QuotedReplyRecord = {
+  id: string;
+  direction: MessageDirection;
+  type: MessageType;
+  body: string | null;
+  content: unknown;
+  sentByUser: ConversationUserRecord | null;
+  mediaObject: { originalFilename: string } | null;
+};
+
 export function toMediaStateDto(
   media: SafeMessageMediaRecord,
   now: Date,
@@ -90,6 +101,9 @@ export type MessageRecord = {
   id: string;
   clientRequestId?: string | null;
   conversationId: string;
+  whatsappMessageId: string | null;
+  replyToWhatsappMessageId: string | null;
+  replyToMessage: QuotedReplyRecord | null;
   direction: MessageDirection;
   type: MessageType;
   body: string | null;
@@ -128,6 +142,8 @@ export type MessageDto = {
   type: MessageType;
   body: string | null;
   content: MessageContent | null;
+  canReply: boolean;
+  replyTo: QuotedReplyDto | null;
   mediaObjectId: string | null;
   mediaState: MediaStateDto | null;
   sentBy: ResponsibleUserDto | null;
