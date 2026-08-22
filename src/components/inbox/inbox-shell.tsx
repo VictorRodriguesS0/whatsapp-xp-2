@@ -8,13 +8,16 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useInbox } from "@/hooks/use-inbox";
+import { useMessageSearch } from "@/hooks/use-message-search";
 import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
+import type { MessageSearchResultDto } from "@/modules/message-search/types";
 import type { SessionUser } from "@/modules/auth/session";
 
 import { ConnectionBanner } from "./connection-banner";
 import { ConversationList } from "./conversation-list";
 import { ConversationView } from "./conversation-view";
 import { CustomerPanel } from "./customer-panel";
+import { MessageSearchResults } from "./message-search-results";
 
 function isMobileViewport() {
   return typeof window !== "undefined" && window.matchMedia?.("(max-width: 719px)").matches;
@@ -40,6 +43,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [searchMode, setSearchMode] = useState<"conversations" | "messages">("conversations");
+  const [, setSearchTargetMessageId] = useState<string | null>(null);
+  const globalMessageSearch = useMessageSearch({ scope: "global" });
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsTrigger = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
@@ -75,8 +81,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     closeDetails: closeDetailsLocally,
   });
 
-  function selectConversation(id: string) {
+  function selectConversation(id: string, targetMessageId: string | null = null) {
     lastSelectedId.current = id;
+    setSearchTargetMessageId(targetMessageId);
     if (isMobileViewport()) {
       if (mobileView === "thread") mobileHistory.switchThread();
       else mobileHistory.enterThread();
@@ -87,6 +94,10 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
       cancelScheduledFocus.current?.();
       cancelScheduledFocus.current = afterPaint(() => document.querySelector<HTMLElement>("[data-thread-heading]")?.focus());
     }
+  }
+
+  function selectMessageResult(result: MessageSearchResultDto) {
+    selectConversation(result.conversationId, result.messageId);
   }
 
   function openDetails() {
@@ -146,14 +157,36 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                   <Button aria-label="Sair" onClick={() => void logout()} size="icon" variant="ghost"><LogOut aria-hidden="true" className="size-4" /></Button>
                 </div>
               </div>
-              <label className="relative mt-3 block" htmlFor="conversation-search">
-                <span className="sr-only">Buscar conversas</span>
+              <div aria-label="Tipo de busca" className="mt-3 grid grid-cols-2 rounded-md bg-[var(--canvas)] p-1" role="group">
+                <button
+                  aria-pressed={searchMode === "conversations"}
+                  className="min-h-9 rounded px-3 text-xs font-semibold text-[var(--muted)] transition-colors aria-pressed:bg-[var(--panel)] aria-pressed:text-[var(--accent)] aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  onClick={() => setSearchMode("conversations")}
+                  type="button"
+                >Conversas</button>
+                <button
+                  aria-pressed={searchMode === "messages"}
+                  className="min-h-9 rounded px-3 text-xs font-semibold text-[var(--muted)] transition-colors aria-pressed:bg-[var(--panel)] aria-pressed:text-[var(--accent)] aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                  onClick={() => setSearchMode("messages")}
+                  type="button"
+                >Mensagens</button>
+              </div>
+              <label className="relative mt-2 block" htmlFor="conversation-search">
+                <span className="sr-only">{searchMode === "messages" ? "Buscar nas mensagens" : "Buscar conversas"}</span>
                 <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 size-4 text-[var(--muted)]" />
-                <Input className="pl-9" id="conversation-search" onChange={(event) => inbox.setSearch(event.target.value)} placeholder="Buscar por nome ou telefone" type="search" value={inbox.search} />
+                <Input
+                  aria-label={searchMode === "messages" ? "Buscar nas mensagens" : "Buscar conversas"}
+                  className="pl-9"
+                  id="conversation-search"
+                  onChange={(event) => searchMode === "messages" ? globalMessageSearch.setQuery(event.target.value) : inbox.setSearch(event.target.value)}
+                  placeholder={searchMode === "messages" ? "Buscar nas mensagens" : "Buscar por nome ou telefone"}
+                  type="search"
+                  value={searchMode === "messages" ? globalMessageSearch.query : inbox.search}
+                />
               </label>
             </header>
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <ConversationList
+              {searchMode === "conversations" ? <ConversationList
                 error={inbox.listError}
                 hasMore={Boolean(inbox.nextCursor)}
                 items={inbox.conversations}
@@ -166,7 +199,17 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                 onSelect={selectConversation}
                 search={inbox.search}
                 selectedId={inbox.selectedId}
-              />
+              /> : <MessageSearchResults
+                error={globalMessageSearch.error}
+                hasMore={Boolean(globalMessageSearch.nextCursor)}
+                items={globalMessageSearch.items}
+                loading={globalMessageSearch.loading}
+                loadingMore={globalMessageSearch.loadingMore}
+                onLoadMore={() => void globalMessageSearch.loadMore()}
+                onRetry={globalMessageSearch.retry}
+                onSelect={selectMessageResult}
+                query={globalMessageSearch.query}
+              />}
             </div>
           </aside>
 

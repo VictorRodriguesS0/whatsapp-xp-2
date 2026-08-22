@@ -8,6 +8,31 @@ import { InboxShell } from "./inbox-shell";
 
 const useInboxMock = vi.hoisted(() => vi.fn());
 const routerReplaceMock = vi.hoisted(() => vi.fn());
+const messageSearch = vi.hoisted(() => ({
+  query: "produto",
+  setQuery: vi.fn(),
+  items: [{
+    messageId: "30000000-0000-4000-8000-000000000001",
+    conversationId: "conversation-id",
+    direction: "INBOUND",
+    type: "TEXT",
+    externalTimestamp: "2026-08-22T12:00:00.000Z",
+    snippet: "cliente pediu produto vermelho",
+    matchedText: "produto",
+    contact: { id: "contact-id", name: "Carlos", phone: "+55 61 99999-9999" },
+  }],
+  loading: false,
+  loadingMore: false,
+  error: null,
+  nextCursor: null,
+  retry: vi.fn(),
+  loadMore: vi.fn(),
+  activeIndex: 0,
+  setActiveIndex: vi.fn(),
+  next: vi.fn(),
+  previous: vi.fn(),
+  reset: vi.fn(),
+}));
 const audioRecorder = vi.hoisted(() => ({
   phase: "idle",
   supported: true,
@@ -26,6 +51,7 @@ const audioRecorder = vi.hoisted(() => ({
 }));
 
 vi.mock("@/hooks/use-inbox", () => ({ useInbox: useInboxMock }));
+vi.mock("@/hooks/use-message-search", () => ({ useMessageSearch: vi.fn(() => messageSearch) }));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => audioRecorder) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
 
@@ -150,6 +176,18 @@ describe("InboxShell", () => {
     expect(screen.getByRole("main", { name: "Central de atendimento" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Conversas" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Abrir dados do cliente" })).toBeVisible();
+  });
+
+  it("switches between conversation and message search and opens a selected result", () => {
+    render(<InboxShell initialUser={user} />);
+
+    expect(screen.getByRole("button", { name: "Conversas" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Mensagens" }));
+
+    expect(screen.getByRole("button", { name: "Mensagens" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("searchbox", { name: "Buscar nas mensagens" })).toHaveAttribute("placeholder", "Buscar nas mensagens");
+    fireEvent.click(screen.getByRole("button", { name: /Carlos.*cliente pediu produto vermelho/i }));
+    expect(defaultInbox.openConversation).toHaveBeenCalledWith("conversation-id");
   });
 
   it("moves focus into the mobile thread and restores the selected conversation on back", async () => {
