@@ -10,6 +10,7 @@ import type { ContactClassificationRecord, ConversationListItem } from "@/module
 
 import { ContactTagChip } from "./contact-tag-chip";
 import { ContactTagEditor } from "./contact-tag-editor";
+import { ContactTypeSelector } from "./contact-type-selector";
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -20,6 +21,13 @@ export function CustomerPanel({
   users,
   currentUserId,
   onSetResponsible,
+  availableTypes,
+  typesLoading,
+  typesError,
+  typeSavePending,
+  typeSaveError,
+  onRetryTypes,
+  onSetContactType,
   availableTags,
   tagsLoading,
   tagsError,
@@ -33,6 +41,16 @@ export function CustomerPanel({
   users: ResponsibleOption[];
   currentUserId: string;
   onSetResponsible: (userId: string | null) => void;
+  availableTypes: ContactClassificationRecord[];
+  typesLoading: boolean;
+  typesError: string | null;
+  typeSavePending: boolean;
+  typeSaveError: string | null;
+  onRetryTypes: () => void;
+  onSetContactType: (
+    contactId: string,
+    contactTypeId: string | null,
+  ) => Promise<boolean>;
   availableTags: ContactClassificationRecord[];
   tagsLoading: boolean;
   tagsError: string | null;
@@ -67,6 +85,18 @@ export function CustomerPanel({
           <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--muted)]"><Phone aria-hidden="true" className="size-3.5" />{conversation.contact.phone}</p>
         </div>
       </div>
+
+      <ContactTypeSelector
+        availableTypes={availableTypes}
+        contactId={conversation.contact.id}
+        currentType={conversation.contact.type}
+        loadError={typesError}
+        loading={typesLoading}
+        onChange={onSetContactType}
+        onRetryLoad={onRetryTypes}
+        pending={typeSavePending}
+        saveError={typeSaveError}
+      />
 
       <section aria-labelledby="contact-tags-heading" className="border-b border-[var(--border)] py-5">
         <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text)]" id="contact-tags-heading">

@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/modules/conversations/types";
 
 import { ContactTagChip } from "./contact-tag-chip";
+import { ContactTypeChip } from "./contact-type-chip";
 
 type ConversationListProps = {
   items: ConversationListItem[];
@@ -145,6 +146,15 @@ export function ConversationList({
                   </span>
                   {item.awaitingResponseSince ? <span className="mt-1 block text-xs font-medium text-[var(--text)]">Aguardando resposta</span> : null}
                   <span className="mt-1 block truncate text-xs text-[var(--muted)]">{item.responsible?.name ?? "Sem responsável"}</span>
+                  {item.contact.type ? (
+                    <span aria-label={`Tipo de contato de ${item.contact.name}`} className="mt-1.5 flex min-w-0">
+                      <ContactTypeChip
+                        color={item.contact.type.color}
+                        compact
+                        name={item.contact.type.name}
+                      />
+                    </span>
+                  ) : null}
                   {item.contact.tags.length > 0 ? (
                     <span aria-label={`Etiquetas de ${item.contact.name}`} className="mt-1.5 flex min-w-0 items-center gap-1">
                       {item.contact.tags.slice(0, 2).map((tag) => (

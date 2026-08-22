@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import type { ConversationListItem } from "@/modules/conversations/types";
 
@@ -35,7 +35,22 @@ const availableTag = {
   active: true,
 };
 
+const availableType = {
+  id: "50000000-0000-4000-8000-000000000001",
+  displayName: "Cliente",
+  color: "#2458A6",
+  position: 10,
+  active: true,
+};
+
 const tagProps = {
+  availableTypes: [availableType],
+  typesLoading: false,
+  typesError: null,
+  typeSavePending: false,
+  typeSaveError: null,
+  onRetryTypes: vi.fn(),
+  onSetContactType: vi.fn().mockResolvedValue(true),
   availableTags: [availableTag],
   tagsLoading: false,
   tagsError: null,
@@ -45,7 +60,46 @@ const tagProps = {
   onSaveTags: vi.fn().mockResolvedValue(true),
 };
 
+beforeAll(() => {
+  Object.defineProperties(HTMLElement.prototype, {
+    hasPointerCapture: { configurable: true, value: () => false },
+    releasePointerCapture: { configurable: true, value: () => undefined },
+    scrollIntoView: { configurable: true, value: () => undefined },
+    setPointerCapture: { configurable: true, value: () => undefined },
+  });
+});
+
 describe("CustomerPanel", () => {
+  it("shows and changes the contact type above labels", async () => {
+    const user = userEvent.setup();
+    const onSetContactType = vi.fn().mockResolvedValue(true);
+    render(
+      <CustomerPanel
+        {...tagProps}
+        conversation={conversation}
+        currentUserId="user-id"
+        onSetContactType={onSetContactType}
+        onSetResponsible={vi.fn()}
+        users={[]}
+      />,
+    );
+
+    expect(screen.getByRole("heading", { name: "Tipo de contato" })).toBeVisible();
+    expect(screen.getAllByText("Sem tipo").length).toBeGreaterThan(0);
+    const typeHeading = screen.getByRole("heading", { name: "Tipo de contato" });
+    const tagsHeading = screen.getByRole("heading", { name: "Etiquetas" });
+    expect(
+      typeHeading.compareDocumentPosition(tagsHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    await user.click(screen.getByRole("combobox", { name: "Tipo de contato" }));
+    await user.click(screen.getByRole("option", { name: "Cliente" }));
+    expect(onSetContactType).toHaveBeenCalledWith(
+      conversation.contact.id,
+      availableType.id,
+    );
+  });
+
   it("blocks assignment controls while an update is pending", () => {
     render(
       <CustomerPanel

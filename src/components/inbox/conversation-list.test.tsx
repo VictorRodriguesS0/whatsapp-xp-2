@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import type { ConversationListItem } from "@/modules/conversations/types";
@@ -39,6 +39,64 @@ const fixture: ConversationListItem = {
 };
 
 describe("ConversationList", () => {
+  it("shows one distinct contact type without disturbing queue indicators", () => {
+    const { rerender } = render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          contact: {
+            ...fixture.contact,
+            type: {
+              id: "type-1",
+              name: "Cliente",
+              color: "#176B52",
+              active: true,
+            },
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    const marker = screen.getByLabelText("Tipo de contato de Carlos Lima");
+    expect(within(marker).getAllByText("Cliente")).toHaveLength(1);
+    expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
+    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.getByText("Marcos")).toBeVisible();
+
+    rerender(
+      <ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} />,
+    );
+    expect(screen.queryByLabelText("Tipo de contato de Carlos Lima")).not.toBeInTheDocument();
+  });
+
+  it("does not apply an unsafe type color to the conversation row", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          contact: {
+            ...fixture.contact,
+            type: {
+              id: "type-unsafe",
+              name: "Importado",
+              color: "url(javascript:bad)",
+              active: true,
+            },
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(
+      within(screen.getByLabelText("Tipo de contato de Carlos Lima"))
+        .getByText("Importado"),
+    ).not.toHaveAttribute("style");
+  });
+
   it("shows unread count and the responsible employee", () => {
     render(<ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} />);
 
