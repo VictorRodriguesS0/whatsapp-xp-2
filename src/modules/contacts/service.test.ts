@@ -16,6 +16,7 @@ import {
   createContactType,
   deactivateContactTag,
   getContactTag,
+  listActiveContactTypes,
   listActiveContactTags,
   listContactTags,
   normalizeContactDefinitionName,
@@ -85,6 +86,7 @@ function createRepository(options: {
   transactionFailures?: unknown[];
   afterTransactionFailures?: Array<() => unknown>;
 } = {}): ContactRepository & {
+  listActiveContactTypes(): Promise<DefinitionRecord[]>;
   listActiveContactTags(): Promise<DefinitionRecord[]>;
   contactRecord: ContactRecord | null;
   typeRecords: DefinitionRecord[];
@@ -117,6 +119,7 @@ function createRepository(options: {
   };
 
   const repository: ContactRepository & {
+    listActiveContactTypes(): Promise<DefinitionRecord[]>;
     listActiveContactTags(): Promise<DefinitionRecord[]>;
     contactRecord: ContactRecord | null;
     typeRecords: DefinitionRecord[];
@@ -150,6 +153,8 @@ function createRepository(options: {
       return hydrateContact()!;
     },
     listContactTypes: async () => typeRecords,
+    listActiveContactTypes: async () =>
+      typeRecords.filter((item) => item.active),
     findContactType: async (id) => typeRecords.find((item) => item.id === id) ?? null,
     createContactType: async (data: DefinitionCreateData) => {
       const created = definition(typeId, data.displayName, data);
@@ -364,6 +369,45 @@ describe("contact classification service", () => {
       ),
     ).rejects.toMatchObject({ status: 403 });
     expect(repository.contactUpdates).toEqual([]);
+  });
+
+  it("lists active contact types for an active attendant in repository order", async () => {
+    const repository = createRepository({
+      types: [
+        definition(typeId, "Cliente", { position: 10, active: true }),
+        definition("10000000-0000-4000-8000-000000000002", "Inativo", {
+          position: 20,
+          active: false,
+        }),
+      ],
+    });
+
+    await expect(listActiveContactTypes(attendant, repository)).resolves.toEqual([
+      {
+        id: typeId,
+        displayName: "Cliente",
+        color: "#176B52",
+        position: 10,
+        active: true,
+      },
+    ]);
+  });
+
+  it("rejects an inactive attendant before reading active contact types", async () => {
+    let queried = false;
+    const repository = createRepository();
+    Object.assign(repository, {
+      isActorActive: async () => false,
+      listActiveContactTypes: async () => {
+        queried = true;
+        return [];
+      },
+    });
+
+    await expect(listActiveContactTypes(attendant, repository)).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(queried).toBe(false);
   });
 
   it("lists only active labels for an active attendant in repository order", async () => {

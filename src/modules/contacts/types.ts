@@ -66,6 +66,7 @@ export type ContactRepository = {
   updateContact(id: string, data: ContactUpdateData): Promise<ContactRecord>;
 
   listContactTypes(): Promise<DefinitionRecord[]>;
+  listActiveContactTypes(): Promise<DefinitionRecord[]>;
   findContactType(id: string): Promise<DefinitionRecord | null>;
   createContactType(data: DefinitionCreateData): Promise<DefinitionRecord>;
   updateContactType(

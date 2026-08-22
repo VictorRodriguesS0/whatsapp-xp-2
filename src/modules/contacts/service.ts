@@ -81,6 +81,12 @@ function createRepositoryForClient(
         orderBy: [{ position: "asc" }, { id: "asc" }],
         select: definitionSelect,
       }),
+    listActiveContactTypes: () =>
+      client.contactType.findMany({
+        where: { active: true },
+        orderBy: [{ position: "asc" }, { id: "asc" }],
+        select: definitionSelect,
+      }),
     findContactType: (id) =>
       client.contactType.findUnique({ where: { id }, select: definitionSelect }),
     createContactType: (data) =>
@@ -477,6 +483,13 @@ export const deactivateContactType = (
   id: string,
   repository: ContactRepository = contactRepository,
 ) => deactivateDefinition(actor, id, contactTypeOperations, repository);
+export async function listActiveContactTypes(
+  actor: ContactActor,
+  repository: ContactRepository = contactRepository,
+): Promise<DefinitionDto[]> {
+  await requireActiveActor(actor, repository);
+  return (await repository.listActiveContactTypes()).map(toDefinitionDto);
+}
 
 export const listContactTags = (
   actor: ContactActor,
