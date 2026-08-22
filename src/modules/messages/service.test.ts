@@ -245,6 +245,8 @@ class FakeProvider implements WhatsAppProvider {
     return this.result();
   }
 
+  async sendReaction(): Promise<never> { throw new Error("unused"); }
+
   async uploadMedia() {
     this.calls.push("upload");
     this.onCall?.();

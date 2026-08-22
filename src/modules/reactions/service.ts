@@ -3,9 +3,11 @@ import "server-only";
 import { z } from "zod";
 
 import { HttpError } from "@/lib/http";
+import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 
 import { isSingleEmoji } from "./emoji";
+import { prismaReactionRepository } from "./repository";
 import type {
   BusinessReactionRecord,
   ReactionMutationDto,
@@ -33,6 +35,11 @@ export type ReactionServiceDependencies = {
 };
 
 const defaultInFlight = new Map<string, Promise<ReactionMutationDto>>();
+const defaultDependencies: ReactionServiceDependencies = {
+  repository: prismaReactionRepository,
+  provider: getWhatsAppProvider(),
+  inFlight: defaultInFlight,
+};
 const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1_000;
 
 function toMutationDto(
@@ -74,7 +81,7 @@ async function setBusinessReactionOnce(
   actorId: string,
   messageId: string,
   input: ReactionInput,
-  dependencies: ReactionServiceDependencies,
+  dependencies: ReactionServiceDependencies = defaultDependencies,
 ): Promise<ReactionMutationDto> {
   const repository = dependencies.repository;
   const clock = dependencies.now ?? (() => new Date());
@@ -167,7 +174,7 @@ export async function retryBusinessReaction(
   actorId: string,
   reactionId: string,
   input: { clientRequestId: string },
-  dependencies: ReactionServiceDependencies,
+  dependencies: ReactionServiceDependencies = defaultDependencies,
 ): Promise<ReactionMutationDto> {
   const parsedReactionId = uuidSchema.parse(reactionId);
   const parsedClientRequestId = uuidSchema.parse(input.clientRequestId);

@@ -154,6 +154,19 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     });
   }
 
+  sendReaction(input: { to: string; targetWhatsappMessageId: string; emoji: string }) {
+    return this.send({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "reaction",
+      reaction: {
+        message_id: input.targetWhatsappMessageId,
+        emoji: input.emoji,
+      },
+    });
+  }
+
   async uploadMedia(input: MediaUploadSource) {
     return this.operation(async (signal) => {
       const boundary = `xp-${crypto.randomUUID()}`;

@@ -12,6 +12,44 @@ const config = {
 };
 
 describe("Meta WhatsApp provider", () => {
+  it.each(["👍", ""])("sends a Meta reaction while preserving emoji %j", async (emoji) => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({ messaging_product: "whatsapp", messages: [{ id: "wamid.reaction" }] }),
+    );
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      fetchMock,
+    );
+
+    await expect(provider.sendReaction({
+      to: "5561999999999",
+      targetWhatsappMessageId: "wamid.target",
+      emoji,
+    })).resolves.toEqual({ whatsappMessageId: "wamid.reaction", status: "SENT" });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const request = fetchMock.mock.calls[0]![1]!;
+    expect(JSON.parse(String(request.body))).toEqual({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: "5561999999999",
+      type: "reaction",
+      reaction: { message_id: "wamid.target", emoji },
+    });
+  });
+
+  it("classifies an invalid reaction response as an unknown outcome", async () => {
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      async () => Response.json({ messaging_product: "whatsapp", messages: [] }),
+    );
+    await expect(provider.sendReaction({
+      to: "5561999999999",
+      targetWhatsappMessageId: "wamid.target",
+      emoji: "👍",
+    })).rejects.toMatchObject({ kind: "unknown" });
+  });
+
   it("uses the configured Graph version and bearer token for text", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({ messaging_product: "whatsapp", contacts: [{ input: "5561999999999", wa_id: "5561999999999" }], messages: [{ id: "wamid.1" }] }),
@@ -256,6 +294,8 @@ describe("demo WhatsApp provider", () => {
       .resolves.toEqual({ mediaId: "demo-123e4567-e89b-42d3-a456-426614174000" });
     await expect(provider.sendMedia({ to: "1", type: "image", mediaId: "demo-media" }))
       .resolves.toEqual({ whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000", status: "SENT" });
+    await expect(provider.sendReaction({ to: "1", targetWhatsappMessageId: "wamid.target", emoji: "👍" }))
+      .resolves.toEqual({ whatsappMessageId: "demo-reaction-123e4567-e89b-42d3-a456-426614174000", status: "SENT" });
   });
 });
 

@@ -15,6 +15,13 @@ export class DemoWhatsAppProvider implements WhatsAppProvider {
     return { whatsappMessageId: this.id(), status: "SENT" as const };
   }
 
+  async sendReaction(_input: { to: string; targetWhatsappMessageId: string; emoji: string }) {
+    return {
+      whatsappMessageId: `demo-reaction-${this.createUuid()}`,
+      status: "SENT" as const,
+    };
+  }
+
   async uploadMedia(_input: MediaUploadSource) {
     return { mediaId: this.id() };
   }

@@ -34,6 +34,7 @@ class Provider implements WhatsAppProvider {
     return { stream: new ReadableStream<Uint8Array>({ start(controller) { controller.enqueue(bytes); controller.close(); } }), mimeType: "image/jpeg", sizeBytes: 4n };
   }
   async sendText(): Promise<never> { throw new Error("unused"); }
+  async sendReaction(): Promise<never> { throw new Error("unused"); }
   async uploadMedia(_input: MediaUploadSource): Promise<never> { throw new Error("unused"); }
   async sendMedia(): Promise<never> { throw new Error("unused"); }
 }

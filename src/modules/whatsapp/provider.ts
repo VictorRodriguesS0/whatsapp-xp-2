@@ -32,6 +32,11 @@ export type MediaDownload = {
 
 export interface WhatsAppProvider {
   sendText(input: { to: string; body: string }): Promise<SendResult>;
+  sendReaction(input: {
+    to: string;
+    targetWhatsappMessageId: string;
+    emoji: string;
+  }): Promise<SendResult>;
   uploadMedia(input: MediaUploadSource): Promise<{ mediaId: string }>;
   sendMedia(input: { to: string; type: MediaMessageType; mediaId: string; caption?: string; filename?: string }): Promise<SendResult>;
   getMediaMetadata(mediaId: string): Promise<MediaMetadata>;
