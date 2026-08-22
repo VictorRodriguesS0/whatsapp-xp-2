@@ -220,6 +220,138 @@ describe("received media PostgreSQL leases", () => {
     }]);
   });
 
+  it("reconciles a real finalizeExhausted commit after its response is lost and publishes once", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-finalize-ambiguous-"));
+    roots.push(root);
+    const provider = new Provider();
+    const contact = await prisma.contact.create({
+      data: { name: "Contato finalização ambígua", whatsappId: "5511999990013" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: new Date() },
+    });
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local",
+        originalFilename: "foto.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 0n,
+        sha256: sha,
+        metaMediaId: "meta-pg-finalize-ambiguous",
+        status: MediaStatus.PENDING,
+        downloadAttempts: 5,
+      },
+    });
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date(),
+      },
+    });
+    let committedBeforeFault = false;
+    const faultingRepository = {
+      ...prismaMediaRepository,
+      async finalizeExhausted(id: string, now: Date, reason: string) {
+        committedBeforeFault = await prismaMediaRepository.finalizeExhausted(id, now, reason);
+        throw new Error("simulated finalizeExhausted response loss after commit");
+      },
+    };
+    const events: unknown[] = [];
+
+    await expect(ensureMediaAvailable(media.id, {
+      repository: faultingRepository,
+      storage: new LocalMediaStorage(root),
+      provider,
+      mediaRoot: root,
+      inFlight: new Map(),
+      publishRealtime: (event) => events.push(event),
+    })).resolves.toBeUndefined();
+
+    expect(committedBeforeFault).toBe(true);
+    expect(provider.calls).toBe(0);
+    await expect(prisma.mediaObject.findUniqueOrThrow({
+      where: { id: media.id },
+      select: { status: true, failureReason: true },
+    })).resolves.toEqual({
+      status: MediaStatus.FAILED,
+      failureReason: "Falha ao obter mídia; intervenção necessária",
+    });
+    expect(events).toEqual([{
+      type: "media.updated",
+      conversationId: conversation.id,
+      messageId: message.id,
+      mediaId: media.id,
+    }]);
+  });
+
+  it("reconciles a real markPermanentFailure commit after its response is lost and publishes once", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-media-pg-permanent-ambiguous-"));
+    roots.push(root);
+    const provider = new Provider();
+    provider.failure = new WhatsAppProviderError("rejected", "definitive provider rejection");
+    const contact = await prisma.contact.create({
+      data: { name: "Contato falha ambígua", whatsappId: "5511999990014" },
+    });
+    const conversation = await prisma.conversation.create({
+      data: { contactId: contact.id, lastMessageAt: new Date() },
+    });
+    const media = await prisma.mediaObject.create({
+      data: {
+        storageProvider: "local",
+        originalFilename: "foto.jpg",
+        mimeType: "image/jpeg",
+        sizeBytes: 0n,
+        sha256: sha,
+        metaMediaId: "meta-pg-permanent-ambiguous",
+        status: MediaStatus.PENDING,
+      },
+    });
+    const message = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.IMAGE,
+        mediaObjectId: media.id,
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date(),
+      },
+    });
+    let committedBeforeFault = false;
+    const faultingRepository = {
+      ...prismaMediaRepository,
+      async markPermanentFailure(id: string, leaseId: string, reason: string) {
+        committedBeforeFault = await prismaMediaRepository.markPermanentFailure(id, leaseId, reason);
+        throw new Error("simulated markPermanentFailure response loss after commit");
+      },
+    };
+    const events: unknown[] = [];
+
+    await expect(ensureMediaAvailable(media.id, {
+      repository: faultingRepository,
+      storage: new LocalMediaStorage(root),
+      provider,
+      mediaRoot: root,
+      inFlight: new Map(),
+      publishRealtime: (event) => events.push(event),
+    })).rejects.toBeInstanceOf(WhatsAppProviderError);
+
+    expect(committedBeforeFault).toBe(true);
+    await expect(prisma.mediaObject.findUniqueOrThrow({
+      where: { id: media.id },
+      select: { status: true, failureReason: true },
+    })).resolves.toEqual({ status: MediaStatus.FAILED, failureReason: "Mídia remota inválida" });
+    expect(events).toEqual([{
+      type: "media.updated",
+      conversationId: conversation.id,
+      messageId: message.id,
+      mediaId: media.id,
+    }]);
+  });
+
   it("atomically resets a visible failed object and coalesces simultaneous manual recoveries", async () => {
     const root = await mkdtemp(join(tmpdir(), "xp-media-pg-manual-"));
     roots.push(root);

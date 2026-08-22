@@ -1,9 +1,9 @@
 // @vitest-environment node
 
-import { access, mkdtemp, rm, stat } from "node:fs/promises";
+import { access, mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { stageMediaStream } from "./temp-file";
 
@@ -77,5 +77,29 @@ describe("secure staged media", () => {
 
     expect(result).toBe("rejected");
     expect(cancelCalls).toBe(1);
+  });
+
+  it("closes and unlinks its part without awaiting cancellation when getReader rejects for a locked stream", async () => {
+    const root = await mkdtemp(join(tmpdir(), "xp-stage-"));
+    roots.push(root);
+    const stream = new ReadableStream<Uint8Array>();
+    const existingReader = stream.getReader();
+    const cancel = vi.spyOn(stream, "cancel").mockImplementation(() => new Promise<void>(() => undefined));
+
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    const result = await Promise.race([
+      stageMediaStream({ root, filename: "x", mimeType: "x", maximumBytes: 8, stream }).then(
+        () => "resolved",
+        () => "rejected",
+      ),
+      new Promise<string>((resolve) => {
+        timeout = setTimeout(() => resolve("timed-out"), 500);
+      }),
+    ]).finally(() => clearTimeout(timeout));
+    existingReader.releaseLock();
+
+    expect(result).toBe("rejected");
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(await readdir(join(root, ".staging"))).toEqual([]);
   });
 });

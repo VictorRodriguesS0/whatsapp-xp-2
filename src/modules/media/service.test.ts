@@ -334,6 +334,22 @@ describe("received media service", () => {
     expect(state.events).toEqual([]);
   });
 
+  it("returns only the safe next-claim time when another worker owns the lease", async () => {
+    const state = await harness();
+    state.repository.record = {
+      ...state.repository.record,
+      downloadLeaseId: randomUUID(),
+      downloadLeaseUntil: new Date("2026-08-20T12:02:00.000Z"),
+    };
+
+    await expect(recoverMedia(actorId, mediaId, false, state.dependencies)).resolves.toEqual({
+      status: MediaStatus.PENDING,
+      nextAttemptAt: "2026-08-20T12:02:00.000Z",
+      canRetry: false,
+    });
+    expect(state.provider.metadataCalls).toBe(0);
+  });
+
   it("returns available state without another provider call", async () => {
     const state = await harness();
     state.repository.record = { ...state.repository.record, status: MediaStatus.AVAILABLE };

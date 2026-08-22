@@ -9,6 +9,7 @@ import type { InboxMessage } from "@/hooks/use-inbox";
 import type { MediaStateDto } from "@/modules/conversations/types";
 
 const MAX_TIMER_DELAY = 2_147_483_647;
+const MAX_RECOVERY_REARM_DELAY = 30_000;
 const recoveryError = "Não foi possível baixar a mídia.";
 
 const mediaNames = {
@@ -20,6 +21,17 @@ const mediaNames = {
 
 function mediaStateKey(state: MediaStateDto | null) {
   return state ? `${state.status}:${state.nextAttemptAt ?? "none"}:${state.canRetry}` : "none";
+}
+
+function recoveryRearmDelay(failureCount: number) {
+  return Math.min(MAX_RECOVERY_REARM_DELAY, 1000 * 2 ** Math.max(0, Math.min(failureCount - 1, 5)));
+}
+
+function pendingRecoveryIsDue(state: MediaStateDto, now: number) {
+  if (state.status !== "PENDING") return false;
+  if (state.nextAttemptAt === null) return true;
+  const timestamp = Date.parse(state.nextAttemptAt);
+  return !Number.isNaN(timestamp) && timestamp <= now;
 }
 
 async function requestRecovery(mediaId: string, manual: boolean, signal: AbortSignal) {
@@ -75,28 +87,45 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
 
   useEffect(() => {
     if (!mediaId || mediaState?.status !== "PENDING") return;
+    const recoveryMediaId = mediaId;
     const nextAttemptAt = mediaState.nextAttemptAt;
-    if (nextAttemptAt === null && !mediaState.canRetry) return;
     const timestamp = nextAttemptAt === null ? Date.now() : Date.parse(nextAttemptAt);
     if (Number.isNaN(timestamp)) return;
     const attemptKey = `${mediaIdentity}:${nextAttemptAt ?? "ready"}`;
     let timer: ReturnType<typeof setTimeout> | null = null;
     let controller: AbortController | null = null;
+    let rearmCount = 0;
 
-    const recoverWhenDue = () => {
+    const rearm = () => {
+      rearmCount += 1;
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(recoverWhenDue, recoveryRearmDelay(rearmCount));
+    };
+
+    function recoverWhenDue() {
       const remaining = timestamp - Date.now();
       if (remaining > 0) {
         timer = setTimeout(recoverWhenDue, Math.min(remaining, MAX_TIMER_DELAY));
         return;
       }
       if (automaticAttempt.current === attemptKey) return;
-      controller = new AbortController();
-      void requestRecovery(mediaId, false, controller.signal).then((state) => {
-        if (controller?.signal.aborted || mediaIdentityRef.current !== mediaIdentity) return;
+      const requestController = new AbortController();
+      controller = requestController;
+      void requestRecovery(recoveryMediaId, false, requestController.signal).then((state) => {
+        if (requestController.signal.aborted || mediaIdentityRef.current !== mediaIdentity) return;
+        if (pendingRecoveryIsDue(state, Date.now())) {
+          if (mediaStateKey(state) === mediaStateKey(mediaState)) {
+            setRecoveredMediaState({ identity: mediaIdentity, sourceKey: sourceMediaStateKey, state });
+          }
+          rearm();
+          return;
+        }
         automaticAttempt.current = attemptKey;
         setRecoveredMediaState({ identity: mediaIdentity, sourceKey: sourceMediaStateKey, state });
-      }, () => undefined);
-    };
+      }, () => {
+        if (!requestController.signal.aborted && mediaIdentityRef.current === mediaIdentity) rearm();
+      });
+    }
 
     recoverWhenDue();
     return () => {

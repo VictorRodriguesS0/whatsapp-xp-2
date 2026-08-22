@@ -44,7 +44,10 @@ describe("MessageMedia", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T15:00:00.000Z"));
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response(JSON.stringify({ data: baseMessage.mediaState, error: null })),
+      new Response(JSON.stringify({
+        data: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        error: null,
+      })),
     );
     const view = render(<MessageMedia message={baseMessage} />);
 
@@ -67,6 +70,89 @@ describe("MessageMedia", () => {
     view.rerender(<MessageMedia message={{ ...baseMessage }} />);
     await act(async () => vi.runAllTimersAsync());
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["network rejection", () => Promise.reject(new TypeError("network unavailable"))],
+    ["failed POST", () => Promise.resolve(new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }))],
+  ])("rearms automatic recovery with backoff after a %s", async (_case, failRequest) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce(failRequest)
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        error: null,
+      })));
+
+    const view = render(<MessageMedia message={baseMessage} />);
+    await act(async () => Promise.resolve());
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    await act(async () => vi.advanceTimersByTimeAsync(999));
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(view.container.querySelector("audio")).toHaveAttribute(
+      "src",
+      `/api/media/${baseMessage.mediaObjectId}`,
+    );
+  });
+
+  it("rearms without a hot loop when the server returns the same due PENDING state", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: baseMessage.mediaState, error: null })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        error: null,
+      })));
+
+    const view = render(<MessageMedia message={baseMessage} />);
+    await act(async () => Promise.resolve());
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    await act(async () => vi.advanceTimersByTimeAsync(999));
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(view.container.querySelector("audio")).toBeInTheDocument();
+  });
+
+  it("caps repeated transport-failure rearming at thirty seconds", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockRejectedValue(new TypeError("offline"));
+
+    render(<MessageMedia message={baseMessage} />);
+    await act(async () => Promise.resolve());
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    for (const expectedDelay of [1_000, 2_000, 4_000, 8_000, 16_000, 30_000]) {
+      const previousCalls = fetchMock.mock.calls.length;
+      await act(async () => vi.advanceTimersByTimeAsync(expectedDelay - 1));
+      expect(fetchMock).toHaveBeenCalledTimes(previousCalls);
+      await act(async () => vi.advanceTimersByTimeAsync(1));
+      expect(fetchMock).toHaveBeenCalledTimes(previousCalls + 1);
+    }
+  });
+
+  it("calls the server once to finalize a fifth PENDING attempt with no nextAttemptAt", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      data: { status: "FAILED", nextAttemptAt: null, canRetry: true },
+      error: null,
+    })));
+
+    render(<MessageMedia message={{
+      ...baseMessage,
+      mediaState: { status: "PENDING", nextAttemptAt: null, canRetry: false },
+    }} />);
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    expect(await screen.findByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
   });
 
   it("renders the existing player only after media becomes available", () => {

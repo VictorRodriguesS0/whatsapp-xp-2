@@ -30,6 +30,7 @@ export type MediaStateDto = {
 
 export type SafeMessageMediaRecord = {
   status: MediaStatus;
+  downloadLeaseUntil: Date | null;
   downloadNextAttemptAt: Date | null;
   downloadAttempts: number;
 };
@@ -38,15 +39,20 @@ export function toMediaStateDto(
   media: SafeMessageMediaRecord,
   now: Date,
 ): MediaStateDto {
+  const nextAttemptAt = media.status === "PENDING"
+    ? [media.downloadNextAttemptAt, media.downloadLeaseUntil].reduce<Date | null>(
+      (latest, candidate) => !candidate || (latest && latest >= candidate) ? latest : candidate,
+      null,
+    )
+    : null;
   return {
     status: media.status,
-    nextAttemptAt: media.downloadNextAttemptAt?.toISOString() ?? null,
+    nextAttemptAt: nextAttemptAt?.toISOString() ?? null,
     canRetry:
       media.status === "FAILED" ||
       (media.status === "PENDING" &&
         media.downloadAttempts < MAX_MEDIA_DOWNLOAD_ATTEMPTS &&
-        (media.downloadNextAttemptAt === null ||
-          media.downloadNextAttemptAt <= now)),
+        (nextAttemptAt === null || nextAttemptAt <= now)),
   };
 }
 

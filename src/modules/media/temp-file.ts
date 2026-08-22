@@ -36,11 +36,21 @@ export async function stageMediaStream(input: {
   const path = resolve(physicalStaging, `${randomUUID()}.part`);
   const noFollow = "O_NOFOLLOW" in constants ? constants.O_NOFOLLOW : 0;
   const handle = await open(path, constants.O_CREAT | constants.O_EXCL | constants.O_WRONLY | noFollow, 0o600);
-  const reader = input.stream.getReader();
   const digest = createHash("sha256");
   let total = 0;
   let completed = false;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
+    try {
+      reader = input.stream.getReader();
+    } catch (error) {
+      try {
+        void input.stream.cancel().catch(() => undefined);
+      } catch {
+        // Closing the local handle must not depend on source cancellation.
+      }
+      throw error;
+    }
     while (true) {
       const result = await reader.read();
       if (result.done) break;
@@ -58,7 +68,7 @@ export async function stageMediaStream(input: {
     completed = true;
   } finally {
     try {
-      reader.releaseLock();
+      reader?.releaseLock();
     } finally {
       await closeWithCleanup(handle, async () => {
         if (!completed) await unlink(path).catch(() => undefined);

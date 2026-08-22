@@ -98,6 +98,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
   it("exposes only safe media recovery state in conversation DTOs", async () => {
     const { conversation, user } = await seedEqualTimestampFixture();
     const nextAttemptAt = new Date("2020-01-01T00:00:00.000Z");
+    const leaseUntil = new Date("2099-01-01T00:00:00.000Z");
     const media = await prisma.mediaObject.create({
       data: {
         storageProvider: "local-secret-provider",
@@ -109,6 +110,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
         metaMediaId: "secret-provider-id",
         status: MediaStatus.PENDING,
         failureReason: "secret-internal-reason",
+        downloadLeaseId: "99999999-9999-4999-8999-999999999999",
+        downloadLeaseUntil: leaseUntil,
         downloadNextAttemptAt: nextAttemptAt,
         downloadAttempts: 1,
       },
@@ -129,8 +132,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
 
     expect(dto?.mediaState).toEqual({
       status: MediaStatus.PENDING,
-      nextAttemptAt: nextAttemptAt.toISOString(),
-      canRetry: true,
+      nextAttemptAt: leaseUntil.toISOString(),
+      canRetry: false,
     });
     const serialized = JSON.stringify(dto);
     expect(serialized).not.toContain("secret-storage-key");
@@ -138,5 +141,6 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
     expect(serialized).not.toContain("secret-hash");
     expect(serialized).not.toContain("secret-provider-id");
     expect(serialized).not.toContain("secret-internal-reason");
+    expect(serialized).not.toContain("99999999-9999-4999-8999-999999999999");
   });
 });

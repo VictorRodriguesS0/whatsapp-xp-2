@@ -47,6 +47,7 @@ const messageSelect = {
   mediaObject: {
     select: {
       status: true,
+      downloadLeaseUntil: true,
       downloadNextAttemptAt: true,
       downloadAttempts: true,
     },

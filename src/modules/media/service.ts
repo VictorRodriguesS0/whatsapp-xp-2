@@ -234,6 +234,37 @@ async function publishTerminalUpdate(
   }
 }
 
+async function commitTerminalFailure(
+  id: string,
+  reason: string,
+  dependencies: MediaServiceDependencies,
+  commit: () => Promise<boolean>,
+): Promise<boolean> {
+  try {
+    return await commit();
+  } catch (error) {
+    let current: MediaObjectRecord | null;
+    try {
+      current = await dependencies.repository.findById(id);
+    } catch {
+      throw error;
+    }
+    if (current?.status !== MediaStatus.FAILED || current.failureReason !== reason) throw error;
+    return true;
+  }
+}
+
+async function commitTerminalFailureAndPublish(
+  id: string,
+  reason: string,
+  dependencies: MediaServiceDependencies,
+  commit: () => Promise<boolean>,
+): Promise<void> {
+  if (await commitTerminalFailure(id, reason, dependencies, commit)) {
+    await publishTerminalUpdate(id, dependencies);
+  }
+}
+
 async function persistPendingMedia(id: string, dependencies: MediaServiceDependencies): Promise<void> {
   const initial = await dependencies.repository.findById(id);
   if (!initial) throw new HttpError(404, "Mídia não encontrada");
@@ -243,9 +274,13 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
   const clock = dependencies.now ?? (() => new Date());
   const now = clock();
   if (initial.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
-    if (await dependencies.repository.finalizeExhausted(id, now, "Falha ao obter mídia; intervenção necessária")) {
-      await publishTerminalUpdate(id, dependencies);
-    }
+    const reason = "Falha ao obter mídia; intervenção necessária";
+    await commitTerminalFailureAndPublish(
+      id,
+      reason,
+      dependencies,
+      () => dependencies.repository.finalizeExhausted(id, now, reason),
+    );
     return;
   }
   const leaseId = (dependencies.createUuid ?? randomUUID)();
@@ -347,13 +382,21 @@ async function persistPendingMedia(id: string, dependencies: MediaServiceDepende
       await dependencies.storage.remove(storedKey).catch(() => undefined);
     }
     if (error instanceof MediaValidationError || (error instanceof WhatsAppProviderError && error.kind === "rejected")) {
-      if (await dependencies.repository.markPermanentFailure(id, leaseId, "Mídia remota inválida")) {
-        await publishTerminalUpdate(id, dependencies);
-      }
+      const reason = "Mídia remota inválida";
+      await commitTerminalFailureAndPublish(
+        id,
+        reason,
+        dependencies,
+        () => dependencies.repository.markPermanentFailure(id, leaseId, reason),
+      );
     } else if (media.downloadAttempts >= MAX_MEDIA_DOWNLOAD_ATTEMPTS) {
-      if (await dependencies.repository.markPermanentFailure(id, leaseId, "Falha ao obter mídia; intervenção necessária")) {
-        await publishTerminalUpdate(id, dependencies);
-      }
+      const reason = "Falha ao obter mídia; intervenção necessária";
+      await commitTerminalFailureAndPublish(
+        id,
+        reason,
+        dependencies,
+        () => dependencies.repository.markPermanentFailure(id, leaseId, reason),
+      );
     } else {
       const attempt = media.downloadAttempts;
       await dependencies.repository.releaseTransientFailure(id, leaseId, {
