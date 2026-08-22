@@ -35,6 +35,8 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
     userId?: unknown;
     messageId?: unknown;
     mediaId?: unknown;
+    contactId?: unknown;
+    scope?: unknown;
   };
   if (typeof event.type !== "string") return false;
   if (event.type === "user.updated") return typeof event.userId === "string";
@@ -50,6 +52,12 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
       typeof event.messageId === "string" &&
       typeof event.mediaId === "string"
     );
+  }
+  if (event.type === "contact.updated") {
+    return typeof event.contactId === "string";
+  }
+  if (event.type === "settings.updated") {
+    return event.scope === "contact-types" || event.scope === "contact-tags";
   }
   return ["conversation.updated", "message.created", "message.status", "read.updated", "responsible.updated"].includes(event.type)
     && typeof event.conversationId === "string";

@@ -6,7 +6,9 @@ export type PublicErrorOperation =
   | "send"
   | "retry"
   | "responsible"
-  | "unread";
+  | "unread"
+  | "contact-tags"
+  | "contact-tag-save";
 
 const fallback: Record<PublicErrorOperation, string> = {
   login: "Não foi possível entrar agora. Tente novamente.",
@@ -17,6 +19,8 @@ const fallback: Record<PublicErrorOperation, string> = {
   retry: "Não foi possível reenviar a mensagem.",
   responsible: "Não foi possível alterar o responsável.",
   unread: "Não foi possível marcar como não lida.",
+  "contact-tags": "Não foi possível carregar as etiquetas.",
+  "contact-tag-save": "Não foi possível salvar as etiquetas.",
 };
 
 export function publicErrorMessage(operation: PublicErrorOperation, status?: number, network = false) {

@@ -125,6 +125,40 @@ describe("useRealtime", () => {
     hook.unmount();
   });
 
+  it("routes only complete contact and settings invalidations", () => {
+    const onEvent = vi.fn();
+    const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent }));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "contact.updated",
+        contactId: "contact-id",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "settings.updated",
+        scope: "contact-tags",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "contact.updated",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "settings.updated",
+        scope: "unknown",
+      });
+    });
+
+    expect(onEvent).toHaveBeenCalledTimes(2);
+    expect(onEvent).toHaveBeenNthCalledWith(1, {
+      type: "contact.updated",
+      contactId: "contact-id",
+    });
+    expect(onEvent).toHaveBeenNthCalledWith(2, {
+      type: "settings.updated",
+      scope: "contact-tags",
+    });
+    hook.unmount();
+  });
+
   it("reconnects exponentially with a 15 second cap", () => {
     const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent: vi.fn() }));
 

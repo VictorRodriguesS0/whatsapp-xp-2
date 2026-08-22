@@ -5,12 +5,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { publicErrorMessage } from "@/lib/public-error";
 import type { SessionUser } from "@/modules/auth/session";
 import type {
+  ContactClassificationRecord,
+  ContactDto as ConversationContactDto,
   ConversationDetail,
   ConversationListItem,
   ConversationListResult,
   MessageDto,
   SharedConversationStateDto,
 } from "@/modules/conversations/types";
+import type { ContactDto as UpdatedContactDto } from "@/modules/contacts/types";
 import type { RealtimeEvent } from "@/modules/realtime/events";
 
 import { useRealtime } from "./use-realtime";
@@ -229,6 +232,17 @@ function withPendingMedia(message: MessageDto, pending: PendingMedia): InboxMess
   };
 }
 
+function mergeUpdatedContact(
+  current: ConversationContactDto,
+  updated: UpdatedContactDto,
+): ConversationContactDto {
+  return {
+    ...current,
+    ...updated,
+    profileName: current.profileName ?? current.name,
+  };
+}
+
 export function useInbox(initialUser: SessionUser) {
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [conversation, setConversation] = useState<InboxConversation | null>(null);
@@ -243,6 +257,13 @@ export function useInbox(initialUser: SessionUser) {
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
   const [conversationErrorState, setConversationErrorState] = useState<ConversationErrorState | null>(null);
   const [responsiblePending, setResponsiblePending] = useState(false);
+  const [contactTags, setContactTags] = useState<ContactClassificationRecord[]>([]);
+  const [contactTagsLoading, setContactTagsLoading] = useState(true);
+  const [contactTagsError, setContactTagsError] = useState<string | null>(null);
+  const [contactTagSavePendingId, setContactTagSavePendingId] = useState<string | null>(null);
+  const [contactTagSaveErrors, setContactTagSaveErrors] = useState<Map<string, string>>(
+    () => new Map(),
+  );
   const [markUnreadPendingIds, setMarkUnreadPendingIds] = useState<Set<string>>(() => new Set());
   const [markUnreadErrors, setMarkUnreadErrors] = useState<Map<string, string>>(() => new Map());
   const searchRef = useRef(search);
@@ -250,6 +271,9 @@ export function useInbox(initialUser: SessionUser) {
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const pageRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
   const conversationRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
+  const contactTagsRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
+  const contactTagSaveRequests = useRef(new Map<string, Promise<boolean>>());
+  const selectedContactIdRef = useRef<string | null>(null);
   const pendingSends = useRef(new Map<string, PendingSend>());
   const inFlightSends = useRef(new Map<string, Promise<InboxMessage | null>>());
   const confirmedSends = useRef(new Map<string, ConfirmedSend>());
@@ -383,6 +407,33 @@ export function useInbox(initialUser: SessionUser) {
     }
   }, [initialUser.id, initialUser.name]);
 
+  const loadContactTags = useCallback(async () => {
+    contactTagsRequest.current?.controller.abort();
+    const sequence = (contactTagsRequest.current?.sequence ?? 0) + 1;
+    const controller = new AbortController();
+    contactTagsRequest.current = { sequence, controller };
+    setContactTagsLoading(true);
+    setContactTagsError(null);
+    try {
+      const response = await fetch("/api/contact-tags", {
+        signal: controller.signal,
+        headers: { Accept: "application/json" },
+      });
+      const result = await readEnvelope<{ items: ContactClassificationRecord[] }>(response);
+      if (contactTagsRequest.current?.sequence === sequence) {
+        setContactTags(result.items);
+      }
+    } catch (error) {
+      if (!controller.signal.aborted && contactTagsRequest.current?.sequence === sequence) {
+        setContactTagsError(publicErrorMessage("contact-tags", errorStatus(error)));
+      }
+    } finally {
+      if (contactTagsRequest.current?.sequence === sequence) {
+        setContactTagsLoading(false);
+      }
+    }
+  }, []);
+
   const markRead = useCallback(async (conversationId: string, messageId: string) => {
     if (messageId.startsWith("optimistic:")) return;
     const observedManualUnreadRevision = conversation?.id === conversationId
@@ -441,6 +492,7 @@ export function useInbox(initialUser: SessionUser) {
         return message;
       });
       const reconciledDetail = { ...detail, messages: reconciledMessages };
+      selectedContactIdRef.current = reconciledDetail.contact.id;
       setConversation((current) => {
         const currentOptimistic = current?.id === id ? current.messages.filter(
           (message) => message.id.startsWith("optimistic:")
@@ -486,6 +538,7 @@ export function useInbox(initialUser: SessionUser) {
 
   const openConversation = useCallback(async (id: string) => {
     selectedIdRef.current = id;
+    selectedContactIdRef.current = null;
     setSelectedId(id);
     setConversation((current) => current?.id === id ? current : null);
     lastReadRequest.current = null;
@@ -494,6 +547,7 @@ export function useInbox(initialUser: SessionUser) {
 
   const closeConversation = useCallback(() => {
     selectedIdRef.current = null;
+    selectedContactIdRef.current = null;
     setSelectedId(null);
     setConversation(null);
     setConversationErrorState(null);
@@ -504,6 +558,57 @@ export function useInbox(initialUser: SessionUser) {
     const id = selectedIdRef.current;
     if (id) await fetchConversation(id, false);
   }, [fetchConversation]);
+
+  const replaceContactTags = useCallback((contactId: string, tagIds: string[]): Promise<boolean> => {
+    const inFlight = contactTagSaveRequests.current.get(contactId);
+    if (inFlight) return inFlight;
+
+    const operation = (async () => {
+      setContactTagSavePendingId(contactId);
+      setContactTagSaveErrors((current) => {
+        const next = new Map(current);
+        next.delete(contactId);
+        return next;
+      });
+      try {
+        const response = await fetch(`/api/contacts/${contactId}/tags`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tagIds }),
+        });
+        const updated = await readEnvelope<UpdatedContactDto>(response);
+        if (!mounted.current) return false;
+        setConversations((current) => current.map((item) => item.contact.id === contactId
+          ? { ...item, contact: mergeUpdatedContact(item.contact, updated) }
+          : item));
+        setConversation((current) => current?.contact.id === contactId
+          ? { ...current, contact: mergeUpdatedContact(current.contact, updated) }
+          : current);
+        return true;
+      } catch (error) {
+        if (!mounted.current) return false;
+        const selectedConversationId = selectedContactIdRef.current === contactId
+          ? selectedIdRef.current
+          : null;
+        if (selectedConversationId) {
+          await fetchConversation(selectedConversationId, false);
+        }
+        void refreshList();
+        setContactTagSaveErrors((current) => {
+          const next = new Map(current);
+          next.set(contactId, publicErrorMessage("contact-tag-save", errorStatus(error)));
+          return next;
+        });
+        return false;
+      } finally {
+        contactTagSaveRequests.current.delete(contactId);
+        setContactTagSavePendingId((current) => current === contactId ? null : current);
+      }
+    })();
+
+    contactTagSaveRequests.current.set(contactId, operation);
+    return operation;
+  }, [fetchConversation, refreshList]);
 
   const markUnread = useCallback((conversationId: string): Promise<void> => {
     const inFlight = markUnreadRequests.current.get(conversationId);
@@ -800,8 +905,13 @@ export function useInbox(initialUser: SessionUser) {
   }, [fetchConversation, refreshList]);
 
   const onRealtimeSync = useCallback(() => {
-    void Promise.all([refreshList({ reset: true }), refreshConversation(), loadUsers()]);
-  }, [loadUsers, refreshConversation, refreshList]);
+    void Promise.all([
+      refreshList({ reset: true }),
+      refreshConversation(),
+      loadUsers(),
+      loadContactTags(),
+    ]);
+  }, [loadContactTags, loadUsers, refreshConversation, refreshList]);
 
   const onRealtimeEvent = useCallback((event: RealtimeEvent) => {
     if (event.type === "conversation.merged") {
@@ -850,10 +960,19 @@ export function useInbox(initialUser: SessionUser) {
       void refreshList();
       return;
     }
+    if (event.type === "contact.updated") {
+      void refreshList();
+      if (event.contactId === selectedContactIdRef.current) void refreshConversation();
+      return;
+    }
     if (event.type === "user.updated") {
       void Promise.all([loadUsers(), refreshList(), refreshConversation()]);
+      return;
     }
-  }, [fetchConversation, loadUsers, refreshConversation, refreshList]);
+    if (event.type === "settings.updated" && event.scope === "contact-tags") {
+      void Promise.all([loadContactTags(), refreshList(), refreshConversation()]);
+    }
+  }, [fetchConversation, loadContactTags, loadUsers, refreshConversation, refreshList]);
 
   const realtime = useRealtime({ onSync: onRealtimeSync, onEvent: onRealtimeEvent });
 
@@ -865,11 +984,13 @@ export function useInbox(initialUser: SessionUser) {
   useEffect(() => {
     mounted.current = true;
     void loadUsers();
+    void loadContactTags();
     return () => {
       mounted.current = false;
       listRequest.current?.controller.abort();
       pageRequest.current?.controller.abort();
       conversationRequest.current?.controller.abort();
+      contactTagsRequest.current?.controller.abort();
       const releasedRequestIds = new Set<string>();
       const previewUrls: string[] = [];
       for (const pending of pendingSends.current.values()) {
@@ -886,6 +1007,7 @@ export function useInbox(initialUser: SessionUser) {
       inFlightSends.current.clear();
       confirmedSends.current.clear();
       markUnreadRequests.current.clear();
+      contactTagSaveRequests.current.clear();
       for (const previewUrl of previewUrls) {
         try {
           URL.revokeObjectURL?.(previewUrl);
@@ -894,21 +1016,28 @@ export function useInbox(initialUser: SessionUser) {
         }
       }
     };
-  }, [loadUsers]);
+  }, [loadContactTags, loadUsers]);
 
   return {
     conversations,
     conversation,
     users,
+    contactTags,
     selectedId,
     search,
     nextCursor,
     loadingList,
     loadingMore,
     loadingConversation,
+    contactTagsLoading,
+    contactTagSavePendingId,
     listError,
     loadMoreError,
     conversationError: conversationErrorState?.message ?? null,
+    contactTagsError,
+    contactTagSaveError: selectedContactIdRef.current === null
+      ? null
+      : contactTagSaveErrors.get(selectedContactIdRef.current) ?? null,
     responsiblePending,
     markUnreadPending: selectedId !== null && markUnreadPendingIds.has(selectedId),
     markUnreadError: selectedId === null ? null : markUnreadErrors.get(selectedId) ?? null,
@@ -919,6 +1048,8 @@ export function useInbox(initialUser: SessionUser) {
     refreshList,
     loadMore,
     refreshConversation,
+    loadContactTags,
+    replaceContactTags,
     sendText,
     sendMedia,
     sendRecording,

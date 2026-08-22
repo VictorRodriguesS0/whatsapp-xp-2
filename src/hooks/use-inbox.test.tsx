@@ -12,6 +12,36 @@ const user: SessionUser = {
   role: "ATTENDANT",
 };
 
+const contactTag = {
+  id: "20000000-0000-4000-8000-000000000001",
+  displayName: "Aguardando produto",
+  color: "#176B52",
+  position: 10,
+  active: true,
+};
+
+const priorityTag = {
+  id: "20000000-0000-4000-8000-000000000002",
+  displayName: "Prioridade",
+  color: "#D64545",
+  position: 20,
+  active: true,
+};
+
+function updatedContact(id: string, tags = [contactTag]) {
+  return {
+    id,
+    preferredName: null,
+    name: "Carlos",
+    phone: "+55 (61) 99999-9999",
+    type: null,
+    tags: tags.map(({ displayName, position: _position, ...tag }) => ({
+      ...tag,
+      name: displayName,
+    })),
+  };
+}
+
 function response(data: unknown, ok = true, status = 200) {
   return Promise.resolve({ ok, status, json: () => Promise.resolve(data) } as Response);
 }
@@ -77,6 +107,235 @@ describe("useInbox", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     FakeEventSource.instances = [];
+  });
+
+  it("loads the active contact tag catalog and exposes retryable safe state", async () => {
+    let tagAttempts = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-tags") {
+        tagAttempts += 1;
+        return tagAttempts === 1
+          ? response({ data: null, error: { message: "database address" } }, false, 503)
+          : response({ data: { items: [contactTag] }, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+
+    await waitFor(() => expect(hook.result.current.contactTagsLoading).toBe(false));
+    expect(hook.result.current.contactTags).toEqual([]);
+    expect(hook.result.current.contactTagsError).toBe(
+      "Não foi possível carregar as etiquetas.",
+    );
+    expect(hook.result.current.contactTagsError).not.toMatch(/database|address/i);
+
+    await act(() => hook.result.current.loadContactTags());
+
+    expect(hook.result.current.contactTags).toEqual([contactTag]);
+    expect(hook.result.current.contactTagsError).toBeNull();
+    expect(tagAttempts).toBe(2);
+  });
+
+  it("reloads contact tags on their settings invalidation and realtime sync", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let tagFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-tags") {
+        tagFetches += 1;
+        return response({ data: { items: [contactTag] }, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(tagFetches).toBe(1));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "settings.updated",
+        scope: "contact-types",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "settings.updated",
+        scope: "contact-tags",
+      });
+    });
+    await waitFor(() => expect(tagFetches).toBe(2));
+
+    act(() => FakeEventSource.instances[0].onopen?.());
+    await waitFor(() => expect(tagFetches).toBe(3));
+    hook.unmount();
+  });
+
+  it("replaces contact tags once and reconciles list and open detail with server truth", async () => {
+    const item = listItem("conversation-id", "Carlos");
+    const authoritativeContact = updatedContact(item.contact.id, [contactTag, priorityTag]);
+    let resolveSave!: (value: Response) => void;
+    let saveCalls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [item], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-tags") {
+        return response({ data: { items: [contactTag, priorityTag] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        return response({ data: conversationDetail(), error: null });
+      }
+      if (url === `/api/contacts/${item.contact.id}/tags` && init?.method === "PUT") {
+        saveCalls += 1;
+        return new Promise<Response>((resolve) => { resolveSave = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let first!: Promise<boolean>;
+    let duplicate!: Promise<boolean>;
+    act(() => {
+      first = hook.result.current.replaceContactTags(item.contact.id, [
+        contactTag.id,
+        priorityTag.id,
+      ]);
+      duplicate = hook.result.current.replaceContactTags(item.contact.id, [
+        contactTag.id,
+        priorityTag.id,
+      ]);
+    });
+
+    expect(duplicate).toBe(first);
+    expect(saveCalls).toBe(1);
+    expect(hook.result.current.contactTagSavePendingId).toBe(item.contact.id);
+    const saveCall = fetchMock.mock.calls.find(([, options]) => options?.method === "PUT");
+    expect(saveCall?.[1]).toMatchObject({
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tagIds: [contactTag.id, priorityTag.id] }),
+    });
+
+    resolveSave(await response({ data: authoritativeContact, error: null }));
+    await act(() => Promise.all([first, duplicate]));
+
+    expect(hook.result.current.contactTagSavePendingId).toBeNull();
+    expect(hook.result.current.contactTagSaveError).toBeNull();
+    expect(hook.result.current.conversations[0].contact.tags).toEqual(authoritativeContact.tags);
+    expect(hook.result.current.conversation?.contact.tags).toEqual(authoritativeContact.tags);
+    expect(hook.result.current.conversation?.contact.profileName).toBe("Carlos");
+  });
+
+  it("sends an empty replacement, hides provider failures and allows a successful retry", async () => {
+    const item = listItem("conversation-id", "Carlos");
+    let attempts = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [item], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-tags") {
+        return response({ data: { items: [contactTag] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail(), error: null });
+      }
+      if (url === `/api/contacts/${item.contact.id}/tags` && init?.method === "PUT") {
+        attempts += 1;
+        return attempts === 1
+          ? response({ data: null, error: { message: "Graph OAuthException code 190" } }, false, 502)
+          : response({ data: updatedContact(item.contact.id, []), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.replaceContactTags(item.contact.id, []));
+
+    expect(detailFetches).toBe(2);
+    expect(hook.result.current.contactTagSaveError).toBe(
+      "Não foi possível salvar as etiquetas.",
+    );
+    expect(hook.result.current.contactTagSaveError).not.toMatch(/Graph|OAuthException|190/i);
+
+    await act(() => hook.result.current.replaceContactTags(item.contact.id, []));
+
+    expect(attempts).toBe(2);
+    expect(hook.result.current.contactTagSaveError).toBeNull();
+    expect(hook.result.current.conversation?.contact.tags).toEqual([]);
+  });
+
+  it("refreshes list and only the matching open detail after a contact update event", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const first = listItem("conversation-a", "Ana");
+    const second = listItem("conversation-b", "Bia");
+    let listFetches = 0;
+    let firstDetailFetches = 0;
+    let secondDetailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [first, second], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-tags") {
+        return response({ data: { items: [contactTag] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages") {
+        firstDetailFetches += 1;
+        return response({ data: conversationDetail("conversation-a"), error: null });
+      }
+      if (url === "/api/conversations/conversation-b/messages") {
+        secondDetailFetches += 1;
+        return response({ data: conversationDetail("conversation-b"), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-b"));
+
+    act(() => FakeEventSource.instances[0].emit("update", {
+      type: "contact.updated",
+      contactId: first.contact.id,
+    }));
+    await waitFor(() => expect(listFetches).toBe(2));
+    expect(secondDetailFetches).toBe(1);
+
+    act(() => FakeEventSource.instances[0].emit("update", {
+      type: "contact.updated",
+      contactId: second.contact.id,
+    }));
+    await waitFor(() => expect(listFetches).toBe(3));
+    await waitFor(() => expect(secondDetailFetches).toBe(2));
+    expect(firstDetailFetches).toBe(0);
+    hook.unmount();
   });
 
   it("sends the exact text with one stable client request id", async () => {
