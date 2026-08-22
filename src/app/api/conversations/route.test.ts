@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { UserRole } from "@/generated/prisma/enums";
 
@@ -33,5 +33,54 @@ describe("conversation collection route", () => {
       data: { items: [], nextCursor: null },
       error: null,
     });
+  });
+
+  it("passes canonical type and repeated tag filters exactly", async () => {
+    const listConversations = vi.fn(async () => ({ items: [], nextCursor: null }));
+    const { GET } = createConversationsRouteHandlers({
+      requireUser: async () => actor,
+      listConversations,
+    });
+    const typeId = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
+    const tagA = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB";
+    const tagB = "CCCCCCCC-CCCC-4CCC-8CCC-CCCCCCCCCCCC";
+
+    const response = await GET(new Request(
+      `http://localhost:3000/api/conversations?search=%20Bia%20&contactTypeId=${typeId}&tagIds=${tagA}&tagIds=${tagB}`,
+    ));
+
+    expect(response.status).toBe(200);
+    expect(listConversations).toHaveBeenCalledWith(actor.id, {
+      search: "Bia",
+      contactTypeId: typeId.toLowerCase(),
+      tagIds: [tagA.toLowerCase(), tagB.toLowerCase()],
+    });
+  });
+
+  it.each([
+    ["unknown key", "unknown=value"],
+    ["duplicate scalar", "search=a&search=b"],
+    ["empty tag", "tagIds="],
+    ["semantic duplicate tags", "tagIds=BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB&tagIds=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"],
+    ["too many tags", Array.from({ length: 21 }, (_, index) => `tagIds=50000000-0000-4000-8000-${(index + 1).toString().padStart(12, "0")}`).join("&")],
+    ["invalid cursor length", `cursor=${"x".repeat(2_049)}`],
+    ["invalid search length", `search=${"x".repeat(121)}`],
+  ])("returns a safe 400 envelope for %s", async (_label, query) => {
+    const listConversations = vi.fn(async () => ({ items: [], nextCursor: null }));
+    const { GET } = createConversationsRouteHandlers({
+      requireUser: async () => actor,
+      listConversations,
+    });
+
+    const response = await GET(
+      new Request(`http://localhost:3000/api/conversations?${query}`),
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      data: null,
+      error: { code: "INVALID_INPUT", message: "Dados inválidos" },
+    });
+    expect(listConversations).not.toHaveBeenCalled();
   });
 });

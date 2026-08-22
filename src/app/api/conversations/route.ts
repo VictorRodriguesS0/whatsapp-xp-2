@@ -72,10 +72,28 @@ export function createConversationsRouteHandlers(
       try {
         const actor = await dependencies.requireUser();
         const url = new URL(request.url);
-        const options = conversationListOptionsSchema.parse({
-          search: url.searchParams.get("search") ?? undefined,
-          cursor: url.searchParams.get("cursor") ?? undefined,
-        });
+        const rawOptions: Record<string, string | string[]> = {};
+
+        for (const [key, value] of url.searchParams) {
+          if (key === "tagIds") {
+            const current = rawOptions[key];
+            rawOptions[key] = Array.isArray(current)
+              ? [...current, value]
+              : current === undefined
+                ? [value]
+                : [current, value];
+            continue;
+          }
+
+          const current = rawOptions[key];
+          rawOptions[key] = current === undefined
+            ? value
+            : Array.isArray(current)
+              ? [...current, value]
+              : [current, value];
+        }
+
+        const options = conversationListOptionsSchema.parse(rawOptions);
         const result = await dependencies.listConversations(actor.id, options);
         return conversationSuccessResponse(result);
       } catch (error) {

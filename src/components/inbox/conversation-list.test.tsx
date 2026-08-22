@@ -9,9 +9,13 @@ const fixture: ConversationListItem = {
   id: "10000000-0000-4000-8000-000000000001",
   contact: {
     id: "20000000-0000-4000-8000-000000000001",
+    profileName: "Carlos Lima",
+    preferredName: null,
     name: "Carlos Lima",
     phone: "+55 61 99999-0001",
     profilePictureUrl: null,
+    type: null,
+    tags: [],
   },
   responsible: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
   lastMessageAt: "2026-08-20T14:30:00.000Z",

@@ -48,8 +48,11 @@ describe("Prisma conversation repository", () => {
             contact: {
               id: "30000000-0000-4000-8000-000000000001",
               name: "Carlos",
+              preferredName: null,
               phone: "5511999990001",
               profilePictureUrl: null,
+              contactType: null,
+              tagAssignments: [],
             },
             responsibleUser: null,
             messages: [latestMessage],
@@ -80,6 +83,111 @@ describe("Prisma conversation repository", () => {
     });
     expect(globalMessageQueryWasCalled).toBe(false);
     expect(records[0]?.latestMessage?.id).toBe(messageId);
+  });
+
+  it("uses bounded nested selects, canonical phone search, exact type, and one tag predicate per requested id", async () => {
+    let conversationQuery: any;
+    let definitionQueryWasCalled = false;
+    const tagA = "50000000-0000-4000-8000-000000000001";
+    const tagB = "50000000-0000-4000-8000-000000000002";
+    const typeId = "40000000-0000-4000-8000-000000000001";
+    const client = {
+      conversation: {
+        findMany: async (query: unknown) => {
+          conversationQuery = query;
+          return [];
+        },
+      },
+      message: { groupBy: async () => [] },
+      conversationRead: {},
+      user: {},
+      contactType: {
+        findMany: async () => {
+          definitionQueryWasCalled = true;
+          return [];
+        },
+      },
+      contactTagDefinition: {
+        findMany: async () => {
+          definitionQueryWasCalled = true;
+          return [];
+        },
+      },
+    };
+
+    await createPrismaConversationRepository(client as never).list(userId, {
+      search: "+55 (11) 99999-0001",
+      contactTypeId: typeId,
+      tagIds: [tagA, tagB],
+      take: 51,
+    });
+
+    expect(conversationQuery).toMatchObject({
+      where: {
+        AND: expect.arrayContaining([
+          {
+            contact: {
+              is: {
+                OR: [
+                  { preferredName: { contains: "+55 (11) 99999-0001", mode: "insensitive" } },
+                  { name: { contains: "+55 (11) 99999-0001", mode: "insensitive" } },
+                  { phone: { contains: "5511999990001" } },
+                ],
+              },
+            },
+          },
+          {
+            contact: {
+              is: {
+                contactTypeId: typeId,
+                AND: [
+                  { tagAssignments: { some: { tagId: tagA } } },
+                  { tagAssignments: { some: { tagId: tagB } } },
+                ],
+              },
+            },
+          },
+        ]),
+      },
+      orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
+      take: 51,
+      select: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            preferredName: true,
+            phone: true,
+            contactType: {
+              select: {
+                id: true,
+                displayName: true,
+                color: true,
+                active: true,
+              },
+            },
+            tagAssignments: {
+              orderBy: [
+                { tag: { position: "asc" } },
+                { tagId: "asc" },
+              ],
+              select: {
+                tag: {
+                  select: {
+                    id: true,
+                    displayName: true,
+                    color: true,
+                    active: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        messages: { take: 1 },
+      },
+    });
+    expect(definitionQueryWasCalled).toBe(false);
   });
 
   it("retries a serializable transaction conflict by rerunning the operation", async () => {

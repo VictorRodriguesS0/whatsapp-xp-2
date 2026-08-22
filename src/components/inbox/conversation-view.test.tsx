@@ -40,7 +40,16 @@ const message: InboxMessage = {
 
 const conversation: InboxConversation = {
   id: "conversation-id",
-  contact: { id: "contact-id", name: "Carlos", phone: "5561999999999", profilePictureUrl: null },
+  contact: {
+    id: "contact-id",
+    profileName: "Carlos",
+    preferredName: null,
+    name: "Carlos",
+    phone: "5561999999999",
+    profilePictureUrl: null,
+    type: null,
+    tags: [],
+  },
   responsible: null,
   lastMessageAt: message.externalTimestamp,
   latestMessage: message,

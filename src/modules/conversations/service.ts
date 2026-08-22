@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { MessageDirection } from "@/generated/prisma/enums";
+import { formatContactPhone, resolveContactName } from "@/lib/contact-display";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
@@ -13,6 +14,9 @@ import {
   messageIdSchema,
 } from "./schemas";
 import type {
+  ContactClassificationDto,
+  ContactClassificationRecord,
+  ContactDto,
   ConversationCursor,
   ConversationDetail,
   ConversationDetailRecord,
@@ -53,6 +57,17 @@ const messageSelect = {
     },
   },
 } as const;
+const classificationSelect = {
+  id: true,
+  displayName: true,
+  color: true,
+  position: true,
+  active: true,
+} as const;
+const tagAssignmentOrderBy: Prisma.ContactTagAssignmentOrderByWithRelationInput[] = [
+  { tag: { position: "asc" } },
+  { tagId: "asc" },
+];
 const conversationSelect = {
   id: true,
   lastMessageAt: true,
@@ -69,8 +84,14 @@ const conversationSelect = {
     select: {
       id: true,
       name: true,
+      preferredName: true,
       phone: true,
       profilePictureUrl: true,
+      contactType: { select: classificationSelect },
+      tagAssignments: {
+        orderBy: tagAssignmentOrderBy,
+        select: { tag: { select: classificationSelect } },
+      },
     },
   },
   responsibleUser: { select: userSelect },
@@ -183,10 +204,48 @@ function toMessageDto(message: MessageRecord): MessageDto {
   };
 }
 
+function toContactClassificationDto(
+  definition: ContactClassificationRecord,
+): ContactClassificationDto {
+  return {
+    id: definition.id,
+    name: definition.displayName,
+    color: definition.color,
+    active: definition.active,
+  };
+}
+
+function toContactDto(
+  contact: ConversationListRecord["contact"],
+): ContactDto {
+  return {
+    id: contact.id,
+    profileName: contact.name,
+    preferredName: contact.preferredName,
+    name: resolveContactName({
+      preferredName: contact.preferredName,
+      profileName: contact.name,
+      phone: contact.phone,
+    }),
+    phone: formatContactPhone(contact.phone),
+    profilePictureUrl: contact.profilePictureUrl,
+    type: contact.contactType
+      ? toContactClassificationDto(contact.contactType)
+      : null,
+    tags: [...contact.tagAssignments]
+      .sort(
+        (left, right) =>
+          left.tag.position - right.tag.position ||
+          left.tag.id.localeCompare(right.tag.id),
+      )
+      .map(({ tag }) => toContactClassificationDto(tag)),
+  };
+}
+
 function toListItem(record: ConversationListRecord): ConversationListItem {
   return {
     id: record.id,
-    contact: record.contact,
+    contact: toContactDto(record.contact),
     responsible: record.responsibleUser
       ? { id: record.responsibleUser.id, name: record.responsibleUser.name }
       : null,
@@ -270,13 +329,44 @@ function searchWhere(search?: string): Prisma.ConversationWhereInput {
     return {};
   }
 
+  const canonicalPhoneSearch = search.replace(/\D/gu, "");
+  const searchPredicates: Prisma.ContactWhereInput[] = [
+    { preferredName: { contains: search, mode: "insensitive" } },
+    { name: { contains: search, mode: "insensitive" } },
+  ];
+
+  if (canonicalPhoneSearch) {
+    searchPredicates.push({ phone: { contains: canonicalPhoneSearch } });
+  }
+
   return {
     contact: {
       is: {
-        OR: [
-          { name: { contains: search, mode: "insensitive" } },
-          { phone: { contains: search, mode: "insensitive" } },
-        ],
+        OR: searchPredicates,
+      },
+    },
+  };
+}
+
+function classificationWhere(
+  contactTypeId?: string,
+  tagIds: string[] = [],
+): Prisma.ConversationWhereInput {
+  if (!contactTypeId && tagIds.length === 0) {
+    return {};
+  }
+
+  return {
+    contact: {
+      is: {
+        ...(contactTypeId ? { contactTypeId } : {}),
+        ...(tagIds.length > 0
+          ? {
+              AND: tagIds.map((tagId) => ({
+                tagAssignments: { some: { tagId } },
+              })),
+            }
+          : {}),
       },
     },
   };
@@ -332,7 +422,13 @@ export function createPrismaConversationRepository(
   const repository: ConversationRepository = {
     async list(userId, query) {
       const rows = await client.conversation.findMany({
-        where: { AND: [searchWhere(query.search), cursorWhere(query.cursor)] },
+        where: {
+          AND: [
+            searchWhere(query.search),
+            classificationWhere(query.contactTypeId, query.tagIds),
+            cursorWhere(query.cursor),
+          ],
+        },
         orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
         take: query.take,
         select: {
@@ -460,6 +556,8 @@ export async function listConversations(
   const parsed = conversationListOptionsSchema.parse(options);
   const records = await repository.list(parsedUserId, {
     search: parsed.search,
+    contactTypeId: parsed.contactTypeId,
+    tagIds: parsed.tagIds,
     cursor: parsed.cursor ? decodeCursor(parsed.cursor) : undefined,
     take: CONVERSATION_PAGE_SIZE + 1,
   });

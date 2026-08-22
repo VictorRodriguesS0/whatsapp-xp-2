@@ -21,7 +21,16 @@ describe("conversation responsible route", () => {
     const events: unknown[] = [];
     const detail = {
       id,
-      contact: { id, name: "Carlos", phone: "1", profilePictureUrl: null },
+      contact: {
+        id,
+        profileName: "Carlos",
+        preferredName: null,
+        name: "Carlos",
+        phone: "1",
+        profilePictureUrl: null,
+        type: null,
+        tags: [],
+      },
       responsible: null,
       lastMessageAt: new Date(0).toISOString(),
       latestMessage: null,

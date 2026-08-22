@@ -143,4 +143,96 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
     expect(serialized).not.toContain("secret-internal-reason");
     expect(serialized).not.toContain("99999999-9999-4999-8999-999999999999");
   });
+
+  it("searches canonical contact fields and applies inactive type plus multiple tags with AND semantics", async () => {
+    const user = await prisma.user.create({
+      data: {
+        name: "Victor",
+        email: "victor.filters@example.test",
+        passwordHash: "not-used-by-this-fixture",
+        role: UserRole.ADMIN,
+      },
+    });
+    const type = await prisma.contactType.create({
+      data: {
+        displayName: "Cliente inativo",
+        normalizedName: `cliente-inativo-${user.id}`,
+        color: "#112233",
+        position: 0,
+        active: false,
+      },
+    });
+    const [tagA, tagB] = await Promise.all([
+      prisma.contactTagDefinition.create({
+        data: {
+          displayName: "Primeira",
+          normalizedName: `primeira-${user.id}`,
+          color: "#445566",
+          position: 1,
+        },
+      }),
+      prisma.contactTagDefinition.create({
+        data: {
+          displayName: "Segunda inativa",
+          normalizedName: `segunda-${user.id}`,
+          color: "#778899",
+          position: 2,
+          active: false,
+        },
+      }),
+    ]);
+    const matching = await prisma.contact.create({
+      data: {
+        whatsappId: "5511999991234",
+        phone: "5511999991234",
+        name: "Nome Meta",
+        preferredName: "Bia",
+        contactTypeId: type.id,
+        tagAssignments: {
+          create: [{ tagId: tagB.id }, { tagId: tagA.id }],
+        },
+      },
+    });
+    const missingTag = await prisma.contact.create({
+      data: {
+        whatsappId: "5511999991235",
+        phone: "5511999991235",
+        name: "Outra pessoa",
+        contactTypeId: type.id,
+        tagAssignments: { create: [{ tagId: tagA.id }] },
+      },
+    });
+    await Promise.all([
+      prisma.conversation.create({
+        data: { contactId: matching.id, lastMessageAt: new Date(2) },
+      }),
+      prisma.conversation.create({
+        data: { contactId: missingTag.id, lastMessageAt: new Date(1) },
+      }),
+    ]);
+
+    await expect(listConversations(user.id, { search: "  BIA  " })).resolves.toMatchObject({
+      items: [{ contact: { id: matching.id, profileName: "Nome Meta" } }],
+    });
+    await expect(
+      listConversations(user.id, { search: "+55 (11) 99999-1234" }),
+    ).resolves.toMatchObject({ items: [{ contact: { id: matching.id } }] });
+
+    const filtered = await listConversations(user.id, {
+      contactTypeId: type.id,
+      tagIds: [tagA.id, tagB.id],
+    });
+
+    expect(filtered.items).toHaveLength(1);
+    expect(filtered.items[0]?.contact).toMatchObject({
+      id: matching.id,
+      name: "Bia",
+      phone: "+55 (11) 99999-1234",
+      type: { id: type.id, active: false },
+      tags: [
+        { id: tagA.id, active: true },
+        { id: tagB.id, active: false },
+      ],
+    });
+  });
 });

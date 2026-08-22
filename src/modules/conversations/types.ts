@@ -13,11 +13,40 @@ export type ConversationUserRecord = {
   active?: boolean;
 };
 
-export type ContactDto = {
+export type ContactClassificationDto = {
   id: string;
   name: string;
+  color: string;
+  active: boolean;
+};
+
+export type ContactDto = {
+  id: string;
+  profileName: string;
+  preferredName: string | null;
+  name: string;
+  phone: string;
+  profilePictureUrl: string | null;
+  type: ContactClassificationDto | null;
+  tags: ContactClassificationDto[];
+};
+
+export type ContactClassificationRecord = {
+  id: string;
+  displayName: string;
+  color: string;
+  position: number;
+  active: boolean;
+};
+
+export type ConversationContactRecord = {
+  id: string;
+  name: string;
+  preferredName: string | null;
   phone: string | null;
   profilePictureUrl: string | null;
+  contactType: ContactClassificationRecord | null;
+  tagAssignments: Array<{ tag: ContactClassificationRecord }>;
 };
 
 export type ResponsibleUserDto = Pick<ConversationUserRecord, "id" | "name">;
@@ -89,7 +118,7 @@ export type MessageDto = {
 
 export type ConversationListRecord = {
   id: string;
-  contact: ContactDto;
+  contact: ConversationContactRecord;
   responsibleUser: ConversationUserRecord | null;
   lastMessageAt: Date;
   createdAt: Date;
@@ -136,6 +165,8 @@ export type ConversationCursor = {
 
 export type ConversationListOptions = {
   search?: string;
+  contactTypeId?: string;
+  tagIds?: string[];
   cursor?: string;
 };
 
@@ -146,6 +177,8 @@ export type ConversationListResult = {
 
 export type ConversationListQuery = {
   search?: string;
+  contactTypeId?: string;
+  tagIds?: string[];
   cursor?: ConversationCursor;
   take: number;
 };

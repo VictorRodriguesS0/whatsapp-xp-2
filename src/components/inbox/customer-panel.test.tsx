@@ -7,7 +7,16 @@ import { CustomerPanel } from "./customer-panel";
 
 const conversation: ConversationListItem = {
   id: "conversation-id",
-  contact: { id: "contact-id", name: "Carlos", phone: "5561999999999", profilePictureUrl: null },
+  contact: {
+    id: "contact-id",
+    profileName: "Carlos",
+    preferredName: null,
+    name: "Carlos",
+    phone: "5561999999999",
+    profilePictureUrl: null,
+    type: null,
+    tags: [],
+  },
   responsible: null,
   lastMessageAt: "2026-08-20T14:30:00.000Z",
   latestMessage: null,

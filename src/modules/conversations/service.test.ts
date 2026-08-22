@@ -17,6 +17,7 @@ import {
   markRead,
   setResponsible,
 } from "./service";
+import { conversationListOptionsSchema } from "./schemas";
 import type {
   ConversationListRecord,
   ConversationRepository,
@@ -82,6 +83,7 @@ function conversation(
   responsibleUser: ConversationUserRecord | null = null,
   messages: MessageRecord[] = [],
   teamLastReadMessageId: string | null = null,
+  contactOverrides: Record<string, unknown> = {},
 ): ConversationListRecord {
   const teamLastReadMessage = messages.find(
     (candidate) => candidate.id === teamLastReadMessageId,
@@ -92,8 +94,12 @@ function conversation(
     contact: {
       id: id.replace(/.$/, "f"),
       name,
+      preferredName: null,
       phone,
       profilePictureUrl: null,
+      contactType: null,
+      tagAssignments: [],
+      ...contactOverrides,
     },
     responsibleUser,
     lastMessageAt,
@@ -143,14 +149,32 @@ function createRepository(
     responsibleUpdates,
     list: async (_userId, query) => {
       const normalizedSearch = query.search?.toLocaleLowerCase("pt-BR");
+      const canonicalPhoneSearch = query.search?.replace(/\D/gu, "");
       const filtered = records
         .filter(
           (record) =>
             !normalizedSearch ||
+            record.contact.preferredName
+              ?.toLocaleLowerCase("pt-BR")
+              .includes(normalizedSearch) ||
             record.contact.name.toLocaleLowerCase("pt-BR").includes(normalizedSearch) ||
             record.contact.phone
               ?.toLocaleLowerCase("pt-BR")
-              .includes(normalizedSearch),
+              .includes(normalizedSearch) ||
+            Boolean(canonicalPhoneSearch) &&
+              record.contact.phone?.replace(/\D/gu, "").includes(canonicalPhoneSearch!),
+        )
+        .filter(
+          (record) =>
+            !query.contactTypeId ||
+            record.contact.contactType?.id === query.contactTypeId,
+        )
+        .filter(
+          (record) =>
+            !query.tagIds ||
+            query.tagIds.every((tagId) =>
+              record.contact.tagAssignments.some(({ tag }) => tag.id === tagId),
+            ),
         )
         .filter(
           (record) =>
@@ -289,6 +313,157 @@ function createRepository(
 }
 
 describe("conversation service", () => {
+  it("resolves the safe contact DTO with immutable profile name, formatted phone, and ordered assigned classifications", async () => {
+    const typeId = "40000000-0000-4000-8000-000000000001";
+    const firstTagId = "50000000-0000-4000-8000-000000000001";
+    const secondTagId = "50000000-0000-4000-8000-000000000002";
+    const record = conversation(
+      "10000000-0000-4000-8000-000000000001",
+      "Nome Meta",
+      "5511999991234",
+      new Date(1),
+      null,
+      [],
+      null,
+      {
+        preferredName: "  Bia  ",
+        whatsappId: "raw-provider-identity",
+        contactType: {
+          id: typeId,
+          displayName: "Cliente",
+          color: "#112233",
+          position: 0,
+          active: false,
+        },
+        tagAssignments: [
+          {
+            tag: {
+              id: secondTagId,
+              displayName: "Segundo",
+              color: "#445566",
+              position: 2,
+              active: false,
+            },
+          },
+          {
+            tag: {
+              id: firstTagId,
+              displayName: "Primeiro",
+              color: "#778899",
+              position: 1,
+              active: true,
+            },
+          },
+        ],
+      },
+    );
+
+    const result = await listConversations(
+      victor.id,
+      {},
+      createRepository([record], []),
+    );
+
+    expect(result.items[0]?.contact).toEqual({
+      id: record.contact.id,
+      profileName: "Nome Meta",
+      preferredName: "  Bia  ",
+      name: "Bia",
+      phone: "+55 (11) 99999-1234",
+      profilePictureUrl: null,
+      type: { id: typeId, name: "Cliente", color: "#112233", active: false },
+      tags: [
+        { id: firstTagId, name: "Primeiro", color: "#778899", active: true },
+        { id: secondTagId, name: "Segundo", color: "#445566", active: false },
+      ],
+    });
+    expect(JSON.stringify(result.items[0]?.contact)).not.toContain(
+      "raw-provider-identity",
+    );
+  });
+
+  it("uses the exact display fallback when preferred and profile names are blank", async () => {
+    const record = conversation(
+      "10000000-0000-4000-8000-000000000001",
+      "   ",
+      "551133331234",
+      new Date(1),
+      null,
+      [],
+      null,
+      { preferredName: null },
+    );
+
+    await expect(
+      listConversations(victor.id, {}, createRepository([record], [])),
+    ).resolves.toMatchObject({
+      items: [{ contact: { name: "+55 (11) 3333-1234" } }],
+    });
+  });
+
+  it("canonicalizes classification filters and rejects semantic tag duplicates", () => {
+    const typeId = "AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA";
+    const tagId = "BBBBBBBB-BBBB-4BBB-8BBB-BBBBBBBBBBBB";
+
+    expect(
+      conversationListOptionsSchema.parse({
+        contactTypeId: typeId,
+        tagIds: [tagId],
+      }),
+    ).toEqual({
+      contactTypeId: typeId.toLowerCase(),
+      tagIds: [tagId.toLowerCase()],
+    });
+    expect(() =>
+      conversationListOptionsSchema.parse({
+        tagIds: [tagId, tagId.toLowerCase()],
+      }),
+    ).toThrow();
+    expect(() =>
+      conversationListOptionsSchema.parse({ tagIds: Array(21).fill(tagId) }),
+    ).toThrow();
+  });
+
+  it("forwards exact type and tag filters with AND semantics", async () => {
+    const typeId = "40000000-0000-4000-8000-000000000001";
+    const tagA = "50000000-0000-4000-8000-000000000001";
+    const tagB = "50000000-0000-4000-8000-000000000002";
+    const matching = conversation(
+      "10000000-0000-4000-8000-000000000001",
+      "Carlos",
+      "5511999990001",
+      new Date(2),
+      null,
+      [],
+      null,
+      {
+        contactType: { id: typeId },
+        tagAssignments: [{ tag: { id: tagA } }, { tag: { id: tagB } }],
+      },
+    );
+    const missingTag = conversation(
+      "10000000-0000-4000-8000-000000000002",
+      "Carla",
+      "5511999990002",
+      new Date(1),
+      null,
+      [],
+      null,
+      {
+        contactType: { id: typeId },
+        tagAssignments: [{ tag: { id: tagA } }],
+      },
+    );
+
+    const result = await listConversations(
+      victor.id,
+      { contactTypeId: typeId, tagIds: [tagA, tagB] },
+      createRepository([matching, missingTag], []),
+    );
+
+    expect(result.items.map(({ id }) => id)).toEqual([matching.id]);
+  });
+
   it("returns conversations assigned to another employee", async () => {
     const assigned = conversation(
       "10000000-0000-4000-8000-000000000001",
@@ -305,19 +480,28 @@ describe("conversation service", () => {
     expect(result.items[0]?.responsible).toEqual({ id: marcos.id, name: marcos.name });
   });
 
-  it("searches only normalized contact name and phone", async () => {
+  it("searches preferred/profile names and canonical phone through masked input only", async () => {
     const firstId = "10000000-0000-4000-8000-000000000001";
     const secondId = "10000000-0000-4000-8000-000000000002";
     const records = [
-      conversation(firstId, "Álvaro", "+55 11 90000-0001", new Date(2)),
-      conversation(secondId, "Beatriz", "+55 21 98888-1000", new Date(1)),
+      conversation(firstId, "Álvaro", "5511900000001", new Date(2)),
+      conversation(
+        secondId,
+        "Beatriz Meta",
+        "5521988881000",
+        new Date(1),
+        null,
+        [],
+        null,
+        { preferredName: "Bia" },
+      ),
     ];
     const messages = [message("20000000-0000-4000-8000-000000000001", secondId, new Date(1), MessageDirection.INBOUND, "Álvaro")];
     const repository = createRepository(records, messages);
 
-    await expect(listConversations(victor.id, { search: "  BEATRIZ  " }, repository))
+    await expect(listConversations(victor.id, { search: "  BIA  " }, repository))
       .resolves.toMatchObject({ items: [{ id: secondId }] });
-    await expect(listConversations(victor.id, { search: "90000-0001" }, repository))
+    await expect(listConversations(victor.id, { search: "+55 (11) 90000-0001" }, repository))
       .resolves.toMatchObject({ items: [{ id: firstId }] });
     await expect(listConversations(victor.id, { search: "mensagem inexistente" }, repository))
       .resolves.toMatchObject({ items: [] });
