@@ -11,6 +11,7 @@ export const outboundTextSchema = z.object({
   type: z.literal(MessageType.TEXT),
   clientRequestId: clientRequestIdSchema,
   body: z.string().trim().min(1).max(4_096),
+  replyToMessageId: messageUuidSchema.optional(),
 });
 
 export const outboundMediaFieldsSchema = z.object({
@@ -22,4 +23,5 @@ export const outboundMediaFieldsSchema = z.object({
   ]),
   clientRequestId: clientRequestIdSchema,
   body: z.string().trim().max(1_024).optional(),
+  replyToMessageId: messageUuidSchema.optional(),
 });

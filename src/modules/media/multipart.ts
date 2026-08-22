@@ -172,6 +172,6 @@ export async function parseMediaMultipartRequest(request: Request, root: string)
     maximumFileBytes: DOCUMENT_MAX_BYTES,
     maximumRequestBytes: MULTIPART_REQUEST_MAX_BYTES,
     maximumDurationMs: MEDIA_MULTIPART_MAX_DURATION_MS,
-    allowedFields: ["type", "clientRequestId", "body"],
+    allowedFields: ["type", "clientRequestId", "body", "replyToMessageId"],
   });
 }

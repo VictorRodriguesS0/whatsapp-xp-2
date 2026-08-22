@@ -18,7 +18,10 @@ import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
 import { runConversationTransaction } from "@/modules/conversations/service";
 import { refreshResponseState } from "@/modules/conversations/shared-state";
-import type { MessageDto } from "@/modules/conversations/types";
+import type {
+  MessageDto,
+  QuotedReplyRecord,
+} from "@/modules/conversations/types";
 import { LocalMediaStorage } from "@/modules/media/local-storage";
 import type { MediaStorage } from "@/modules/media/storage";
 import { validateMedia, validateMediaFile } from "@/modules/media/validation";
@@ -28,7 +31,10 @@ import { getServerEnv } from "@/lib/env";
 import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { MediaMessageType, WhatsAppProvider } from "@/modules/whatsapp/provider";
-import { whatsappMessageIdSchema } from "@/modules/messages/reply-context";
+import {
+  quotedReplyPreview,
+  whatsappMessageIdSchema,
+} from "@/modules/messages/reply-context";
 
 import {
   clientRequestIdSchema,
@@ -36,6 +42,10 @@ import {
   outboundMediaFieldsSchema,
   outboundTextSchema,
 } from "./schemas";
+import {
+  reconcileReplyLinks,
+  resolveReplyTarget,
+} from "./reply-linking.server";
 import { safeFailureReason, safeOriginalFilename } from "./status";
 
 export const MESSAGE_SEND_RATE_LIMIT = 30;
@@ -51,11 +61,17 @@ export type MessageFileInput = {
 );
 
 export type SendMessageInput =
-  | { type: "TEXT"; clientRequestId: string; body: string }
+  | {
+      type: "TEXT";
+      clientRequestId: string;
+      body: string;
+      replyToMessageId?: string;
+    }
   | {
       type: "IMAGE" | "AUDIO" | "VIDEO" | "DOCUMENT";
       clientRequestId: string;
       body?: string;
+      replyToMessageId?: string;
       file: MessageFileInput;
     };
 
@@ -73,6 +89,9 @@ export type MessageServiceRecord = {
   id: string;
   conversationId: string;
   whatsappMessageId: string | null;
+  replyToMessageId: string | null;
+  replyToWhatsappMessageId: string | null;
+  replyToMessage: QuotedReplyRecord | null;
   clientRequestId: string;
   direction: MessageDirection;
   type: MessageTypeValue;
@@ -98,6 +117,7 @@ export type PendingMessageInput = {
   sentByUserId: string;
   type: MessageTypeValue;
   body: string | null;
+  replyToMessageId: string | null;
   externalTimestamp: Date;
 };
 
@@ -202,10 +222,23 @@ export type MessageServiceDependencies = {
   deliveryLeaseMs?: number;
 };
 
+const replyPreviewSelect = {
+  id: true,
+  direction: true,
+  type: true,
+  body: true,
+  content: true,
+  sentByUser: { select: { id: true, name: true } },
+  mediaObject: { select: { originalFilename: true } },
+} as const;
+
 const prismaMessageScalarSelect = {
   id: true,
   conversationId: true,
   whatsappMessageId: true,
+  replyToMessageId: true,
+  replyToWhatsappMessageId: true,
+  replyToMessage: { select: replyPreviewSelect },
   clientRequestId: true,
   direction: true,
   type: true,
@@ -260,6 +293,9 @@ async function hydrateServiceRecord(row: PrismaMessageRow): Promise<MessageServi
     id: row.id,
     conversationId: row.conversationId,
     whatsappMessageId: row.whatsappMessageId,
+    replyToMessageId: row.replyToMessageId,
+    replyToWhatsappMessageId: row.replyToWhatsappMessageId,
+    replyToMessage: row.replyToMessage,
     clientRequestId: row.clientRequestId,
     direction: row.direction,
     type: row.type,
@@ -415,6 +451,19 @@ export const prismaMessageRepository: MessageServiceRepository = {
         if (!conversation.contact.phone) {
           throw new HttpError(409, "Contato sem telefone disponível");
         }
+        const replyTarget = input.replyToMessageId
+          ? await resolveReplyTarget(
+              transaction,
+              input.conversationId,
+              input.replyToMessageId,
+            )
+          : null;
+        if (input.replyToMessageId && !replyTarget) {
+          throw new HttpError(
+            409,
+            "Mensagem original indisponível para resposta",
+          );
+        }
 
         await transaction.message.create({
           data: {
@@ -424,6 +473,8 @@ export const prismaMessageRepository: MessageServiceRepository = {
             direction: MessageDirection.OUTBOUND,
             type: input.type,
             body: input.body,
+            replyToMessageId: replyTarget?.id ?? null,
+            replyToWhatsappMessageId: replyTarget?.whatsappMessageId ?? null,
             sentByUserId: input.sentByUserId,
             status: MessageStatus.PENDING,
             externalTimestamp: input.externalTimestamp,
@@ -515,12 +566,31 @@ export const prismaMessageRepository: MessageServiceRepository = {
     return marked.count === 1 ? "MARKED" : "CAS_LOST";
   },
   async markSent(messageId, whatsappMessageId) {
-    const row = await prisma.message.update({
-      where: { id: messageId },
-      data: { whatsappMessageId, status: MessageStatus.SENT, failureReason: null, operationalState: MessageOperationalState.SENT, deliveryLeaseId: null, deliveryLeaseUntil: null },
-      select: prismaMessageScalarSelect,
+    const parsedWhatsappMessageId = whatsappMessageIdSchema.parse(
+      whatsappMessageId,
+    );
+    await runConversationTransaction(prisma, async (transaction) => {
+      const updated = await transaction.message.update({
+        where: { id: messageId },
+        data: {
+          whatsappMessageId: parsedWhatsappMessageId,
+          status: MessageStatus.SENT,
+          failureReason: null,
+          operationalState: MessageOperationalState.SENT,
+          deliveryLeaseId: null,
+          deliveryLeaseUntil: null,
+        },
+        select: { id: true, conversationId: true },
+      });
+      await reconcileReplyLinks(transaction, {
+        conversationId: updated.conversationId,
+        messageId: updated.id,
+        whatsappMessageId: parsedWhatsappMessageId,
+      });
     });
-    return hydrateServiceRecord(row);
+    const hydrated = await this.findById(messageId);
+    if (!hydrated) throw new Error("Committed outbound message could not be hydrated");
+    return hydrated;
   },
   async markFailed(messageId, failureReason, operationalState) {
     const row = await prisma.message.update({
@@ -583,7 +653,20 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     body: message.body,
     content: null,
     canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
-    replyTo: null,
+    replyTo: message.replyToMessage
+      ? quotedReplyPreview({
+          id: message.replyToMessage.id,
+          direction: message.replyToMessage.direction,
+          type: message.replyToMessage.type,
+          body: message.replyToMessage.body,
+          content: message.replyToMessage.content,
+          sentBy: message.replyToMessage.sentByUser,
+          mediaOriginalFilename:
+            message.replyToMessage.mediaObject?.originalFilename ?? null,
+        })
+      : message.replyToWhatsappMessageId
+        ? { available: false }
+        : null,
     mediaObjectId: message.mediaObjectId,
     mediaState: message.mediaObject
       ? { status: MediaStatus.AVAILABLE, nextAttemptAt: null, canRetry: false }
@@ -604,8 +687,17 @@ function publishSafely(dependencies: MessageServiceDependencies, event: Realtime
   }
 }
 
-function assertSameIdempotentOperation(message: MessageServiceRecord, actor: SessionUser, conversationId: string): void {
-  if (message.conversationId !== conversationId || message.sentByUserId !== actor.id) {
+function assertSameIdempotentOperation(
+  message: MessageServiceRecord,
+  actor: SessionUser,
+  conversationId: string,
+  replyToMessageId: string | undefined,
+): void {
+  if (
+    message.conversationId !== conversationId ||
+    message.sentByUserId !== actor.id ||
+    message.replyToMessageId !== (replyToMessageId ?? null)
+  ) {
     throw new HttpError(409, "Identificador de envio já utilizado");
   }
 }
@@ -636,7 +728,11 @@ async function deliver(
   dependencies: MessageServiceDependencies,
 ): Promise<MessageServiceRecord> {
   if (message.type === MessageType.TEXT) {
-    const result = await providerCall(() => dependencies.provider.sendText({ to: message.contactPhone, body: message.body! }));
+    const result = await providerCall(() => dependencies.provider.sendText({
+      to: message.contactPhone,
+      body: message.body!,
+      contextMessageId: message.replyToWhatsappMessageId ?? undefined,
+    }));
     return dependencies.repository.markSent(message.id, result.whatsappMessageId);
   }
   if (!message.mediaObject) throw new Error("Missing media");
@@ -655,6 +751,7 @@ async function deliver(
     mediaId: uploaded.mediaId,
     caption: message.body ?? undefined,
     filename: message.type === MessageType.DOCUMENT ? message.mediaObject!.originalFilename : undefined,
+    contextMessageId: message.replyToWhatsappMessageId ?? undefined,
   }));
   return dependencies.repository.markSent(message.id, result.whatsappMessageId);
 }
@@ -779,7 +876,12 @@ async function sendMessageOnce(
   const clientRequestId = clientRequestIdSchema.parse(parsed.clientRequestId);
   const existing = await dependencies.repository.findByClientRequestId(clientRequestId);
   if (existing) {
-    assertSameIdempotentOperation(existing, actor, parsedConversationId);
+    assertSameIdempotentOperation(
+      existing,
+      actor,
+      parsedConversationId,
+      parsed.replyToMessageId,
+    );
     if (existing.type !== input.type) throw new HttpError(409, "Identificador de envio já utilizado");
     if (existing.status === MessageStatus.PENDING && existing.operationalState === MessageOperationalState.READY &&
       (existing.type === MessageType.TEXT || existing.mediaObject)) {
@@ -845,10 +947,16 @@ async function sendMessageOnce(
     sentByUserId: parsedActorId,
     type: input.type,
     body: parsed.body ?? null,
+    replyToMessageId: parsed.replyToMessageId ?? null,
     externalTimestamp: new Date(),
   });
   if (!created.created) {
-    assertSameIdempotentOperation(created.message, actor, parsedConversationId);
+    assertSameIdempotentOperation(
+      created.message,
+      actor,
+      parsedConversationId,
+      parsed.replyToMessageId,
+    );
     return toMessageDto(created.message);
   }
   let message = created.message;
@@ -911,7 +1019,12 @@ export function sendMessage(
   input: SendMessageInput,
   dependencies: MessageServiceDependencies = defaultDependencies,
 ): Promise<MessageDto> {
-  const operationKey = `${actor.id}:${conversationId}:${clientRequestIdSchema.parse(input.clientRequestId)}`;
+  const operationKey = [
+    actor.id,
+    conversationId,
+    clientRequestIdSchema.parse(input.clientRequestId),
+    input.replyToMessageId ?? "-",
+  ].join(":");
   const inFlight = dependencies.idempotencyInFlight ?? defaultIdempotencyInFlight;
   const existing = inFlight.get(operationKey);
   if (existing) return existing;

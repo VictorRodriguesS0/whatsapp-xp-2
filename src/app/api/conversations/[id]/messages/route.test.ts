@@ -111,6 +111,43 @@ describe("conversation history route", () => {
     });
   });
 
+  it("passes only the internal quoted target from JSON", async () => {
+    let receivedInput: unknown;
+    const replyToMessageId = "20000000-0000-4000-8000-000000000001";
+    const clientRequestId = "40000000-0000-4000-8000-000000000001";
+    const { POST } = createConversationMessagesRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      sendMessage: async (_actor, _conversationId, input) => {
+        receivedInput = input;
+        return {} as never;
+      },
+    });
+
+    const response = await POST(new Request(
+      `http://localhost/api/conversations/${id}/messages`,
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          type: "TEXT",
+          clientRequestId,
+          body: "Resposta",
+          replyToMessageId,
+          contextMessageId: "wamid.browser-must-not-control-this",
+        }),
+      },
+    ), { params: Promise.resolve({ id }) });
+
+    expect(response.status).toBe(201);
+    expect(receivedInput).toEqual({
+      type: "TEXT",
+      clientRequestId,
+      body: "Resposta",
+      replyToMessageId,
+    });
+  });
+
   it("accepts multipart document bytes without trusting the supplied filename as a path", async () => {
     let receivedInput: any;
     const root = await mkdtemp(join(tmpdir(), "xp-route-media-"));
@@ -143,6 +180,7 @@ describe("conversation history route", () => {
     const form = new FormData();
     form.set("type", "DOCUMENT");
     form.set("clientRequestId", "40000000-0000-4000-8000-000000000001");
+    form.set("replyToMessageId", "20000000-0000-4000-8000-000000000001");
     form.set("file", new File([new TextEncoder().encode("%PDF-1.7")], "../../nota.pdf", { type: "application/pdf" }));
 
     const request = new Request(`http://localhost/api/conversations/${id}/messages`, { method: "POST", body: form });
@@ -158,6 +196,9 @@ describe("conversation history route", () => {
       mimeType: "application/pdf",
       sizeBytes: 8n,
     });
+    expect(receivedInput.replyToMessageId).toBe(
+      "20000000-0000-4000-8000-000000000001",
+    );
     expect([...receivedInput.stagedBytes]).toEqual([...new TextEncoder().encode("%PDF-1.7")]);
   });
 

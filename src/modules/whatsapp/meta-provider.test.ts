@@ -83,6 +83,46 @@ describe("Meta WhatsApp provider", () => {
     expect(mediaBodies[3].document).toEqual({ id: "media-1", caption: "Legenda", filename: "nota.pdf" });
   });
 
+  it("adds the official root reply context to text and every supported media type", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+      Response.json({ messaging_product: "whatsapp", messages: [{ id: "wamid.reply" }] })
+    );
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000, maximumJsonBytes: 1024 },
+      fetchMock,
+    );
+    const contextMessageId = "wamid.original-1";
+
+    await provider.sendText({
+      to: "5561999999999",
+      body: "Resposta",
+      contextMessageId,
+    });
+    for (const type of ["image", "audio", "video", "document"] as const) {
+      await provider.sendMedia({
+        to: "5561999999999",
+        type,
+        mediaId: `media-${type}`,
+        contextMessageId,
+      });
+    }
+
+    const bodies = fetchMock.mock.calls.map((call) =>
+      JSON.parse(String(call[1]?.body)) as Record<string, unknown>
+    );
+    expect(bodies).toHaveLength(5);
+    expect(bodies.map(({ context }) => context)).toEqual(
+      Array(5).fill({ message_id: contextMessageId }),
+    );
+    expect(bodies.map(({ type }) => type)).toEqual([
+      "text",
+      "image",
+      "audio",
+      "video",
+      "document",
+    ]);
+  });
+
   it("retrieves metadata through Graph and downloads only an allowlisted HTTPS temporary host without redirects", async () => {
     const temporaryUrl = "https://lookaside.fbsbx.com/whatsapp_business/attachments/?mid=media-1";
     const fetchMock = vi
