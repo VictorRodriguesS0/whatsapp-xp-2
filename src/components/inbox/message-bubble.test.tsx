@@ -1,5 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { MessageDto } from "@/modules/conversations/types";
 
@@ -23,6 +23,8 @@ const outboundFixture: MessageDto = {
 };
 
 describe("MessageBubble", () => {
+  afterEach(() => vi.useRealTimers());
+
   it("labels an outbound message with its internal sender", () => {
     render(<MessageBubble message={outboundFixture} />);
 
@@ -136,5 +138,22 @@ describe("MessageBubble", () => {
     expect(screen.getByText("XP Eletrônicos").closest("article")?.firstElementChild).toHaveClass(
       "max-w-[min(78%,42rem)]",
     );
+  });
+
+  it("opens reactions after a 500ms long press and cancels after pointer movement", () => {
+    vi.useFakeTimers();
+    const { container, rerender } = render(<MessageBubble message={outboundFixture} onReact={vi.fn()} />);
+    const bubble = container.querySelector<HTMLElement>("[data-message-bubble]")!;
+    fireEvent.pointerDown(bubble, { button: 0, clientX: 10, clientY: 10 });
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.getByRole("toolbar", { name: "Reações rápidas" })).toBeVisible();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    rerender(<MessageBubble message={{ ...outboundFixture, id: "another-message" }} onReact={vi.fn()} />);
+    const movedBubble = container.querySelector<HTMLElement>("[data-message-bubble]")!;
+    fireEvent.pointerDown(movedBubble, { button: 0, clientX: 10, clientY: 10 });
+    fireEvent.pointerMove(movedBubble, { clientX: 30, clientY: 10 });
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.queryByRole("toolbar", { name: "Reações rápidas" })).not.toBeInTheDocument();
   });
 });

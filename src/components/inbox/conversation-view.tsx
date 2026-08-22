@@ -108,6 +108,9 @@ export function ConversationView({
   onSendMedia,
   onSendRecording,
   onRetryMessage,
+  onReactMessage,
+  onRetryReaction,
+  reactionStateFor,
 }: {
   conversation: InboxConversation | null;
   detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
@@ -124,6 +127,9 @@ export function ConversationView({
   onSendMedia: (file: File, caption: string) => Promise<unknown>;
   onSendRecording: (file: File, clientRequestId: string) => Promise<unknown>;
   onRetryMessage: (id: string) => void;
+  onReactMessage?: (messageId: string, emoji: string) => unknown;
+  onRetryReaction?: (messageId: string, reactionId: string) => unknown;
+  reactionStateFor?: (messageId: string) => { pending: boolean; error: string | null };
 }) {
   const historyRef = useRef<HTMLDivElement>(null);
   const nearBottomRef = useRef(true);
@@ -218,7 +224,16 @@ export function ConversationView({
         role="log"
       >
         {conversation.messages.length === 0 ? <p className="py-12 text-center text-sm text-[var(--muted)]">Ainda não há mensagens nesta conversa.</p> : null}
-        {conversation.messages.map((message) => <MessageBubble key={message.id} message={message} onRetry={onRetryMessage} />)}
+        {conversation.messages.map((message) => (
+          <MessageBubble
+            key={message.id}
+            message={message}
+            onReact={onReactMessage}
+            onRetry={onRetryMessage}
+            onRetryReaction={onRetryReaction}
+            reactionMutation={reactionStateFor?.(message.id)}
+          />
+        ))}
       </div> : null}
       {conversation ? (
         <MessageComposer

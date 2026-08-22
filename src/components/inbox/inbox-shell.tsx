@@ -183,6 +183,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onOpenDetails={openDetails}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
+              onReactMessage={(messageId, emoji) => inbox.reactToMessage(messageId, emoji)}
+              onRetryReaction={(messageId, reactionId) => inbox.retryReaction(messageId, reactionId)}
+              reactionStateFor={inbox.reactionStateFor}
               onSendMedia={(file, caption) => inbox.selectedId && inbox.conversation?.id === inbox.selectedId ? inbox.sendMedia(inbox.selectedId, file, caption) : Promise.resolve(null)}
               onSendRecording={(file, clientRequestId) => (
                 inbox.selectedId && inbox.conversation?.id === inbox.selectedId
