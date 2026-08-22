@@ -74,6 +74,7 @@ export type MessageCountAggregateOutputType = {
   direction: number
   type: number
   body: number
+  content: number
   mediaObjectId: number
   sentByUserId: number
   status: number
@@ -139,6 +140,7 @@ export type MessageCountAggregateInputType = {
   direction?: true
   type?: true
   body?: true
+  content?: true
   mediaObjectId?: true
   sentByUserId?: true
   status?: true
@@ -233,6 +235,7 @@ export type MessageGroupByOutputType = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body: string | null
+  content: runtime.JsonValue | null
   mediaObjectId: string | null
   sentByUserId: string | null
   status: $Enums.MessageStatus
@@ -275,6 +278,7 @@ export type MessageWhereInput = {
   direction?: Prisma.EnumMessageDirectionFilter<"Message"> | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFilter<"Message"> | $Enums.MessageType
   body?: Prisma.StringNullableFilter<"Message"> | string | null
+  content?: Prisma.JsonNullableFilter<"Message">
   mediaObjectId?: Prisma.UuidNullableFilter<"Message"> | string | null
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
@@ -301,6 +305,7 @@ export type MessageOrderByWithRelationInput = {
   direction?: Prisma.SortOrder
   type?: Prisma.SortOrder
   body?: Prisma.SortOrderInput | Prisma.SortOrder
+  content?: Prisma.SortOrderInput | Prisma.SortOrder
   mediaObjectId?: Prisma.SortOrderInput | Prisma.SortOrder
   sentByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -331,6 +336,7 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   direction?: Prisma.EnumMessageDirectionFilter<"Message"> | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFilter<"Message"> | $Enums.MessageType
   body?: Prisma.StringNullableFilter<"Message"> | string | null
+  content?: Prisma.JsonNullableFilter<"Message">
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
@@ -356,6 +362,7 @@ export type MessageOrderByWithAggregationInput = {
   direction?: Prisma.SortOrder
   type?: Prisma.SortOrder
   body?: Prisma.SortOrderInput | Prisma.SortOrder
+  content?: Prisma.SortOrderInput | Prisma.SortOrder
   mediaObjectId?: Prisma.SortOrderInput | Prisma.SortOrder
   sentByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -383,6 +390,7 @@ export type MessageScalarWhereWithAggregatesInput = {
   direction?: Prisma.EnumMessageDirectionWithAggregatesFilter<"Message"> | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeWithAggregatesFilter<"Message"> | $Enums.MessageType
   body?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  content?: Prisma.JsonNullableWithAggregatesFilter<"Message">
   mediaObjectId?: Prisma.UuidNullableWithAggregatesFilter<"Message"> | string | null
   sentByUserId?: Prisma.UuidNullableWithAggregatesFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusWithAggregatesFilter<"Message"> | $Enums.MessageStatus
@@ -403,6 +411,7 @@ export type MessageCreateInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status: $Enums.MessageStatus
   failureReason?: string | null
   operationalState?: $Enums.MessageOperationalState
@@ -427,6 +436,7 @@ export type MessageUncheckedCreateInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   sentByUserId?: string | null
   status: $Enums.MessageStatus
@@ -449,6 +459,7 @@ export type MessageUpdateInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -473,6 +484,7 @@ export type MessageUncheckedUpdateInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
@@ -496,6 +508,7 @@ export type MessageCreateManyInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   sentByUserId?: string | null
   status: $Enums.MessageStatus
@@ -516,6 +529,7 @@ export type MessageUpdateManyMutationInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -535,6 +549,7 @@ export type MessageUncheckedUpdateManyInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
@@ -571,6 +586,7 @@ export type MessageCountOrderByAggregateInput = {
   direction?: Prisma.SortOrder
   type?: Prisma.SortOrder
   body?: Prisma.SortOrder
+  content?: Prisma.SortOrder
   mediaObjectId?: Prisma.SortOrder
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
@@ -797,6 +813,7 @@ export type MessageCreateWithoutSentByUserInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status: $Enums.MessageStatus
   failureReason?: string | null
   operationalState?: $Enums.MessageOperationalState
@@ -820,6 +837,7 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
@@ -871,6 +889,7 @@ export type MessageScalarWhereInput = {
   direction?: Prisma.EnumMessageDirectionFilter<"Message"> | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFilter<"Message"> | $Enums.MessageType
   body?: Prisma.StringNullableFilter<"Message"> | string | null
+  content?: Prisma.JsonNullableFilter<"Message">
   mediaObjectId?: Prisma.UuidNullableFilter<"Message"> | string | null
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
@@ -891,6 +910,7 @@ export type MessageCreateWithoutTeamLastReadForInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status: $Enums.MessageStatus
   failureReason?: string | null
   operationalState?: $Enums.MessageOperationalState
@@ -914,6 +934,7 @@ export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   sentByUserId?: string | null
   status: $Enums.MessageStatus
@@ -940,6 +961,7 @@ export type MessageCreateWithoutConversationInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status: $Enums.MessageStatus
   failureReason?: string | null
   operationalState?: $Enums.MessageOperationalState
@@ -962,6 +984,7 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   sentByUserId?: string | null
   status: $Enums.MessageStatus
@@ -1005,6 +1028,7 @@ export type MessageUpdateWithoutTeamLastReadForInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -1028,6 +1052,7 @@ export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
@@ -1065,6 +1090,7 @@ export type MessageCreateWithoutMediaObjectInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status: $Enums.MessageStatus
   failureReason?: string | null
   operationalState?: $Enums.MessageOperationalState
@@ -1088,6 +1114,7 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
@@ -1125,6 +1152,7 @@ export type MessageUpdateWithoutMediaObjectInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -1148,6 +1176,7 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1169,6 +1198,7 @@ export type MessageCreateWithoutLastReadForInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status: $Enums.MessageStatus
   failureReason?: string | null
   operationalState?: $Enums.MessageOperationalState
@@ -1192,6 +1222,7 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   sentByUserId?: string | null
   status: $Enums.MessageStatus
@@ -1229,6 +1260,7 @@ export type MessageUpdateWithoutLastReadForInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -1252,6 +1284,7 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
@@ -1274,6 +1307,7 @@ export type MessageCreateManySentByUserInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
@@ -1293,6 +1327,7 @@ export type MessageUpdateWithoutSentByUserInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -1316,6 +1351,7 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1338,6 +1374,7 @@ export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1357,6 +1394,7 @@ export type MessageCreateManyConversationInput = {
   direction: $Enums.MessageDirection
   type: $Enums.MessageType
   body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: string | null
   sentByUserId?: string | null
   status: $Enums.MessageStatus
@@ -1377,6 +1415,7 @@ export type MessageUpdateWithoutConversationInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
@@ -1399,6 +1438,7 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
@@ -1421,6 +1461,7 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
   direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
   type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
   body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
@@ -1482,6 +1523,7 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   direction?: boolean
   type?: boolean
   body?: boolean
+  content?: boolean
   mediaObjectId?: boolean
   sentByUserId?: boolean
   status?: boolean
@@ -1509,6 +1551,7 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   direction?: boolean
   type?: boolean
   body?: boolean
+  content?: boolean
   mediaObjectId?: boolean
   sentByUserId?: boolean
   status?: boolean
@@ -1533,6 +1576,7 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   direction?: boolean
   type?: boolean
   body?: boolean
+  content?: boolean
   mediaObjectId?: boolean
   sentByUserId?: boolean
   status?: boolean
@@ -1557,6 +1601,7 @@ export type MessageSelectScalar = {
   direction?: boolean
   type?: boolean
   body?: boolean
+  content?: boolean
   mediaObjectId?: boolean
   sentByUserId?: boolean
   status?: boolean
@@ -1570,7 +1615,7 @@ export type MessageSelectScalar = {
   updatedAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "operationalState" | "providerAttemptedAt" | "deliveryLeaseId" | "deliveryLeaseUntil" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "content" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "operationalState" | "providerAttemptedAt" | "deliveryLeaseId" | "deliveryLeaseUntil" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   mediaObject?: boolean | Prisma.Message$mediaObjectArgs<ExtArgs>
@@ -1607,6 +1652,7 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     direction: $Enums.MessageDirection
     type: $Enums.MessageType
     body: string | null
+    content: runtime.JsonValue | null
     mediaObjectId: string | null
     sentByUserId: string | null
     status: $Enums.MessageStatus
@@ -2053,6 +2099,7 @@ export interface MessageFieldRefs {
   readonly direction: Prisma.FieldRef<"Message", 'MessageDirection'>
   readonly type: Prisma.FieldRef<"Message", 'MessageType'>
   readonly body: Prisma.FieldRef<"Message", 'String'>
+  readonly content: Prisma.FieldRef<"Message", 'Json'>
   readonly mediaObjectId: Prisma.FieldRef<"Message", 'String'>
   readonly sentByUserId: Prisma.FieldRef<"Message", 'String'>
   readonly status: Prisma.FieldRef<"Message", 'MessageStatus'>
