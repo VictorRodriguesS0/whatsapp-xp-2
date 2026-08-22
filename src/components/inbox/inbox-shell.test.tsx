@@ -125,10 +125,12 @@ describe("InboxShell", () => {
 
   it("shows both admin settings actions only to administrators", () => {
     const { rerender } = render(<InboxShell initialUser={user} />);
+    expect(screen.getByRole("link", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
     expect(screen.queryByRole("link", { name: "Configurar classificações" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Configurar usuários" })).not.toBeInTheDocument();
 
     rerender(<InboxShell initialUser={{ ...user, role: "ADMIN" }} />);
+    expect(screen.getByRole("link", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
     expect(screen.getByRole("link", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
     expect(screen.getByRole("link", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
   });

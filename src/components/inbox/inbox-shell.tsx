@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Search, Settings, Tags } from "lucide-react";
+import { LogOut, MessageSquareText, Search, Settings, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -136,6 +136,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               <div className="flex min-h-11 items-center justify-between gap-3">
                 <div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">XP Eletrônicos</p><h1 className="text-lg font-bold tracking-tight text-[var(--text)]">Atendimento</h1></div>
                 <div className="flex">
+                  <Button asChild aria-label="Configurar respostas rápidas" size="icon" variant="ghost"><a href="/configuracoes/respostas-rapidas"><MessageSquareText aria-hidden="true" className="size-4" /></a></Button>
                   {initialUser.role === "ADMIN" ? (
                     <>
                       <Button asChild aria-label="Configurar classificações" size="icon" variant="ghost"><a href="/configuracoes/atendimento"><Tags aria-hidden="true" className="size-4" /></a></Button>
