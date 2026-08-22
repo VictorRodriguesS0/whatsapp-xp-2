@@ -123,6 +123,86 @@ describe("MessageMedia", () => {
     },
   );
 
+  it("preserves a permanent-error action when only canRetry changes for the same automatic attempt", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: "not found" }), { status: 404 }),
+    );
+    const view = render(<MessageMedia message={baseMessage} />);
+
+    await act(async () => Promise.resolve());
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível baixar a mídia.");
+
+    view.rerender(<MessageMedia message={{
+      ...baseMessage,
+      mediaState: { ...baseMessage.mediaState!, canRetry: true },
+    }} />);
+    await act(async () => vi.advanceTimersByTimeAsync(5 * 60_000));
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.queryByText("Baixando áudio")).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível baixar a mídia.");
+    expect(screen.getByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
+  });
+
+  it("clears a permanent-error action and retries when nextAttemptAt changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "not found" }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        error: null,
+      })));
+    const view = render(<MessageMedia message={baseMessage} />);
+
+    await act(async () => Promise.resolve());
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível baixar a mídia.");
+
+    view.rerender(<MessageMedia message={{
+      ...baseMessage,
+      mediaState: { status: "PENDING", nextAttemptAt: "2026-08-21T15:00:03.000Z", canRetry: true },
+    }} />);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.getByRole("status")).toHaveTextContent("Baixando áudio");
+    await act(async () => vi.advanceTimersByTimeAsync(1_999));
+    expect(fetchMock).toHaveBeenCalledOnce();
+    await act(async () => vi.advanceTimersByTimeAsync(1));
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(view.container.querySelector("audio")).toHaveAttribute(
+      "src",
+      `/api/media/${baseMessage.mediaObjectId}`,
+    );
+  });
+
+  it("clears a permanent-error action and retries when the media identity changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "not found" }), { status: 404 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        data: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+        error: null,
+      })));
+    const nextMediaId = "50000000-0000-4000-8000-000000000002";
+    const view = render(<MessageMedia message={baseMessage} />);
+
+    await act(async () => Promise.resolve());
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert")).toHaveTextContent("Não foi possível baixar a mídia.");
+
+    view.rerender(<MessageMedia message={{ ...baseMessage, mediaObjectId: nextMediaId }} />);
+    await act(async () => Promise.resolve());
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(view.container.querySelector("audio")).toHaveAttribute("src", `/api/media/${nextMediaId}`);
+  });
+
   it("rearms without a hot loop when the server returns the same due PENDING state", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-21T15:00:01.000Z"));

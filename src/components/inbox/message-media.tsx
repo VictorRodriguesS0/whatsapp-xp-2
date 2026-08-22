@@ -70,7 +70,7 @@ async function requestRecovery(mediaId: string, manual: boolean, signal: AbortSi
 export function MessageMedia({ message }: { message: InboxMessage }) {
   const [manualRequestKey, setManualRequestKey] = useState<string | null>(null);
   const [manualError, setManualError] = useState<{ key: string; message: string } | null>(null);
-  const [automaticError, setAutomaticError] = useState<{ identity: string; sourceKey: string } | null>(null);
+  const [automaticError, setAutomaticError] = useState<{ identity: string; nextAttemptAt: string | null } | null>(null);
   const automaticAttempt = useRef<string | null>(null);
   const manualController = useRef<AbortController | null>(null);
   const focusAfterManualRequest = useRef<HTMLButtonElement | null>(null);
@@ -152,7 +152,7 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
           return;
         }
         automaticAttempt.current = attemptKey;
-        setAutomaticError({ identity: mediaIdentity, sourceKey: sourceMediaStateKey });
+        setAutomaticError({ identity: mediaIdentity, nextAttemptAt });
       });
     }
 
@@ -197,7 +197,7 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
 
   const mediaName = mediaNames[message.type];
   const automaticRecoveryFailed = automaticError?.identity === mediaIdentity &&
-    automaticError.sourceKey === sourceMediaStateKey;
+    automaticError.nextAttemptAt === mediaState?.nextAttemptAt;
   if (mediaState?.status === "PENDING" && automaticRecoveryFailed) {
     const pending = manualRequestKey === mediaIdentity;
     return (
