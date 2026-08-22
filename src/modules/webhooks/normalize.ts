@@ -1,4 +1,8 @@
 import { MessageStatus, MessageType } from "@/generated/prisma/enums";
+import {
+  parseMessageContent,
+  type MessageContent,
+} from "@/modules/messages/content";
 
 import type {
   NormalizedMedia,
@@ -24,6 +28,13 @@ const typeMap = new Map<string, MessageType>([
   ["audio", MessageType.AUDIO],
   ["video", MessageType.VIDEO],
   ["document", MessageType.DOCUMENT],
+  ["sticker", MessageType.STICKER],
+  ["location", MessageType.LOCATION],
+  ["contacts", MessageType.CONTACTS],
+  ["button", MessageType.INTERACTIVE],
+  ["interactive", MessageType.INTERACTIVE],
+  ["order", MessageType.ORDER],
+  ["system", MessageType.SYSTEM],
 ]);
 
 export class WebhookPayloadError extends Error {
@@ -227,6 +238,215 @@ function normalizeEchoMedia(
   };
 }
 
+function optionalStrictString(
+  value: unknown,
+  maximumLength: number,
+): { valid: boolean; value: string | null } {
+  if (value === undefined || value === null) {
+    return { valid: true, value: null };
+  }
+
+  const cleaned = strictCleanString(value, maximumLength);
+  return { valid: cleaned !== null, value: cleaned };
+}
+
+function normalizeStickerMedia(message: UnknownRecord): NormalizedMedia | null {
+  const sticker = record(message.sticker);
+
+  if (!sticker) {
+    return null;
+  }
+
+  const metaMediaId = strictCleanString(sticker.id, 512);
+  const mimeType = strictCleanString(sticker.mime_type, 255);
+  const hasSha256 = hasOwn(sticker, "sha256");
+  const sha256 = hasSha256 ? strictCleanString(sticker.sha256, 256) : null;
+
+  if (!metaMediaId || mimeType !== "image/webp" || (hasSha256 && !sha256)) {
+    return null;
+  }
+
+  return { metaMediaId, mimeType, sha256, filename: null };
+}
+
+function normalizeLocation(message: UnknownRecord): MessageContent | null {
+  const location = record(message.location);
+
+  if (!location) {
+    return null;
+  }
+
+  const name = optionalStrictString(location.name, 256);
+  const address = optionalStrictString(location.address, 512);
+
+  if (!name.valid || !address.valid) {
+    return null;
+  }
+
+  return parseMessageContent({
+    kind: "location",
+    latitude: location.latitude,
+    longitude: location.longitude,
+    name: name.value,
+    address: address.value,
+  });
+}
+
+function normalizeContacts(message: UnknownRecord): MessageContent | null {
+  if (
+    !Array.isArray(message.contacts) ||
+    message.contacts.length === 0 ||
+    message.contacts.length > 20
+  ) {
+    return null;
+  }
+
+  const contacts: Array<{
+    name: string;
+    phones: Array<{ phone: string; type: string | null }>;
+  }> = [];
+
+  for (const candidate of message.contacts) {
+    const contact = record(candidate);
+    const name = record(contact?.name);
+    const formattedName = strictCleanString(name?.formatted_name, 256);
+
+    if (!contact || !name || !formattedName) {
+      return null;
+    }
+
+    const rawPhones = contact.phones === undefined ? [] : contact.phones;
+
+    if (!Array.isArray(rawPhones) || rawPhones.length > 10) {
+      return null;
+    }
+
+    const phones: Array<{ phone: string; type: string | null }> = [];
+
+    for (const candidatePhone of rawPhones) {
+      const providerPhone = record(candidatePhone);
+      const phone = strictCleanString(providerPhone?.phone, 32);
+      const phoneType = optionalStrictString(providerPhone?.type, 256);
+
+      if (!providerPhone || !phone || !phoneType.valid) {
+        return null;
+      }
+
+      phones.push({ phone, type: phoneType.value });
+    }
+
+    contacts.push({ name: formattedName, phones });
+  }
+
+  return parseMessageContent({ kind: "contacts", contacts, truncated: false });
+}
+
+function normalizeInteractive(
+  message: UnknownRecord,
+  rawType: string,
+): MessageContent | null {
+  if (rawType === "button") {
+    const button = record(message.button);
+
+    if (!button) {
+      return null;
+    }
+
+    return parseMessageContent({
+      kind: "interactive",
+      interaction: "button",
+      id: strictCleanString(button.payload, 256),
+      title: strictCleanString(button.text, 256),
+    });
+  }
+
+  const interactive = record(message.interactive);
+  const interactionType = strictCleanString(interactive?.type, 64);
+
+  if (!interactive || !interactionType) {
+    return null;
+  }
+
+  const isButton = interactionType === "button_reply";
+  const isList = interactionType === "list_reply";
+
+  if (!isButton && !isList) {
+    return null;
+  }
+
+  const reply = record(interactive[isButton ? "button_reply" : "list_reply"]);
+
+  if (!reply) {
+    return null;
+  }
+
+  return parseMessageContent({
+    kind: "interactive",
+    interaction: isButton ? "button" : "list",
+    id: strictCleanString(reply.id, 256),
+    title: strictCleanString(reply.title, 256),
+  });
+}
+
+function normalizeOrder(message: UnknownRecord): MessageContent | null {
+  const order = record(message.order);
+
+  if (!order || !Array.isArray(order.product_items)) {
+    return null;
+  }
+
+  const catalogId = optionalStrictString(order.catalog_id, 256);
+
+  if (!catalogId.valid) {
+    return null;
+  }
+
+  return parseMessageContent({
+    kind: "order",
+    catalogId: catalogId.value,
+    productCount: order.product_items.length,
+  });
+}
+
+function normalizeSystem(message: UnknownRecord): MessageContent | null {
+  const system = record(message.system);
+
+  if (!system) {
+    return null;
+  }
+
+  const text = optionalStrictString(system.body, 512);
+
+  return text.valid
+    ? parseMessageContent({ kind: "system", text: text.value })
+    : null;
+}
+
+function normalizeStructuredContent(
+  message: UnknownRecord,
+  rawType: string,
+): MessageContent | null {
+  switch (rawType) {
+    case "location":
+      return normalizeLocation(message);
+    case "contacts":
+      return normalizeContacts(message);
+    case "button":
+    case "interactive":
+      return normalizeInteractive(message, rawType);
+    case "order":
+      return normalizeOrder(message);
+    case "system":
+      return normalizeSystem(message);
+    default:
+      return null;
+  }
+}
+
+function normalizeUnknownContent(message: UnknownRecord): MessageContent | null {
+  return parseMessageContent({ kind: "unknown", rawType: message.type });
+}
+
 function normalizeMessage(
   candidate: unknown,
   contactNames: Map<string, string>,
@@ -243,6 +463,7 @@ function normalizeMessage(
 
   const type = typeMap.get(rawType) ?? MessageType.UNSUPPORTED;
   let body: string | null = null;
+  let content: MessageContent | null = null;
   let media: NormalizedMedia | null = null;
 
   if (type === MessageType.TEXT) {
@@ -252,7 +473,12 @@ function normalizeMessage(
     if (!text || !body) {
       return null;
     }
-  } else if (type !== MessageType.UNSUPPORTED) {
+  } else if (
+    type === MessageType.IMAGE ||
+    type === MessageType.AUDIO ||
+    type === MessageType.VIDEO ||
+    type === MessageType.DOCUMENT
+  ) {
     const normalizedMedia = normalizeMedia(message, rawType);
 
     if (!normalizedMedia) {
@@ -261,6 +487,20 @@ function normalizeMessage(
 
     body = normalizedMedia.body;
     media = normalizedMedia.media;
+  } else if (type === MessageType.STICKER) {
+    media = normalizeStickerMedia(message);
+
+    if (!media) {
+      return null;
+    }
+  } else if (type === MessageType.UNSUPPORTED) {
+    content = normalizeUnknownContent(message);
+  } else {
+    content = normalizeStructuredContent(message, rawType);
+
+    if (!content) {
+      return null;
+    }
   }
 
   return {
@@ -272,6 +512,7 @@ function normalizeMessage(
     timestampRaw: parsedTimestamp.raw,
     type,
     body,
+    content,
     media,
   };
 }
@@ -332,6 +573,7 @@ function normalizeMessageEcho(
 
   const type = typeMap.get(rawType) ?? MessageType.UNSUPPORTED;
   let body: string | null = null;
+  let content: MessageContent | null = null;
   let media: NormalizedMedia | null = null;
 
   if (type === MessageType.TEXT) {
@@ -341,7 +583,12 @@ function normalizeMessageEcho(
     if (!text || !body) {
       return null;
     }
-  } else if (type !== MessageType.UNSUPPORTED) {
+  } else if (
+    type === MessageType.IMAGE ||
+    type === MessageType.AUDIO ||
+    type === MessageType.VIDEO ||
+    type === MessageType.DOCUMENT
+  ) {
     const normalizedMedia = normalizeEchoMedia(message, rawType);
 
     if (!normalizedMedia) {
@@ -350,6 +597,20 @@ function normalizeMessageEcho(
 
     body = normalizedMedia.body;
     media = normalizedMedia.media;
+  } else if (type === MessageType.STICKER) {
+    media = normalizeStickerMedia(message);
+
+    if (!media) {
+      return null;
+    }
+  } else if (type === MessageType.UNSUPPORTED) {
+    content = normalizeUnknownContent(message);
+  } else {
+    content = normalizeStructuredContent(message, rawType);
+
+    if (!content) {
+      return null;
+    }
   }
 
   return {
@@ -362,6 +623,7 @@ function normalizeMessageEcho(
     timestampRaw: parsedTimestamp.raw,
     type,
     body,
+    content,
     media,
     origin: "WHATSAPP_BUSINESS_APP",
   };

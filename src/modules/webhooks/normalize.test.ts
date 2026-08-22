@@ -3,8 +3,19 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buttonFixture,
+  contactsFixture,
+  inboundButtonFixture,
+  inboundContactsFixture,
+  inboundListReplyFixture,
+  inboundLocationFixture,
   inboundMediaFixture,
+  inboundOrderFixture,
+  inboundStickerFixture,
+  inboundSystemFixture,
   inboundTextFixture,
+  locationFixture,
+  stickerFixture,
   statusFixture,
   unsupportedMessageFixture,
 } from "@/test/fixtures/meta-webhooks";
@@ -54,7 +65,12 @@ function messageEchoFixture(type: EchoType = "text") {
                   ...(type === "text"
                     ? { text: { body: "Resposta pelo aplicativo" } }
                     : type === "sticker"
-                      ? { sticker: { id: "synthetic-sticker" } }
+                      ? {
+                          sticker: {
+                            id: "synthetic-sticker",
+                            mime_type: "image/webp",
+                          },
+                        }
                       : { [type]: media }),
                 },
               ],
@@ -153,6 +169,7 @@ describe("Meta webhook normalization", () => {
       timestamp: new Date("2026-08-19T10:00:00.000Z"),
       type: "TEXT",
       body: "Hi!",
+      content: null,
       media: null,
     });
   });
@@ -169,6 +186,7 @@ describe("Meta webhook normalization", () => {
       kind: "message",
       type,
       body: kind === "audio" ? null : `Legenda ${kind}`,
+      content: null,
       media: {
         metaMediaId: `meta-${kind}-1`,
         mimeType,
@@ -182,13 +200,114 @@ describe("Meta webhook normalization", () => {
     }
   });
 
+  it("normalizes a sticker as recoverable media", () => {
+    expect(normalizeWebhook(inboundStickerFixture)[0]).toMatchObject({
+      type: "STICKER",
+      body: null,
+      content: null,
+      media: {
+        metaMediaId: "meta-sticker-1",
+        mimeType: "image/webp",
+        sha256: null,
+      },
+    });
+  });
+
+  it("normalizes location without retaining extra provider fields", () => {
+    const [event] = normalizeWebhook(inboundLocationFixture);
+
+    expect(event).toMatchObject({
+      type: "LOCATION",
+      body: null,
+      media: null,
+      content: {
+        kind: "location",
+        latitude: -15.793889,
+        longitude: -47.882778,
+        name: "XP Eletrônicos",
+        address: "Brasília - DF",
+      },
+    });
+    expect(event).not.toHaveProperty("content.url");
+  });
+
+  it.each([
+    inboundContactsFixture,
+    inboundButtonFixture,
+    inboundListReplyFixture,
+    inboundOrderFixture,
+    inboundSystemFixture,
+  ])("normalizes a supported structured message", (fixture) => {
+    expect(normalizeWebhook(fixture)[0]).not.toMatchObject({
+      type: "UNSUPPORTED",
+    });
+  });
+
+  it("normalizes only allowlisted shared-contact fields", () => {
+    expect(normalizeWebhook(inboundContactsFixture)[0]).toMatchObject({
+      type: "CONTACTS",
+      body: null,
+      media: null,
+      content: {
+        kind: "contacts",
+        truncated: false,
+        contacts: [
+          {
+            name: "Maria Silva",
+            phones: [{ phone: "+55 61 99999-0000", type: "CELL" }],
+          },
+          {
+            name: "Contato 2",
+            phones: [{ phone: "+55 61 99999-0001", type: "CELL" }],
+          },
+        ],
+      },
+    });
+    expect(normalizeWebhook(inboundContactsFixture)[0]).not.toHaveProperty(
+      "content.contacts.0.emails",
+    );
+  });
+
+  it.each([
+    [inboundButtonFixture, "button", "buy_now", "Quero comprar"],
+    [inboundListReplyFixture, "list", "technical_support", "Assistência técnica"],
+  ] as const)(
+    "normalizes an interactive choice without provider-only fields",
+    (fixture, interaction, id, title) => {
+      expect(normalizeWebhook(fixture)[0]).toMatchObject({
+        type: "INTERACTIVE",
+        body: null,
+        media: null,
+        content: { kind: "interactive", interaction, id, title },
+      });
+    },
+  );
+
+  it("normalizes order and system summaries without raw payload details", () => {
+    expect(normalizeWebhook(inboundOrderFixture)[0]).toMatchObject({
+      type: "ORDER",
+      content: { kind: "order", catalogId: "catalog-123", productCount: 2 },
+    });
+    expect(normalizeWebhook(inboundSystemFixture)[0]).toMatchObject({
+      type: "SYSTEM",
+      content: { kind: "system", text: "Número alterado" },
+    });
+    expect(normalizeWebhook(inboundOrderFixture)[0]).not.toHaveProperty(
+      "content.product_items",
+    );
+    expect(normalizeWebhook(inboundSystemFixture)[0]).not.toHaveProperty(
+      "content.wa_id",
+    );
+  });
+
   it("records an unknown inbound message type as unsupported", () => {
     expect(normalizeWebhook(unsupportedMessageFixture)).toEqual([
       expect.objectContaining({
         kind: "message",
-        whatsappMessageId: "wamid.sticker-1",
+        whatsappMessageId: "wamid.reaction-1",
         type: "UNSUPPORTED",
         body: null,
+        content: { kind: "unknown", rawType: "reaction" },
         media: null,
       }),
     ]);
@@ -206,6 +325,7 @@ describe("Meta webhook normalization", () => {
         timestampRaw: "1787133604",
         type: "TEXT",
         body: "Resposta pelo aplicativo",
+        content: null,
         media: null,
         origin: "WHATSAPP_BUSINESS_APP",
       },
@@ -227,6 +347,7 @@ describe("Meta webhook normalization", () => {
       toParentUserId: null,
       type,
       body: kind === "audio" ? null : `Echo ${kind}`,
+      content: null,
       media: {
         metaMediaId: `echo-media-${kind}`,
         mimeType,
@@ -253,7 +374,7 @@ describe("Meta webhook normalization", () => {
     ]);
   });
 
-  it("preserves an unknown app echo type as unsupported activity", () => {
+  it("normalizes an app sticker echo as recoverable media", () => {
     expect(normalizeWebhook(messageEchoFixture("sticker"))).toEqual([
       expect.objectContaining({
         kind: "messageEcho",
@@ -261,12 +382,57 @@ describe("Meta webhook normalization", () => {
         to: "5511999990001",
         toUserId: "BR.Customer123",
         toParentUserId: null,
-        type: "UNSUPPORTED",
+        type: "STICKER",
         body: null,
-        media: null,
+        content: null,
+        media: {
+          metaMediaId: "synthetic-sticker",
+          mimeType: "image/webp",
+          sha256: null,
+          filename: null,
+        },
         origin: "WHATSAPP_BUSINESS_APP",
       }),
     ]);
+  });
+
+  it("normalizes structured app echoes with the same bounded content contract", () => {
+    const payload = messageEchoFixture() as Record<string, any>;
+    const echo = payload.entry[0].changes[0].value.message_echoes[0];
+    echo.type = "location";
+    echo.location = {
+      latitude: -15.793889,
+      longitude: -47.882778,
+      name: "XP Eletrônicos",
+      address: "Brasília - DF",
+      provider_secret: "must-not-survive",
+    };
+    delete echo.text;
+
+    const [event] = normalizeWebhook(payload);
+
+    expect(event).toMatchObject({
+      kind: "messageEcho",
+      type: "LOCATION",
+      content: {
+        kind: "location",
+        latitude: -15.793889,
+        longitude: -47.882778,
+        name: "XP Eletrônicos",
+        address: "Brasília - DF",
+      },
+      media: null,
+    });
+    expect(event).not.toHaveProperty("content.provider_secret");
+  });
+
+  it.each([
+    ["invalid latitude", locationFixture({ latitude: 91 })],
+    ["too many contacts", contactsFixture(21)],
+    ["empty button id", buttonFixture({ payload: "" })],
+    ["non-WEBP sticker", stickerFixture({ mime_type: "image/png" })],
+  ])("rejects %s", (_name, fixture) => {
+    expect(() => normalizeWebhook(fixture)).toThrow(WebhookPayloadError);
   });
 
   it.each([

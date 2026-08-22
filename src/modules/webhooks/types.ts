@@ -1,4 +1,5 @@
 import type { MessageStatus, MessageType } from "@/generated/prisma/enums";
+import type { MessageContent } from "@/modules/messages/content";
 
 export type NormalizedMedia = {
   metaMediaId: string;
@@ -16,6 +17,7 @@ export type NormalizedMessageEvent = {
   timestampRaw: string;
   type: MessageType;
   body: string | null;
+  content: MessageContent | null;
   media: NormalizedMedia | null;
 };
 
@@ -38,6 +40,7 @@ export type NormalizedMessageEchoEvent = {
   timestampRaw: string;
   type: MessageType;
   body: string | null;
+  content: MessageContent | null;
   media: NormalizedMedia | null;
   origin: "WHATSAPP_BUSINESS_APP";
 };
