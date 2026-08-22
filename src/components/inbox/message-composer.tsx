@@ -1,10 +1,12 @@
 "use client";
 
 import { Mic, Paperclip, Send, Square, Trash2, X } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
+
+import { QuickReplyMenu, type QuickReplyOption } from "./quick-reply-menu";
 
 type MessageComposerProps = {
   conversationId: string;
@@ -32,7 +34,12 @@ export function MessageComposer({
   const [sendingRecording, setSendingRecording] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [recorderReady, setRecorderReady] = useState(false);
+  const [quickReplies, setQuickReplies] = useState<QuickReplyOption[]>([]);
+  const [quickRepliesError, setQuickRepliesError] = useState(false);
+  const [quickReplyDismissed, setQuickReplyDismissed] = useState(false);
+  const [quickReplyIndex, setQuickReplyIndex] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const microphoneRef = useRef<HTMLButtonElement>(null);
   const previewRef = useRef<HTMLAudioElement>(null);
   const focusIntentRef = useRef<"microphone" | "preview" | null>(null);
@@ -46,6 +53,26 @@ export function MessageComposer({
 
   useEffect(() => setRecorderReady(true), []);
 
+  const loadQuickReplies = useCallback(async () => {
+    setQuickRepliesError(false);
+    try {
+      const response = await fetch("/api/quick-replies?active=true");
+      if (!response.ok) throw new Error("request failed");
+      const payload = await response.json() as { data?: { quickReplies?: unknown } };
+      if (!Array.isArray(payload.data?.quickReplies)) throw new Error("invalid response");
+      const items = payload.data.quickReplies.filter((value): value is QuickReplyOption => {
+        if (!value || typeof value !== "object") return false;
+        const item = value as Record<string, unknown>;
+        return typeof item.id === "string" && typeof item.shortcut === "string" && typeof item.message === "string";
+      });
+      setQuickReplies(items);
+    } catch {
+      setQuickRepliesError(true);
+    }
+  }, []);
+
+  useEffect(() => { void loadQuickReplies(); }, [loadQuickReplies]);
+
   useEffect(() => {
     if (previousConversationIdRef.current === conversationId) return;
     previousConversationIdRef.current = conversationId;
@@ -54,6 +81,8 @@ export function MessageComposer({
     setSendingRecording(false);
     setSendError(null);
     setBody("");
+    setQuickReplyDismissed(false);
+    setQuickReplyIndex(0);
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [conversationId, recorder]);
@@ -130,6 +159,20 @@ export function MessageComposer({
 
   const unavailable = Boolean(disabled);
   const duration = formatDuration(recorder.recording?.durationMs ?? recorder.durationMs);
+  const quickReplyQuery = body.startsWith("/") && !body.includes("\n") ? body.slice(1).trim().toLocaleLowerCase("pt-BR") : null;
+  const filteredQuickReplies = useMemo(() => quickReplyQuery === null ? [] : quickReplies.filter((item) => {
+    const shortcut = item.shortcut.toLocaleLowerCase("pt-BR");
+    const message = item.message.toLocaleLowerCase("pt-BR");
+    return shortcut.includes(quickReplyQuery) || message.includes(quickReplyQuery);
+  }), [quickReplies, quickReplyQuery]);
+  const quickReplyMenuOpen = !quickReplyDismissed && quickReplyQuery !== null && filteredQuickReplies.length > 0;
+
+  function selectQuickReply(item: QuickReplyOption) {
+    setBody(item.message);
+    setQuickReplyDismissed(true);
+    setQuickReplyIndex(0);
+    textareaRef.current?.focus();
+  }
 
   return (
     <form className="border-t border-[var(--border)] bg-[var(--panel)] p-3" onSubmit={submit}>
@@ -200,6 +243,7 @@ export function MessageComposer({
               <Button aria-label="Remover anexo" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} size="icon" variant="ghost"><X aria-hidden="true" className="size-4" /></Button>
             </div>
           ) : null}
+          {quickReplyMenuOpen ? <QuickReplyMenu activeIndex={Math.min(quickReplyIndex, filteredQuickReplies.length - 1)} items={filteredQuickReplies} onSelect={selectQuickReply} /> : null}
           <label className="sr-only" htmlFor="message-body">Mensagem</label>
           <div className="flex items-end gap-2">
             <input
@@ -213,17 +257,36 @@ export function MessageComposer({
             />
             <Button aria-label="Anexar arquivo" disabled={disabled} onClick={() => fileInputRef.current?.click()} size="icon" variant="ghost"><Paperclip aria-hidden="true" className="size-5" /></Button>
             <textarea
+              aria-activedescendant={quickReplyMenuOpen ? `quick-reply-${filteredQuickReplies[Math.min(quickReplyIndex, filteredQuickReplies.length - 1)]?.id}` : undefined}
               className="min-h-11 max-h-36 flex-1 resize-y rounded-md border border-[var(--border)] bg-white px-3 py-2.5 text-base text-[var(--text)] outline-none placeholder:text-[var(--muted)] focus-visible:border-[var(--accent)] focus-visible:ring-2 focus-visible:ring-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
               disabled={disabled}
               id="message-body"
-              onChange={(event) => setBody(event.target.value)}
+              onChange={(event) => { setBody(event.target.value); setQuickReplyDismissed(false); setQuickReplyIndex(0); }}
               onKeyDown={(event) => {
+                if (quickReplyMenuOpen && event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  setQuickReplyDismissed(true);
+                  return;
+                }
+                if (quickReplyMenuOpen && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+                  event.preventDefault();
+                  const direction = event.key === "ArrowDown" ? 1 : -1;
+                  setQuickReplyIndex((current) => (current + direction + filteredQuickReplies.length) % filteredQuickReplies.length);
+                  return;
+                }
+                if (quickReplyMenuOpen && event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  selectQuickReply(filteredQuickReplies[Math.min(quickReplyIndex, filteredQuickReplies.length - 1)]!);
+                  return;
+                }
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
               placeholder={file ? "Legenda (opcional)" : "Escreva uma mensagem"}
+              ref={textareaRef}
               rows={1}
               value={body}
             />
@@ -257,6 +320,12 @@ export function MessageComposer({
               ? "Este navegador não grava áudio. Você ainda pode anexar um arquivo de áudio."
               : recorder.error)}
         </p>
+      ) : null}
+      {quickRepliesError ? (
+        <div className="mt-2 flex items-center gap-2 text-xs text-[var(--muted)]">
+          <span>Respostas rápidas indisponíveis.</span>
+          <button aria-label="Tentar carregar respostas rápidas novamente" className="font-bold text-[var(--accent)] underline" onClick={() => void loadQuickReplies()} type="button">Tentar novamente</button>
+        </div>
       ) : null}
     </form>
   );

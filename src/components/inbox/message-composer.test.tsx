@@ -52,6 +52,57 @@ describe("MessageComposer", () => {
     recorder.recording = null;
     recorder.error = null;
     vi.clearAllMocks();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [] }, error: null })));
+  });
+
+  it("filters shared quick replies and inserts the selected text without sending", async () => {
+    const sendText = vi.fn().mockResolvedValue(null);
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
+      { id: "1", shortcut: "horario", message: "Atendemos das 9h às 17h30.", position: 10, active: true },
+      { id: "2", shortcut: "pix", message: "Nossa chave é 123.", position: 20, active: true },
+    ] }, error: null })));
+    render(<MessageComposer {...props({ onSendText: sendText })} />);
+    const message = screen.getByLabelText("Mensagem");
+    fireEvent.change(message, { target: { value: "/17h" } });
+    expect(await screen.findByRole("option", { name: /horario/i })).toBeVisible();
+    expect(screen.queryByRole("option", { name: /pix/i })).not.toBeInTheDocument();
+    fireEvent.keyDown(message, { key: "Enter" });
+    expect(message).toHaveValue("Atendemos das 9h às 17h30.");
+    expect(message).toHaveFocus();
+    expect(sendText).not.toHaveBeenCalled();
+  });
+
+  it("navigates suggestions with arrows, supports click, and dismisses with Escape", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
+      { id: "1", shortcut: "endereco", message: "Estamos na Rua 1.", position: 10, active: true },
+      { id: "2", shortcut: "horario", message: "Das 9h às 17h30.", position: 20, active: true },
+    ] }, error: null })));
+    render(<MessageComposer {...props()} />);
+    const message = screen.getByLabelText("Mensagem");
+    fireEvent.change(message, { target: { value: "/" } });
+    await screen.findByRole("listbox", { name: "Respostas rápidas" });
+    fireEvent.keyDown(message, { key: "ArrowDown" });
+    fireEvent.keyDown(message, { key: "Enter" });
+    expect(message).toHaveValue("Das 9h às 17h30.");
+    fireEvent.change(message, { target: { value: "/end" } });
+    await userEvent.click(await screen.findByRole("option", { name: /endereco/i }));
+    expect(message).toHaveValue("Estamos na Rua 1.");
+    fireEvent.change(message, { target: { value: "/" } });
+    fireEvent.keyDown(message, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Respostas rápidas" })).not.toBeInTheDocument();
+    expect(message).toHaveValue("/");
+  });
+
+  it("keeps the composer usable and offers retry when the catalog fails", async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(new Response(JSON.stringify({ data: { quickReplies: [] }, error: null })));
+    const sendText = vi.fn().mockResolvedValue(null);
+    render(<MessageComposer {...props({ onSendText: sendText })} />);
+    expect(await screen.findByText("Respostas rápidas indisponíveis.")).toBeVisible();
+    fireEvent.change(screen.getByLabelText("Mensagem"), { target: { value: "Mensagem normal" } });
+    fireEvent.keyDown(screen.getByLabelText("Mensagem"), { key: "Enter" });
+    expect(sendText).toHaveBeenCalledWith("Mensagem normal");
+    await userEvent.click(screen.getByRole("button", { name: "Tentar carregar respostas rápidas novamente" }));
+    await waitFor(() => expect(screen.queryByText("Respostas rápidas indisponíveis.")).not.toBeInTheDocument());
   });
 
   it("sends text with Enter and preserves Shift+Enter for a new line", () => {
