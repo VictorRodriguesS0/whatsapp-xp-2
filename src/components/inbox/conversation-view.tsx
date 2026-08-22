@@ -50,13 +50,21 @@ function ConversationHeader({
     if (action.isConnected && action.dataset.conversationId === conversationId) action.focus();
   }
 
+  const profilePictureUrl = conversation
+    ? (
+        conversation.contact as typeof conversation.contact & {
+          profilePictureUrl?: string | null;
+        }
+      ).profilePictureUrl
+    : null;
+
   return (
     <header className="flex min-h-16 shrink-0 items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
       <Button aria-label="Voltar para conversas" className="mobile-back" onClick={onBack} size="icon" variant="ghost"><ArrowLeft aria-hidden="true" className="size-5" /></Button>
       {conversation ? (
         <>
           <Avatar>
-            {conversation.contact.profilePictureUrl ? <AvatarImage alt="" src={conversation.contact.profilePictureUrl} /> : null}
+            {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
             <AvatarFallback>{initials(conversation.contact.name)}</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1"><h2 className="truncate font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>{conversation.contact.name}</h2><p className="truncate text-xs text-[var(--muted)]">{conversation.contact.phone}</p></div>

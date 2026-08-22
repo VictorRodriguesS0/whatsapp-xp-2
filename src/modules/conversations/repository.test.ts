@@ -188,6 +188,24 @@ describe("Prisma conversation repository", () => {
       },
     });
     expect(definitionQueryWasCalled).toBe(false);
+    expect(JSON.stringify(conversationQuery.select.contact)).not.toContain(
+      "profilePictureUrl",
+    );
+
+    await createPrismaConversationRepository(client as never).list(userId, {
+      search: "Loja 2",
+      take: 51,
+    });
+    expect(conversationQuery.where.AND[0]).toEqual({
+      contact: {
+        is: {
+          OR: [
+            { preferredName: { contains: "Loja 2", mode: "insensitive" } },
+            { name: { contains: "Loja 2", mode: "insensitive" } },
+          ],
+        },
+      },
+    });
   });
 
   it("retries a serializable transaction conflict by rerunning the operation", async () => {

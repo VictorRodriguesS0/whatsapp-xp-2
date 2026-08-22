@@ -86,7 +86,6 @@ const conversationSelect = {
       name: true,
       preferredName: true,
       phone: true,
-      profilePictureUrl: true,
       contactType: { select: classificationSelect },
       tagAssignments: {
         orderBy: tagAssignmentOrderBy,
@@ -228,7 +227,6 @@ function toContactDto(
       phone: contact.phone,
     }),
     phone: formatContactPhone(contact.phone),
-    profilePictureUrl: contact.profilePictureUrl,
     type: contact.contactType
       ? toContactClassificationDto(contact.contactType)
       : null,
@@ -335,7 +333,7 @@ function searchWhere(search?: string): Prisma.ConversationWhereInput {
     { name: { contains: search, mode: "insensitive" } },
   ];
 
-  if (canonicalPhoneSearch) {
+  if (canonicalPhoneSearch && /^\+?[\d\s().-]+$/u.test(search)) {
     searchPredicates.push({ phone: { contains: canonicalPhoneSearch } });
   }
 

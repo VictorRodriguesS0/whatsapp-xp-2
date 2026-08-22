@@ -215,8 +215,14 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
       items: [{ contact: { id: matching.id, profileName: "Nome Meta" } }],
     });
     await expect(
+      listConversations(user.id, { search: "NOME META" }),
+    ).resolves.toMatchObject({ items: [{ contact: { id: matching.id } }] });
+    await expect(
       listConversations(user.id, { search: "+55 (11) 99999-1234" }),
     ).resolves.toMatchObject({ items: [{ contact: { id: matching.id } }] });
+    await expect(
+      listConversations(user.id, { search: "Loja 5" }),
+    ).resolves.toMatchObject({ items: [] });
 
     const filtered = await listConversations(user.id, {
       contactTypeId: type.id,

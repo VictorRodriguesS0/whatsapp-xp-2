@@ -26,7 +26,6 @@ export type ContactDto = {
   preferredName: string | null;
   name: string;
   phone: string;
-  profilePictureUrl: string | null;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };
@@ -44,7 +43,6 @@ export type ConversationContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
-  profilePictureUrl: string | null;
   contactType: ContactClassificationRecord | null;
   tagAssignments: Array<{ tag: ContactClassificationRecord }>;
 };

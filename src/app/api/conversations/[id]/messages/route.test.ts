@@ -30,7 +30,6 @@ describe("conversation history route", () => {
         preferredName: null,
         name: "Carlos",
         phone: "1",
-        profilePictureUrl: null,
         type: null,
         tags: [],
       },

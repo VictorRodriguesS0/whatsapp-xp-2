@@ -32,12 +32,17 @@ export function CustomerPanel({
   const responsibleOptions = conversation.responsible && !users.some((user) => user.id === conversation.responsible?.id)
     ? [...users, { ...conversation.responsible, active: true }]
     : users;
+  const profilePictureUrl = (
+    conversation.contact as typeof conversation.contact & {
+      profilePictureUrl?: string | null;
+    }
+  ).profilePictureUrl;
 
   return (
     <div className="p-5">
       <div className="flex items-center gap-3 border-b border-[var(--border)] pb-5">
         <Avatar className="size-12">
-          {conversation.contact.profilePictureUrl ? <AvatarImage alt="" src={conversation.contact.profilePictureUrl} /> : null}
+          {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
           <AvatarFallback>{initials(conversation.contact.name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">

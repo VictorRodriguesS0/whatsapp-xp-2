@@ -3,6 +3,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { UserRole } from "@/generated/prisma/enums";
+import { HttpError } from "@/lib/http";
 
 import { createConversationsRouteHandlers } from "./route";
 
@@ -14,6 +15,23 @@ const actor = {
 };
 
 describe("conversation collection route", () => {
+  it("authenticates before parsing query options", async () => {
+    const listConversations = vi.fn(async () => ({ items: [], nextCursor: null }));
+    const { GET } = createConversationsRouteHandlers({
+      requireUser: async () => {
+        throw new HttpError(401, "Não autenticado");
+      },
+      listConversations,
+    });
+
+    const response = await GET(
+      new Request("http://localhost:3000/api/conversations?unknown=value"),
+    );
+
+    expect(response.status).toBe(401);
+    expect(listConversations).not.toHaveBeenCalled();
+  });
+
   it("authenticates and returns the stable success envelope", async () => {
     let receivedSearch: string | undefined;
     const { GET } = createConversationsRouteHandlers({

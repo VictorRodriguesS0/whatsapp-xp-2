@@ -110,6 +110,9 @@ export function ConversationList({
       <ul aria-label="Conversas recentes" className="divide-y divide-[var(--border)]">
       {items.map((item) => {
         const selected = item.id === selectedId;
+        const profilePictureUrl = (
+          item.contact as typeof item.contact & { profilePictureUrl?: string | null }
+        ).profilePictureUrl;
         return (
           <li className="conversation-list-item" key={item.id}>
             <button
@@ -125,7 +128,7 @@ export function ConversationList({
             >
               <span className="flex min-w-0 items-start gap-3">
                 <Avatar>
-                  {item.contact.profilePictureUrl ? <AvatarImage alt="" src={item.contact.profilePictureUrl} /> : null}
+                  {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
                   <AvatarFallback>{initials(item.contact.name)}</AvatarFallback>
                 </Avatar>
                 <span className="min-w-0 flex-1">

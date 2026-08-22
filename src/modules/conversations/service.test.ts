@@ -96,7 +96,6 @@ function conversation(
       name,
       preferredName: null,
       phone,
-      profilePictureUrl: null,
       contactType: null,
       tagAssignments: [],
       ...contactOverrides,
@@ -327,6 +326,7 @@ describe("conversation service", () => {
       null,
       {
         preferredName: "  Bia  ",
+        profilePictureUrl: "https://provider.example/private-profile.jpg",
         whatsappId: "raw-provider-identity",
         contactType: {
           id: typeId,
@@ -370,7 +370,6 @@ describe("conversation service", () => {
       preferredName: "  Bia  ",
       name: "Bia",
       phone: "+55 (11) 99999-1234",
-      profilePictureUrl: null,
       type: { id: typeId, name: "Cliente", color: "#112233", active: false },
       tags: [
         { id: firstTagId, name: "Primeiro", color: "#778899", active: true },
@@ -379,6 +378,10 @@ describe("conversation service", () => {
     });
     expect(JSON.stringify(result.items[0]?.contact)).not.toContain(
       "raw-provider-identity",
+    );
+    expect(result.items[0]?.contact).not.toHaveProperty("profilePictureUrl");
+    expect(JSON.stringify(result.items[0]?.contact)).not.toContain(
+      "provider.example",
     );
   });
 
