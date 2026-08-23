@@ -37,6 +37,7 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
     mediaId?: unknown;
     contactId?: unknown;
     scope?: unknown;
+    revision?: unknown;
   };
   if (typeof event.type !== "string") return false;
   if (event.type === "user.updated") return typeof event.userId === "string";
@@ -55,6 +56,12 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
   }
   if (event.type === "contact.updated") {
     return typeof event.contactId === "string";
+  }
+  if (event.type === "contacts.synced") {
+    return (
+      typeof event.revision === "string" &&
+      Object.keys(event).every((key) => key === "type" || key === "revision")
+    );
   }
   if (event.type === "settings.updated") {
     return event.scope === "contact-types" || event.scope === "contact-tags";

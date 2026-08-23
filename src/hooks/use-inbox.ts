@@ -1134,6 +1134,10 @@ export function useInbox(initialUser: SessionUser) {
       if (event.contactId === selectedContactIdRef.current) void refreshConversation();
       return;
     }
+    if (event.type === "contacts.synced") {
+      void Promise.all([refreshList(), refreshConversation()]);
+      return;
+    }
     if (event.type === "user.updated") {
       void Promise.all([loadUsers(), refreshList(), refreshConversation()]);
       return;
