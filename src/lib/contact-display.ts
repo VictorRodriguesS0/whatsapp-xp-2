@@ -1,5 +1,6 @@
 type ContactNameSource = {
   preferredName?: string | null;
+  whatsappAppName?: string | null;
   profileName?: string | null;
   phone?: string | null;
 };
@@ -26,10 +27,11 @@ export function formatContactPhone(value: string | null | undefined): string {
 
 export function resolveContactName({
   preferredName,
+  whatsappAppName,
   profileName,
   phone,
 }: ContactNameSource): string {
-  return preferredName?.trim() || profileName?.trim() || formatContactPhone(phone);
+  return preferredName?.trim() || whatsappAppName?.trim() || profileName?.trim() || formatContactPhone(phone);
 }
 
 export function contactInitials(name: string | null | undefined): string {

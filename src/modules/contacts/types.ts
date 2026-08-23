@@ -30,6 +30,7 @@ export type ContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
+  whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactTypeId: string | null;
   contactType: DefinitionRecord | null;
   tagAssignments: Array<{ tag: DefinitionRecord }>;
@@ -38,6 +39,7 @@ export type ContactRecord = {
 export type ContactDto = {
   id: string;
   preferredName: string | null;
+  whatsappAppName?: string | null;
   name: string;
   phone: string;
   type: ContactClassificationDto | null;
