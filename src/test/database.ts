@@ -33,6 +33,7 @@ export async function resetTestDatabase(): Promise<void> {
 
   await prisma.$transaction([
     prisma.conversationRead.deleteMany(),
+    prisma.whatsAppReadSync.deleteMany(),
     prisma.message.deleteMany(),
     prisma.mediaObject.deleteMany(),
     prisma.conversation.deleteMany(),

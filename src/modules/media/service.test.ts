@@ -136,6 +136,7 @@ class InboundProvider implements WhatsAppProvider {
   mimeType = "image/jpeg";
   failure: WhatsAppProviderError | null = null;
   metadataGate: Promise<void> | null = null;
+  async markRead(): Promise<void> {}
   async getMediaMetadata() {
     this.metadataCalls += 1;
     if (this.metadataGate) await this.metadataGate;

@@ -7,34 +7,15 @@ import {
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
+import { queueEligibleReadTarget } from "@/modules/read-receipts/repository";
 
+import { compareBoundary, type MessageBoundary } from "./boundary";
 import { runConversationTransaction } from "./service";
 import type { SharedConversationStateDto } from "./types";
 
-type MessageBoundary = {
-  id: string | null;
-  externalTimestamp: Date;
-};
-
 export type SharedStateClient = Prisma.TransactionClient;
 
-export function compareBoundary(
-  left: MessageBoundary,
-  right: MessageBoundary,
-): number {
-  const timestampOrder =
-    left.externalTimestamp.getTime() - right.externalTimestamp.getTime();
-  if (timestampOrder !== 0 || left.id === right.id) {
-    return timestampOrder;
-  }
-  if (left.id === null) {
-    return 1;
-  }
-  if (right.id === null) {
-    return -1;
-  }
-  return left.id.localeCompare(right.id);
-}
+export { compareBoundary } from "./boundary";
 
 async function lockConversation(
   client: SharedStateClient,
@@ -163,6 +144,7 @@ export async function advanceSharedRead(
   conversationId: string,
   messageId: string,
   observedManualUnreadRevision: string | null = null,
+  now: Date = new Date(),
   client: PrismaClient = prisma,
 ): Promise<SharedConversationStateDto> {
   return runConversationTransaction<
@@ -224,6 +206,11 @@ export async function advanceSharedRead(
       conversationId,
       target,
     );
+    await queueEligibleReadTarget(transaction, {
+      conversationId,
+      visibleBoundary: target,
+      now,
+    });
     await transaction.conversationAuditEvent.create({
       data: {
         actorUserId,

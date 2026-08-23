@@ -199,6 +199,49 @@ describe("Meta WhatsApp provider", () => {
     });
   });
 
+  it("marks an inbound message read with the exact official payload", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response('{"success":true}', {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+    const provider = new MetaWhatsAppProvider(config, fetchMock);
+
+    await expect(
+      provider.markRead({ messageId: "wamid.inbound-1" }),
+    ).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe("https://graph.facebook.com/v23.0/123/messages");
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: {
+        Authorization: "Bearer secret-token",
+        "Content-Type": "application/json",
+      },
+    });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      messaging_product: "whatsapp",
+      status: "read",
+      message_id: "wamid.inbound-1",
+    });
+  });
+
+  it.each([
+    ["false success", '{"success":false}'],
+    ["missing success", "{}"],
+  ])("rejects an invalid read acknowledgement: %s", async (_name, body) => {
+    const provider = new MetaWhatsAppProvider(
+      config,
+      vi.fn<typeof fetch>().mockResolvedValue(new Response(body, { status: 200 })),
+    );
+
+    await expect(provider.markRead({ messageId: "wamid.inbound-1" }))
+      .rejects.toMatchObject({ name: "WhatsAppProviderError", kind: "unknown" });
+  });
+
   it.each([
     "http://lookaside.fbsbx.com/file",
     "https://evil.example/file",

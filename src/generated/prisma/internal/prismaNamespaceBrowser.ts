@@ -64,6 +64,7 @@ export const ModelName = {
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
+  WhatsAppReadSync: 'WhatsAppReadSync',
   WebhookEvent: 'WebhookEvent',
   QuickReply: 'QuickReply'
 } as const
@@ -289,6 +290,23 @@ export const ConversationAuditEventScalarFieldEnum = {
 } as const
 
 export type ConversationAuditEventScalarFieldEnum = (typeof ConversationAuditEventScalarFieldEnum)[keyof typeof ConversationAuditEventScalarFieldEnum]
+
+
+export const WhatsAppReadSyncScalarFieldEnum = {
+  conversationId: 'conversationId',
+  targetMessageId: 'targetMessageId',
+  confirmedMessageId: 'confirmedMessageId',
+  failedTargetMessageId: 'failedTargetMessageId',
+  attemptCount: 'attemptCount',
+  nextAttemptAt: 'nextAttemptAt',
+  leaseId: 'leaseId',
+  leaseUntil: 'leaseUntil',
+  lastFailureKind: 'lastFailureKind',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppReadSyncScalarFieldEnum = (typeof WhatsAppReadSyncScalarFieldEnum)[keyof typeof WhatsAppReadSyncScalarFieldEnum]
 
 
 export const WebhookEventScalarFieldEnum = {

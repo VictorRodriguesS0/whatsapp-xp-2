@@ -6,6 +6,8 @@ import {
   messageIdSchema,
 } from "@/modules/conversations/schemas";
 import { advanceSharedRead } from "@/modules/conversations/shared-state";
+import { deliverReadReceiptForConversation } from "@/modules/read-receipts/service";
+import type { ReadReceiptDelivery } from "@/modules/read-receipts/types";
 import { publishRealtime } from "@/modules/realtime/hub";
 
 import {
@@ -25,6 +27,7 @@ type ConversationReadRouteDependencies = {
   requireUser: typeof requireUser;
   markSharedRead: typeof advanceSharedRead;
   publishRealtime: typeof publishRealtime;
+  deliverReadReceipt: typeof deliverReadReceiptForConversation;
 };
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -34,6 +37,7 @@ const defaultDependencies: ConversationReadRouteDependencies = {
   requireUser,
   markSharedRead: advanceSharedRead,
   publishRealtime,
+  deliverReadReceipt: deliverReadReceiptForConversation,
 };
 
 export function createConversationReadRouteHandlers(
@@ -58,7 +62,13 @@ export function createConversationReadRouteHandlers(
           conversationId: parsedId,
           revision: state.revision,
         });
-        return conversationSuccessResponse(state);
+        let whatsappReadReceipt: ReadReceiptDelivery = "PENDING";
+        try {
+          whatsappReadReceipt = await dependencies.deliverReadReceipt(parsedId);
+        } catch {
+          // The durable target remains available to the retry worker.
+        }
+        return conversationSuccessResponse({ ...state, whatsappReadReceipt });
       } catch (error) {
         return conversationErrorResponse(error);
       }

@@ -16,4 +16,21 @@ describe("integrated messaging release", () => {
     expect(source("prisma/migrations/202608220004_quoted_replies/migration.sql")).toContain("reply_to_message_id");
     expect(source("prisma/migrations/202608220005_message_reactions/migration.sql")).toContain("message_reactions");
   });
+
+  it("ships shared official read receipts as one release", () => {
+    expect(
+      source(
+        "prisma/migrations/202608230002_whatsapp_read_receipts/migration.sql",
+      ),
+    ).toContain('CREATE TABLE "whatsapp_read_sync"');
+    expect(source("src/modules/whatsapp/provider.ts")).toContain(
+      "markRead(input: { messageId: string }): Promise<void>",
+    );
+    expect(source("src/modules/conversations/shared-state.ts")).toContain(
+      "queueEligibleReadTarget",
+    );
+    expect(source("src/instrumentation.ts")).toContain(
+      "startReadReceiptWorker",
+    );
+  });
 });
