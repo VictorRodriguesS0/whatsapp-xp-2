@@ -420,6 +420,7 @@ describe("conversation service", () => {
       id: record.contact.id,
       profileName: "Nome Meta",
       preferredName: "  Bia  ",
+      whatsappAppName: null,
       name: "Bia",
       phone: "+55 (11) 99999-1234",
       type: { id: typeId, name: "Cliente", color: "#112233", active: false },

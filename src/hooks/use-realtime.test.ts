@@ -159,6 +159,31 @@ describe("useRealtime", () => {
     hook.unmount();
   });
 
+  it("routes only PII-free contact sync invalidations", () => {
+    const onEvent = vi.fn();
+    const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent }));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "contacts.synced",
+        revision: "opaque-revision",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "contacts.synced",
+        revision: "opaque-revision",
+        phone: "5561992250908",
+      });
+      FakeEventSource.instances[0].emit("update", { type: "contacts.synced" });
+    });
+
+    expect(onEvent).toHaveBeenCalledOnce();
+    expect(onEvent).toHaveBeenCalledWith({
+      type: "contacts.synced",
+      revision: "opaque-revision",
+    });
+    hook.unmount();
+  });
+
   it("reconnects exponentially with a 15 second cap", () => {
     const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent: vi.fn() }));
 

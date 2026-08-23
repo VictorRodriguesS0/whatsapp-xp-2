@@ -27,6 +27,7 @@ export type ContactClassificationDto = {
 export type ContactDto = {
   id: string;
   profileName: string;
+  whatsappAppName?: string | null;
   preferredName: string | null;
   name: string;
   phone: string;
@@ -47,6 +48,7 @@ export type ConversationContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
+  whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactType: ContactClassificationRecord | null;
   tagAssignments: Array<{ tag: ContactClassificationRecord }>;
 };

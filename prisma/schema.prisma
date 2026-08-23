@@ -127,13 +127,30 @@ model Contact {
   preferredName     String?                @map("preferred_name")
   profilePictureUrl String?                @map("profile_picture_url")
   contactTypeId     String?                @map("contact_type_id") @db.Uuid
+  whatsappAppContactId String?             @unique @map("whatsapp_app_contact_id") @db.Uuid
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
   conversation      Conversation?
   contactType       ContactType?           @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
+  whatsappAppContact WhatsAppAppContact?    @relation(fields: [whatsappAppContactId], references: [id], onDelete: SetNull)
   tagAssignments    ContactTagAssignment[]
 
   @@map("contacts")
+}
+
+model WhatsAppAppContact {
+  id               String    @id @default(uuid()) @db.Uuid
+  phone            String    @unique
+  fullName         String?   @map("full_name")
+  active           Boolean   @default(true)
+  sourceTimestamp  DateTime  @map("source_timestamp") @db.Timestamptz(3)
+  sourceVersionKey String    @map("source_version_key")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  contact          Contact?
+
+  @@index([active, phone])
+  @@map("whatsapp_app_contacts")
 }
 
 model ContactType {
