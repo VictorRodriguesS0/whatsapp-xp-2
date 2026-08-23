@@ -980,3 +980,97 @@ describe("Meta webhook normalization", () => {
     expect(normalizeWebhook(payload)).toEqual([]);
   });
 });
+
+function contactSyncFixture(stateSync: unknown[]) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [{
+      id: "synthetic-waba",
+      changes: [{
+        field: "smb_app_state_sync",
+        value: {
+          messaging_product: "whatsapp",
+          state_sync: stateSync,
+        },
+      }],
+    }],
+  };
+}
+
+function contactSyncItem(
+  action: "add" | "remove",
+  overrides: Record<string, unknown> = {},
+) {
+  return {
+    type: "contact",
+    action,
+    contact: {
+      full_name: "Cliente\u202e XP\u0000",
+      first_name: "Cliente",
+      phone_number: "+55 (61) 99225-0908",
+    },
+    metadata: { timestamp: "1787486400" },
+    ...overrides,
+  };
+}
+
+describe("WhatsApp Business App contact sync normalization", () => {
+  it("normalizes add/remove items, sanitizes names and quarantines invalid entries", () => {
+    const result = normalizeWebhook(contactSyncFixture([
+      contactSyncItem("add"),
+      contactSyncItem("remove", {
+        contact: { phone_number: "5561992250908" },
+        metadata: { timestamp: "0" },
+      }),
+      contactSyncItem("add", { type: "unsupported" }),
+    ]));
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      kind: "contactSyncBatch",
+      quarantined: 1,
+      items: [
+        {
+          action: "ADD",
+          phone: "5561992250908",
+          fullName: "Cliente XP",
+          sourceTimestampRaw: "1787486400",
+        },
+        {
+          action: "REMOVE",
+          phone: "5561992250908",
+          fullName: null,
+          sourceTimestampRaw: "0",
+        },
+      ],
+    });
+    expect((result[0] as any).items[0].sourceVersionKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(result)).not.toContain("+55 (61)");
+  });
+
+  it.each([
+    contactSyncItem("add", { contact: { phone_number: "", full_name: "Cliente" } }),
+    contactSyncItem("add", { contact: { phone_number: "1".repeat(33), full_name: "Cliente" } }),
+    contactSyncItem("add", { contact: { phone_number: "5561", full_name: "x".repeat(257) } }),
+    contactSyncItem("add", { metadata: { timestamp: "invalid" } }),
+  ])("quarantines an invalid individual item", (item) => {
+    expect(normalizeWebhook(contactSyncFixture([item]))).toMatchObject([
+      { kind: "contactSyncBatch", items: [], quarantined: 1 },
+    ]);
+  });
+
+  it("rejects an invalid state-sync envelope", () => {
+    const payload = contactSyncFixture([]) as Record<string, any>;
+    payload.entry[0].changes[0].value.state_sync = "invalid";
+
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it("rejects more than 5000 state-sync items", () => {
+    expect(() =>
+      normalizeWebhook(contactSyncFixture(Array.from({ length: 5001 }, () =>
+        contactSyncItem("remove", { contact: { phone_number: "1" } }),
+      ))),
+    ).toThrow(WebhookPayloadError);
+  });
+});

@@ -60,11 +60,27 @@ export type NormalizedMessageEchoControlEvent = {
   origin: "WHATSAPP_BUSINESS_APP";
 };
 
+export type NormalizedContactSyncItem = {
+  action: "ADD" | "REMOVE";
+  phone: string;
+  fullName: string | null;
+  sourceTimestamp: Date;
+  sourceTimestampRaw: string;
+  sourceVersionKey: string;
+};
+
+export type NormalizedContactSyncBatchEvent = {
+  kind: "contactSyncBatch";
+  items: NormalizedContactSyncItem[];
+  quarantined: number;
+};
+
 export type NormalizedWebhookEvent =
   | NormalizedMessageEvent
   | NormalizedStatusEvent
   | NormalizedMessageEchoEvent
-  | NormalizedMessageEchoControlEvent;
+  | NormalizedMessageEchoControlEvent
+  | NormalizedContactSyncBatchEvent;
 
 export type ProcessSummary = {
   processed: number;
