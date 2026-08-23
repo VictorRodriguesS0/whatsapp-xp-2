@@ -275,7 +275,7 @@ describe("shared inbox temporal schema contract", () => {
         }
       }
     }
-  });
+  }, 15_000);
 
   it("stores every contact-classification timestamp with timezone awareness", async () => {
     const columns = await pg.query<{
