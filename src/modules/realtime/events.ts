@@ -45,6 +45,7 @@ export const realtimeEventSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({ type: z.literal("user.updated"), userId: id }),
   z.strictObject({ type: z.literal("contact.updated"), contactId: id }),
+  z.strictObject({ type: z.literal("contacts.synced"), revision: id }),
   z.strictObject({
     type: z.literal("settings.updated"),
     scope: z.enum(["contact-types", "contact-tags"]),
