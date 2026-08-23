@@ -104,6 +104,10 @@ docker build -t xp-whatsapp:test .
 
 Testes de integração com banco só executam quando `TEST_DATABASE_URL` aponta para um banco descartável. O guard de testes recusa uso fora de `NODE_ENV=test` e não deve receber a URL de produção.
 
+### Confirmações de leitura
+
+Abrir uma conversa avança primeiro a leitura compartilhada local e enfileira a mensagem recebida elegível mais recente. A aplicação envia `status: read` pela Cloud API oficial e o processador interno tenta novamente confirmações transitórias. Consulte somente contagem, horários, concessões e categoria da falha em `whatsapp_read_sync`; nunca copie tokens, corpos de mensagem ou respostas Graph completas para logs.
+
 ## Imagem e Compose
 
 A imagem usa Node 22 em múltiplos estágios, `npm ci`, cliente Prisma gerado e saída standalone do Next. O runtime roda como usuário `nextjs` não-root. Antes de iniciar qualquer comando do container, o entrypoint executa o Prisma local da imagem com `migrate deploy`; ele não usa `npx` nem baixa pacotes da rede. Falha de migration impede o servidor de iniciar.
