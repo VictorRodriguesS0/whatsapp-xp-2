@@ -53,6 +53,10 @@ describe("conversation read route", () => {
         calls.push("publish");
         events.push(event);
       },
+      deliverReadReceipt: async () => {
+        calls.push("provider-read");
+        return "CONFIRMED";
+      },
     });
 
     const response = await POST(
@@ -67,7 +71,13 @@ describe("conversation read route", () => {
       { params: Promise.resolve({ id }) },
     );
 
-    expect(calls).toEqual(["origin", "auth", "service", "publish"]);
+    expect(calls).toEqual([
+      "origin",
+      "auth",
+      "service",
+      "publish",
+      "provider-read",
+    ]);
     expect(events).toEqual([
       {
         type: "conversation.updated",
@@ -75,7 +85,10 @@ describe("conversation read route", () => {
         revision: "2026-08-21T12:00:00.000Z",
       },
     ]);
-    await expect(response.json()).resolves.toEqual({ data: state, error: null });
+    await expect(response.json()).resolves.toEqual({
+      data: { ...state, whatsappReadReceipt: "CONFIRMED" },
+      error: null,
+    });
   });
 
   it("checks origin before auth or parsing the request body", async () => {
@@ -103,6 +116,9 @@ describe("conversation read route", () => {
       publishRealtime: () => {
         throw new Error("must not be called");
       },
+      deliverReadReceipt: async () => {
+        throw new Error("must not be called");
+      },
     });
 
     const response = await POST(request, { params: Promise.resolve({ id }) });
@@ -119,6 +135,9 @@ describe("conversation read route", () => {
         throw new Error("must not be called");
       },
       publishRealtime: () => {
+        throw new Error("must not be called");
+      },
+      deliverReadReceipt: async () => {
         throw new Error("must not be called");
       },
     });
@@ -152,6 +171,9 @@ describe("conversation read route", () => {
       publishRealtime: () => {
         throw new Error("must not be called");
       },
+      deliverReadReceipt: async () => {
+        throw new Error("must not be called");
+      },
     });
 
     const response = await POST(
@@ -179,6 +201,9 @@ describe("conversation read route", () => {
         throw new Error("database credentials must stay private");
       },
       publishRealtime: (event) => events.push(event),
+      deliverReadReceipt: async () => {
+        throw new Error("must not be called");
+      },
     });
 
     const response = await POST(
@@ -196,5 +221,63 @@ describe("conversation read route", () => {
       error: { code: "INTERNAL_ERROR", message: "Erro interno" },
     });
     expect(events).toEqual([]);
+  });
+
+  it("keeps local read success when Meta remains pending", async () => {
+    const { POST } = createConversationReadRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      markSharedRead: async () => state,
+      publishRealtime: () => undefined,
+      deliverReadReceipt: async () => "PENDING",
+    });
+
+    const response = await POST(
+      new Request(`http://localhost/api/conversations/${id}/read`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ messageId, observedManualUnreadRevision: null }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      data: { ...state, whatsappReadReceipt: "PENDING" },
+      error: null,
+    });
+  });
+
+  it("preserves committed local success when immediate delivery throws", async () => {
+    const calls: string[] = [];
+    const { POST } = createConversationReadRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      markSharedRead: async () => {
+        calls.push("service");
+        return state;
+      },
+      publishRealtime: () => calls.push("publish"),
+      deliverReadReceipt: async () => {
+        calls.push("provider-read");
+        throw new Error("temporary repository failure");
+      },
+    });
+
+    const response = await POST(
+      new Request(`http://localhost/api/conversations/${id}/read`, {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: "http://localhost" },
+        body: JSON.stringify({ messageId, observedManualUnreadRevision: null }),
+      }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(calls).toEqual(["service", "publish", "provider-read"]);
+    await expect(response.json()).resolves.toEqual({
+      data: { ...state, whatsappReadReceipt: "PENDING" },
+      error: null,
+    });
   });
 });
