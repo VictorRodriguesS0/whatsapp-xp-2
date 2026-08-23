@@ -409,6 +409,7 @@ export const ModelName = {
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
+  WhatsAppReadSync: 'WhatsAppReadSync',
   WebhookEvent: 'WebhookEvent',
   QuickReply: 'QuickReply'
 } as const
@@ -426,7 +427,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent" | "quickReply"
+    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "whatsAppReadSync" | "webhookEvent" | "quickReply"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1318,6 +1319,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    WhatsAppReadSync: {
+      payload: Prisma.$WhatsAppReadSyncPayload<ExtArgs>
+      fields: Prisma.WhatsAppReadSyncFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.WhatsAppReadSyncFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.WhatsAppReadSyncFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>
+        }
+        findFirst: {
+          args: Prisma.WhatsAppReadSyncFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.WhatsAppReadSyncFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>
+        }
+        findMany: {
+          args: Prisma.WhatsAppReadSyncFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>[]
+        }
+        create: {
+          args: Prisma.WhatsAppReadSyncCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>
+        }
+        createMany: {
+          args: Prisma.WhatsAppReadSyncCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.WhatsAppReadSyncCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>[]
+        }
+        delete: {
+          args: Prisma.WhatsAppReadSyncDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>
+        }
+        update: {
+          args: Prisma.WhatsAppReadSyncUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>
+        }
+        deleteMany: {
+          args: Prisma.WhatsAppReadSyncDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.WhatsAppReadSyncUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.WhatsAppReadSyncUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>[]
+        }
+        upsert: {
+          args: Prisma.WhatsAppReadSyncUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$WhatsAppReadSyncPayload>
+        }
+        aggregate: {
+          args: Prisma.WhatsAppReadSyncAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateWhatsAppReadSync>
+        }
+        groupBy: {
+          args: Prisma.WhatsAppReadSyncGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WhatsAppReadSyncGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.WhatsAppReadSyncCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.WhatsAppReadSyncCountAggregateOutputType> | number
+        }
+      }
+    }
     WebhookEvent: {
       payload: Prisma.$WebhookEventPayload<ExtArgs>
       fields: Prisma.WebhookEventFieldRefs
@@ -1696,6 +1771,23 @@ export const ConversationAuditEventScalarFieldEnum = {
 export type ConversationAuditEventScalarFieldEnum = (typeof ConversationAuditEventScalarFieldEnum)[keyof typeof ConversationAuditEventScalarFieldEnum]
 
 
+export const WhatsAppReadSyncScalarFieldEnum = {
+  conversationId: 'conversationId',
+  targetMessageId: 'targetMessageId',
+  confirmedMessageId: 'confirmedMessageId',
+  failedTargetMessageId: 'failedTargetMessageId',
+  attemptCount: 'attemptCount',
+  nextAttemptAt: 'nextAttemptAt',
+  leaseId: 'leaseId',
+  leaseUntil: 'leaseUntil',
+  lastFailureKind: 'lastFailureKind',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppReadSyncScalarFieldEnum = (typeof WhatsAppReadSyncScalarFieldEnum)[keyof typeof WhatsAppReadSyncScalarFieldEnum]
+
+
 export const WebhookEventScalarFieldEnum = {
   id: 'id',
   deduplicationKey: 'deduplicationKey',
@@ -1973,6 +2065,20 @@ export type ListEnumConversationAuditActionFieldRefInput<$PrismaModel> = FieldRe
 
 
 /**
+ * Reference to a field of type 'ReadReceiptFailureKind'
+ */
+export type EnumReadReceiptFailureKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReadReceiptFailureKind'>
+    
+
+
+/**
+ * Reference to a field of type 'ReadReceiptFailureKind[]'
+ */
+export type ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ReadReceiptFailureKind[]'>
+    
+
+
+/**
  * Reference to a field of type 'WebhookStatus'
  */
 export type EnumWebhookStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'WebhookStatus'>
@@ -2162,6 +2268,7 @@ export type GlobalOmitConfig = {
   mediaObject?: Prisma.MediaObjectOmit
   conversationRead?: Prisma.ConversationReadOmit
   conversationAuditEvent?: Prisma.ConversationAuditEventOmit
+  whatsAppReadSync?: Prisma.WhatsAppReadSyncOmit
   webhookEvent?: Prisma.WebhookEventOmit
   quickReply?: Prisma.QuickReplyOmit
 }

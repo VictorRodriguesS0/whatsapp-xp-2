@@ -460,6 +460,23 @@ export type EnumConversationAuditActionWithAggregatesFilter<$PrismaModel = never
   _max?: Prisma.NestedEnumConversationAuditActionFilter<$PrismaModel>
 }
 
+export type EnumReadReceiptFailureKindNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReadReceiptFailureKind | Prisma.EnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel> | $Enums.ReadReceiptFailureKind | null
+}
+
+export type EnumReadReceiptFailureKindNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReadReceiptFailureKind | Prisma.EnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumReadReceiptFailureKindNullableWithAggregatesFilter<$PrismaModel> | $Enums.ReadReceiptFailureKind | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel>
+}
+
 export type EnumWebhookStatusFilter<$PrismaModel = never> = {
   equals?: $Enums.WebhookStatus | Prisma.EnumWebhookStatusFieldRefInput<$PrismaModel>
   in?: $Enums.WebhookStatus[] | Prisma.ListEnumWebhookStatusFieldRefInput<$PrismaModel>
@@ -903,6 +920,23 @@ export type NestedEnumConversationAuditActionWithAggregatesFilter<$PrismaModel =
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumConversationAuditActionFilter<$PrismaModel>
   _max?: Prisma.NestedEnumConversationAuditActionFilter<$PrismaModel>
+}
+
+export type NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReadReceiptFailureKind | Prisma.EnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel> | $Enums.ReadReceiptFailureKind | null
+}
+
+export type NestedEnumReadReceiptFailureKindNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ReadReceiptFailureKind | Prisma.EnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ReadReceiptFailureKind[] | Prisma.ListEnumReadReceiptFailureKindFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumReadReceiptFailureKindNullableWithAggregatesFilter<$PrismaModel> | $Enums.ReadReceiptFailureKind | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumReadReceiptFailureKindNullableFilter<$PrismaModel>
 }
 
 export type NestedEnumWebhookStatusFilter<$PrismaModel = never> = {

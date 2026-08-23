@@ -104,6 +104,14 @@ export const WebhookStatus = {
 export type WebhookStatus = (typeof WebhookStatus)[keyof typeof WebhookStatus]
 
 
+export const ReadReceiptFailureKind = {
+  TRANSIENT: 'TRANSIENT',
+  REJECTED: 'REJECTED'
+} as const
+
+export type ReadReceiptFailureKind = (typeof ReadReceiptFailureKind)[keyof typeof ReadReceiptFailureKind]
+
+
 export const ConversationAuditAction = {
   READ: 'READ',
   MARKED_UNREAD: 'MARKED_UNREAD'

@@ -330,6 +330,9 @@ export type MessageWhereInput = {
   lastReadFor?: Prisma.ConversationReadListRelationFilter
   teamLastReadFor?: Prisma.ConversationListRelationFilter
   reactions?: Prisma.MessageReactionListRelationFilter
+  readSyncTargets?: Prisma.WhatsAppReadSyncListRelationFilter
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncListRelationFilter
+  readSyncFailures?: Prisma.WhatsAppReadSyncListRelationFilter
 }
 
 export type MessageOrderByWithRelationInput = {
@@ -364,6 +367,9 @@ export type MessageOrderByWithRelationInput = {
   lastReadFor?: Prisma.ConversationReadOrderByRelationAggregateInput
   teamLastReadFor?: Prisma.ConversationOrderByRelationAggregateInput
   reactions?: Prisma.MessageReactionOrderByRelationAggregateInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
 }
 
 export type MessageWhereUniqueInput = Prisma.AtLeast<{
@@ -401,6 +407,9 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   lastReadFor?: Prisma.ConversationReadListRelationFilter
   teamLastReadFor?: Prisma.ConversationListRelationFilter
   reactions?: Prisma.MessageReactionListRelationFilter
+  readSyncTargets?: Prisma.WhatsAppReadSyncListRelationFilter
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncListRelationFilter
+  readSyncFailures?: Prisma.WhatsAppReadSyncListRelationFilter
 }, "id" | "whatsappMessageId" | "clientRequestId" | "mediaObjectId">
 
 export type MessageOrderByWithAggregationInput = {
@@ -489,6 +498,9 @@ export type MessageCreateInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateInput = {
@@ -519,6 +531,9 @@ export type MessageUncheckedCreateInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUpdateInput = {
@@ -549,6 +564,9 @@ export type MessageUpdateInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateInput = {
@@ -579,6 +597,9 @@ export type MessageUncheckedUpdateInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageCreateManyInput = {
@@ -987,6 +1008,52 @@ export type MessageUpdateOneWithoutLastReadForNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutLastReadForInput, Prisma.MessageUpdateWithoutLastReadForInput>, Prisma.MessageUncheckedUpdateWithoutLastReadForInput>
 }
 
+export type MessageCreateNestedOneWithoutReadSyncTargetsInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncTargetsInput, Prisma.MessageUncheckedCreateWithoutReadSyncTargetsInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReadSyncTargetsInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageCreateNestedOneWithoutReadSyncConfirmationsInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncConfirmationsInput, Prisma.MessageUncheckedCreateWithoutReadSyncConfirmationsInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReadSyncConfirmationsInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageCreateNestedOneWithoutReadSyncFailuresInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncFailuresInput, Prisma.MessageUncheckedCreateWithoutReadSyncFailuresInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReadSyncFailuresInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageUpdateOneRequiredWithoutReadSyncTargetsNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncTargetsInput, Prisma.MessageUncheckedCreateWithoutReadSyncTargetsInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReadSyncTargetsInput
+  upsert?: Prisma.MessageUpsertWithoutReadSyncTargetsInput
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutReadSyncTargetsInput, Prisma.MessageUpdateWithoutReadSyncTargetsInput>, Prisma.MessageUncheckedUpdateWithoutReadSyncTargetsInput>
+}
+
+export type MessageUpdateOneWithoutReadSyncConfirmationsNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncConfirmationsInput, Prisma.MessageUncheckedCreateWithoutReadSyncConfirmationsInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReadSyncConfirmationsInput
+  upsert?: Prisma.MessageUpsertWithoutReadSyncConfirmationsInput
+  disconnect?: Prisma.MessageWhereInput | boolean
+  delete?: Prisma.MessageWhereInput | boolean
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutReadSyncConfirmationsInput, Prisma.MessageUpdateWithoutReadSyncConfirmationsInput>, Prisma.MessageUncheckedUpdateWithoutReadSyncConfirmationsInput>
+}
+
+export type MessageUpdateOneWithoutReadSyncFailuresNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncFailuresInput, Prisma.MessageUncheckedCreateWithoutReadSyncFailuresInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReadSyncFailuresInput
+  upsert?: Prisma.MessageUpsertWithoutReadSyncFailuresInput
+  disconnect?: Prisma.MessageWhereInput | boolean
+  delete?: Prisma.MessageWhereInput | boolean
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutReadSyncFailuresInput, Prisma.MessageUpdateWithoutReadSyncFailuresInput>, Prisma.MessageUncheckedUpdateWithoutReadSyncFailuresInput>
+}
+
 export type MessageCreateWithoutSentByUserInput = {
   id?: string
   whatsappMessageId?: string | null
@@ -1014,6 +1081,9 @@ export type MessageCreateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutSentByUserInput = {
@@ -1043,6 +1113,9 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutSentByUserInput = {
@@ -1127,6 +1200,9 @@ export type MessageCreateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
@@ -1156,6 +1232,9 @@ export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutTeamLastReadForInput = {
@@ -1190,6 +1269,9 @@ export type MessageCreateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutConversationInput = {
@@ -1219,6 +1301,9 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutConversationInput = {
@@ -1269,6 +1354,9 @@ export type MessageUpdateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
@@ -1298,6 +1386,9 @@ export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUpsertWithWhereUniqueWithoutConversationInput = {
@@ -1343,6 +1434,9 @@ export type MessageCreateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutRepliesInput = {
@@ -1372,6 +1466,9 @@ export type MessageUncheckedCreateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutRepliesInput = {
@@ -1406,6 +1503,9 @@ export type MessageCreateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReplyToMessageInput = {
@@ -1435,6 +1535,9 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReplyToMessageInput = {
@@ -1485,6 +1588,9 @@ export type MessageUpdateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutRepliesInput = {
@@ -1514,6 +1620,9 @@ export type MessageUncheckedUpdateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUpsertWithWhereUniqueWithoutReplyToMessageInput = {
@@ -1559,6 +1668,9 @@ export type MessageCreateWithoutReactionsInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReactionsInput = {
@@ -1588,6 +1700,9 @@ export type MessageUncheckedCreateWithoutReactionsInput = {
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReactionsInput = {
@@ -1633,6 +1748,9 @@ export type MessageUpdateWithoutReactionsInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReactionsInput = {
@@ -1662,6 +1780,9 @@ export type MessageUncheckedUpdateWithoutReactionsInput = {
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageCreateWithoutMediaObjectInput = {
@@ -1691,6 +1812,9 @@ export type MessageCreateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutMediaObjectInput = {
@@ -1720,6 +1844,9 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutMediaObjectInput = {
@@ -1765,6 +1892,9 @@ export type MessageUpdateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutMediaObjectInput = {
@@ -1794,6 +1924,9 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageCreateWithoutLastReadForInput = {
@@ -1823,6 +1956,9 @@ export type MessageCreateWithoutLastReadForInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageUncheckedCreateWithoutLastReadForInput = {
@@ -1852,6 +1988,9 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
 }
 
 export type MessageCreateOrConnectWithoutLastReadForInput = {
@@ -1897,6 +2036,9 @@ export type MessageUpdateWithoutLastReadForInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutLastReadForInput = {
@@ -1926,6 +2068,441 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+}
+
+export type MessageCreateWithoutReadSyncTargetsInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+}
+
+export type MessageUncheckedCreateWithoutReadSyncTargetsInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+}
+
+export type MessageCreateOrConnectWithoutReadSyncTargetsInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncTargetsInput, Prisma.MessageUncheckedCreateWithoutReadSyncTargetsInput>
+}
+
+export type MessageCreateWithoutReadSyncConfirmationsInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+}
+
+export type MessageUncheckedCreateWithoutReadSyncConfirmationsInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+}
+
+export type MessageCreateOrConnectWithoutReadSyncConfirmationsInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncConfirmationsInput, Prisma.MessageUncheckedCreateWithoutReadSyncConfirmationsInput>
+}
+
+export type MessageCreateWithoutReadSyncFailuresInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+}
+
+export type MessageUncheckedCreateWithoutReadSyncFailuresInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+}
+
+export type MessageCreateOrConnectWithoutReadSyncFailuresInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncFailuresInput, Prisma.MessageUncheckedCreateWithoutReadSyncFailuresInput>
+}
+
+export type MessageUpsertWithoutReadSyncTargetsInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutReadSyncTargetsInput, Prisma.MessageUncheckedUpdateWithoutReadSyncTargetsInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncTargetsInput, Prisma.MessageUncheckedCreateWithoutReadSyncTargetsInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutReadSyncTargetsInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutReadSyncTargetsInput, Prisma.MessageUncheckedUpdateWithoutReadSyncTargetsInput>
+}
+
+export type MessageUpdateWithoutReadSyncTargetsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutReadSyncTargetsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+}
+
+export type MessageUpsertWithoutReadSyncConfirmationsInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutReadSyncConfirmationsInput, Prisma.MessageUncheckedUpdateWithoutReadSyncConfirmationsInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncConfirmationsInput, Prisma.MessageUncheckedCreateWithoutReadSyncConfirmationsInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutReadSyncConfirmationsInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutReadSyncConfirmationsInput, Prisma.MessageUncheckedUpdateWithoutReadSyncConfirmationsInput>
+}
+
+export type MessageUpdateWithoutReadSyncConfirmationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutReadSyncConfirmationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+}
+
+export type MessageUpsertWithoutReadSyncFailuresInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutReadSyncFailuresInput, Prisma.MessageUncheckedUpdateWithoutReadSyncFailuresInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutReadSyncFailuresInput, Prisma.MessageUncheckedCreateWithoutReadSyncFailuresInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutReadSyncFailuresInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutReadSyncFailuresInput, Prisma.MessageUncheckedUpdateWithoutReadSyncFailuresInput>
+}
+
+export type MessageUpdateWithoutReadSyncFailuresInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutReadSyncFailuresInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
 }
 
 export type MessageCreateManySentByUserInput = {
@@ -1980,6 +2557,9 @@ export type MessageUpdateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutSentByUserInput = {
@@ -2009,6 +2589,9 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
@@ -2088,6 +2671,9 @@ export type MessageUpdateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutConversationInput = {
@@ -2117,6 +2703,9 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutConversationInput = {
@@ -2196,6 +2785,9 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
@@ -2225,6 +2817,9 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutReplyToMessageInput = {
@@ -2262,6 +2857,9 @@ export type MessageCountOutputType = {
   lastReadFor: number
   teamLastReadFor: number
   reactions: number
+  readSyncTargets: number
+  readSyncConfirmations: number
+  readSyncFailures: number
 }
 
 export type MessageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2269,6 +2867,9 @@ export type MessageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   lastReadFor?: boolean | MessageCountOutputTypeCountLastReadForArgs
   teamLastReadFor?: boolean | MessageCountOutputTypeCountTeamLastReadForArgs
   reactions?: boolean | MessageCountOutputTypeCountReactionsArgs
+  readSyncTargets?: boolean | MessageCountOutputTypeCountReadSyncTargetsArgs
+  readSyncConfirmations?: boolean | MessageCountOutputTypeCountReadSyncConfirmationsArgs
+  readSyncFailures?: boolean | MessageCountOutputTypeCountReadSyncFailuresArgs
 }
 
 /**
@@ -2309,6 +2910,27 @@ export type MessageCountOutputTypeCountReactionsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.MessageReactionWhereInput
 }
 
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountReadSyncTargetsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppReadSyncWhereInput
+}
+
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountReadSyncConfirmationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppReadSyncWhereInput
+}
+
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountReadSyncFailuresArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppReadSyncWhereInput
+}
+
 
 export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2342,6 +2964,9 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   lastReadFor?: boolean | Prisma.Message$lastReadForArgs<ExtArgs>
   teamLastReadFor?: boolean | Prisma.Message$teamLastReadForArgs<ExtArgs>
   reactions?: boolean | Prisma.Message$reactionsArgs<ExtArgs>
+  readSyncTargets?: boolean | Prisma.Message$readSyncTargetsArgs<ExtArgs>
+  readSyncConfirmations?: boolean | Prisma.Message$readSyncConfirmationsArgs<ExtArgs>
+  readSyncFailures?: boolean | Prisma.Message$readSyncFailuresArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
@@ -2441,6 +3066,9 @@ export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   lastReadFor?: boolean | Prisma.Message$lastReadForArgs<ExtArgs>
   teamLastReadFor?: boolean | Prisma.Message$teamLastReadForArgs<ExtArgs>
   reactions?: boolean | Prisma.Message$reactionsArgs<ExtArgs>
+  readSyncTargets?: boolean | Prisma.Message$readSyncTargetsArgs<ExtArgs>
+  readSyncConfirmations?: boolean | Prisma.Message$readSyncConfirmationsArgs<ExtArgs>
+  readSyncFailures?: boolean | Prisma.Message$readSyncFailuresArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type MessageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2467,6 +3095,9 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     lastReadFor: Prisma.$ConversationReadPayload<ExtArgs>[]
     teamLastReadFor: Prisma.$ConversationPayload<ExtArgs>[]
     reactions: Prisma.$MessageReactionPayload<ExtArgs>[]
+    readSyncTargets: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
+    readSyncConfirmations: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
+    readSyncFailures: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2894,6 +3525,9 @@ export interface Prisma__MessageClient<T, Null = never, ExtArgs extends runtime.
   lastReadFor<T extends Prisma.Message$lastReadForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$lastReadForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationReadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   teamLastReadFor<T extends Prisma.Message$teamLastReadForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$teamLastReadForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reactions<T extends Prisma.Message$reactionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$reactionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageReactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  readSyncTargets<T extends Prisma.Message$readSyncTargetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncTargetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  readSyncConfirmations<T extends Prisma.Message$readSyncConfirmationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncConfirmationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  readSyncFailures<T extends Prisma.Message$readSyncFailuresArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncFailuresArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3497,6 +4131,78 @@ export type Message$reactionsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.MessageReactionScalarFieldEnum | Prisma.MessageReactionScalarFieldEnum[]
+}
+
+/**
+ * Message.readSyncTargets
+ */
+export type Message$readSyncTargetsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppReadSync
+   */
+  select?: Prisma.WhatsAppReadSyncSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppReadSync
+   */
+  omit?: Prisma.WhatsAppReadSyncOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppReadSyncInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppReadSyncWhereInput
+  orderBy?: Prisma.WhatsAppReadSyncOrderByWithRelationInput | Prisma.WhatsAppReadSyncOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppReadSyncWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppReadSyncScalarFieldEnum | Prisma.WhatsAppReadSyncScalarFieldEnum[]
+}
+
+/**
+ * Message.readSyncConfirmations
+ */
+export type Message$readSyncConfirmationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppReadSync
+   */
+  select?: Prisma.WhatsAppReadSyncSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppReadSync
+   */
+  omit?: Prisma.WhatsAppReadSyncOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppReadSyncInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppReadSyncWhereInput
+  orderBy?: Prisma.WhatsAppReadSyncOrderByWithRelationInput | Prisma.WhatsAppReadSyncOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppReadSyncWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppReadSyncScalarFieldEnum | Prisma.WhatsAppReadSyncScalarFieldEnum[]
+}
+
+/**
+ * Message.readSyncFailures
+ */
+export type Message$readSyncFailuresArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppReadSync
+   */
+  select?: Prisma.WhatsAppReadSyncSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppReadSync
+   */
+  omit?: Prisma.WhatsAppReadSyncOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppReadSyncInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppReadSyncWhereInput
+  orderBy?: Prisma.WhatsAppReadSyncOrderByWithRelationInput | Prisma.WhatsAppReadSyncOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppReadSyncWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppReadSyncScalarFieldEnum | Prisma.WhatsAppReadSyncScalarFieldEnum[]
 }
 
 /**

@@ -237,6 +237,7 @@ export type ConversationWhereInput = {
   messages?: Prisma.MessageListRelationFilter
   reads?: Prisma.ConversationReadListRelationFilter
   auditEvents?: Prisma.ConversationAuditEventListRelationFilter
+  whatsappReadSync?: Prisma.XOR<Prisma.WhatsAppReadSyncNullableScalarRelationFilter, Prisma.WhatsAppReadSyncWhereInput> | null
 }
 
 export type ConversationOrderByWithRelationInput = {
@@ -258,6 +259,7 @@ export type ConversationOrderByWithRelationInput = {
   messages?: Prisma.MessageOrderByRelationAggregateInput
   reads?: Prisma.ConversationReadOrderByRelationAggregateInput
   auditEvents?: Prisma.ConversationAuditEventOrderByRelationAggregateInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncOrderByWithRelationInput
 }
 
 export type ConversationWhereUniqueInput = Prisma.AtLeast<{
@@ -282,6 +284,7 @@ export type ConversationWhereUniqueInput = Prisma.AtLeast<{
   messages?: Prisma.MessageListRelationFilter
   reads?: Prisma.ConversationReadListRelationFilter
   auditEvents?: Prisma.ConversationAuditEventListRelationFilter
+  whatsappReadSync?: Prisma.XOR<Prisma.WhatsAppReadSyncNullableScalarRelationFilter, Prisma.WhatsAppReadSyncWhereInput> | null
 }, "id" | "contactId">
 
 export type ConversationOrderByWithAggregationInput = {
@@ -333,6 +336,7 @@ export type ConversationCreateInput = {
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateInput = {
@@ -350,6 +354,7 @@ export type ConversationUncheckedCreateInput = {
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUpdateInput = {
@@ -367,6 +372,7 @@ export type ConversationUpdateInput = {
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateInput = {
@@ -384,6 +390,7 @@ export type ConversationUncheckedUpdateInput = {
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationCreateManyInput = {
@@ -690,6 +697,20 @@ export type ConversationUpdateOneRequiredWithoutAuditEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ConversationUpdateToOneWithWhereWithoutAuditEventsInput, Prisma.ConversationUpdateWithoutAuditEventsInput>, Prisma.ConversationUncheckedUpdateWithoutAuditEventsInput>
 }
 
+export type ConversationCreateNestedOneWithoutWhatsappReadSyncInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutWhatsappReadSyncInput, Prisma.ConversationUncheckedCreateWithoutWhatsappReadSyncInput>
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutWhatsappReadSyncInput
+  connect?: Prisma.ConversationWhereUniqueInput
+}
+
+export type ConversationUpdateOneRequiredWithoutWhatsappReadSyncNestedInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutWhatsappReadSyncInput, Prisma.ConversationUncheckedCreateWithoutWhatsappReadSyncInput>
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutWhatsappReadSyncInput
+  upsert?: Prisma.ConversationUpsertWithoutWhatsappReadSyncInput
+  connect?: Prisma.ConversationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ConversationUpdateToOneWithWhereWithoutWhatsappReadSyncInput, Prisma.ConversationUpdateWithoutWhatsappReadSyncInput>, Prisma.ConversationUncheckedUpdateWithoutWhatsappReadSyncInput>
+}
+
 export type ConversationCreateWithoutResponsibleUserInput = {
   id?: string
   lastMessageAt: Date | string
@@ -704,6 +725,7 @@ export type ConversationCreateWithoutResponsibleUserInput = {
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutResponsibleUserInput = {
@@ -720,6 +742,7 @@ export type ConversationUncheckedCreateWithoutResponsibleUserInput = {
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutResponsibleUserInput = {
@@ -746,6 +769,7 @@ export type ConversationCreateWithoutManualUnreadByUserInput = {
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutManualUnreadByUserInput = {
@@ -762,6 +786,7 @@ export type ConversationUncheckedCreateWithoutManualUnreadByUserInput = {
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutManualUnreadByUserInput = {
@@ -837,6 +862,7 @@ export type ConversationCreateWithoutContactInput = {
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutContactInput = {
@@ -853,6 +879,7 @@ export type ConversationUncheckedCreateWithoutContactInput = {
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutContactInput = {
@@ -885,6 +912,7 @@ export type ConversationUpdateWithoutContactInput = {
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutContactInput = {
@@ -901,6 +929,7 @@ export type ConversationUncheckedUpdateWithoutContactInput = {
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationCreateWithoutMessagesInput = {
@@ -917,6 +946,7 @@ export type ConversationCreateWithoutMessagesInput = {
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutMessagesInput = {
@@ -933,6 +963,7 @@ export type ConversationUncheckedCreateWithoutMessagesInput = {
   awaitingResponseSince?: Date | string | null
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutMessagesInput = {
@@ -954,6 +985,7 @@ export type ConversationCreateWithoutTeamLastReadMessageInput = {
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutTeamLastReadMessageInput = {
@@ -970,6 +1002,7 @@ export type ConversationUncheckedCreateWithoutTeamLastReadMessageInput = {
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutTeamLastReadMessageInput = {
@@ -1007,6 +1040,7 @@ export type ConversationUpdateWithoutMessagesInput = {
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutMessagesInput = {
@@ -1023,6 +1057,7 @@ export type ConversationUncheckedUpdateWithoutMessagesInput = {
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUpsertWithWhereUniqueWithoutTeamLastReadMessageInput = {
@@ -1055,6 +1090,7 @@ export type ConversationCreateWithoutReadsInput = {
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutReadsInput = {
@@ -1071,6 +1107,7 @@ export type ConversationUncheckedCreateWithoutReadsInput = {
   awaitingResponseSince?: Date | string | null
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutReadsInput = {
@@ -1103,6 +1140,7 @@ export type ConversationUpdateWithoutReadsInput = {
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutReadsInput = {
@@ -1119,6 +1157,7 @@ export type ConversationUncheckedUpdateWithoutReadsInput = {
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationCreateWithoutAuditEventsInput = {
@@ -1135,6 +1174,7 @@ export type ConversationCreateWithoutAuditEventsInput = {
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutAuditEventsInput = {
@@ -1151,6 +1191,7 @@ export type ConversationUncheckedCreateWithoutAuditEventsInput = {
   awaitingResponseSince?: Date | string | null
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutAuditEventsInput = {
@@ -1183,6 +1224,7 @@ export type ConversationUpdateWithoutAuditEventsInput = {
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutAuditEventsInput = {
@@ -1199,6 +1241,91 @@ export type ConversationUncheckedUpdateWithoutAuditEventsInput = {
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+}
+
+export type ConversationCreateWithoutWhatsappReadSyncInput = {
+  id?: string
+  lastMessageAt: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  awaitingResponseSince?: Date | string | null
+  contact: Prisma.ContactCreateNestedOneWithoutConversationInput
+  responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
+  teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
+  manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+}
+
+export type ConversationUncheckedCreateWithoutWhatsappReadSyncInput = {
+  id?: string
+  contactId: string
+  responsibleUserId?: string | null
+  lastMessageAt: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadMessageId?: string | null
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  manualUnreadByUserId?: string | null
+  awaitingResponseSince?: Date | string | null
+  messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+}
+
+export type ConversationCreateOrConnectWithoutWhatsappReadSyncInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutWhatsappReadSyncInput, Prisma.ConversationUncheckedCreateWithoutWhatsappReadSyncInput>
+}
+
+export type ConversationUpsertWithoutWhatsappReadSyncInput = {
+  update: Prisma.XOR<Prisma.ConversationUpdateWithoutWhatsappReadSyncInput, Prisma.ConversationUncheckedUpdateWithoutWhatsappReadSyncInput>
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutWhatsappReadSyncInput, Prisma.ConversationUncheckedCreateWithoutWhatsappReadSyncInput>
+  where?: Prisma.ConversationWhereInput
+}
+
+export type ConversationUpdateToOneWithWhereWithoutWhatsappReadSyncInput = {
+  where?: Prisma.ConversationWhereInput
+  data: Prisma.XOR<Prisma.ConversationUpdateWithoutWhatsappReadSyncInput, Prisma.ConversationUncheckedUpdateWithoutWhatsappReadSyncInput>
+}
+
+export type ConversationUpdateWithoutWhatsappReadSyncInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
+  responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
+  teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
+  manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+}
+
+export type ConversationUncheckedUpdateWithoutWhatsappReadSyncInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  contactId?: Prisma.StringFieldUpdateOperationsInput | string
+  responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationCreateManyResponsibleUserInput = {
@@ -1241,6 +1368,7 @@ export type ConversationUpdateWithoutResponsibleUserInput = {
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutResponsibleUserInput = {
@@ -1257,6 +1385,7 @@ export type ConversationUncheckedUpdateWithoutResponsibleUserInput = {
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateManyWithoutResponsibleUserInput = {
@@ -1286,6 +1415,7 @@ export type ConversationUpdateWithoutManualUnreadByUserInput = {
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutManualUnreadByUserInput = {
@@ -1302,6 +1432,7 @@ export type ConversationUncheckedUpdateWithoutManualUnreadByUserInput = {
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateManyWithoutManualUnreadByUserInput = {
@@ -1344,6 +1475,7 @@ export type ConversationUpdateWithoutTeamLastReadMessageInput = {
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutTeamLastReadMessageInput = {
@@ -1360,6 +1492,7 @@ export type ConversationUncheckedUpdateWithoutTeamLastReadMessageInput = {
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateManyWithoutTeamLastReadMessageInput = {
@@ -1443,6 +1576,7 @@ export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   messages?: boolean | Prisma.Conversation$messagesArgs<ExtArgs>
   reads?: boolean | Prisma.Conversation$readsArgs<ExtArgs>
   auditEvents?: boolean | Prisma.Conversation$auditEventsArgs<ExtArgs>
+  whatsappReadSync?: boolean | Prisma.Conversation$whatsappReadSyncArgs<ExtArgs>
   _count?: boolean | Prisma.ConversationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["conversation"]>
 
@@ -1505,6 +1639,7 @@ export type ConversationInclude<ExtArgs extends runtime.Types.Extensions.Interna
   messages?: boolean | Prisma.Conversation$messagesArgs<ExtArgs>
   reads?: boolean | Prisma.Conversation$readsArgs<ExtArgs>
   auditEvents?: boolean | Prisma.Conversation$auditEventsArgs<ExtArgs>
+  whatsappReadSync?: boolean | Prisma.Conversation$whatsappReadSyncArgs<ExtArgs>
   _count?: boolean | Prisma.ConversationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ConversationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1530,6 +1665,7 @@ export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     messages: Prisma.$MessagePayload<ExtArgs>[]
     reads: Prisma.$ConversationReadPayload<ExtArgs>[]
     auditEvents: Prisma.$ConversationAuditEventPayload<ExtArgs>[]
+    whatsappReadSync: Prisma.$WhatsAppReadSyncPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1944,6 +2080,7 @@ export interface Prisma__ConversationClient<T, Null = never, ExtArgs extends run
   messages<T extends Prisma.Conversation$messagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reads<T extends Prisma.Conversation$readsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$readsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationReadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   auditEvents<T extends Prisma.Conversation$auditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$auditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationAuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  whatsappReadSync<T extends Prisma.Conversation$whatsappReadSyncArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$whatsappReadSyncArgs<ExtArgs>>): Prisma.Prisma__WhatsAppReadSyncClient<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2511,6 +2648,25 @@ export type Conversation$auditEventsArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   distinct?: Prisma.ConversationAuditEventScalarFieldEnum | Prisma.ConversationAuditEventScalarFieldEnum[]
+}
+
+/**
+ * Conversation.whatsappReadSync
+ */
+export type Conversation$whatsappReadSyncArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppReadSync
+   */
+  select?: Prisma.WhatsAppReadSyncSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppReadSync
+   */
+  omit?: Prisma.WhatsAppReadSyncOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppReadSyncInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppReadSyncWhereInput
 }
 
 /**

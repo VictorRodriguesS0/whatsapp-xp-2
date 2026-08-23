@@ -102,6 +102,11 @@ export type ConversationRead = Prisma.ConversationReadModel
  */
 export type ConversationAuditEvent = Prisma.ConversationAuditEventModel
 /**
+ * Model WhatsAppReadSync
+ * 
+ */
+export type WhatsAppReadSync = Prisma.WhatsAppReadSyncModel
+/**
  * Model WebhookEvent
  * 
  */
