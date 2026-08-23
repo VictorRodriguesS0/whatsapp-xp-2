@@ -22,6 +22,7 @@ export default function PrivacyPage() {
       <section>
         <h2>Como usamos os dados</h2>
         <p>Usamos essas informações para responder solicitações, organizar o atendimento, atribuir responsáveis, enviar e receber mensagens e manter a segurança e a continuidade do serviço.</p>
+        <p className="mt-3">Quando a loja usa o WhatsApp Business em conjunto com esta plataforma, nomes e telefones da agenda comercial podem ser sincronizados para identificar clientes no atendimento. Remover um contato da agenda desativa o nome sincronizado; o telefone e o histórico operacional podem ser preservados para correlacionar conversas, impedir restaurações incorretas e manter a continuidade do atendimento.</p>
       </section>
       <section>
         <h2>Compartilhamento</h2>
