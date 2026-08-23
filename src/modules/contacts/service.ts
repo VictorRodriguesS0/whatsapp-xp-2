@@ -54,6 +54,7 @@ const contactSelect = {
   name: true,
   preferredName: true,
   phone: true,
+  whatsappAppContact: { select: { fullName: true, active: true } },
   contactTypeId: true,
   contactType: { select: definitionSelect },
   tagAssignments: { select: { tag: { select: definitionSelect } } },
@@ -186,8 +187,16 @@ function toContactDto(contact: ContactRecord): ContactDto {
   return {
     id: contact.id,
     preferredName: contact.preferredName,
+    whatsappAppName:
+      contact.whatsappAppContact?.active === true
+        ? contact.whatsappAppContact.fullName
+        : null,
     name: resolveContactName({
       preferredName: contact.preferredName,
+      whatsappAppName:
+        contact.whatsappAppContact?.active === true
+          ? contact.whatsappAppContact.fullName
+          : null,
       profileName: contact.name,
       phone: contact.phone,
     }),

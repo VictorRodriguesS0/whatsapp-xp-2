@@ -323,6 +323,7 @@ describe("contact classification service", () => {
       "preferredName",
       "tags",
       "type",
+      "whatsappAppName",
     ]);
     expect(result).not.toHaveProperty("profilePictureUrl");
     expect(result).not.toHaveProperty("profileName");

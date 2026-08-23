@@ -104,6 +104,7 @@ const conversationSelect = {
       name: true,
       preferredName: true,
       phone: true,
+      whatsappAppContact: { select: { fullName: true, active: true } },
       contactType: { select: classificationSelect },
       tagAssignments: {
         orderBy: tagAssignmentOrderBy,
@@ -253,8 +254,16 @@ function toContactDto(
     id: contact.id,
     profileName: contact.name,
     preferredName: contact.preferredName,
+    whatsappAppName:
+      contact.whatsappAppContact?.active === true
+        ? contact.whatsappAppContact.fullName
+        : null,
     name: resolveContactName({
       preferredName: contact.preferredName,
+      whatsappAppName:
+        contact.whatsappAppContact?.active === true
+          ? contact.whatsappAppContact.fullName
+          : null,
       profileName: contact.name,
       phone: contact.phone,
     }),
@@ -363,6 +372,14 @@ function searchWhere(search?: string): Prisma.ConversationWhereInput {
   const searchPredicates: Prisma.ContactWhereInput[] = [
     { preferredName: { contains: search, mode: "insensitive" } },
     { name: { contains: search, mode: "insensitive" } },
+    {
+      whatsappAppContact: {
+        is: {
+          active: true,
+          fullName: { contains: search, mode: "insensitive" },
+        },
+      },
+    },
   ];
 
   if (canonicalPhoneSearch && /^\+?[\d\s().-]+$/u.test(search)) {
