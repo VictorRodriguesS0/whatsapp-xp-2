@@ -33,6 +33,7 @@ async function seedMessages(options: { equalTimestamps?: boolean } = {}) {
       {
         id: lowerId,
         conversationId: fixture.conversation.id,
+        whatsappMessageId: "wamid.shared-lower",
         direction: MessageDirection.INBOUND,
         type: MessageType.TEXT,
         body: "primeira",
@@ -42,6 +43,7 @@ async function seedMessages(options: { equalTimestamps?: boolean } = {}) {
       {
         id: higherId,
         conversationId: fixture.conversation.id,
+        whatsappMessageId: "wamid.shared-higher",
         direction: MessageDirection.INBOUND,
         type: MessageType.TEXT,
         body: "segunda",
@@ -133,6 +135,17 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("shared conversation state", () 
       lastReadMessageId: higherId,
       unreadCount: 0,
     });
+    await expect(
+      prisma.whatsAppReadSync.findUniqueOrThrow({
+        where: { conversationId: conversation.id },
+      }),
+    ).resolves.toMatchObject({ targetMessageId: higherId, attemptCount: 0 });
+    await expect(
+      prisma.conversationRead.count({ where: { conversationId: conversation.id } }),
+    ).resolves.toBe(2);
+    await expect(
+      prisma.conversationAuditEvent.count({ where: { conversationId: conversation.id } }),
+    ).resolves.toBe(2);
   });
 
   it("preserves timestamp-only team and individual boundaries", async () => {
