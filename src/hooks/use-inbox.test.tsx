@@ -1767,6 +1767,54 @@ describe("useInbox", () => {
     expect(detailFetches).toBe(2);
   });
 
+  it("drops stale paginated pin state after a shared conversation update", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let firstPageFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        firstPageFetches += 1;
+        return response({
+          data: firstPageFetches === 1
+            ? { items: [listItem("first-page")], nextCursor: "page-2" }
+            : { items: [listItem("authoritative")], nextCursor: null },
+          error: null,
+        });
+      }
+      if (url === "/api/conversations?cursor=page-2") {
+        return response({
+          data: {
+            items: [{ ...listItem("stale-pinned"), pinnedAt: "2026-08-23T12:00:00.000Z" }],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.nextCursor).toBe("page-2"));
+    await act(() => hook.result.current.loadMore());
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual([
+      "first-page",
+      "stale-pinned",
+    ]);
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.updated",
+        conversationId: "stale-pinned",
+        revision: "2026-08-23T12:01:00.000Z",
+      });
+    });
+
+    await waitFor(() => expect(hook.result.current.conversations.map(({ id }) => id)).toEqual([
+      "authoritative",
+    ]));
+    hook.unmount();
+  });
+
   it("refreshes the first page for media updates and reloads detail only when the conversation is selected", async () => {
     vi.stubGlobal("EventSource", FakeEventSource);
     let listFetches = 0;

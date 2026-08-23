@@ -197,7 +197,7 @@ model Conversation {
   auditEvents           ConversationAuditEvent[]
 
   @@index([lastMessageAt])
-  @@index([pinnedAt, lastMessageAt, id], map: "conversations_pinned_queue_idx")
+  @@index([pinnedAt(sort: Desc), lastMessageAt(sort: Desc), id(sort: Desc)], map: "conversations_pinned_queue_idx")
   @@map("conversations")
 }
 

@@ -1257,7 +1257,12 @@ export function useInbox(initialUser: SessionUser) {
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
       return;
     }
-    if (event.type === "responsible.updated" || event.type === "conversation.updated") {
+    if (event.type === "conversation.updated") {
+      void refreshList({ reset: true });
+      if (event.conversationId === selectedIdRef.current) void refreshConversation();
+      return;
+    }
+    if (event.type === "responsible.updated") {
       void refreshList();
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
       return;
