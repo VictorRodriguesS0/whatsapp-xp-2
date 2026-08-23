@@ -76,6 +76,7 @@ const defaultInbox = {
         tags: [],
       },
       responsible: null,
+      pinnedAt: null,
       lastMessageAt: "2026-08-20T14:30:00.000Z",
       latestMessage: null,
       unreadCount: 1,

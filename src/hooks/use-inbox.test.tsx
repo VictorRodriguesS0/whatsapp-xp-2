@@ -66,6 +66,7 @@ function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.00
     id,
     contact: { id: `contact-${id}`, name, phone: "5561999999999", profilePictureUrl: null },
     responsible: null,
+    pinnedAt: null,
     lastMessageAt,
     latestMessage: null,
     unreadCount: 0,

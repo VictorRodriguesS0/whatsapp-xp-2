@@ -55,6 +55,7 @@ const conversation: InboxConversation = {
     tags: [],
   },
   responsible: null,
+  pinnedAt: null,
   lastMessageAt: message.externalTimestamp,
   latestMessage: message,
   unreadCount: 0,

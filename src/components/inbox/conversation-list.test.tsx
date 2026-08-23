@@ -17,6 +17,7 @@ const fixture: ConversationListItem = {
     tags: [],
   },
   responsible: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
+  pinnedAt: null,
   lastMessageAt: "2026-08-20T14:30:00.000Z",
   latestMessage: {
     id: "40000000-0000-4000-8000-000000000001",

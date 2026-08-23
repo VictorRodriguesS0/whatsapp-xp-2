@@ -15,6 +15,7 @@ import {
   getConversation,
   listConversations,
   markRead,
+  setConversationPinned,
   setResponsible,
 } from "./service";
 import { conversationListOptionsSchema } from "./schemas";
@@ -90,6 +91,7 @@ function conversation(
   messages: MessageRecord[] = [],
   teamLastReadMessageId: string | null = null,
   contactOverrides: Record<string, unknown> = {},
+  pinnedAt: Date | null = null,
 ): ConversationListRecord {
   const teamLastReadMessage = messages.find(
     (candidate) => candidate.id === teamLastReadMessageId,
@@ -107,6 +109,7 @@ function conversation(
       ...contactOverrides,
     },
     responsibleUser,
+    pinnedAt,
     lastMessageAt,
     createdAt: new Date(0),
     updatedAt: lastMessageAt,
@@ -137,21 +140,56 @@ function createRepository(
   reads: typeof initialReads;
   upsertCalls: Array<[string, string, string]>;
   responsibleUpdates: Array<[string, string | null]>;
+  pinUpdates: Array<[string, Date | null]>;
 } {
   const records = initialConversations.map((record) => ({ ...record }));
   const messages = initialMessages.map((record) => ({ ...record }));
   const reads = initialReads.map((record) => ({ ...record }));
   const upsertCalls: Array<[string, string, string]> = [];
   const responsibleUpdates: Array<[string, string | null]> = [];
+  const pinUpdates: Array<[string, Date | null]> = [];
+
+  function comesAfterCursor(
+    record: ConversationListRecord,
+    cursor: NonNullable<Parameters<ConversationRepository["list"]>[1]["cursor"]>,
+  ) {
+    if (cursor.pinnedAt) {
+      if (!record.pinnedAt) return true;
+      if (record.pinnedAt < cursor.pinnedAt) return true;
+      if (record.pinnedAt > cursor.pinnedAt) return false;
+    } else if (record.pinnedAt) {
+      return false;
+    }
+
+    return record.lastMessageAt < cursor.lastMessageAt ||
+      (record.lastMessageAt.getTime() === cursor.lastMessageAt.getTime() &&
+        record.id < cursor.id);
+  }
+
+  function conversationOrder(
+    left: ConversationListRecord,
+    right: ConversationListRecord,
+  ) {
+    if (left.pinnedAt && !right.pinnedAt) return -1;
+    if (!left.pinnedAt && right.pinnedAt) return 1;
+    if (left.pinnedAt && right.pinnedAt) {
+      const pinOrder = right.pinnedAt.getTime() - left.pinnedAt.getTime();
+      if (pinOrder !== 0) return pinOrder;
+    }
+    return right.lastMessageAt.getTime() - left.lastMessageAt.getTime() ||
+      right.id.localeCompare(left.id);
+  }
 
   const repository: ConversationRepository & {
     reads: typeof reads;
     upsertCalls: typeof upsertCalls;
     responsibleUpdates: typeof responsibleUpdates;
+    pinUpdates: typeof pinUpdates;
   } = {
     reads,
     upsertCalls,
     responsibleUpdates,
+    pinUpdates,
     list: async (_userId, query) => {
       const normalizedSearch = query.search?.toLocaleLowerCase("pt-BR");
       const canonicalPhoneSearch = query.search?.replace(/\D/gu, "");
@@ -184,15 +222,9 @@ function createRepository(
         .filter(
           (record) =>
             !query.cursor ||
-            record.lastMessageAt < query.cursor.lastMessageAt ||
-            (record.lastMessageAt.getTime() === query.cursor.lastMessageAt.getTime() &&
-              record.id < query.cursor.id),
+            comesAfterCursor(record, query.cursor),
         )
-        .sort(
-          (left, right) =>
-            right.lastMessageAt.getTime() - left.lastMessageAt.getTime() ||
-            right.id.localeCompare(left.id),
-        )
+        .sort(conversationOrder)
         .slice(0, query.take);
 
       return filtered.map((record) => {
@@ -310,6 +342,20 @@ function createRepository(
 
       record.responsibleUser =
         users.find((candidate) => candidate.id === userId) ?? null;
+    },
+    findPinState: async (id) => {
+      const record = records.find((candidate) => candidate.id === id);
+      return record
+        ? { id: record.id, pinnedAt: record.pinnedAt, updatedAt: record.updatedAt }
+        : null;
+    },
+    updatePinnedAt: async (id, pinnedAt) => {
+      const record = records.find((candidate) => candidate.id === id);
+      if (!record) throw new Error("conversation missing");
+      pinUpdates.push([id, pinnedAt]);
+      record.pinnedAt = pinnedAt;
+      record.updatedAt = pinnedAt ?? new Date(record.updatedAt.getTime() + 1);
+      return { id, pinnedAt, updatedAt: record.updatedAt };
     },
     transaction: async (operation) => operation(repository),
   };
@@ -541,6 +587,86 @@ describe("conversation service", () => {
     expect(secondPage.items).toHaveLength(1);
     expect(secondPage.items[0]?.id).not.toBe(firstPage.items.at(-1)?.id);
     expect(secondPage.nextCursor).toBeNull();
+  });
+
+  it("keeps unlimited pinned conversations first across page boundaries", async () => {
+    const regularNewest = conversation(
+      "10000000-0000-4000-8000-0000000000ff",
+      "Regular recente",
+      "5511999999999",
+      new Date("2026-08-23T15:00:00.000Z"),
+    );
+    const pinned = Array.from(
+      { length: CONVERSATION_PAGE_SIZE + 1 },
+      (_, index) => conversation(
+        `10000000-0000-4000-8000-${(index + 1).toString(16).padStart(12, "0")}`,
+        `Fixada ${index}`,
+        `5511${index.toString().padStart(8, "0")}`,
+        new Date("2026-08-20T12:00:00.000Z"),
+        null,
+        [],
+        null,
+        {},
+        new Date(Date.UTC(2026, 7, 23, 12, 0, index)),
+      ),
+    );
+    const repository = createRepository([regularNewest, ...pinned], []);
+
+    const firstPage = await listConversations(victor.id, {}, repository);
+    const secondPage = await listConversations(
+      victor.id,
+      { cursor: firstPage.nextCursor ?? undefined },
+      repository,
+    );
+    const allItems = [...firstPage.items, ...secondPage.items];
+
+    expect(firstPage.items).toHaveLength(CONVERSATION_PAGE_SIZE);
+    expect(firstPage.items.every(({ pinnedAt }) => pinnedAt !== null)).toBe(true);
+    expect(secondPage.items).toHaveLength(2);
+    expect(secondPage.items[0]?.pinnedAt).not.toBeNull();
+    expect(secondPage.items[1]).toMatchObject({ id: regularNewest.id, pinnedAt: null });
+    expect(new Set(allItems.map(({ id }) => id)).size).toBe(allItems.length);
+  });
+
+  it("pins and unpins a shared conversation idempotently", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const pinnedAt = new Date("2026-08-23T13:45:00.000Z");
+    const record = conversation(
+      conversationId,
+      "Carlos",
+      "5511999990001",
+      new Date("2026-08-23T12:00:00.000Z"),
+    );
+    const repository = createRepository([record], []);
+
+    await expect(
+      setConversationPinned(victor.id, conversationId, true, repository, () => pinnedAt),
+    ).resolves.toEqual({
+      conversationId,
+      pinnedAt: pinnedAt.toISOString(),
+      revision: pinnedAt.toISOString(),
+    });
+    await expect(
+      setConversationPinned(victor.id, conversationId, true, repository, () => new Date("2026-08-23T14:00:00.000Z")),
+    ).resolves.toMatchObject({ pinnedAt: pinnedAt.toISOString() });
+    expect(repository.pinUpdates).toEqual([[conversationId, pinnedAt]]);
+
+    await expect(
+      setConversationPinned(victor.id, conversationId, false, repository),
+    ).resolves.toMatchObject({ conversationId, pinnedAt: null });
+    expect(repository.pinUpdates).toHaveLength(2);
+    expect(repository.pinUpdates[1]).toEqual([conversationId, null]);
+  });
+
+  it("rejects pinning a conversation that does not exist", async () => {
+    await expect(
+      setConversationPinned(
+        victor.id,
+        "10000000-0000-4000-8000-000000000099",
+        true,
+        createRepository([], []),
+      ),
+    ).rejects.toMatchObject({ status: 404, message: "Conversa não encontrada" });
   });
 
   it("returns the same shared unread count to every user", async () => {
