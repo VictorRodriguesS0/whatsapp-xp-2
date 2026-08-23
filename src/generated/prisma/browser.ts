@@ -33,6 +33,11 @@ export type Session = Prisma.SessionModel
  */
 export type Contact = Prisma.ContactModel
 /**
+ * Model WhatsAppAppContact
+ * 
+ */
+export type WhatsAppAppContact = Prisma.WhatsAppAppContactModel
+/**
  * Model ContactType
  * 
  */

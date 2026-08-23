@@ -11,6 +11,7 @@
 export type * from './models/User'
 export type * from './models/Session'
 export type * from './models/Contact'
+export type * from './models/WhatsAppAppContact'
 export type * from './models/ContactType'
 export type * from './models/ContactTagDefinition'
 export type * from './models/ContactTagAssignment'

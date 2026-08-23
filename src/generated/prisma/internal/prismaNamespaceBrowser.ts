@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   Session: 'Session',
   Contact: 'Contact',
+  WhatsAppAppContact: 'WhatsAppAppContact',
   ContactType: 'ContactType',
   ContactTagDefinition: 'ContactTagDefinition',
   ContactTagAssignment: 'ContactTagAssignment',
@@ -117,11 +118,26 @@ export const ContactScalarFieldEnum = {
   preferredName: 'preferredName',
   profilePictureUrl: 'profilePictureUrl',
   contactTypeId: 'contactTypeId',
+  whatsappAppContactId: 'whatsappAppContactId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ContactScalarFieldEnum = (typeof ContactScalarFieldEnum)[keyof typeof ContactScalarFieldEnum]
+
+
+export const WhatsAppAppContactScalarFieldEnum = {
+  id: 'id',
+  phone: 'phone',
+  fullName: 'fullName',
+  active: 'active',
+  sourceTimestamp: 'sourceTimestamp',
+  sourceVersionKey: 'sourceVersionKey',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppAppContactScalarFieldEnum = (typeof WhatsAppAppContactScalarFieldEnum)[keyof typeof WhatsAppAppContactScalarFieldEnum]
 
 
 export const ContactTypeScalarFieldEnum = {

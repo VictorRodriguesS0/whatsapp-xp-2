@@ -33,6 +33,7 @@ export type ContactMinAggregateOutputType = {
   preferredName: string | null
   profilePictureUrl: string | null
   contactTypeId: string | null
+  whatsappAppContactId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +47,7 @@ export type ContactMaxAggregateOutputType = {
   preferredName: string | null
   profilePictureUrl: string | null
   contactTypeId: string | null
+  whatsappAppContactId: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,6 +61,7 @@ export type ContactCountAggregateOutputType = {
   preferredName: number
   profilePictureUrl: number
   contactTypeId: number
+  whatsappAppContactId: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -74,6 +77,7 @@ export type ContactMinAggregateInputType = {
   preferredName?: true
   profilePictureUrl?: true
   contactTypeId?: true
+  whatsappAppContactId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +91,7 @@ export type ContactMaxAggregateInputType = {
   preferredName?: true
   profilePictureUrl?: true
   contactTypeId?: true
+  whatsappAppContactId?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +105,7 @@ export type ContactCountAggregateInputType = {
   preferredName?: true
   profilePictureUrl?: true
   contactTypeId?: true
+  whatsappAppContactId?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -186,6 +192,7 @@ export type ContactGroupByOutputType = {
   preferredName: string | null
   profilePictureUrl: string | null
   contactTypeId: string | null
+  whatsappAppContactId: string | null
   createdAt: Date
   updatedAt: Date
   _count: ContactCountAggregateOutputType | null
@@ -220,10 +227,12 @@ export type ContactWhereInput = {
   preferredName?: Prisma.StringNullableFilter<"Contact"> | string | null
   profilePictureUrl?: Prisma.StringNullableFilter<"Contact"> | string | null
   contactTypeId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  whatsappAppContactId?: Prisma.UuidNullableFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationNullableScalarRelationFilter, Prisma.ConversationWhereInput> | null
   contactType?: Prisma.XOR<Prisma.ContactTypeNullableScalarRelationFilter, Prisma.ContactTypeWhereInput> | null
+  whatsappAppContact?: Prisma.XOR<Prisma.WhatsAppAppContactNullableScalarRelationFilter, Prisma.WhatsAppAppContactWhereInput> | null
   tagAssignments?: Prisma.ContactTagAssignmentListRelationFilter
 }
 
@@ -236,10 +245,12 @@ export type ContactOrderByWithRelationInput = {
   preferredName?: Prisma.SortOrderInput | Prisma.SortOrder
   profilePictureUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   contactTypeId?: Prisma.SortOrderInput | Prisma.SortOrder
+  whatsappAppContactId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   conversation?: Prisma.ConversationOrderByWithRelationInput
   contactType?: Prisma.ContactTypeOrderByWithRelationInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactOrderByWithRelationInput
   tagAssignments?: Prisma.ContactTagAssignmentOrderByRelationAggregateInput
 }
 
@@ -248,6 +259,7 @@ export type ContactWhereUniqueInput = Prisma.AtLeast<{
   whatsappId?: string
   whatsappUserId?: string
   phone?: string
+  whatsappAppContactId?: string
   AND?: Prisma.ContactWhereInput | Prisma.ContactWhereInput[]
   OR?: Prisma.ContactWhereInput[]
   NOT?: Prisma.ContactWhereInput | Prisma.ContactWhereInput[]
@@ -259,8 +271,9 @@ export type ContactWhereUniqueInput = Prisma.AtLeast<{
   updatedAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationNullableScalarRelationFilter, Prisma.ConversationWhereInput> | null
   contactType?: Prisma.XOR<Prisma.ContactTypeNullableScalarRelationFilter, Prisma.ContactTypeWhereInput> | null
+  whatsappAppContact?: Prisma.XOR<Prisma.WhatsAppAppContactNullableScalarRelationFilter, Prisma.WhatsAppAppContactWhereInput> | null
   tagAssignments?: Prisma.ContactTagAssignmentListRelationFilter
-}, "id" | "whatsappId" | "whatsappUserId" | "phone">
+}, "id" | "whatsappId" | "whatsappUserId" | "phone" | "whatsappAppContactId">
 
 export type ContactOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -271,6 +284,7 @@ export type ContactOrderByWithAggregationInput = {
   preferredName?: Prisma.SortOrderInput | Prisma.SortOrder
   profilePictureUrl?: Prisma.SortOrderInput | Prisma.SortOrder
   contactTypeId?: Prisma.SortOrderInput | Prisma.SortOrder
+  whatsappAppContactId?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ContactCountOrderByAggregateInput
@@ -290,6 +304,7 @@ export type ContactScalarWhereWithAggregatesInput = {
   preferredName?: Prisma.StringNullableWithAggregatesFilter<"Contact"> | string | null
   profilePictureUrl?: Prisma.StringNullableWithAggregatesFilter<"Contact"> | string | null
   contactTypeId?: Prisma.UuidNullableWithAggregatesFilter<"Contact"> | string | null
+  whatsappAppContactId?: Prisma.UuidNullableWithAggregatesFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Contact"> | Date | string
 }
@@ -306,6 +321,7 @@ export type ContactCreateInput = {
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -318,6 +334,7 @@ export type ContactUncheckedCreateInput = {
   preferredName?: string | null
   profilePictureUrl?: string | null
   contactTypeId?: string | null
+  whatsappAppContactId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
@@ -336,6 +353,7 @@ export type ContactUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -348,6 +366,7 @@ export type ContactUncheckedUpdateInput = {
   preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
@@ -363,6 +382,7 @@ export type ContactCreateManyInput = {
   preferredName?: string | null
   profilePictureUrl?: string | null
   contactTypeId?: string | null
+  whatsappAppContactId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -388,6 +408,7 @@ export type ContactUncheckedUpdateManyInput = {
   preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -401,6 +422,7 @@ export type ContactCountOrderByAggregateInput = {
   preferredName?: Prisma.SortOrder
   profilePictureUrl?: Prisma.SortOrder
   contactTypeId?: Prisma.SortOrder
+  whatsappAppContactId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -414,6 +436,7 @@ export type ContactMaxOrderByAggregateInput = {
   preferredName?: Prisma.SortOrder
   profilePictureUrl?: Prisma.SortOrder
   contactTypeId?: Prisma.SortOrder
+  whatsappAppContactId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -427,8 +450,14 @@ export type ContactMinOrderByAggregateInput = {
   preferredName?: Prisma.SortOrder
   profilePictureUrl?: Prisma.SortOrder
   contactTypeId?: Prisma.SortOrder
+  whatsappAppContactId?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+}
+
+export type ContactNullableScalarRelationFilter = {
+  is?: Prisma.ContactWhereInput | null
+  isNot?: Prisma.ContactWhereInput | null
 }
 
 export type ContactListRelationFilter = {
@@ -448,6 +477,38 @@ export type ContactScalarRelationFilter = {
 
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
+}
+
+export type ContactCreateNestedOneWithoutWhatsappAppContactInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedCreateWithoutWhatsappAppContactInput>
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutWhatsappAppContactInput
+  connect?: Prisma.ContactWhereUniqueInput
+}
+
+export type ContactUncheckedCreateNestedOneWithoutWhatsappAppContactInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedCreateWithoutWhatsappAppContactInput>
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutWhatsappAppContactInput
+  connect?: Prisma.ContactWhereUniqueInput
+}
+
+export type ContactUpdateOneWithoutWhatsappAppContactNestedInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedCreateWithoutWhatsappAppContactInput>
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutWhatsappAppContactInput
+  upsert?: Prisma.ContactUpsertWithoutWhatsappAppContactInput
+  disconnect?: Prisma.ContactWhereInput | boolean
+  delete?: Prisma.ContactWhereInput | boolean
+  connect?: Prisma.ContactWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ContactUpdateToOneWithWhereWithoutWhatsappAppContactInput, Prisma.ContactUpdateWithoutWhatsappAppContactInput>, Prisma.ContactUncheckedUpdateWithoutWhatsappAppContactInput>
+}
+
+export type ContactUncheckedUpdateOneWithoutWhatsappAppContactNestedInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedCreateWithoutWhatsappAppContactInput>
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutWhatsappAppContactInput
+  upsert?: Prisma.ContactUpsertWithoutWhatsappAppContactInput
+  disconnect?: Prisma.ContactWhereInput | boolean
+  delete?: Prisma.ContactWhereInput | boolean
+  connect?: Prisma.ContactWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ContactUpdateToOneWithWhereWithoutWhatsappAppContactInput, Prisma.ContactUpdateWithoutWhatsappAppContactInput>, Prisma.ContactUncheckedUpdateWithoutWhatsappAppContactInput>
 }
 
 export type ContactCreateNestedManyWithoutContactTypeInput = {
@@ -520,6 +581,82 @@ export type ContactUpdateOneRequiredWithoutConversationNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ContactUpdateToOneWithWhereWithoutConversationInput, Prisma.ContactUpdateWithoutConversationInput>, Prisma.ContactUncheckedUpdateWithoutConversationInput>
 }
 
+export type ContactCreateWithoutWhatsappAppContactInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
+  contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
+  tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
+}
+
+export type ContactUncheckedCreateWithoutWhatsappAppContactInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  contactTypeId?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
+  tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
+}
+
+export type ContactCreateOrConnectWithoutWhatsappAppContactInput = {
+  where: Prisma.ContactWhereUniqueInput
+  create: Prisma.XOR<Prisma.ContactCreateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedCreateWithoutWhatsappAppContactInput>
+}
+
+export type ContactUpsertWithoutWhatsappAppContactInput = {
+  update: Prisma.XOR<Prisma.ContactUpdateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedUpdateWithoutWhatsappAppContactInput>
+  create: Prisma.XOR<Prisma.ContactCreateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedCreateWithoutWhatsappAppContactInput>
+  where?: Prisma.ContactWhereInput
+}
+
+export type ContactUpdateToOneWithWhereWithoutWhatsappAppContactInput = {
+  where?: Prisma.ContactWhereInput
+  data: Prisma.XOR<Prisma.ContactUpdateWithoutWhatsappAppContactInput, Prisma.ContactUncheckedUpdateWithoutWhatsappAppContactInput>
+}
+
+export type ContactUpdateWithoutWhatsappAppContactInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
+  contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
+  tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
+}
+
+export type ContactUncheckedUpdateWithoutWhatsappAppContactInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
+  tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
+}
+
 export type ContactCreateWithoutContactTypeInput = {
   id?: string
   whatsappId?: string | null
@@ -531,6 +668,7 @@ export type ContactCreateWithoutContactTypeInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -542,6 +680,7 @@ export type ContactUncheckedCreateWithoutContactTypeInput = {
   name: string
   preferredName?: string | null
   profilePictureUrl?: string | null
+  whatsappAppContactId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
@@ -586,6 +725,7 @@ export type ContactScalarWhereInput = {
   preferredName?: Prisma.StringNullableFilter<"Contact"> | string | null
   profilePictureUrl?: Prisma.StringNullableFilter<"Contact"> | string | null
   contactTypeId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  whatsappAppContactId?: Prisma.UuidNullableFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
 }
@@ -602,6 +742,7 @@ export type ContactCreateWithoutTagAssignmentsInput = {
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
 }
 
 export type ContactUncheckedCreateWithoutTagAssignmentsInput = {
@@ -613,6 +754,7 @@ export type ContactUncheckedCreateWithoutTagAssignmentsInput = {
   preferredName?: string | null
   profilePictureUrl?: string | null
   contactTypeId?: string | null
+  whatsappAppContactId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
@@ -646,6 +788,7 @@ export type ContactUpdateWithoutTagAssignmentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
 }
 
 export type ContactUncheckedUpdateWithoutTagAssignmentsInput = {
@@ -657,6 +800,7 @@ export type ContactUncheckedUpdateWithoutTagAssignmentsInput = {
   preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
@@ -673,6 +817,7 @@ export type ContactCreateWithoutConversationInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -685,6 +830,7 @@ export type ContactUncheckedCreateWithoutConversationInput = {
   preferredName?: string | null
   profilePictureUrl?: string | null
   contactTypeId?: string | null
+  whatsappAppContactId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
@@ -717,6 +863,7 @@ export type ContactUpdateWithoutConversationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -729,6 +876,7 @@ export type ContactUncheckedUpdateWithoutConversationInput = {
   preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
@@ -742,6 +890,7 @@ export type ContactCreateManyContactTypeInput = {
   name: string
   preferredName?: string | null
   profilePictureUrl?: string | null
+  whatsappAppContactId?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -757,6 +906,7 @@ export type ContactUpdateWithoutContactTypeInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -768,6 +918,7 @@ export type ContactUncheckedUpdateWithoutContactTypeInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
@@ -782,6 +933,7 @@ export type ContactUncheckedUpdateManyWithoutContactTypeInput = {
   name?: Prisma.StringFieldUpdateOperationsInput | string
   preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -826,10 +978,12 @@ export type ContactSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   preferredName?: boolean
   profilePictureUrl?: boolean
   contactTypeId?: boolean
+  whatsappAppContactId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   conversation?: boolean | Prisma.Contact$conversationArgs<ExtArgs>
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
+  whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   tagAssignments?: boolean | Prisma.Contact$tagAssignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.ContactCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["contact"]>
@@ -843,9 +997,11 @@ export type ContactSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   preferredName?: boolean
   profilePictureUrl?: boolean
   contactTypeId?: boolean
+  whatsappAppContactId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
+  whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
 }, ExtArgs["result"]["contact"]>
 
 export type ContactSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -857,9 +1013,11 @@ export type ContactSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   preferredName?: boolean
   profilePictureUrl?: boolean
   contactTypeId?: boolean
+  whatsappAppContactId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
+  whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
 }, ExtArgs["result"]["contact"]>
 
 export type ContactSelectScalar = {
@@ -871,22 +1029,26 @@ export type ContactSelectScalar = {
   preferredName?: boolean
   profilePictureUrl?: boolean
   contactTypeId?: boolean
+  whatsappAppContactId?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ContactOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "whatsappId" | "whatsappUserId" | "phone" | "name" | "preferredName" | "profilePictureUrl" | "contactTypeId" | "createdAt" | "updatedAt", ExtArgs["result"]["contact"]>
+export type ContactOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "whatsappId" | "whatsappUserId" | "phone" | "name" | "preferredName" | "profilePictureUrl" | "contactTypeId" | "whatsappAppContactId" | "createdAt" | "updatedAt", ExtArgs["result"]["contact"]>
 export type ContactInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.Contact$conversationArgs<ExtArgs>
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
+  whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   tagAssignments?: boolean | Prisma.Contact$tagAssignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.ContactCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ContactIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
+  whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
 }
 export type ContactIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
+  whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
 }
 
 export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -894,6 +1056,7 @@ export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
   objects: {
     conversation: Prisma.$ConversationPayload<ExtArgs> | null
     contactType: Prisma.$ContactTypePayload<ExtArgs> | null
+    whatsappAppContact: Prisma.$WhatsAppAppContactPayload<ExtArgs> | null
     tagAssignments: Prisma.$ContactTagAssignmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -905,6 +1068,7 @@ export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     preferredName: string | null
     profilePictureUrl: string | null
     contactTypeId: string | null
+    whatsappAppContactId: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["contact"]>
@@ -1303,6 +1467,7 @@ export interface Prisma__ContactClient<T, Null = never, ExtArgs extends runtime.
   readonly [Symbol.toStringTag]: "PrismaPromise"
   conversation<T extends Prisma.Contact$conversationArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$conversationArgs<ExtArgs>>): Prisma.Prisma__ConversationClient<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   contactType<T extends Prisma.Contact$contactTypeArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$contactTypeArgs<ExtArgs>>): Prisma.Prisma__ContactTypeClient<runtime.Types.Result.GetResult<Prisma.$ContactTypePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  whatsappAppContact<T extends Prisma.Contact$whatsappAppContactArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$whatsappAppContactArgs<ExtArgs>>): Prisma.Prisma__WhatsAppAppContactClient<runtime.Types.Result.GetResult<Prisma.$WhatsAppAppContactPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   tagAssignments<T extends Prisma.Contact$tagAssignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$tagAssignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactTagAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1341,6 +1506,7 @@ export interface ContactFieldRefs {
   readonly preferredName: Prisma.FieldRef<"Contact", 'String'>
   readonly profilePictureUrl: Prisma.FieldRef<"Contact", 'String'>
   readonly contactTypeId: Prisma.FieldRef<"Contact", 'String'>
+  readonly whatsappAppContactId: Prisma.FieldRef<"Contact", 'String'>
   readonly createdAt: Prisma.FieldRef<"Contact", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Contact", 'DateTime'>
 }
@@ -1779,6 +1945,25 @@ export type Contact$contactTypeArgs<ExtArgs extends runtime.Types.Extensions.Int
    */
   include?: Prisma.ContactTypeInclude<ExtArgs> | null
   where?: Prisma.ContactTypeWhereInput
+}
+
+/**
+ * Contact.whatsappAppContact
+ */
+export type Contact$whatsappAppContactArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppAppContact
+   */
+  select?: Prisma.WhatsAppAppContactSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppAppContact
+   */
+  omit?: Prisma.WhatsAppAppContactOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppAppContactInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppAppContactWhereInput
 }
 
 /**
