@@ -1501,3 +1501,29 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
     });
   },
 );
+
+describe.skipIf(!process.env.TEST_DATABASE_URL)(
+  "WhatsApp Business App contact schema",
+  () => {
+    beforeEach(resetTestDatabase);
+
+    afterAll(async () => {
+      await prisma.$disconnect();
+    });
+
+    it("stores an address-book contact without creating an inbox conversation", async () => {
+      const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO whatsapp_app_contacts
+          (id, phone, full_name, active, source_timestamp, source_version_key, created_at, updated_at)
+        VALUES
+          (gen_random_uuid(), '556199225908', 'Contato da loja', true,
+           '2026-08-23T12:00:00.000Z', 'version-key', NOW(), NOW())
+        RETURNING id::text
+      `;
+
+      expect(rows).toHaveLength(1);
+      await expect(prisma.contact.count()).resolves.toBe(0);
+      await expect(prisma.conversation.count()).resolves.toBe(0);
+    });
+  },
+);
