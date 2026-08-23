@@ -76,6 +76,7 @@ const defaultInbox = {
         tags: [],
       },
       responsible: null,
+      pinnedAt: null,
       lastMessageAt: "2026-08-20T14:30:00.000Z",
       latestMessage: null,
       unreadCount: 1,
@@ -124,6 +125,9 @@ const defaultInbox = {
   markUnread: vi.fn().mockResolvedValue(undefined),
   markUnreadPending: false,
   markUnreadError: null,
+  pinPendingIds: new Set<string>(),
+  pinError: null,
+  setPinned: vi.fn().mockResolvedValue(undefined),
   setResponsible: vi.fn(),
   setContactType: vi.fn().mockResolvedValue(true),
   replaceContactTags: vi.fn().mockResolvedValue(true),
@@ -196,6 +200,15 @@ describe("InboxShell", () => {
     expect(screen.getByRole("link", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
   });
 
+  it("connects the shared pin action without selecting the conversation", () => {
+    render(<InboxShell initialUser={user} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fixar conversa de Carlos" }));
+
+    expect(defaultInbox.setPinned).toHaveBeenCalledWith("conversation-id", true);
+    expect(defaultInbox.openConversation).not.toHaveBeenCalled();
+  });
+
   it("uses the app router for logout and handles rejected logout and navigation promises", async () => {
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("offline"));
     routerReplaceMock.mockRejectedValue(new Error("navigation cancelled"));
@@ -230,7 +243,7 @@ describe("InboxShell", () => {
     vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
     const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
     render(<InboxShell initialUser={user} />);
-    const conversationButton = screen.getByRole("button", { name: /Carlos/i });
+    const conversationButton = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
     fireEvent.click(conversationButton);
     expect(screen.getByTestId("inbox-shell")).toHaveAttribute("data-mobile-view", "thread");
     await waitFor(() => expect(screen.getByRole("heading", { name: "Conversa" })).toHaveFocus());
@@ -247,7 +260,7 @@ describe("InboxShell", () => {
   it("does not move focus away from the conversation button on desktop", async () => {
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
     render(<InboxShell initialUser={user} />);
-    const conversationButton = screen.getByRole("button", { name: /Carlos/i });
+    const conversationButton = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
     conversationButton.focus();
 
     fireEvent.click(conversationButton);
@@ -329,7 +342,7 @@ describe("InboxShell", () => {
       },
     });
     render(<InboxShell initialUser={user} />);
-    const row = screen.getByRole("button", { name: /Carlos/i });
+    const row = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -416,7 +429,7 @@ describe("InboxShell", () => {
       },
     });
     render(<InboxShell initialUser={user} />);
-    fireEvent.click(screen.getByRole("button", { name: /Carlos/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
     expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
 
     fireEvent.click(screen.getByRole("button", { name: "Abrir dados do cliente" }));
@@ -453,8 +466,8 @@ describe("InboxShell", () => {
 
     fireEvent(window, new PopStateEvent("popstate", { state: null }));
     expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: /Carlos/i }));
-    fireEvent.click(screen.getByRole("button", { name: /Beatriz/i }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Beatriz" }));
 
     expect(pushState).toHaveBeenCalledOnce();
     expect(replaceState).toHaveBeenCalledWith(

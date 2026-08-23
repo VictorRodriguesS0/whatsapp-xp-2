@@ -8,6 +8,7 @@ export type PublicErrorOperation =
   | "reaction"
   | "reaction-unknown"
   | "responsible"
+  | "pin"
   | "unread"
   | "contact-types"
   | "contact-type-save"
@@ -24,6 +25,7 @@ const fallback: Record<PublicErrorOperation, string> = {
   reaction: "Não foi possível atualizar a reação.",
   "reaction-unknown": "A confirmação da reação ainda está pendente.",
   responsible: "Não foi possível alterar o responsável.",
+  pin: "Não foi possível atualizar a fixação da conversa.",
   unread: "Não foi possível marcar como não lida.",
   "contact-types": "Não foi possível carregar os tipos de contato.",
   "contact-type-save": "Não foi possível atualizar o tipo de contato.",

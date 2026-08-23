@@ -2,6 +2,7 @@
 
 import { format, isToday, isYesterday } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Pin } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +30,13 @@ type ConversationListProps = {
   loadMoreError?: string | null;
   onLoadMore?: () => void;
   onButtonRef?: (id: string, element: HTMLButtonElement | null) => void;
+  onSetPinned?: (id: string, pinned: boolean) => void;
+  pinPendingIds?: Set<string>;
+  pinError?: string | null;
 };
 
 type LatestMessageType = NonNullable<ConversationListItem["latestMessage"]>["type"];
+const EMPTY_PIN_PENDING_IDS = new Set<string>();
 
 const previewMediaNames: Partial<Record<LatestMessageType, string>> = {
   IMAGE: "imagem",
@@ -84,6 +89,9 @@ export function ConversationList({
   loadMoreError,
   onLoadMore,
   onButtonRef,
+  onSetPinned,
+  pinPendingIds = EMPTY_PIN_PENDING_IDS,
+  pinError,
 }: ConversationListProps) {
   if (loading && items.length === 0) {
     return <div className="flex min-h-40 items-center justify-center p-6"><Spinner label="Carregando conversas" /></div>;
@@ -116,6 +124,11 @@ export function ConversationList({
           {onRetry ? <Button className="px-2" onClick={onRetry} size="small" variant="ghost">Tentar novamente</Button> : null}
         </div>
       ) : null}
+      {pinError ? (
+        <div className="border-b border-[var(--border)] bg-[var(--warning)] px-4 py-2 text-sm text-[var(--text)]" role="alert">
+          {pinError}
+        </div>
+      ) : null}
       <ul aria-label="Conversas recentes" className="divide-y divide-[var(--border)]">
       {items.map((item) => {
         const selected = item.id === selectedId;
@@ -123,11 +136,12 @@ export function ConversationList({
           item.contact as typeof item.contact & { profilePictureUrl?: string | null }
         ).profilePictureUrl;
         return (
-          <li className="conversation-list-item" key={item.id}>
+          <li className="conversation-list-item group relative" key={item.id}>
             <button
               aria-current={selected ? "true" : undefined}
+              aria-label={`Abrir conversa com ${item.contact.name}`}
               className={cn(
-                "min-h-11 w-full px-4 py-3 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
+                "min-h-11 w-full py-3 pl-4 pr-16 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
                 selected && "bg-[var(--selected)]",
               )}
               data-conversation-id={item.id}
@@ -143,7 +157,14 @@ export function ConversationList({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <span className="truncate font-semibold text-[var(--text)]">{item.contact.name}</span>
-                    <span className="shrink-0 text-xs tabular-nums text-[var(--muted)]">{conversationTime(item.lastMessageAt)}</span>
+                    <span className="flex shrink-0 items-center gap-1.5 text-xs tabular-nums text-[var(--muted)]">
+                      {item.pinnedAt ? (
+                        <span aria-label="Conversa fixada" role="img" title="Conversa fixada">
+                          <Pin aria-hidden="true" className="size-3.5 fill-current" />
+                        </span>
+                      ) : null}
+                      {conversationTime(item.lastMessageAt)}
+                    </span>
                   </span>
                   <span className="mt-1 flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-sm text-[var(--muted)]">{preview(item)}</span>
@@ -179,6 +200,23 @@ export function ConversationList({
                 </span>
               </span>
             </button>
+            {onSetPinned ? (
+              <Button
+                aria-label={`${item.pinnedAt ? "Desfixar" : "Fixar"} conversa de ${item.contact.name}`}
+                aria-pressed={Boolean(item.pinnedAt)}
+                className={cn(
+                  "absolute right-1.5 top-1.5 z-20 text-[var(--muted)] sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100",
+                  item.pinnedAt && "text-[var(--accent)] sm:opacity-100",
+                )}
+                disabled={pinPendingIds.has(item.id)}
+                onClick={() => onSetPinned(item.id, !item.pinnedAt)}
+                size="icon"
+                title={item.pinnedAt ? "Desfixar conversa" : "Fixar conversa"}
+                variant="ghost"
+              >
+                <Pin aria-hidden="true" className={cn("size-4", item.pinnedAt && "fill-current")} />
+              </Button>
+            ) : null}
           </li>
         );
       })}

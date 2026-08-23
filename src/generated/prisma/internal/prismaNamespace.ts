@@ -1664,6 +1664,7 @@ export const ConversationScalarFieldEnum = {
   contactId: 'contactId',
   responsibleUserId: 'responsibleUserId',
   lastMessageAt: 'lastMessageAt',
+  pinnedAt: 'pinnedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   teamLastReadMessageId: 'teamLastReadMessageId',

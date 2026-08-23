@@ -159,6 +159,7 @@ export type ConversationListRecord = {
   id: string;
   contact: ConversationContactRecord;
   responsibleUser: ConversationUserRecord | null;
+  pinnedAt: Date | null;
   lastMessageAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -180,6 +181,7 @@ export type ConversationListItem = {
   id: string;
   contact: ContactDto;
   responsible: ResponsibleUserDto | null;
+  pinnedAt: string | null;
   lastMessageAt: string;
   latestMessage: MessageDto | null;
   unreadCount: number;
@@ -198,6 +200,7 @@ export type ConversationDetail = ConversationListItem & {
 };
 
 export type ConversationCursor = {
+  pinnedAt: Date | null;
   lastMessageAt: Date;
   id: string;
 };
@@ -248,6 +251,18 @@ export type SharedConversationStateDto = {
   revision: string;
 };
 
+export type PinnedConversationStateDto = {
+  conversationId: string;
+  pinnedAt: string | null;
+  revision: string;
+};
+
+export type ConversationPinRecord = {
+  id: string;
+  pinnedAt: Date | null;
+  updatedAt: Date;
+};
+
 export type ConversationRepository = {
   list(
     userId: string,
@@ -272,6 +287,11 @@ export type ConversationRepository = {
     conversationId: string,
     userId: string | null,
   ): Promise<void>;
+  findPinState(conversationId: string): Promise<ConversationPinRecord | null>;
+  updatePinnedAt(
+    conversationId: string,
+    pinnedAt: Date | null,
+  ): Promise<ConversationPinRecord>;
   transaction<T>(
     operation: (repository: ConversationRepository) => Promise<T>,
   ): Promise<T>;

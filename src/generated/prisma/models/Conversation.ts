@@ -29,6 +29,7 @@ export type ConversationMinAggregateOutputType = {
   contactId: string | null
   responsibleUserId: string | null
   lastMessageAt: Date | null
+  pinnedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
   teamLastReadMessageId: string | null
@@ -43,6 +44,7 @@ export type ConversationMaxAggregateOutputType = {
   contactId: string | null
   responsibleUserId: string | null
   lastMessageAt: Date | null
+  pinnedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
   teamLastReadMessageId: string | null
@@ -57,6 +59,7 @@ export type ConversationCountAggregateOutputType = {
   contactId: number
   responsibleUserId: number
   lastMessageAt: number
+  pinnedAt: number
   createdAt: number
   updatedAt: number
   teamLastReadMessageId: number
@@ -73,6 +76,7 @@ export type ConversationMinAggregateInputType = {
   contactId?: true
   responsibleUserId?: true
   lastMessageAt?: true
+  pinnedAt?: true
   createdAt?: true
   updatedAt?: true
   teamLastReadMessageId?: true
@@ -87,6 +91,7 @@ export type ConversationMaxAggregateInputType = {
   contactId?: true
   responsibleUserId?: true
   lastMessageAt?: true
+  pinnedAt?: true
   createdAt?: true
   updatedAt?: true
   teamLastReadMessageId?: true
@@ -101,6 +106,7 @@ export type ConversationCountAggregateInputType = {
   contactId?: true
   responsibleUserId?: true
   lastMessageAt?: true
+  pinnedAt?: true
   createdAt?: true
   updatedAt?: true
   teamLastReadMessageId?: true
@@ -188,6 +194,7 @@ export type ConversationGroupByOutputType = {
   contactId: string
   responsibleUserId: string | null
   lastMessageAt: Date
+  pinnedAt: Date | null
   createdAt: Date
   updatedAt: Date
   teamLastReadMessageId: string | null
@@ -223,6 +230,7 @@ export type ConversationWhereInput = {
   contactId?: Prisma.UuidFilter<"Conversation"> | string
   responsibleUserId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
   lastMessageAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
+  pinnedAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   teamLastReadMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
@@ -245,6 +253,7 @@ export type ConversationOrderByWithRelationInput = {
   contactId?: Prisma.SortOrder
   responsibleUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastMessageAt?: Prisma.SortOrder
+  pinnedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   teamLastReadMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -270,6 +279,7 @@ export type ConversationWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.ConversationWhereInput | Prisma.ConversationWhereInput[]
   responsibleUserId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
   lastMessageAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
+  pinnedAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   teamLastReadMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
@@ -292,6 +302,7 @@ export type ConversationOrderByWithAggregationInput = {
   contactId?: Prisma.SortOrder
   responsibleUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   lastMessageAt?: Prisma.SortOrder
+  pinnedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   teamLastReadMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -312,6 +323,7 @@ export type ConversationScalarWhereWithAggregatesInput = {
   contactId?: Prisma.UuidWithAggregatesFilter<"Conversation"> | string
   responsibleUserId?: Prisma.UuidNullableWithAggregatesFilter<"Conversation"> | string | null
   lastMessageAt?: Prisma.DateTimeWithAggregatesFilter<"Conversation"> | Date | string
+  pinnedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Conversation"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Conversation"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Conversation"> | Date | string
   teamLastReadMessageId?: Prisma.UuidNullableWithAggregatesFilter<"Conversation"> | string | null
@@ -324,6 +336,7 @@ export type ConversationScalarWhereWithAggregatesInput = {
 export type ConversationCreateInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -344,6 +357,7 @@ export type ConversationUncheckedCreateInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -360,6 +374,7 @@ export type ConversationUncheckedCreateInput = {
 export type ConversationUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -380,6 +395,7 @@ export type ConversationUncheckedUpdateInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -398,6 +414,7 @@ export type ConversationCreateManyInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -410,6 +427,7 @@ export type ConversationCreateManyInput = {
 export type ConversationUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -422,6 +440,7 @@ export type ConversationUncheckedUpdateManyInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -451,6 +470,7 @@ export type ConversationCountOrderByAggregateInput = {
   contactId?: Prisma.SortOrder
   responsibleUserId?: Prisma.SortOrder
   lastMessageAt?: Prisma.SortOrder
+  pinnedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   teamLastReadMessageId?: Prisma.SortOrder
@@ -465,6 +485,7 @@ export type ConversationMaxOrderByAggregateInput = {
   contactId?: Prisma.SortOrder
   responsibleUserId?: Prisma.SortOrder
   lastMessageAt?: Prisma.SortOrder
+  pinnedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   teamLastReadMessageId?: Prisma.SortOrder
@@ -479,6 +500,7 @@ export type ConversationMinOrderByAggregateInput = {
   contactId?: Prisma.SortOrder
   responsibleUserId?: Prisma.SortOrder
   lastMessageAt?: Prisma.SortOrder
+  pinnedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   teamLastReadMessageId?: Prisma.SortOrder
@@ -714,6 +736,7 @@ export type ConversationUpdateOneRequiredWithoutWhatsappReadSyncNestedInput = {
 export type ConversationCreateWithoutResponsibleUserInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -732,6 +755,7 @@ export type ConversationUncheckedCreateWithoutResponsibleUserInput = {
   id?: string
   contactId: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -758,6 +782,7 @@ export type ConversationCreateManyResponsibleUserInputEnvelope = {
 export type ConversationCreateWithoutManualUnreadByUserInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -777,6 +802,7 @@ export type ConversationUncheckedCreateWithoutManualUnreadByUserInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -823,6 +849,7 @@ export type ConversationScalarWhereInput = {
   contactId?: Prisma.UuidFilter<"Conversation"> | string
   responsibleUserId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
   lastMessageAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
+  pinnedAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Conversation"> | Date | string
   teamLastReadMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
@@ -851,6 +878,7 @@ export type ConversationUpdateManyWithWhereWithoutManualUnreadByUserInput = {
 export type ConversationCreateWithoutContactInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -869,6 +897,7 @@ export type ConversationUncheckedCreateWithoutContactInput = {
   id?: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -901,6 +930,7 @@ export type ConversationUpdateToOneWithWhereWithoutContactInput = {
 export type ConversationUpdateWithoutContactInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -919,6 +949,7 @@ export type ConversationUncheckedUpdateWithoutContactInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -935,6 +966,7 @@ export type ConversationUncheckedUpdateWithoutContactInput = {
 export type ConversationCreateWithoutMessagesInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -954,6 +986,7 @@ export type ConversationUncheckedCreateWithoutMessagesInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -974,6 +1007,7 @@ export type ConversationCreateOrConnectWithoutMessagesInput = {
 export type ConversationCreateWithoutTeamLastReadMessageInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -993,6 +1027,7 @@ export type ConversationUncheckedCreateWithoutTeamLastReadMessageInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -1029,6 +1064,7 @@ export type ConversationUpdateToOneWithWhereWithoutMessagesInput = {
 export type ConversationUpdateWithoutMessagesInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1048,6 +1084,7 @@ export type ConversationUncheckedUpdateWithoutMessagesInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1079,6 +1116,7 @@ export type ConversationUpdateManyWithWhereWithoutTeamLastReadMessageInput = {
 export type ConversationCreateWithoutReadsInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -1098,6 +1136,7 @@ export type ConversationUncheckedCreateWithoutReadsInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -1129,6 +1168,7 @@ export type ConversationUpdateToOneWithWhereWithoutReadsInput = {
 export type ConversationUpdateWithoutReadsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1148,6 +1188,7 @@ export type ConversationUncheckedUpdateWithoutReadsInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1163,6 +1204,7 @@ export type ConversationUncheckedUpdateWithoutReadsInput = {
 export type ConversationCreateWithoutAuditEventsInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -1182,6 +1224,7 @@ export type ConversationUncheckedCreateWithoutAuditEventsInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -1213,6 +1256,7 @@ export type ConversationUpdateToOneWithWhereWithoutAuditEventsInput = {
 export type ConversationUpdateWithoutAuditEventsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1232,6 +1276,7 @@ export type ConversationUncheckedUpdateWithoutAuditEventsInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1247,6 +1292,7 @@ export type ConversationUncheckedUpdateWithoutAuditEventsInput = {
 export type ConversationCreateWithoutWhatsappReadSyncInput = {
   id?: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -1266,6 +1312,7 @@ export type ConversationUncheckedCreateWithoutWhatsappReadSyncInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -1297,6 +1344,7 @@ export type ConversationUpdateToOneWithWhereWithoutWhatsappReadSyncInput = {
 export type ConversationUpdateWithoutWhatsappReadSyncInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1316,6 +1364,7 @@ export type ConversationUncheckedUpdateWithoutWhatsappReadSyncInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1332,6 +1381,7 @@ export type ConversationCreateManyResponsibleUserInput = {
   id?: string
   contactId: string
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -1346,6 +1396,7 @@ export type ConversationCreateManyManualUnreadByUserInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadMessageId?: string | null
@@ -1357,6 +1408,7 @@ export type ConversationCreateManyManualUnreadByUserInput = {
 export type ConversationUpdateWithoutResponsibleUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1375,6 +1427,7 @@ export type ConversationUncheckedUpdateWithoutResponsibleUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1392,6 +1445,7 @@ export type ConversationUncheckedUpdateManyWithoutResponsibleUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1404,6 +1458,7 @@ export type ConversationUncheckedUpdateManyWithoutResponsibleUserInput = {
 export type ConversationUpdateWithoutManualUnreadByUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1423,6 +1478,7 @@ export type ConversationUncheckedUpdateWithoutManualUnreadByUserInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1440,6 +1496,7 @@ export type ConversationUncheckedUpdateManyWithoutManualUnreadByUserInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1453,6 +1510,7 @@ export type ConversationCreateManyTeamLastReadMessageInput = {
   contactId: string
   responsibleUserId?: string | null
   lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   teamLastReadAt?: Date | string | null
@@ -1464,6 +1522,7 @@ export type ConversationCreateManyTeamLastReadMessageInput = {
 export type ConversationUpdateWithoutTeamLastReadMessageInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1483,6 +1542,7 @@ export type ConversationUncheckedUpdateWithoutTeamLastReadMessageInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1500,6 +1560,7 @@ export type ConversationUncheckedUpdateManyWithoutTeamLastReadMessageInput = {
   contactId?: Prisma.StringFieldUpdateOperationsInput | string
   responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1562,6 +1623,7 @@ export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   contactId?: boolean
   responsibleUserId?: boolean
   lastMessageAt?: boolean
+  pinnedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   teamLastReadMessageId?: boolean
@@ -1585,6 +1647,7 @@ export type ConversationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   contactId?: boolean
   responsibleUserId?: boolean
   lastMessageAt?: boolean
+  pinnedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   teamLastReadMessageId?: boolean
@@ -1603,6 +1666,7 @@ export type ConversationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   contactId?: boolean
   responsibleUserId?: boolean
   lastMessageAt?: boolean
+  pinnedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   teamLastReadMessageId?: boolean
@@ -1621,6 +1685,7 @@ export type ConversationSelectScalar = {
   contactId?: boolean
   responsibleUserId?: boolean
   lastMessageAt?: boolean
+  pinnedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   teamLastReadMessageId?: boolean
@@ -1630,7 +1695,7 @@ export type ConversationSelectScalar = {
   awaitingResponseSince?: boolean
 }
 
-export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "contactId" | "responsibleUserId" | "lastMessageAt" | "createdAt" | "updatedAt" | "teamLastReadMessageId" | "teamLastReadAt" | "manualUnreadAt" | "manualUnreadByUserId" | "awaitingResponseSince", ExtArgs["result"]["conversation"]>
+export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "contactId" | "responsibleUserId" | "lastMessageAt" | "pinnedAt" | "createdAt" | "updatedAt" | "teamLastReadMessageId" | "teamLastReadAt" | "manualUnreadAt" | "manualUnreadByUserId" | "awaitingResponseSince", ExtArgs["result"]["conversation"]>
 export type ConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contact?: boolean | Prisma.ContactDefaultArgs<ExtArgs>
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
@@ -1672,6 +1737,7 @@ export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     contactId: string
     responsibleUserId: string | null
     lastMessageAt: Date
+    pinnedAt: Date | null
     createdAt: Date
     updatedAt: Date
     teamLastReadMessageId: string | null
@@ -2114,6 +2180,7 @@ export interface ConversationFieldRefs {
   readonly contactId: Prisma.FieldRef<"Conversation", 'String'>
   readonly responsibleUserId: Prisma.FieldRef<"Conversation", 'String'>
   readonly lastMessageAt: Prisma.FieldRef<"Conversation", 'DateTime'>
+  readonly pinnedAt: Prisma.FieldRef<"Conversation", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"Conversation", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Conversation", 'DateTime'>
   readonly teamLastReadMessageId: Prisma.FieldRef<"Conversation", 'String'>

@@ -11,6 +11,7 @@ import type {
   ConversationListItem,
   ConversationListResult,
   MessageDto,
+  PinnedConversationStateDto,
   SharedConversationStateDto,
 } from "@/modules/conversations/types";
 import type { MessageContextDto } from "@/modules/message-search/types";
@@ -196,6 +197,31 @@ function mergeRefreshedPage(firstPage: ConversationListItem[], current: Conversa
   return [...firstPage, ...current.filter((item) => !refreshedIds.has(item.id))];
 }
 
+function conversationQueueOrder(
+  left: ConversationListItem,
+  right: ConversationListItem,
+) {
+  if (left.pinnedAt && !right.pinnedAt) return -1;
+  if (!left.pinnedAt && right.pinnedAt) return 1;
+  if (left.pinnedAt && right.pinnedAt) {
+    const pinnedOrder = right.pinnedAt.localeCompare(left.pinnedAt);
+    if (pinnedOrder !== 0) return pinnedOrder;
+  }
+  return right.lastMessageAt.localeCompare(left.lastMessageAt) ||
+    right.id.localeCompare(left.id);
+}
+
+function applyPinnedState(
+  items: ConversationListItem[],
+  state: PinnedConversationStateDto,
+) {
+  return items
+    .map((item) => item.id === state.conversationId
+      ? { ...item, pinnedAt: state.pinnedAt, revision: state.revision }
+      : item)
+    .sort(conversationQueueOrder);
+}
+
 function withoutMergedConversations(items: ConversationListItem[], mergedConversationIds: Set<string>) {
   return items.filter((item) => !mergedConversationIds.has(item.id));
 }
@@ -321,6 +347,8 @@ export function useInbox(initialUser: SessionUser) {
   );
   const [markUnreadPendingIds, setMarkUnreadPendingIds] = useState<Set<string>>(() => new Set());
   const [markUnreadErrors, setMarkUnreadErrors] = useState<Map<string, string>>(() => new Map());
+  const [pinPendingIds, setPinPendingIds] = useState<Set<string>>(() => new Set());
+  const [pinError, setPinError] = useState<string | null>(null);
   const searchRef = useRef(search);
   const selectedIdRef = useRef(selectedId);
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
@@ -340,6 +368,7 @@ export function useInbox(initialUser: SessionUser) {
   const hasLoadedAdditionalPages = useRef(false);
   const responsibleRequestPending = useRef(false);
   const markUnreadRequests = useRef(new Map<string, Promise<void>>());
+  const pinRequests = useRef(new Map<string, Promise<void>>());
   const mergedConversationIds = useRef(new Set<string>());
   const handledMerges = useRef(new Set<string>());
 
@@ -823,6 +852,60 @@ export function useInbox(initialUser: SessionUser) {
     return operation;
   }, [fetchConversation, refreshList]);
 
+  const setPinned = useCallback((conversationId: string, pinned: boolean): Promise<void> => {
+    const inFlight = pinRequests.current.get(conversationId);
+    if (inFlight) return inFlight;
+
+    const optimisticTimestamp = pinned ? new Date().toISOString() : null;
+    const optimisticState: PinnedConversationStateDto = {
+      conversationId,
+      pinnedAt: optimisticTimestamp,
+      revision: optimisticTimestamp ?? new Date().toISOString(),
+    };
+    setPinError(null);
+    setPinPendingIds((current) => new Set(current).add(conversationId));
+    setConversations((current) => applyPinnedState(current, optimisticState));
+    setConversation((current) => current?.id === conversationId
+      ? { ...current, pinnedAt: optimisticState.pinnedAt, revision: optimisticState.revision }
+      : current);
+
+    const operation = (async () => {
+      try {
+        const response = await fetch(`/api/conversations/${conversationId}/pin`, {
+          method: "PATCH",
+          headers: { Accept: "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ pinned }),
+        });
+        const state = await readEnvelope<PinnedConversationStateDto>(response);
+        if (!mounted.current) return;
+        setConversations((current) => applyPinnedState(current, state));
+        setConversation((current) => current?.id === conversationId
+          ? { ...current, pinnedAt: state.pinnedAt, revision: state.revision }
+          : current);
+      } catch (error) {
+        if (!mounted.current) return;
+        setPinError(publicErrorMessage("pin", errorStatus(error)));
+        const refreshes: Array<Promise<unknown>> = [refreshList()];
+        if (selectedIdRef.current === conversationId) {
+          refreshes.push(fetchConversation(conversationId, false));
+        }
+        await Promise.all(refreshes);
+      } finally {
+        pinRequests.current.delete(conversationId);
+        if (mounted.current) {
+          setPinPendingIds((current) => {
+            const next = new Set(current);
+            next.delete(conversationId);
+            return next;
+          });
+        }
+      }
+    })();
+
+    pinRequests.current.set(conversationId, operation);
+    return operation;
+  }, [fetchConversation, refreshList]);
+
   const performSend = useCallback((pending: PendingSend, rowId: string): Promise<InboxMessage | null> => {
     const existing = inFlightSends.current.get(pending.clientRequestId);
     if (existing) return existing;
@@ -1174,7 +1257,12 @@ export function useInbox(initialUser: SessionUser) {
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
       return;
     }
-    if (event.type === "responsible.updated" || event.type === "conversation.updated") {
+    if (event.type === "conversation.updated") {
+      void refreshList({ reset: true });
+      if (event.conversationId === selectedIdRef.current) void refreshConversation();
+      return;
+    }
+    if (event.type === "responsible.updated") {
       void refreshList();
       if (event.conversationId === selectedIdRef.current) void refreshConversation();
       return;
@@ -1243,6 +1331,7 @@ export function useInbox(initialUser: SessionUser) {
       inFlightSends.current.clear();
       confirmedSends.current.clear();
       markUnreadRequests.current.clear();
+      pinRequests.current.clear();
       contactTypeSaveRequests.current.clear();
       contactTagSaveRequests.current.clear();
       for (const previewUrl of previewUrls) {
@@ -1285,6 +1374,8 @@ export function useInbox(initialUser: SessionUser) {
     responsiblePending,
     markUnreadPending: selectedId !== null && markUnreadPendingIds.has(selectedId),
     markUnreadError: selectedId === null ? null : markUnreadErrors.get(selectedId) ?? null,
+    pinPendingIds,
+    pinError,
     connected: realtime.connected,
     setSearch: changeSearch,
     openConversation,
@@ -1306,6 +1397,7 @@ export function useInbox(initialUser: SessionUser) {
     reactionStateFor: messageReactions.stateFor,
     markRead,
     markUnread,
+    setPinned,
     setResponsible,
   };
 }

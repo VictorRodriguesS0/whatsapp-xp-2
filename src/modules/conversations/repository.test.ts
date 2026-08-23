@@ -149,7 +149,11 @@ describe("Prisma conversation repository", () => {
           },
         ]),
       },
-      orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
+      orderBy: [
+        { pinnedAt: { sort: "desc", nulls: "last" } },
+        { lastMessageAt: "desc" },
+        { id: "desc" },
+      ],
       take: 51,
       select: {
         contact: {

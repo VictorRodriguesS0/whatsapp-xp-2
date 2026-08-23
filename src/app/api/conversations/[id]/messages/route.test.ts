@@ -34,6 +34,7 @@ describe("conversation history route", () => {
         tags: [],
       },
       responsible: null,
+      pinnedAt: null,
       lastMessageAt: new Date(0).toISOString(),
       latestMessage: null,
       unreadCount: 0,
