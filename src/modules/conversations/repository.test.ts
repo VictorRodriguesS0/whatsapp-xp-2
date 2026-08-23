@@ -206,6 +206,14 @@ describe("Prisma conversation repository", () => {
           OR: [
             { preferredName: { contains: "Loja 2", mode: "insensitive" } },
             { name: { contains: "Loja 2", mode: "insensitive" } },
+            {
+              whatsappAppContact: {
+                is: {
+                  active: true,
+                  fullName: { contains: "Loja 2", mode: "insensitive" },
+                },
+              },
+            },
           ],
         },
       },
