@@ -25,6 +25,7 @@ import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
 
 import type {
   NormalizedMedia,
+  NormalizedContactSyncItem,
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
@@ -50,6 +51,7 @@ type ConversationMerge = {
 export type WebhookRepository = {
   reserveEvent(key: string, eventType: string): Promise<ReservationResult>;
   completeEvent(key: string): Promise<void>;
+  syncAppContact(item: NormalizedContactSyncItem): Promise<boolean>;
   upsertContact(input: {
     whatsappId: string;
     phone: string;
@@ -343,6 +345,7 @@ export function createPrismaWebhookRepository(
       whatsappId: true,
       whatsappUserId: true,
       phone: true,
+      whatsappAppContactId: true,
       conversation: {
         select: {
           id: true,
@@ -360,12 +363,19 @@ export function createPrismaWebhookRepository(
       select,
     });
     if (contacts.length === 0) {
+      const appContact = input.phone
+        ? await client.whatsAppAppContact.findFirst({
+            where: { phone: input.phone, active: true },
+            select: { id: true },
+          })
+        : null;
       const created = await client.contact.create({
         data: {
           whatsappId: input.phone,
           whatsappUserId: input.whatsappUserId,
           phone: input.phone,
           name: input.phone ?? "WhatsApp",
+          whatsappAppContactId: appContact?.id ?? null,
         },
         select: { id: true },
       });
@@ -417,6 +427,7 @@ export function createPrismaWebhookRepository(
     }
 
     let targetConversation = target.conversation;
+    let targetAppContactId = target.whatsappAppContactId;
     const mergedConversations: ConversationMerge[] = [];
     const sources = contacts
       .filter((contact) => contact.id !== target.id)
@@ -447,8 +458,22 @@ export function createPrismaWebhookRepository(
         });
         targetConversation = source.conversation;
       }
+      if (!targetAppContactId && source.whatsappAppContactId) {
+        await client.contact.update({
+          where: { id: source.id },
+          data: { whatsappAppContactId: null },
+        });
+        targetAppContactId = source.whatsappAppContactId;
+      }
       await client.contact.delete({ where: { id: source.id } });
     }
+
+    const activeAppContact = input.phone
+      ? await client.whatsAppAppContact.findFirst({
+          where: { phone: input.phone, active: true },
+          select: { id: true },
+        })
+      : null;
 
     const updated = await client.contact.update({
       where: { id: target.id },
@@ -456,6 +481,7 @@ export function createPrismaWebhookRepository(
         whatsappId: target.whatsappId ?? input.phone,
         phone: target.phone ?? input.phone,
         whatsappUserId: target.whatsappUserId ?? input.whatsappUserId,
+        whatsappAppContactId: targetAppContactId ?? activeAppContact?.id ?? null,
       },
       select: { id: true },
     });
@@ -504,11 +530,76 @@ export function createPrismaWebhookRepository(
         },
       });
     },
-    upsertContact({ whatsappId, phone, name }) {
+    async syncAppContact(item) {
+      const existing = await client.whatsAppAppContact.findUnique({
+        where: { phone: item.phone },
+      });
+      const incomingRank = item.action === "REMOVE" ? 1 : 0;
+      const existingRank = existing?.active === false ? 1 : 0;
+      const ordering = existing
+        ? item.sourceTimestamp.getTime() - existing.sourceTimestamp.getTime() ||
+          incomingRank - existingRank ||
+          item.sourceVersionKey.localeCompare(existing.sourceVersionKey)
+        : 1;
+
+      if (
+        (existing && ordering <= 0) ||
+        (item.action === "REMOVE" &&
+          item.sourceTimestamp.getTime() === 0 &&
+          existing !== null &&
+          existing.sourceTimestamp.getTime() > 0)
+      ) {
+        return false;
+      }
+
+      const stored = existing
+        ? await client.whatsAppAppContact.update({
+            where: { id: existing.id },
+            data: {
+              fullName: item.action === "ADD" ? item.fullName : null,
+              active: item.action === "ADD",
+              sourceTimestamp: item.sourceTimestamp,
+              sourceVersionKey: item.sourceVersionKey,
+            },
+            select: { id: true },
+          })
+        : await client.whatsAppAppContact.create({
+            data: {
+              phone: item.phone,
+              fullName: item.action === "ADD" ? item.fullName : null,
+              active: item.action === "ADD",
+              sourceTimestamp: item.sourceTimestamp,
+              sourceVersionKey: item.sourceVersionKey,
+            },
+            select: { id: true },
+          });
+
+      if (item.action === "ADD") {
+        await client.contact.updateMany({
+          where: { phone: item.phone, whatsappAppContactId: null },
+          data: { whatsappAppContactId: stored.id },
+        });
+      }
+
+      return true;
+    },
+    async upsertContact({ whatsappId, phone, name }) {
+      const appContact = await client.whatsAppAppContact.findFirst({
+        where: { phone, active: true },
+        select: { id: true },
+      });
       return client.contact.upsert({
         where: { whatsappId },
-        create: { whatsappId, phone, name: name ?? phone },
-        update: name ? { name } : {},
+        create: {
+          whatsappId,
+          phone,
+          name: name ?? phone,
+          whatsappAppContactId: appContact?.id ?? null,
+        },
+        update: {
+          ...(name ? { name } : {}),
+          ...(appContact ? { whatsappAppContactId: appContact.id } : {}),
+        },
         select: { id: true },
       });
     },
@@ -683,6 +774,8 @@ function deduplicationKey(
       return `message-echo:${event.whatsappMessageId}`;
     case "messageEchoControl":
       return `message-echo-control:${event.action}:${event.whatsappMessageId}:${event.originalWhatsappMessageId}`;
+    case "contactSyncBatch":
+      return `contact-sync-batch:${event.items[0]?.sourceVersionKey ?? "empty"}`;
   }
 }
 
@@ -863,6 +956,53 @@ export async function processWebhookEvents(
   const summary: ProcessSummary = { processed: 0, duplicates: 0 };
 
   for (const event of events) {
+    if (event.kind === "contactSyncBatch") {
+      summary.quarantined = (summary.quarantined ?? 0) + event.quarantined;
+      let applied = false;
+
+      for (let offset = 0; offset < event.items.length; offset += 250) {
+        const chunk = event.items.slice(offset, offset + 250);
+        const chunkOutcome = await dependencies.transaction(async (repository) => {
+          let processed = 0;
+          let duplicates = 0;
+          let changed = false;
+
+          for (const item of chunk) {
+            const key = `contact-sync:${item.sourceVersionKey}`;
+            const reservation = await repository.reserveEvent(key, event.kind);
+            if (reservation === WebhookStatus.PROCESSED) {
+              duplicates += 1;
+              continue;
+            }
+            if (reservation === WebhookStatus.PROCESSING) {
+              throw new WebhookProcessingError(true, false);
+            }
+            changed = (await repository.syncAppContact(item)) || changed;
+            await repository.completeEvent(key);
+            processed += 1;
+          }
+
+          return { processed, duplicates, changed };
+        });
+
+        summary.processed += chunkOutcome.processed;
+        summary.duplicates += chunkOutcome.duplicates;
+        applied = applied || chunkOutcome.changed;
+      }
+
+      if (applied) {
+        try {
+          dependencies.publishRealtime({
+            type: "contacts.synced",
+            revision: event.items.at(-1)?.sourceVersionKey ?? "empty",
+          });
+        } catch {
+          // Database state is authoritative; clients resynchronize after reconnecting.
+        }
+      }
+      continue;
+    }
+
     const key = deduplicationKey(event);
     const now = dependencies.now?.() ?? new Date();
     let outcome: {
