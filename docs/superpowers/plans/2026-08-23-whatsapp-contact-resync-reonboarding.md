@@ -83,8 +83,8 @@ Run on the KVM through the same SSH target:
 
 ```powershell
 ssh $kvm @'
-docker ps -a --no-trunc --format '{{json .}}' |
-  grep -v '"Names":"xp-whatsapp-app"' |
+docker ps -a --no-trunc --format '{{.ID}}|{{.Names}}|{{.Image}}|{{.State}}' |
+  grep -v '|xp-whatsapp-app|' |
   LC_ALL=C sort |
   sha256sum
 '@
@@ -167,7 +167,7 @@ set -eu
 docker inspect --format '{{.Config.Image}}|{{ index .Config.Labels "org.opencontainers.image.revision" }}|{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}|{{.RestartCount}}|{{.Id}}' xp-whatsapp-app
 docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}|{{.RestartCount}}|{{.Id}}|{{.State.StartedAt}}' xp-whatsapp-database
 curl --fail --silent --show-error http://127.0.0.1:3100/api/health
-docker ps -a --no-trunc --format '{{json .}}' | grep -v '"Names":"xp-whatsapp-app"' | LC_ALL=C sort | sha256sum
+docker ps -a --no-trunc --format '{{.ID}}|{{.Names}}|{{.Image}}|{{.State}}' | grep -v '|xp-whatsapp-app|' | LC_ALL=C sort | sha256sum
 '@
 ```
 
@@ -333,7 +333,7 @@ docker inspect --format '{{.Config.Image}}|{{ index .Config.Labels "org.opencont
 docker inspect --format '{{.State.Status}}|{{if .State.Health}}{{.State.Health.Status}}{{end}}|{{.RestartCount}}|{{.Id}}|{{.State.StartedAt}}' xp-whatsapp-database
 curl --fail --silent --show-error http://127.0.0.1:3100/api/health
 docker exec xp-whatsapp-database sh -lc 'psql -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -Atc "SELECT COUNT(*) FROM \"_prisma_migrations\" WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL; SELECT COUNT(*) FROM \"_prisma_migrations\" WHERE finished_at IS NULL; SELECT COUNT(*) FROM \"_prisma_migrations\" WHERE rolled_back_at IS NOT NULL;"'
-docker ps -a --no-trunc --format '{{json .}}' | grep -v '"Names":"xp-whatsapp-app"' | LC_ALL=C sort | sha256sum
+docker ps -a --no-trunc --format '{{.ID}}|{{.Names}}|{{.Image}}|{{.State}}' | grep -v '|xp-whatsapp-app|' | LC_ALL=C sort | sha256sum
 '@
 Invoke-WebRequest -UseBasicParsing -Uri 'https://whatsapp.xpeletronicos.com/api/health' | Select-Object StatusCode,Content
 ```
