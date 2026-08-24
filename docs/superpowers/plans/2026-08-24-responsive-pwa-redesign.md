@@ -612,15 +612,15 @@ git commit -m "feat: redesign the responsive inbox shell"
 - `MessageActions` exposes reply and reaction by hover/focus desktop and by one explicit menu mobile.
 - `MessageTimeline` keeps the existing log, scroll, media and search-target contracts.
 
-- [ ] **Step 1: Write failing header tests**
+- [x] **Step 1: Write failing header tests**
 
 Assert long contact names remain in a `min-w-0` heading container; all controls are 44 px; `Mais opções` contains `Marcar como não lida` and `Abrir dados do cliente`; the pending/error unread state remains announced; and desktop actions retain current accessible names.
 
-- [ ] **Step 2: Write failing message-action tests**
+- [x] **Step 2: Write failing message-action tests**
 
 Cover keyboard focus revealing desktop actions, a mobile `Ações da mensagem` button, menu items `Responder` and `Reagir`, quick emoji selection, focus restoration after close, no action for non-replyable/expired content, and retention of swipe-to-reply as an optional equivalent gesture.
 
-- [ ] **Step 3: Run the tests and verify RED**
+- [x] **Step 3: Run the tests and verify RED**
 
 Run:
 
@@ -630,11 +630,11 @@ npm test -- src/components/inbox/thread-header.test.tsx src/components/inbox/mes
 
 Expected: new module imports fail and current mobile bubbles expose separate floating controls.
 
-- [ ] **Step 4: Extract the thread header**
+- [x] **Step 4: Extract the thread header**
 
 Move the existing `ConversationHeader` without changing async focus guards. Render secondary mobile actions in `DropdownMenu`; keep the search control as the single direct secondary icon. Use CSS to show full desktop actions at 768 px and above.
 
-- [ ] **Step 5: Extract timeline presentation without moving scroll state**
+- [x] **Step 5: Extract timeline presentation without moving scroll state**
 
 Keep scrolling/search/media history state in `ConversationView` initially; `MessageTimeline` receives refs and mapped children so the extraction is presentational and reversible:
 
@@ -649,15 +649,15 @@ type MessageTimelineProps = {
 
 Add a subtle local background pattern using CSS gradients only. It must work in both themes, never be fetched remotely and remain low contrast.
 
-- [ ] **Step 6: Implement one coherent `MessageActions` surface**
+- [x] **Step 6: Implement one coherent `MessageActions` surface**
 
 Move reply/reaction triggers out of the bubble margins. Desktop renders a compact toolbar on hover and `:focus-within`; mobile renders one always-visible 44 px trigger whose menu contains an explicit reply and quick reactions/full picker. Reaction badges remain attached to the bubble. Do not require long press or swipe for any action.
 
-- [ ] **Step 7: Refine bubble geometry and status**
+- [x] **Step 7: Refine bubble geometry and status**
 
 Use inbound/outbound variables, 12–14 px radii with directional corner detail, maximum width `min(78%, 42rem)` desktop and `min(86%, 36rem)` mobile. Keep failures, quoted replies, rich content, media and status copy. Long URLs/media must not overflow.
 
-- [ ] **Step 8: Run the full thread component suite and commit**
+- [x] **Step 8: Run the full thread component suite and commit**
 
 Run:
 
