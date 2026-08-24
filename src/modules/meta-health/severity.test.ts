@@ -99,6 +99,20 @@ describe("Meta health severity", () => {
     });
   });
 
+  it("classifies reconciled phone quality transitions", () => {
+    expect(describeMetaTransition("phone_number_quality_update", "RED")).toMatchObject({
+      severity: "CRITICAL",
+      alertCode: "QUALITY_RED",
+      active: true,
+    });
+    expect(describeMetaTransition("phone_number_quality_update", "GREEN")).toMatchObject({
+      severity: "INFO",
+      alertCode: "QUALITY_GREEN",
+      active: false,
+      resolvesCodes: ["QUALITY_YELLOW", "QUALITY_RED"],
+    });
+  });
+
   it("marks positive transitions as informational resolutions", () => {
     expect(
       describeMetaTransition("phone_number_quality_update", "UNFLAGGED"),

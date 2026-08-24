@@ -145,6 +145,24 @@ transition(
   "ONBOARDING",
   info("PHONE_QUALITY", "Número conectado à Meta", "PHONE_ONBOARDING"),
 );
+transition(
+  "phone_number_quality_update",
+  "YELLOW",
+  attention("PHONE_QUALITY", "Qualidade do número requer atenção", "QUALITY_YELLOW"),
+);
+transition(
+  "phone_number_quality_update",
+  "RED",
+  critical("PHONE_QUALITY", "Qualidade do número está crítica", "QUALITY_RED"),
+);
+transition(
+  "phone_number_quality_update",
+  "GREEN",
+  info("PHONE_QUALITY", "Qualidade do número está normal", "QUALITY_GREEN", [
+    "QUALITY_YELLOW",
+    "QUALITY_RED",
+  ]),
+);
 
 transition(
   "account_update",
