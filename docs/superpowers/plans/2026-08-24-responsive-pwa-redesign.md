@@ -837,11 +837,11 @@ git commit -m "feat: redesign settings and public screens"
 - Produces: one source-level release contract ensuring theme, manifest, breakpoints, mobile cards and no service worker coexist.
 - Produces: local visual evidence for every required viewport/theme without real customer data.
 
-- [ ] **Step 1: Add a combined release contract**
+- [x] **Step 1: Add a combined release contract**
 
 Use file reads similar to existing integrated release tests. Require `ThemeProvider`, `manifest`, `standalone`, `xp-maskable-512.png`, `max-width: 767px`, the desktop clamp values, `ResponsiveSettingsList`, `safe-area-inset-bottom`, and absence of `public/sw.js`/Workbox registration.
 
-- [ ] **Step 2: Run focused and repository-wide automated gates**
+- [x] **Step 2: Run focused and repository-wide automated gates**
 
 Run in this order:
 
@@ -858,11 +858,11 @@ git diff --check
 
 Expected: every command exits 0; build emits `/manifest.webmanifest`; no frontend or backend regression test fails.
 
-- [ ] **Step 3: Serve the exact production build locally**
+- [x] **Step 3: Serve the exact production build locally**
 
 Run `npm run start` with the existing safe local environment and a non-production database. Verify `/login`, `/conversas` after login, `/manifest.webmanifest` and every declared icon respond successfully. Do not point local tests to the production database.
 
-- [ ] **Step 4: Execute the visual viewport matrix in both themes**
+- [x] **Step 4: Execute the visual viewport matrix in both themes**
 
 Using the browser-control skill on the production build and synthetic data, verify and capture:
 
@@ -875,17 +875,17 @@ Using the browser-control skill on the production build and synthetic data, veri
 
 Store only synthetic captures under `docs/verification/screenshots/2026-08-24-responsive-pwa/` with descriptive names. At each width assert `document.documentElement.scrollWidth === document.documentElement.clientWidth` unless a component intentionally owns internal horizontal media controls.
 
-- [ ] **Step 5: Run accessibility and installability checks**
+- [x] **Step 5: Run accessibility and installability checks**
 
 Verify complete keyboard flows, visible focus, Escape/back layering, focus restoration, 200% zoom, reduced motion, theme contrast and named live regions. Run Lighthouse accessibility/best-practices audits on login and the authenticated inbox with the browser's local profile; target no accessibility failure and investigate every remaining manual item.
 
 In a fresh Chromium/Edge profile, inspect Application → Manifest, confirm all icons load, `display: standalone`, `start_url`, scope and no registered service worker/cache. Confirm the native install action appears over HTTPS or the browser documents the platform-specific Add to Home Screen path. Do not introduce a cache merely to satisfy a deprecated PWA score.
 
-- [ ] **Step 6: Smoke all existing functional flows**
+- [x] **Step 6: Smoke all existing functional flows**
 
 With synthetic records: login/logout, list search, message search, open/back, details, responsible/type/tags, send text, file, recording, reply, retry, reaction, gallery, pin/unread, settings mutations, SSE reconnect and Meta health. Check console and failed network requests after each family.
 
-- [ ] **Step 7: Record factual evidence and commit**
+- [x] **Step 7: Record factual evidence and commit**
 
 Write test counts, build result, viewport/theme matrix, Lighthouse results, manifest/icon checks, no-service-worker proof, console/network status and any accepted non-blocking limitation. Never record credentials, tokens, customer names, phones or message bodies.
 
