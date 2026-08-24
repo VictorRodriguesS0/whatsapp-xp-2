@@ -1,25 +1,66 @@
 @import "tailwindcss";
 
-:root {
-  --canvas: #f3f1ec;
-  --panel: #fbfaf7;
-  --text: #202522;
-  --muted: #6d746f;
-  --border: #ddd9d1;
-  --accent: #176b52;
-  --accent-hover: #125a45;
-  --selected: #e8eee9;
+:root,
+:root[data-theme="light"] {
+  --xp-black: #050505;
+  --xp-cyan: #00d7e8;
+  --xp-orange: #ffad00;
+  --xp-violet: #7238ff;
+  --xp-magenta: #ff009f;
+  --xp-blue: #087dff;
+  --xp-gradient: linear-gradient(110deg, #ffad00 0%, #ff009f 30%, #7238ff 55%, #087dff 76%, #00d7e8 100%);
+  --canvas: #eef2f6;
+  --panel: #ffffff;
+  --surface: #f7f9fb;
+  --surface-elevated: #ffffff;
+  --text: #101114;
+  --muted: #5d6673;
+  --border: #dce2e9;
+  --accent: #087dff;
+  --accent-hover: #066bdc;
+  --focus: #087dff;
+  --selected: #e8f2ff;
   --inbound: #ffffff;
-  --outbound: #dff1e8;
-  --danger: #b4443c;
+  --outbound: #e7f5ef;
+  --channel: #168b61;
+  --danger: #c23b3b;
   --danger-hover: #963932;
-  --warning: #f4ecd2;
-  --search-mark: #f3dc85;
+  --warning: #fff3cf;
+  --success: #e4f5ec;
+  --search-mark: #ffe38a;
   color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --canvas: #0b0d10;
+  --panel: #111419;
+  --surface: #181c22;
+  --surface-elevated: #1e232b;
+  --text: #f5f7fa;
+  --muted: #a9b2bf;
+  --border: #2a3039;
+  --accent: #5aa7ff;
+  --accent-hover: #80bbff;
+  --focus: #75c8ff;
+  --selected: #162b46;
+  --inbound: #1b2027;
+  --outbound: #15342d;
+  --channel: #5dd3a5;
+  --danger: #ff7b7b;
+  --danger-hover: #ff9b9b;
+  --warning: #3a3018;
+  --success: #163729;
+  --search-mark: #6b581d;
+  color-scheme: dark;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  min-inline-size: 20rem;
+  scrollbar-gutter: stable both-edges;
 }
 
 html,
@@ -31,9 +72,24 @@ body {
   margin: 0;
   background: var(--canvas);
   color: var(--text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-size: 15px;
+  font-family: var(--font-geist), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
   text-rendering: optimizeLegibility;
+}
+
+img,
+video,
+canvas,
+svg,
+iframe {
+  max-width: 100%;
+}
+
+img,
+video,
+canvas {
+  height: auto;
 }
 
 button,
@@ -46,6 +102,16 @@ select {
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::selection {
+  background: var(--selected);
+  color: var(--text);
 }
 
 .inbox-grid {
