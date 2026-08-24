@@ -690,11 +690,11 @@ git commit -m "feat: refine responsive conversation interactions"
 - Composer remains visible with `100dvh`, does not force horizontal scroll, and gives text input the flexible width.
 - Desktop contact inspector remains in the third pane; tablet/mobile use the same content in a focus-restoring drawer.
 
-- [ ] **Step 1: Write failing layout contracts**
+- [x] **Step 1: Write failing layout contracts**
 
 Assert the composer root has a stable class/data hook for safe-area styling, the textarea uses `bg-[var(--surface-elevated)]` instead of hard-coded white, attachment/record/send targets remain 44 px, and preview/audio/file states wrap below 390 px. Assert the inspector drawer title, close action, focus restoration and long contact/tag wrapping.
 
-- [ ] **Step 2: Run focused tests and verify RED**
+- [x] **Step 2: Run focused tests and verify RED**
 
 Run:
 
@@ -704,7 +704,7 @@ npm test -- src/components/inbox/message-composer.test.tsx src/components/inbox/
 
 Expected: safe-area/data-hook assertions fail.
 
-- [ ] **Step 3: Implement safe-area and keyboard-safe composer CSS**
+- [x] **Step 3: Implement safe-area and keyboard-safe composer CSS**
 
 ```css
 .message-composer {
@@ -720,11 +720,11 @@ Expected: safe-area/data-hook assertions fail.
 
 Use `position: relative`, not globally fixed, so the flex thread handles virtual-keyboard viewport resizing. Preserve every recorder and quick-reply focus contract.
 
-- [ ] **Step 4: Refine inspector content**
+- [x] **Step 4: Refine inspector content**
 
 Use a branded contact header, semantic sections with compact separators, masked/wrapped phone, type/tag text accompanying color, and full-width mobile action buttons where needed. Do not duplicate fetch/state logic between pane and drawer.
 
-- [ ] **Step 5: Run composer, inspector, and audio regressions**
+- [x] **Step 5: Run composer, inspector, and audio regressions**
 
 Run:
 
@@ -734,7 +734,7 @@ npm test -- src/components/inbox/message-composer.test.tsx src/components/inbox/
 
 Expected: PASS; text, file, audio, reply draft, Escape and focus restoration all remain functional.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```powershell
 git add src/components/inbox/message-composer.tsx src/components/inbox/message-composer.test.tsx src/components/inbox/quick-reply-menu.tsx src/components/inbox/customer-panel.tsx src/components/inbox/customer-panel.test.tsx src/components/inbox/inbox-shell.tsx src/components/inbox/inbox-shell.test.tsx src/components/ui/dialog.tsx src/app/globals.css
