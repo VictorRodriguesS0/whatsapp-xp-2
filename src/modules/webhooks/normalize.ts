@@ -10,13 +10,15 @@ import type {
   NormalizedMedia,
   NormalizedContactSyncBatchEvent,
   NormalizedContactSyncItem,
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMessageMutationEvent,
   NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
+  NormalizedTemplateQualityEvent,
+  NormalizedTemplateStatusEvent,
   NormalizedWebhookEvent,
 } from "./types";
 import type { MetaOperationalField } from "@/modules/meta-health/types";
@@ -183,7 +185,10 @@ function parseEntryTimestamp(value: unknown): Date | null {
 }
 
 function exactOperationalValue(value: unknown, maximum = 256): string | null {
-  const cleaned = exactIdentifier(value, maximum);
+  const cleaned =
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+      ? String(value)
+      : exactIdentifier(value, maximum);
   return cleaned && /^[A-Za-z0-9+._:-]+$/u.test(cleaned) ? cleaned : null;
 }
 
@@ -664,10 +669,92 @@ function normalizeUnknownContent(message: UnknownRecord): MessageContent | null 
   return parseMessageContent({ kind: "unknown", rawType: message.type });
 }
 
+function normalizeMutationReplacement(
+  control: UnknownRecord,
+): { body: string | null; content: MessageContent | null } | null {
+  const replacement = record(control.message);
+  const rawType = exactBoundedProviderString(replacement?.type, 64);
+
+  if (!replacement || !rawType) return null;
+
+  if (rawType === "text") {
+    const text = record(replacement.text);
+    const body = strictCleanString(text?.body, 4096, { trim: false });
+    return text && body ? { body, content: null } : null;
+  }
+
+  if (rawType === "image" || rawType === "video" || rawType === "document") {
+    const media = record(replacement[rawType]);
+    if (
+      !media ||
+      !hasOwn(media, "caption") ||
+      typeof media.caption !== "string" ||
+      media.caption.length > 4096
+    ) {
+      return null;
+    }
+
+    return {
+      body: cleanString(media.caption, 4096, { trim: false }),
+      content: null,
+    };
+  }
+
+  return null;
+}
+
+function normalizeMessageMutation(input: {
+  message: UnknownRecord;
+  action: "edit" | "revoke";
+  providerEventId: string;
+  timestamp: { date: Date; raw: string };
+  identity: NormalizedMessageMutationEvent["identity"];
+  origin: NormalizedMessageMutationEvent["origin"];
+}): NormalizedMessageMutationEvent | null {
+  const control = record(input.message[input.action]);
+  const originalWhatsappMessageId = exactIdentifier(
+    control?.original_message_id,
+    512,
+  );
+
+  if (!control || !originalWhatsappMessageId) return null;
+
+  if (input.action === "revoke") {
+    if (hasOwn(control, "message")) return null;
+    return {
+      kind: "messageMutation",
+      action: "REVOKE",
+      providerEventId: input.providerEventId,
+      originalWhatsappMessageId,
+      timestamp: input.timestamp.date,
+      timestampRaw: input.timestamp.raw,
+      body: null,
+      content: null,
+      identity: input.identity,
+      origin: input.origin,
+    };
+  }
+
+  const replacement = normalizeMutationReplacement(control);
+  if (!replacement) return null;
+
+  return {
+    kind: "messageMutation",
+    action: "EDIT",
+    providerEventId: input.providerEventId,
+    originalWhatsappMessageId,
+    timestamp: input.timestamp.date,
+    timestampRaw: input.timestamp.raw,
+    ...replacement,
+    identity: input.identity,
+    origin: input.origin,
+  };
+}
+
 function normalizeMessage(
   candidate: unknown,
   contactNames: Map<string, string>,
-): NormalizedMessageEvent | NormalizedReactionEvent | null {
+): NormalizedMessageEvent | NormalizedMessageMutationEvent | NormalizedReactionEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const from = whatsappUserId(message?.from);
@@ -676,6 +763,22 @@ function normalizeMessage(
 
   if (!message || !whatsappMessageId || !from || !rawType || !parsedTimestamp) {
     return null;
+  }
+
+  if (rawType === "edit" || rawType === "revoke") {
+    const hasUserId = hasOwn(message, "from_user_id");
+    const whatsappUserId = hasUserId
+      ? businessScopedUserId(message.from_user_id)
+      : null;
+    if (hasUserId && !whatsappUserId) return null;
+    return normalizeMessageMutation({
+      message,
+      action: rawType,
+      providerEventId: whatsappMessageId,
+      timestamp: parsedTimestamp,
+      identity: { phone: from, whatsappUserId },
+      origin: "CONTACT",
+    });
   }
 
   if (rawType === "reaction") {
@@ -853,7 +956,7 @@ function normalizeContactSyncBatch(value: UnknownRecord): NormalizedContactSyncB
 
 function normalizeMessageEcho(
   candidate: unknown,
-): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | NormalizedReactionEchoEvent | null {
+): NormalizedMessageEchoEvent | NormalizedMessageMutationEvent | NormalizedReactionEchoEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const hasLegacyRecipient = message ? hasOwn(message, "to") : false;
@@ -881,28 +984,14 @@ function normalizeMessageEcho(
   }
 
   if (rawType === "edit" || rawType === "revoke") {
-    const control = record(message[rawType]);
-    const originalWhatsappMessageId = exactIdentifier(
-      control?.original_message_id,
-      512,
-    );
-
-    if (!control || !originalWhatsappMessageId) {
-      return null;
-    }
-
-    return {
-      kind: "messageEchoControl",
-      action: rawType === "edit" ? "EDIT" : "REVOKE",
-      whatsappMessageId,
-      originalWhatsappMessageId,
-      to,
-      toUserId,
-      toParentUserId,
-      timestamp: parsedTimestamp.date,
-      timestampRaw: parsedTimestamp.raw,
+    return normalizeMessageMutation({
+      message,
+      action: rawType,
+      providerEventId: whatsappMessageId,
+      timestamp: parsedTimestamp,
+      identity: { phone: to, whatsappUserId: toUserId },
       origin: "WHATSAPP_BUSINESS_APP",
-    };
+    });
   }
 
   if (rawType === "reaction") {
@@ -1044,6 +1133,74 @@ function normalizeStatus(candidate: unknown): NormalizedStatusEvent | null {
   };
 }
 
+function exactEntryTime(value: unknown): string | null {
+  if (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  ) {
+    return String(value);
+  }
+  return typeof value === "string" && /^\d{1,16}$/u.test(value)
+    ? value
+    : null;
+}
+
+function templateIdentity(value: UnknownRecord) {
+  const rawMetaTemplateId = value.message_template_id;
+  const metaTemplateId =
+    typeof rawMetaTemplateId === "number" &&
+    Number.isSafeInteger(rawMetaTemplateId) &&
+    rawMetaTemplateId >= 0
+      ? String(rawMetaTemplateId)
+      : exactIdentifier(rawMetaTemplateId, 256);
+  const name = exactIdentifier(value.message_template_name, 512);
+  const language = exactIdentifier(value.message_template_language, 32);
+  if (
+    !metaTemplateId ||
+    !name ||
+    !language ||
+    !/^\d{1,256}$/u.test(metaTemplateId) ||
+    !/^[a-z0-9_]{1,512}$/u.test(name) ||
+    !/^[a-z]{2}_[A-Z]{2}$/u.test(language)
+  ) {
+    throw new WebhookPayloadError();
+  }
+  return { metaTemplateId, name, language };
+}
+
+function templateToken(value: unknown, maximum: number): string {
+  const token = exactIdentifier(value, maximum);
+  if (!token || !/^[A-Z][A-Z0-9_]*$/u.test(token)) {
+    throw new WebhookPayloadError();
+  }
+  return token;
+}
+
+function normalizeTemplateStatus(
+  value: UnknownRecord,
+  entryTimeRaw: string,
+): NormalizedTemplateStatusEvent {
+  return {
+    kind: "templateStatus",
+    ...templateIdentity(value),
+    status: templateToken(value.event, 64),
+    entryTimeRaw,
+  };
+}
+
+function normalizeTemplateQuality(
+  value: UnknownRecord,
+  entryTimeRaw: string,
+): NormalizedTemplateQualityEvent {
+  return {
+    kind: "templateQuality",
+    ...templateIdentity(value),
+    qualityScore: templateToken(value.new_quality_score, 32),
+    entryTimeRaw,
+  };
+}
+
 export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
   const root = record(payload);
 
@@ -1075,12 +1232,39 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         throw new WebhookPayloadError();
       }
 
+      const value = record(change.value);
+
+      if (field === "message_template_status_update") {
+        const wabaId = exactOperationalValue(entry.id, 256);
+        const occurredAt = parseEntryTimestamp(entry.time);
+        const entryTimeRaw = exactEntryTime(entry.time);
+        if (!wabaId || !occurredAt || !entryTimeRaw || !value) {
+          throw new WebhookPayloadError();
+        }
+        const operational = normalizeMetaOperational(
+          field,
+          value,
+          wabaId,
+          occurredAt,
+        );
+        if (!operational) throw new WebhookPayloadError();
+        events.push(
+          operational,
+          normalizeTemplateStatus(value, entryTimeRaw),
+        );
+        continue;
+      }
+
       if (isOperationalField(field)) {
         const wabaId = exactOperationalValue(entry.id, 256);
         const occurredAt = parseEntryTimestamp(entry.time);
-        const value = record(change.value);
         if (!wabaId || !occurredAt || !value) throw new WebhookPayloadError();
-        const normalized = normalizeMetaOperational(field, value, wabaId, occurredAt);
+        const normalized = normalizeMetaOperational(
+          field,
+          value,
+          wabaId,
+          occurredAt,
+        );
         if (!normalized) throw new WebhookPayloadError();
         events.push(normalized);
         continue;
@@ -1089,15 +1273,22 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
       if (
         field !== "messages" &&
         field !== "smb_message_echoes" &&
-        field !== "smb_app_state_sync"
+        field !== "smb_app_state_sync" &&
+        field !== "message_template_status_update" &&
+        field !== "message_template_quality_update"
       ) {
         continue;
       }
 
-      const value = record(change.value);
-
       if (!value) {
         throw new WebhookPayloadError();
+      }
+
+      if (field === "message_template_quality_update") {
+        const entryTimeRaw = exactEntryTime(entry.time);
+        if (!entryTimeRaw) throw new WebhookPayloadError();
+        events.push(normalizeTemplateQuality(value, entryTimeRaw));
+        continue;
       }
 
       if (field === "smb_app_state_sync") {

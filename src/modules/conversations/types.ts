@@ -1,4 +1,5 @@
 import type {
+  ConversationResumptionStatus,
   MediaStatus,
   MessageDirection,
   MessageStatus,
@@ -7,6 +8,7 @@ import type {
   ReactionStatus,
 } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
+import type { ServiceWindowDto } from "@/modules/messaging-policy/types";
 import type { QuotedReplyDto } from "@/modules/messages/reply-context";
 
 export const MAX_MEDIA_DOWNLOAD_ATTEMPTS = 5;
@@ -31,6 +33,7 @@ export type ContactDto = {
   preferredName: string | null;
   name: string;
   phone: string;
+  messagingRestricted: boolean;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };
@@ -48,6 +51,7 @@ export type ConversationContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
+  messagingOptOutAt: Date | null;
   whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactType: ContactClassificationRecord | null;
   tagAssignments: Array<{ tag: ContactClassificationRecord }>;
@@ -77,6 +81,7 @@ export type QuotedReplyRecord = {
   content: unknown;
   sentByUser: ConversationUserRecord | null;
   mediaObject: { originalFilename: string } | null;
+  revokedAt?: Date | null;
 };
 
 export function toMediaStateDto(
@@ -116,6 +121,7 @@ export type MessageRecord = {
   sentByUser: ConversationUserRecord | null;
   status: MessageStatus;
   failureReason: string | null;
+  editedAt?: Date | null;
   revokedAt: Date | null;
   reactions: MessageReactionRecord[];
   externalTimestamp: Date;
@@ -153,6 +159,7 @@ export type MessageDto = {
   sentBy: ResponsibleUserDto | null;
   status: MessageStatus;
   failureReason: string | null;
+  editedAt?: string | null;
   revokedAt: string | null;
   reactions: ReactionDto[];
   externalTimestamp: string;
@@ -172,7 +179,25 @@ export type ConversationListRecord = {
   teamLastReadMessageId: string | null;
   teamLastReadAt: Date | null;
   manualUnreadAt: Date | null;
-  awaitingResponseSince: Date | null;
+  lastCustomerMessageAt: Date | null;
+  lastCustomerMessageId: string | null;
+  pendingCustomerMessageId: string | null;
+  awaitingCustomerSince: Date | null;
+  confirmingResumptions: Array<{
+    sourceMessageId: string;
+    status: ConversationResumptionStatus;
+    reservationUntil: Date | null;
+    hasBlockingAttempt?: boolean;
+  }>;
+};
+
+export type ServiceWindowPolicyContext = {
+  enforcement: "INACTIVE" | "ACTIVE";
+  resumptionTemplate: {
+    templateName: string;
+    language: string;
+    bodyText: string;
+  } | null;
 };
 
 export type ConversationDetailRecord = ConversationListRecord & {
@@ -191,8 +216,8 @@ export type ConversationListItem = {
   unreadCount: number;
   manuallyUnread: boolean;
   manualUnreadRevision: string | null;
-  awaitingResponseSince: string | null;
   revision: string;
+  serviceWindow: ServiceWindowDto;
 };
 
 export type ConversationDetail = ConversationListItem & {
@@ -251,7 +276,6 @@ export type SharedConversationStateDto = {
   unreadCount: number;
   manuallyUnread: boolean;
   manualUnreadRevision: string | null;
-  awaitingResponseSince: string | null;
   revision: string;
 };
 
@@ -268,6 +292,9 @@ export type ConversationPinRecord = {
 };
 
 export type ConversationRepository = {
+  getServiceWindowPolicyContext(
+    now: Date,
+  ): Promise<ServiceWindowPolicyContext>;
   list(
     userId: string,
     query: ConversationListQuery,

@@ -10,5 +10,8 @@ export function canReplyToMessage(
   message: InboxMessage,
   onReply?: (message: InboxMessage) => void,
 ) {
-  return message.canReply && !isMessageExpired(message) && Boolean(onReply);
+  return !message.revokedAt
+    && message.canReply
+    && !isMessageExpired(message)
+    && Boolean(onReply);
 }

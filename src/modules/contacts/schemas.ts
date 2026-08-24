@@ -12,6 +12,11 @@ const positionSchema = z.number().int().min(0).max(10_000);
 export const contactIdSchema = uuidSchema;
 export const contactDefinitionIdSchema = uuidSchema;
 
+export const contactMessagingRestrictionSchema = z.strictObject({
+  restricted: z.boolean(),
+  reason: z.string().trim().min(3).max(240),
+});
+
 export const updateContactSchema = z
   .object({
     preferredName: preferredNameSchema.nullable().optional(),
@@ -45,6 +50,9 @@ export const updateContactDefinitionSchema = z
   });
 
 export type UpdateContactInput = z.infer<typeof updateContactSchema>;
+export type ContactMessagingRestrictionInput = z.infer<
+  typeof contactMessagingRestrictionSchema
+>;
 export type CreateContactDefinitionInput = z.infer<
   typeof createContactDefinitionSchema
 >;

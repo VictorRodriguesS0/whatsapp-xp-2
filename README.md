@@ -251,7 +251,29 @@ O rollback desta função recria somente `xp-whatsapp-app` com a imagem anterior
 
 ### Janela de atendimento de 24 horas
 
-Mensagens livres de atendimento só podem ser enviadas dentro da janela de 24 horas após a última mensagem do cliente. Fora dela, a Meta exige template aprovado e pode recusar o envio. Este MVP registra a falha retornada, mas não implementa seleção/envio de templates. Não tente contornar a política; responda após nova mensagem do cliente ou implemente templates oficiais em uma evolução controlada.
+Mensagens livres de atendimento só podem ser enviadas dentro da janela de 24 horas após a última mensagem do cliente. A aplicação considera a janela aberta somente enquanto o instante do envio é estritamente anterior a `lastCustomerMessageAt + 24 horas`; no instante exato do limite ela está encerrada. O servidor calcula essa decisão com o timestamp autoritativo recebido da Meta. Texto, resposta rápida, resposta citada, áudio, imagem, vídeo e documento passam pelo mesmo bloqueio servidor quando a proteção está ativa.
+
+Fora da janela, a continuação usa exclusivamente um template aprovado pela Meta. O template não reabre sozinho a janela para mensagens livres: é necessário o cliente responder. A retomada automática desta aplicação é deliberadamente restrita a uma solicitação recebida do cliente que continua sem resposta da empresa. Uma resposta pela central ou pelo aplicativo WhatsApp Business no celular encerra essa pendência para todos os atendentes. Isso não constitui autorização para marketing, campanha, prospecção ou contato recorrente.
+
+Crie manualmente no Gerenciador do WhatsApp da Meta um template de texto compatível com a finalidade de continuidade de atendimento. Configuração inicial esperada:
+
+- nome técnico: `retomar_atendimento`;
+- idioma: `pt_BR`;
+- texto: `Olá, {{1}}! A XP Eletrônicos está retomando o atendimento que você iniciou. Podemos continuar por aqui?`;
+- uma única variável textual no corpo, usada para o nome seguro do contato.
+
+A categoria, o nome e o texto realmente utilizáveis continuam sujeitos à aprovação da Meta. A aplicação não cria nem presume aprovação. Depois da aprovação, um administrador acessa **Configurações > WhatsApp**, sincroniza os modelos da conta oficial, confere status, idioma, texto e quantidade de parâmetros, seleciona o modelo de retomada e só então ativa a proteção. A ativação falha fechada se a sincronização estiver ausente/desatualizada ou se o modelo estiver não aprovado, incompatível ou indisponível.
+
+A publicação ocorre em duas etapas:
+
+1. publique migration, APIs e interface com `WhatsAppPolicyConfiguration.mode=INACTIVE`; confirme health, webhooks, eco do celular, leitura compartilhada e ausência de impacto nos demais sistemas;
+2. somente depois de sincronizar e selecionar um template `pt_BR` aprovado, ative manualmente o modo `ACTIVE` na tela administrativa e valide o fluxo com um contato controlado.
+
+No modo `INACTIVE`, a nova proteção local ainda não bloqueia texto livre; isso não altera nem contorna uma eventual recusa da própria Meta. No modo `ACTIVE`, a interface remove o compositor fora da janela e o servidor continua sendo a barreira autoritativa. O comando **Não contatar** prevalece sobre qualquer elegibilidade e exige motivo auditável. A retirada da restrição também é uma ação administrativa explícita.
+
+Se um envio tiver resultado desconhecido, investigue o webhook e a auditoria; não repita automaticamente nem faça retry cego, porque a Meta pode ter aceitado a primeira tentativa. Se a sincronização falhar, preserve o último cache válido e não ative com dados antigos. Para desarme imediato, volte a configuração a `INACTIVE`. Para rollback de código, recrie somente `xp-whatsapp-app` com a imagem anterior compatível; mantenha o schema aditivo, o histórico e as migrations aplicadas. Não recrie PostgreSQL, Caddy, volumes, redes, assinatura Meta ou containers de outros sistemas.
+
+Antes de cada etapa, registre a auditoria dos trabalhos paralelos, revisão candidata, revisão atualmente implantada, digest das imagens e snapshot dos containers non-app. O registro preparatório e os campos de aceite da etapa 1 ficam em `docs/verification/2026-08-23-whatsapp-service-window-stage-1.md`.
 
 ### Testes reais mínimos
 

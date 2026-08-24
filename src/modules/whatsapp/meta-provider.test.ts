@@ -8,10 +8,251 @@ import { MetaWhatsAppProvider, WhatsAppProviderError } from "./meta-provider";
 const config = {
   version: "v23.0",
   phoneNumberId: "123",
+  businessAccountId: "waba/123",
   accessToken: "secret-token",
 };
 
+function providerTemplate(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "template-meta-id",
+    name: " retomar_atendimento ",
+    language: " pt_BR ",
+    category: " UTILITY ",
+    status: " APPROVED ",
+    quality_score: { score: " GREEN " },
+    components: [
+      { type: " BODY ", text: " Olá, {{1}}! Podemos continuar? " },
+      { type: "FOOTER", text: "XP Eletrônicos" },
+    ],
+    ...overrides,
+  };
+}
+
 describe("Meta WhatsApp provider", () => {
+  it("lists bounded templates through the encoded WABA endpoint and local cursor pagination", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          data: [providerTemplate()],
+          paging: {
+            cursors: { after: "cursor +/=" },
+            next: "https://evil.example/steal-token",
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: [
+            providerTemplate({
+              id: "second-id",
+              name: "segundo_template",
+              quality_score: "YELLOW",
+              components: [{ type: "BODY", format: "TEXT", text: "Oi" }],
+            }),
+          ],
+          paging: { cursors: {} },
+        }),
+      );
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      fetchMock,
+    );
+
+    await expect(provider.listTemplates()).resolves.toEqual([
+      {
+        metaId: "template-meta-id",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        category: "UTILITY",
+        status: "APPROVED",
+        qualityScore: "GREEN",
+        components: [
+          { type: "BODY", format: null, text: "Olá, {{1}}! Podemos continuar?" },
+          { type: "FOOTER", format: null, text: "XP Eletrônicos" },
+        ],
+      },
+      {
+        metaId: "second-id",
+        name: "segundo_template",
+        language: "pt_BR",
+        category: "UTILITY",
+        status: "APPROVED",
+        qualityScore: "YELLOW",
+        components: [{ type: "BODY", format: "TEXT", text: "Oi" }],
+      },
+    ]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const call of fetchMock.mock.calls) {
+      expect(call[1]).toMatchObject({
+        headers: { Authorization: "Bearer secret-token" },
+        signal: expect.any(AbortSignal),
+      });
+      expect(call[1]?.method).toBeUndefined();
+    }
+    const first = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(`${first.origin}${first.pathname}`).toBe(
+      "https://graph.facebook.com/v23.0/waba%2F123/message_templates",
+    );
+    expect(Object.fromEntries(first.searchParams)).toEqual({
+      fields: "id,name,status,category,language,quality_score,components",
+      limit: "100",
+    });
+    const second = new URL(String(fetchMock.mock.calls[1]![0]));
+    expect(second.origin).toBe("https://graph.facebook.com");
+    expect(second.pathname).toBe("/v23.0/waba%2F123/message_templates");
+    expect(second.searchParams.get("after")).toBe("cursor +/=");
+  });
+
+  it("rejects repeated cursors and pagination beyond twenty pages", async () => {
+    const repeatedFetch = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        Response.json({ data: [], paging: { cursors: { after: "same" } } }),
+      );
+    const repeated = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      repeatedFetch,
+    );
+
+    await expect(repeated.listTemplates()).rejects.toMatchObject({
+      kind: "unknown",
+      graphCode: null,
+    });
+    expect(repeatedFetch).toHaveBeenCalledTimes(2);
+
+    let page = 0;
+    const endlessFetch = vi.fn<typeof fetch>().mockImplementation(async () => {
+      page += 1;
+      return Response.json({
+        data: [],
+        paging: { cursors: { after: `cursor-${page}` } },
+      });
+    });
+    const endless = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      endlessFetch,
+    );
+    await expect(endless.listTemplates()).rejects.toMatchObject({ kind: "unknown" });
+    expect(endlessFetch).toHaveBeenCalledTimes(20);
+  });
+
+  it("rejects a synchronization result above two thousand templates", async () => {
+    const data = Array.from({ length: 2_001 }, (_, index) => ({
+      id: `id-${index}`,
+      name: `template_${index}`,
+      language: "pt_BR",
+      category: "UTILITY",
+      status: "APPROVED",
+      components: [],
+    }));
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(Response.json({ data }));
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      fetchMock,
+    );
+
+    await expect(provider.listTemplates()).rejects.toMatchObject({
+      kind: "unknown",
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ["malformed JSON", new TextEncoder().encode("{")],
+    ["malformed UTF-8", Uint8Array.from([0xc3, 0x28])],
+  ])("rejects %s in a template page", async (_label, body) => {
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      async () => new Response(body),
+    );
+    await expect(provider.listTemplates()).rejects.toMatchObject({ kind: "unknown" });
+  });
+
+  it.each([
+    { paging: {} },
+    { data: "not-an-array" },
+    { data: [providerTemplate({ id: "" })] },
+    { data: [providerTemplate({ id: "x".repeat(257) })] },
+    { data: [providerTemplate({ components: [{ type: "BODY", text: 123 }] })] },
+  ])("rejects a malformed template-list schema %#", async (payload) => {
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      async () => Response.json(payload),
+    );
+    await expect(provider.listTemplates()).rejects.toMatchObject({ kind: "unknown" });
+  });
+
+  it("caps each template page at 512 KiB and applies one total timeout", async () => {
+    let cancelled = false;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array(513 * 1024));
+      },
+      cancel() {
+        cancelled = true;
+      },
+    });
+    const oversized = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      async () => new Response(body),
+    );
+    await expect(oversized.listTemplates()).rejects.toMatchObject({ kind: "unknown" });
+    expect(cancelled).toBe(true);
+
+    const timedOut = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 10 },
+      async (_url, init) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        }),
+    );
+    await expect(timedOut.listTemplates()).rejects.toMatchObject({
+      kind: "unknown",
+      graphCode: null,
+    });
+  });
+
+  it("sends a template with the exact official body-parameter payload", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      Response.json({ messages: [{ id: "wamid.template" }] }),
+    );
+    const provider = new MetaWhatsAppProvider(
+      { ...config, timeoutMs: 1_000 },
+      fetchMock,
+    );
+
+    await expect(
+      provider.sendTemplate({
+        to: "5561999999999",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        bodyParameters: [{ type: "text", text: "Carlos" }],
+      }),
+    ).resolves.toEqual({ whatsappMessageId: "wamid.template", status: "SENT" });
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toEqual({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: "5561999999999",
+      type: "template",
+      template: {
+        name: "retomar_atendimento",
+        language: { code: "pt_BR" },
+        components: [
+          {
+            type: "body",
+            parameters: [{ type: "text", text: "Carlos" }],
+          },
+        ],
+      },
+    });
+  });
+
   it.each(["👍", ""])("sends a Meta reaction while preserving emoji %j", async (emoji) => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({ messaging_product: "whatsapp", messages: [{ id: "wamid.reaction" }] }),
@@ -274,6 +515,7 @@ describe("Meta WhatsApp provider", () => {
     const error = await provider.sendText({ to: "1", body: "x" }).catch((caught: unknown) => caught);
 
     expect(error).toBeInstanceOf(WhatsAppProviderError);
+    expect(error).toMatchObject({ graphCode: "190" });
     expect(String(error)).toContain("Graph 190");
     expect(String(error)).not.toContain(config.accessToken);
     expect(String(error)).not.toContain("\r");
@@ -291,8 +533,8 @@ describe("Meta WhatsApp provider", () => {
       }),
     );
 
-    await expect(rejected.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "rejected" });
-    await expect(unknown.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "unknown" });
+    await expect(rejected.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "rejected", graphCode: "131047" });
+    await expect(unknown.sendText({ to: "1", body: "x" })).rejects.toMatchObject({ kind: "unknown", graphCode: null });
   });
 
   it.each([408, 429, 500, 503])("classifies retryable Graph HTTP %s as unknown for outbound send", async (status) => {
@@ -380,6 +622,16 @@ describe("demo WhatsApp provider", () => {
       .resolves.toEqual({ whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000", status: "SENT" });
     await expect(provider.sendReaction({ to: "1", targetWhatsappMessageId: "wamid.target", emoji: "👍" }))
       .resolves.toEqual({ whatsappMessageId: "demo-reaction-123e4567-e89b-42d3-a456-426614174000", status: "SENT" });
+    await expect(provider.listTemplates()).resolves.toEqual([]);
+    await expect(provider.sendTemplate({
+      to: "1",
+      name: "retomar_atendimento",
+      language: "pt_BR",
+      bodyParameters: [{ type: "text", text: "cliente" }],
+    })).resolves.toEqual({
+      whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000",
+      status: "SENT",
+    });
   });
 });
 

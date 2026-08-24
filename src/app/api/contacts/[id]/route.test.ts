@@ -20,6 +20,7 @@ const contact = {
   preferredName: "Bia",
   name: "Bia",
   phone: "+55 (11) 99999-1234",
+  messagingRestricted: false,
   type: null,
   tags: [],
 };

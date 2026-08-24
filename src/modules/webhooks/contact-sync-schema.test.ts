@@ -10,8 +10,8 @@ describe("WhatsApp Business App contact schema contract", () => {
 
     expect(schema).toContain("model WhatsAppAppContact {");
     expect(schema).toContain('@@map("whatsapp_app_contacts")');
-    expect(schema).toContain(
-      "whatsappAppContactId String?",
+    expect(schema).toMatch(
+      /whatsappAppContactId\s+String\?\s+@unique\s+@map\("whatsapp_app_contact_id"\)\s+@db\.Uuid/u,
     );
     expect(schema).toContain("onDelete: SetNull");
   });

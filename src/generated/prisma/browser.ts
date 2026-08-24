@@ -63,6 +63,11 @@ export type Conversation = Prisma.ConversationModel
  */
 export type Message = Prisma.MessageModel
 /**
+ * Model MessageRevision
+ * 
+ */
+export type MessageRevision = Prisma.MessageRevisionModel
+/**
  * Model MessageReaction
  * 
  */
@@ -107,3 +112,28 @@ export type MetaOperationalAlert = Prisma.MetaOperationalAlertModel
  * 
  */
 export type QuickReply = Prisma.QuickReplyModel
+/**
+ * Model WhatsAppPolicyConfiguration
+ * 
+ */
+export type WhatsAppPolicyConfiguration = Prisma.WhatsAppPolicyConfigurationModel
+/**
+ * Model WhatsAppTemplate
+ * 
+ */
+export type WhatsAppTemplate = Prisma.WhatsAppTemplateModel
+/**
+ * Model WhatsAppTemplateAssignment
+ * 
+ */
+export type WhatsAppTemplateAssignment = Prisma.WhatsAppTemplateAssignmentModel
+/**
+ * Model ConversationResumption
+ * 
+ */
+export type ConversationResumption = Prisma.ConversationResumptionModel
+/**
+ * Model ContactMessagingRestrictionEvent
+ * 
+ */
+export type ContactMessagingRestrictionEvent = Prisma.ContactMessagingRestrictionEventModel

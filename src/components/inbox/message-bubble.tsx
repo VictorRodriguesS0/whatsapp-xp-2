@@ -65,6 +65,7 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const isHighlighted = highlighted || searchHighlighted;
   const outbound = message.direction === "OUTBOUND";
+  const revoked = Boolean(message.revokedAt);
   const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
   const canReply = canReplyToMessage(message, onReply);
@@ -95,7 +96,7 @@ export function MessageBubble({
           data-testid="message-bubble-content"
         >
         {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]" data-reply-swipe-ignore="true">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
-        {message.replyTo ? (
+        {!revoked && message.replyTo ? (
           <div className="mb-2">
             <QuotedReplyPreview
               compact
@@ -104,22 +105,31 @@ export function MessageBubble({
             />
           </div>
         ) : null}
-        <MessageMedia message={message} onOpenMedia={onOpenMedia} />
-        <MessageRichContent message={message} />
-        {message.body ? <p className={cn("whitespace-pre-wrap break-words text-[var(--text)]", message.type !== "TEXT" && "mt-2")} data-reply-swipe-ignore="true">{message.body}</p> : null}
+        {revoked ? (
+          <p className="italic text-[var(--muted)]" data-reply-swipe-ignore="true">
+            Mensagem apagada
+          </p>
+        ) : (
+          <>
+            <MessageMedia message={message} onOpenMedia={onOpenMedia} />
+            <MessageRichContent message={message} />
+            {message.body ? <p className={cn("whitespace-pre-wrap break-words text-[var(--text)]", message.type !== "TEXT" && "mt-2")} data-reply-swipe-ignore="true">{message.body}</p> : null}
+          </>
+        )}
         <div className={cn("mt-1 flex items-center justify-end gap-1 text-[11px] tabular-nums", message.status === "FAILED" ? "text-[var(--danger)]" : "text-[var(--muted)]")} data-reply-swipe-ignore="true">
+          {!revoked && message.editedAt ? <span>editada</span> : null}
           <time dateTime={message.externalTimestamp}>{time}</time>
           {outbound ? <StatusIcon status={message.status} /> : null}
           {outbound ? <span>{statusCopy[message.status]}</span> : null}
         </div>
-        {message.status === "FAILED" ? (
+        {!revoked && message.status === "FAILED" ? (
           <div className="mt-2 border-t border-[color-mix(in_srgb,var(--danger)_22%,transparent)] pt-2" data-reply-swipe-ignore="true">
             <p className="text-xs text-[var(--danger)]">Não foi possível enviar esta mensagem.</p>
             {onRetry && canRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
           </div>
         ) : null}
         </div>
-        {onReact ? (
+        {!revoked && onReact ? (
           <MessageReactions
             message={message}
             mutation={reactionMutation}

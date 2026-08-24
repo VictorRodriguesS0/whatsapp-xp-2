@@ -1,6 +1,7 @@
 import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
+import { ContactMessagingRestrictionAction } from "@/generated/prisma/enums";
 import { formatContactPhone, resolveContactName } from "@/lib/contact-display";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -10,6 +11,7 @@ import type { SessionUser } from "@/modules/auth/session";
 import {
   contactDefinitionIdSchema,
   contactIdSchema,
+  contactMessagingRestrictionSchema,
   contactTagIdsSchema,
   createContactDefinitionSchema,
   updateContactDefinitionSchema,
@@ -20,6 +22,7 @@ import {
 import type {
   ContactClassificationDto,
   ContactDto,
+  ContactMessagingRestrictionDto,
   ContactRecord,
   ContactRepository,
   DefinitionCreateData,
@@ -36,6 +39,8 @@ type PrismaContactRepositoryClient = Pick<
   | "contactType"
   | "contactTagDefinition"
   | "contactTagAssignment"
+  | "contactMessagingRestrictionEvent"
+  | "$queryRaw"
 >;
 
 const definitionSelect = {
@@ -55,6 +60,7 @@ const contactSelect = {
   preferredName: true,
   phone: true,
   whatsappAppContact: { select: { fullName: true, active: true } },
+  messagingOptOutAt: true,
   contactTypeId: true,
   contactType: { select: definitionSelect },
   tagAssignments: { select: { tag: { select: definitionSelect } } },
@@ -76,6 +82,18 @@ function createRepositoryForClient(
       client.contact.findUnique({ where: { id }, select: contactSelect }),
     updateContact: (id, data) =>
       client.contact.update({ where: { id }, data, select: contactSelect }),
+    lockContactForMessagingRestriction: async (id) => {
+      const locked = await client.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM contacts WHERE id = ${id}::uuid FOR UPDATE`,
+      );
+      if (locked.length === 0) return null;
+      return client.contact.findUnique({ where: { id }, select: contactSelect });
+    },
+    updateContactMessagingRestriction: (id, data) =>
+      client.contact.update({ where: { id }, data, select: contactSelect }),
+    createContactMessagingRestrictionEvent: async (data) => {
+      await client.contactMessagingRestrictionEvent.create({ data });
+    },
 
     listContactTypes: () =>
       client.contactType.findMany({
@@ -201,6 +219,7 @@ function toContactDto(contact: ContactRecord): ContactDto {
       phone: contact.phone,
     }),
     phone: formatContactPhone(contact.phone),
+    messagingRestricted: contact.messagingOptOutAt !== null,
     type: contact.contactType
       ? toContactClassificationDto(contact.contactType)
       : null,
@@ -299,6 +318,54 @@ export async function updateContact(
   }
 
   return toContactDto(await repository.updateContact(parsedId, parsed));
+}
+
+export async function setContactMessagingRestriction(
+  actor: ContactActor,
+  contactId: string,
+  input: unknown,
+  repository: ContactRepository = contactRepository,
+): Promise<ContactMessagingRestrictionDto> {
+  const parsedContactId = contactIdSchema.parse(contactId);
+  const parsed = contactMessagingRestrictionSchema.parse(input);
+
+  return runContactRepositoryTransaction(repository, async (transaction) => {
+    const current = await transaction.lockContactForMessagingRestriction(
+      parsedContactId,
+    );
+    if (!current) throw new HttpError(404, "Contato não encontrado");
+    await requireActiveActor(actor, transaction);
+
+    const currentlyRestricted = current.messagingOptOutAt !== null;
+    if (currentlyRestricted === parsed.restricted) {
+      return { messagingRestricted: currentlyRestricted };
+    }
+
+    const updated = await transaction.updateContactMessagingRestriction(
+      parsedContactId,
+      parsed.restricted
+        ? {
+            messagingOptOutAt: new Date(),
+            messagingRestrictionReason: parsed.reason,
+            messagingRestrictedByUserId: actor.id,
+          }
+        : {
+            messagingOptOutAt: null,
+            messagingRestrictionReason: null,
+            messagingRestrictedByUserId: null,
+          },
+    );
+    await transaction.createContactMessagingRestrictionEvent({
+      contactId: parsedContactId,
+      actorUserId: actor.id,
+      action: parsed.restricted
+        ? ContactMessagingRestrictionAction.OPT_OUT
+        : ContactMessagingRestrictionAction.OPT_IN,
+      reason: parsed.reason,
+    });
+
+    return { messagingRestricted: updated.messagingOptOutAt !== null };
+  });
 }
 
 export async function replaceContactTags(

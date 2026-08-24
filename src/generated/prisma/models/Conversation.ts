@@ -20,8 +20,18 @@ export type ConversationModel = runtime.Types.Result.DefaultSelection<Prisma.$Co
 
 export type AggregateConversation = {
   _count: ConversationCountAggregateOutputType | null
+  _avg: ConversationAvgAggregateOutputType | null
+  _sum: ConversationSumAggregateOutputType | null
   _min: ConversationMinAggregateOutputType | null
   _max: ConversationMaxAggregateOutputType | null
+}
+
+export type ConversationAvgAggregateOutputType = {
+  serviceWindowStateVersion: number | null
+}
+
+export type ConversationSumAggregateOutputType = {
+  serviceWindowStateVersion: number | null
 }
 
 export type ConversationMinAggregateOutputType = {
@@ -37,6 +47,12 @@ export type ConversationMinAggregateOutputType = {
   manualUnreadAt: Date | null
   manualUnreadByUserId: string | null
   awaitingResponseSince: Date | null
+  lastCustomerMessageAt: Date | null
+  lastCustomerMessageId: string | null
+  pendingCustomerMessageAt: Date | null
+  pendingCustomerMessageId: string | null
+  awaitingCustomerSince: Date | null
+  serviceWindowStateVersion: number | null
 }
 
 export type ConversationMaxAggregateOutputType = {
@@ -52,6 +68,12 @@ export type ConversationMaxAggregateOutputType = {
   manualUnreadAt: Date | null
   manualUnreadByUserId: string | null
   awaitingResponseSince: Date | null
+  lastCustomerMessageAt: Date | null
+  lastCustomerMessageId: string | null
+  pendingCustomerMessageAt: Date | null
+  pendingCustomerMessageId: string | null
+  awaitingCustomerSince: Date | null
+  serviceWindowStateVersion: number | null
 }
 
 export type ConversationCountAggregateOutputType = {
@@ -67,9 +89,23 @@ export type ConversationCountAggregateOutputType = {
   manualUnreadAt: number
   manualUnreadByUserId: number
   awaitingResponseSince: number
+  lastCustomerMessageAt: number
+  lastCustomerMessageId: number
+  pendingCustomerMessageAt: number
+  pendingCustomerMessageId: number
+  awaitingCustomerSince: number
+  serviceWindowStateVersion: number
   _all: number
 }
 
+
+export type ConversationAvgAggregateInputType = {
+  serviceWindowStateVersion?: true
+}
+
+export type ConversationSumAggregateInputType = {
+  serviceWindowStateVersion?: true
+}
 
 export type ConversationMinAggregateInputType = {
   id?: true
@@ -84,6 +120,12 @@ export type ConversationMinAggregateInputType = {
   manualUnreadAt?: true
   manualUnreadByUserId?: true
   awaitingResponseSince?: true
+  lastCustomerMessageAt?: true
+  lastCustomerMessageId?: true
+  pendingCustomerMessageAt?: true
+  pendingCustomerMessageId?: true
+  awaitingCustomerSince?: true
+  serviceWindowStateVersion?: true
 }
 
 export type ConversationMaxAggregateInputType = {
@@ -99,6 +141,12 @@ export type ConversationMaxAggregateInputType = {
   manualUnreadAt?: true
   manualUnreadByUserId?: true
   awaitingResponseSince?: true
+  lastCustomerMessageAt?: true
+  lastCustomerMessageId?: true
+  pendingCustomerMessageAt?: true
+  pendingCustomerMessageId?: true
+  awaitingCustomerSince?: true
+  serviceWindowStateVersion?: true
 }
 
 export type ConversationCountAggregateInputType = {
@@ -114,6 +162,12 @@ export type ConversationCountAggregateInputType = {
   manualUnreadAt?: true
   manualUnreadByUserId?: true
   awaitingResponseSince?: true
+  lastCustomerMessageAt?: true
+  lastCustomerMessageId?: true
+  pendingCustomerMessageAt?: true
+  pendingCustomerMessageId?: true
+  awaitingCustomerSince?: true
+  serviceWindowStateVersion?: true
   _all?: true
 }
 
@@ -155,6 +209,18 @@ export type ConversationAggregateArgs<ExtArgs extends runtime.Types.Extensions.I
   /**
    * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
    * 
+   * Select which fields to average
+  **/
+  _avg?: ConversationAvgAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
+   * Select which fields to sum
+  **/
+  _sum?: ConversationSumAggregateInputType
+  /**
+   * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+   * 
    * Select which fields to find the minimum value
   **/
   _min?: ConversationMinAggregateInputType
@@ -185,6 +251,8 @@ export type ConversationGroupByArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   _count?: ConversationCountAggregateInputType | true
+  _avg?: ConversationAvgAggregateInputType
+  _sum?: ConversationSumAggregateInputType
   _min?: ConversationMinAggregateInputType
   _max?: ConversationMaxAggregateInputType
 }
@@ -202,7 +270,15 @@ export type ConversationGroupByOutputType = {
   manualUnreadAt: Date | null
   manualUnreadByUserId: string | null
   awaitingResponseSince: Date | null
+  lastCustomerMessageAt: Date | null
+  lastCustomerMessageId: string | null
+  pendingCustomerMessageAt: Date | null
+  pendingCustomerMessageId: string | null
+  awaitingCustomerSince: Date | null
+  serviceWindowStateVersion: number
   _count: ConversationCountAggregateOutputType | null
+  _avg: ConversationAvgAggregateOutputType | null
+  _sum: ConversationSumAggregateOutputType | null
   _min: ConversationMinAggregateOutputType | null
   _max: ConversationMaxAggregateOutputType | null
 }
@@ -238,14 +314,23 @@ export type ConversationWhereInput = {
   manualUnreadAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
   manualUnreadByUserId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
   awaitingResponseSince?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
+  pendingCustomerMessageAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  pendingCustomerMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
+  awaitingCustomerSince?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFilter<"Conversation"> | number
   contact?: Prisma.XOR<Prisma.ContactScalarRelationFilter, Prisma.ContactWhereInput>
   responsibleUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   teamLastReadMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
   manualUnreadByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  lastCustomerMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
+  pendingCustomerMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
   messages?: Prisma.MessageListRelationFilter
   reads?: Prisma.ConversationReadListRelationFilter
   auditEvents?: Prisma.ConversationAuditEventListRelationFilter
   whatsappReadSync?: Prisma.XOR<Prisma.WhatsAppReadSyncNullableScalarRelationFilter, Prisma.WhatsAppReadSyncWhereInput> | null
+  resumptions?: Prisma.ConversationResumptionListRelationFilter
 }
 
 export type ConversationOrderByWithRelationInput = {
@@ -261,14 +346,23 @@ export type ConversationOrderByWithRelationInput = {
   manualUnreadAt?: Prisma.SortOrderInput | Prisma.SortOrder
   manualUnreadByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   awaitingResponseSince?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastCustomerMessageAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastCustomerMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  pendingCustomerMessageAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  pendingCustomerMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  awaitingCustomerSince?: Prisma.SortOrderInput | Prisma.SortOrder
+  serviceWindowStateVersion?: Prisma.SortOrder
   contact?: Prisma.ContactOrderByWithRelationInput
   responsibleUser?: Prisma.UserOrderByWithRelationInput
   teamLastReadMessage?: Prisma.MessageOrderByWithRelationInput
   manualUnreadByUser?: Prisma.UserOrderByWithRelationInput
+  lastCustomerMessage?: Prisma.MessageOrderByWithRelationInput
+  pendingCustomerMessage?: Prisma.MessageOrderByWithRelationInput
   messages?: Prisma.MessageOrderByRelationAggregateInput
   reads?: Prisma.ConversationReadOrderByRelationAggregateInput
   auditEvents?: Prisma.ConversationAuditEventOrderByRelationAggregateInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncOrderByWithRelationInput
+  resumptions?: Prisma.ConversationResumptionOrderByRelationAggregateInput
 }
 
 export type ConversationWhereUniqueInput = Prisma.AtLeast<{
@@ -287,14 +381,23 @@ export type ConversationWhereUniqueInput = Prisma.AtLeast<{
   manualUnreadAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
   manualUnreadByUserId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
   awaitingResponseSince?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
+  pendingCustomerMessageAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  pendingCustomerMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
+  awaitingCustomerSince?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFilter<"Conversation"> | number
   contact?: Prisma.XOR<Prisma.ContactScalarRelationFilter, Prisma.ContactWhereInput>
   responsibleUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   teamLastReadMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
   manualUnreadByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  lastCustomerMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
+  pendingCustomerMessage?: Prisma.XOR<Prisma.MessageNullableScalarRelationFilter, Prisma.MessageWhereInput> | null
   messages?: Prisma.MessageListRelationFilter
   reads?: Prisma.ConversationReadListRelationFilter
   auditEvents?: Prisma.ConversationAuditEventListRelationFilter
   whatsappReadSync?: Prisma.XOR<Prisma.WhatsAppReadSyncNullableScalarRelationFilter, Prisma.WhatsAppReadSyncWhereInput> | null
+  resumptions?: Prisma.ConversationResumptionListRelationFilter
 }, "id" | "contactId">
 
 export type ConversationOrderByWithAggregationInput = {
@@ -310,9 +413,17 @@ export type ConversationOrderByWithAggregationInput = {
   manualUnreadAt?: Prisma.SortOrderInput | Prisma.SortOrder
   manualUnreadByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   awaitingResponseSince?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastCustomerMessageAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastCustomerMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  pendingCustomerMessageAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  pendingCustomerMessageId?: Prisma.SortOrderInput | Prisma.SortOrder
+  awaitingCustomerSince?: Prisma.SortOrderInput | Prisma.SortOrder
+  serviceWindowStateVersion?: Prisma.SortOrder
   _count?: Prisma.ConversationCountOrderByAggregateInput
+  _avg?: Prisma.ConversationAvgOrderByAggregateInput
   _max?: Prisma.ConversationMaxOrderByAggregateInput
   _min?: Prisma.ConversationMinOrderByAggregateInput
+  _sum?: Prisma.ConversationSumOrderByAggregateInput
 }
 
 export type ConversationScalarWhereWithAggregatesInput = {
@@ -331,6 +442,12 @@ export type ConversationScalarWhereWithAggregatesInput = {
   manualUnreadAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Conversation"> | Date | string | null
   manualUnreadByUserId?: Prisma.UuidNullableWithAggregatesFilter<"Conversation"> | string | null
   awaitingResponseSince?: Prisma.DateTimeNullableWithAggregatesFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageId?: Prisma.UuidNullableWithAggregatesFilter<"Conversation"> | string | null
+  pendingCustomerMessageAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Conversation"> | Date | string | null
+  pendingCustomerMessageId?: Prisma.UuidNullableWithAggregatesFilter<"Conversation"> | string | null
+  awaitingCustomerSince?: Prisma.DateTimeNullableWithAggregatesFilter<"Conversation"> | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntWithAggregatesFilter<"Conversation"> | number
 }
 
 export type ConversationCreateInput = {
@@ -342,14 +459,21 @@ export type ConversationCreateInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateInput = {
@@ -365,10 +489,17 @@ export type ConversationUncheckedCreateInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUpdateInput = {
@@ -380,14 +511,21 @@ export type ConversationUpdateInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateInput = {
@@ -403,10 +541,17 @@ export type ConversationUncheckedUpdateInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationCreateManyInput = {
@@ -422,6 +567,12 @@ export type ConversationCreateManyInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
 }
 
 export type ConversationUpdateManyMutationInput = {
@@ -433,6 +584,10 @@ export type ConversationUpdateManyMutationInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ConversationUncheckedUpdateManyInput = {
@@ -448,6 +603,12 @@ export type ConversationUncheckedUpdateManyInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ConversationListRelationFilter = {
@@ -478,6 +639,16 @@ export type ConversationCountOrderByAggregateInput = {
   manualUnreadAt?: Prisma.SortOrder
   manualUnreadByUserId?: Prisma.SortOrder
   awaitingResponseSince?: Prisma.SortOrder
+  lastCustomerMessageAt?: Prisma.SortOrder
+  lastCustomerMessageId?: Prisma.SortOrder
+  pendingCustomerMessageAt?: Prisma.SortOrder
+  pendingCustomerMessageId?: Prisma.SortOrder
+  awaitingCustomerSince?: Prisma.SortOrder
+  serviceWindowStateVersion?: Prisma.SortOrder
+}
+
+export type ConversationAvgOrderByAggregateInput = {
+  serviceWindowStateVersion?: Prisma.SortOrder
 }
 
 export type ConversationMaxOrderByAggregateInput = {
@@ -493,6 +664,12 @@ export type ConversationMaxOrderByAggregateInput = {
   manualUnreadAt?: Prisma.SortOrder
   manualUnreadByUserId?: Prisma.SortOrder
   awaitingResponseSince?: Prisma.SortOrder
+  lastCustomerMessageAt?: Prisma.SortOrder
+  lastCustomerMessageId?: Prisma.SortOrder
+  pendingCustomerMessageAt?: Prisma.SortOrder
+  pendingCustomerMessageId?: Prisma.SortOrder
+  awaitingCustomerSince?: Prisma.SortOrder
+  serviceWindowStateVersion?: Prisma.SortOrder
 }
 
 export type ConversationMinOrderByAggregateInput = {
@@ -508,6 +685,16 @@ export type ConversationMinOrderByAggregateInput = {
   manualUnreadAt?: Prisma.SortOrder
   manualUnreadByUserId?: Prisma.SortOrder
   awaitingResponseSince?: Prisma.SortOrder
+  lastCustomerMessageAt?: Prisma.SortOrder
+  lastCustomerMessageId?: Prisma.SortOrder
+  pendingCustomerMessageAt?: Prisma.SortOrder
+  pendingCustomerMessageId?: Prisma.SortOrder
+  awaitingCustomerSince?: Prisma.SortOrder
+  serviceWindowStateVersion?: Prisma.SortOrder
+}
+
+export type ConversationSumOrderByAggregateInput = {
+  serviceWindowStateVersion?: Prisma.SortOrder
 }
 
 export type ConversationScalarRelationFilter = {
@@ -631,10 +818,6 @@ export type ConversationUncheckedUpdateOneWithoutContactNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ConversationUpdateToOneWithWhereWithoutContactInput, Prisma.ConversationUpdateWithoutContactInput>, Prisma.ConversationUncheckedUpdateWithoutContactInput>
 }
 
-export type NullableDateTimeFieldUpdateOperationsInput = {
-  set?: Date | string | null
-}
-
 export type ConversationCreateNestedOneWithoutMessagesInput = {
   create?: Prisma.XOR<Prisma.ConversationCreateWithoutMessagesInput, Prisma.ConversationUncheckedCreateWithoutMessagesInput>
   connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutMessagesInput
@@ -648,10 +831,38 @@ export type ConversationCreateNestedManyWithoutTeamLastReadMessageInput = {
   connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
 }
 
+export type ConversationCreateNestedManyWithoutLastCustomerMessageInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput> | Prisma.ConversationCreateWithoutLastCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyLastCustomerMessageInputEnvelope
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+}
+
+export type ConversationCreateNestedManyWithoutPendingCustomerMessageInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput> | Prisma.ConversationCreateWithoutPendingCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyPendingCustomerMessageInputEnvelope
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+}
+
 export type ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput = {
   create?: Prisma.XOR<Prisma.ConversationCreateWithoutTeamLastReadMessageInput, Prisma.ConversationUncheckedCreateWithoutTeamLastReadMessageInput> | Prisma.ConversationCreateWithoutTeamLastReadMessageInput[] | Prisma.ConversationUncheckedCreateWithoutTeamLastReadMessageInput[]
   connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutTeamLastReadMessageInput | Prisma.ConversationCreateOrConnectWithoutTeamLastReadMessageInput[]
   createMany?: Prisma.ConversationCreateManyTeamLastReadMessageInputEnvelope
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+}
+
+export type ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput> | Prisma.ConversationCreateWithoutLastCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyLastCustomerMessageInputEnvelope
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+}
+
+export type ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput> | Prisma.ConversationCreateWithoutPendingCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyPendingCustomerMessageInputEnvelope
   connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
 }
 
@@ -677,6 +888,34 @@ export type ConversationUpdateManyWithoutTeamLastReadMessageNestedInput = {
   deleteMany?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
 }
 
+export type ConversationUpdateManyWithoutLastCustomerMessageNestedInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput> | Prisma.ConversationCreateWithoutLastCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput[]
+  upsert?: Prisma.ConversationUpsertWithWhereUniqueWithoutLastCustomerMessageInput | Prisma.ConversationUpsertWithWhereUniqueWithoutLastCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyLastCustomerMessageInputEnvelope
+  set?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  disconnect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  delete?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  update?: Prisma.ConversationUpdateWithWhereUniqueWithoutLastCustomerMessageInput | Prisma.ConversationUpdateWithWhereUniqueWithoutLastCustomerMessageInput[]
+  updateMany?: Prisma.ConversationUpdateManyWithWhereWithoutLastCustomerMessageInput | Prisma.ConversationUpdateManyWithWhereWithoutLastCustomerMessageInput[]
+  deleteMany?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
+}
+
+export type ConversationUpdateManyWithoutPendingCustomerMessageNestedInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput> | Prisma.ConversationCreateWithoutPendingCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput[]
+  upsert?: Prisma.ConversationUpsertWithWhereUniqueWithoutPendingCustomerMessageInput | Prisma.ConversationUpsertWithWhereUniqueWithoutPendingCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyPendingCustomerMessageInputEnvelope
+  set?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  disconnect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  delete?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  update?: Prisma.ConversationUpdateWithWhereUniqueWithoutPendingCustomerMessageInput | Prisma.ConversationUpdateWithWhereUniqueWithoutPendingCustomerMessageInput[]
+  updateMany?: Prisma.ConversationUpdateManyWithWhereWithoutPendingCustomerMessageInput | Prisma.ConversationUpdateManyWithWhereWithoutPendingCustomerMessageInput[]
+  deleteMany?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
+}
+
 export type ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput = {
   create?: Prisma.XOR<Prisma.ConversationCreateWithoutTeamLastReadMessageInput, Prisma.ConversationUncheckedCreateWithoutTeamLastReadMessageInput> | Prisma.ConversationCreateWithoutTeamLastReadMessageInput[] | Prisma.ConversationUncheckedCreateWithoutTeamLastReadMessageInput[]
   connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutTeamLastReadMessageInput | Prisma.ConversationCreateOrConnectWithoutTeamLastReadMessageInput[]
@@ -688,6 +927,34 @@ export type ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
   update?: Prisma.ConversationUpdateWithWhereUniqueWithoutTeamLastReadMessageInput | Prisma.ConversationUpdateWithWhereUniqueWithoutTeamLastReadMessageInput[]
   updateMany?: Prisma.ConversationUpdateManyWithWhereWithoutTeamLastReadMessageInput | Prisma.ConversationUpdateManyWithWhereWithoutTeamLastReadMessageInput[]
+  deleteMany?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
+}
+
+export type ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput> | Prisma.ConversationCreateWithoutLastCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutLastCustomerMessageInput[]
+  upsert?: Prisma.ConversationUpsertWithWhereUniqueWithoutLastCustomerMessageInput | Prisma.ConversationUpsertWithWhereUniqueWithoutLastCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyLastCustomerMessageInputEnvelope
+  set?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  disconnect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  delete?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  update?: Prisma.ConversationUpdateWithWhereUniqueWithoutLastCustomerMessageInput | Prisma.ConversationUpdateWithWhereUniqueWithoutLastCustomerMessageInput[]
+  updateMany?: Prisma.ConversationUpdateManyWithWhereWithoutLastCustomerMessageInput | Prisma.ConversationUpdateManyWithWhereWithoutLastCustomerMessageInput[]
+  deleteMany?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
+}
+
+export type ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput> | Prisma.ConversationCreateWithoutPendingCustomerMessageInput[] | Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput[]
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput | Prisma.ConversationCreateOrConnectWithoutPendingCustomerMessageInput[]
+  upsert?: Prisma.ConversationUpsertWithWhereUniqueWithoutPendingCustomerMessageInput | Prisma.ConversationUpsertWithWhereUniqueWithoutPendingCustomerMessageInput[]
+  createMany?: Prisma.ConversationCreateManyPendingCustomerMessageInputEnvelope
+  set?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  disconnect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  delete?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  connect?: Prisma.ConversationWhereUniqueInput | Prisma.ConversationWhereUniqueInput[]
+  update?: Prisma.ConversationUpdateWithWhereUniqueWithoutPendingCustomerMessageInput | Prisma.ConversationUpdateWithWhereUniqueWithoutPendingCustomerMessageInput[]
+  updateMany?: Prisma.ConversationUpdateManyWithWhereWithoutPendingCustomerMessageInput | Prisma.ConversationUpdateManyWithWhereWithoutPendingCustomerMessageInput[]
   deleteMany?: Prisma.ConversationScalarWhereInput | Prisma.ConversationScalarWhereInput[]
 }
 
@@ -733,6 +1000,20 @@ export type ConversationUpdateOneRequiredWithoutWhatsappReadSyncNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ConversationUpdateToOneWithWhereWithoutWhatsappReadSyncInput, Prisma.ConversationUpdateWithoutWhatsappReadSyncInput>, Prisma.ConversationUncheckedUpdateWithoutWhatsappReadSyncInput>
 }
 
+export type ConversationCreateNestedOneWithoutResumptionsInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutResumptionsInput, Prisma.ConversationUncheckedCreateWithoutResumptionsInput>
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutResumptionsInput
+  connect?: Prisma.ConversationWhereUniqueInput
+}
+
+export type ConversationUpdateOneRequiredWithoutResumptionsNestedInput = {
+  create?: Prisma.XOR<Prisma.ConversationCreateWithoutResumptionsInput, Prisma.ConversationUncheckedCreateWithoutResumptionsInput>
+  connectOrCreate?: Prisma.ConversationCreateOrConnectWithoutResumptionsInput
+  upsert?: Prisma.ConversationUpsertWithoutResumptionsInput
+  connect?: Prisma.ConversationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ConversationUpdateToOneWithWhereWithoutResumptionsInput, Prisma.ConversationUpdateWithoutResumptionsInput>, Prisma.ConversationUncheckedUpdateWithoutResumptionsInput>
+}
+
 export type ConversationCreateWithoutResponsibleUserInput = {
   id?: string
   lastMessageAt: Date | string
@@ -742,13 +1023,20 @@ export type ConversationCreateWithoutResponsibleUserInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutResponsibleUserInput = {
@@ -763,10 +1051,17 @@ export type ConversationUncheckedCreateWithoutResponsibleUserInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutResponsibleUserInput = {
@@ -788,13 +1083,20 @@ export type ConversationCreateWithoutManualUnreadByUserInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutManualUnreadByUserInput = {
@@ -809,10 +1111,17 @@ export type ConversationUncheckedCreateWithoutManualUnreadByUserInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutManualUnreadByUserInput = {
@@ -857,6 +1166,12 @@ export type ConversationScalarWhereInput = {
   manualUnreadAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
   manualUnreadByUserId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
   awaitingResponseSince?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  lastCustomerMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
+  pendingCustomerMessageAt?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  pendingCustomerMessageId?: Prisma.UuidNullableFilter<"Conversation"> | string | null
+  awaitingCustomerSince?: Prisma.DateTimeNullableFilter<"Conversation"> | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFilter<"Conversation"> | number
 }
 
 export type ConversationUpsertWithWhereUniqueWithoutManualUnreadByUserInput = {
@@ -884,13 +1199,20 @@ export type ConversationCreateWithoutContactInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutContactInput = {
@@ -905,10 +1227,17 @@ export type ConversationUncheckedCreateWithoutContactInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutContactInput = {
@@ -936,13 +1265,20 @@ export type ConversationUpdateWithoutContactInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutContactInput = {
@@ -957,10 +1293,17 @@ export type ConversationUncheckedUpdateWithoutContactInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationCreateWithoutMessagesInput = {
@@ -972,13 +1315,20 @@ export type ConversationCreateWithoutMessagesInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutMessagesInput = {
@@ -994,9 +1344,16 @@ export type ConversationUncheckedCreateWithoutMessagesInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutMessagesInput = {
@@ -1013,13 +1370,20 @@ export type ConversationCreateWithoutTeamLastReadMessageInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutTeamLastReadMessageInput = {
@@ -1034,10 +1398,17 @@ export type ConversationUncheckedCreateWithoutTeamLastReadMessageInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutTeamLastReadMessageInput = {
@@ -1047,6 +1418,126 @@ export type ConversationCreateOrConnectWithoutTeamLastReadMessageInput = {
 
 export type ConversationCreateManyTeamLastReadMessageInputEnvelope = {
   data: Prisma.ConversationCreateManyTeamLastReadMessageInput | Prisma.ConversationCreateManyTeamLastReadMessageInput[]
+  skipDuplicates?: boolean
+}
+
+export type ConversationCreateWithoutLastCustomerMessageInput = {
+  id?: string
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+  contact: Prisma.ContactCreateNestedOneWithoutConversationInput
+  responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
+  teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
+  manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
+  messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
+}
+
+export type ConversationUncheckedCreateWithoutLastCustomerMessageInput = {
+  id?: string
+  contactId: string
+  responsibleUserId?: string | null
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadMessageId?: string | null
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  manualUnreadByUserId?: string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+  messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
+}
+
+export type ConversationCreateOrConnectWithoutLastCustomerMessageInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput>
+}
+
+export type ConversationCreateManyLastCustomerMessageInputEnvelope = {
+  data: Prisma.ConversationCreateManyLastCustomerMessageInput | Prisma.ConversationCreateManyLastCustomerMessageInput[]
+  skipDuplicates?: boolean
+}
+
+export type ConversationCreateWithoutPendingCustomerMessageInput = {
+  id?: string
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+  contact: Prisma.ContactCreateNestedOneWithoutConversationInput
+  responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
+  teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
+  manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
+}
+
+export type ConversationUncheckedCreateWithoutPendingCustomerMessageInput = {
+  id?: string
+  contactId: string
+  responsibleUserId?: string | null
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadMessageId?: string | null
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  manualUnreadByUserId?: string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+  messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
+}
+
+export type ConversationCreateOrConnectWithoutPendingCustomerMessageInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput>
+}
+
+export type ConversationCreateManyPendingCustomerMessageInputEnvelope = {
+  data: Prisma.ConversationCreateManyPendingCustomerMessageInput | Prisma.ConversationCreateManyPendingCustomerMessageInput[]
   skipDuplicates?: boolean
 }
 
@@ -1070,13 +1561,20 @@ export type ConversationUpdateWithoutMessagesInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutMessagesInput = {
@@ -1092,9 +1590,16 @@ export type ConversationUncheckedUpdateWithoutMessagesInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUpsertWithWhereUniqueWithoutTeamLastReadMessageInput = {
@@ -1113,6 +1618,38 @@ export type ConversationUpdateManyWithWhereWithoutTeamLastReadMessageInput = {
   data: Prisma.XOR<Prisma.ConversationUpdateManyMutationInput, Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageInput>
 }
 
+export type ConversationUpsertWithWhereUniqueWithoutLastCustomerMessageInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  update: Prisma.XOR<Prisma.ConversationUpdateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedUpdateWithoutLastCustomerMessageInput>
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutLastCustomerMessageInput>
+}
+
+export type ConversationUpdateWithWhereUniqueWithoutLastCustomerMessageInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  data: Prisma.XOR<Prisma.ConversationUpdateWithoutLastCustomerMessageInput, Prisma.ConversationUncheckedUpdateWithoutLastCustomerMessageInput>
+}
+
+export type ConversationUpdateManyWithWhereWithoutLastCustomerMessageInput = {
+  where: Prisma.ConversationScalarWhereInput
+  data: Prisma.XOR<Prisma.ConversationUpdateManyMutationInput, Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageInput>
+}
+
+export type ConversationUpsertWithWhereUniqueWithoutPendingCustomerMessageInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  update: Prisma.XOR<Prisma.ConversationUpdateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedUpdateWithoutPendingCustomerMessageInput>
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedCreateWithoutPendingCustomerMessageInput>
+}
+
+export type ConversationUpdateWithWhereUniqueWithoutPendingCustomerMessageInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  data: Prisma.XOR<Prisma.ConversationUpdateWithoutPendingCustomerMessageInput, Prisma.ConversationUncheckedUpdateWithoutPendingCustomerMessageInput>
+}
+
+export type ConversationUpdateManyWithWhereWithoutPendingCustomerMessageInput = {
+  where: Prisma.ConversationScalarWhereInput
+  data: Prisma.XOR<Prisma.ConversationUpdateManyMutationInput, Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageInput>
+}
+
 export type ConversationCreateWithoutReadsInput = {
   id?: string
   lastMessageAt: Date | string
@@ -1122,13 +1659,20 @@ export type ConversationCreateWithoutReadsInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutReadsInput = {
@@ -1144,9 +1688,16 @@ export type ConversationUncheckedCreateWithoutReadsInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutReadsInput = {
@@ -1174,13 +1725,20 @@ export type ConversationUpdateWithoutReadsInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutReadsInput = {
@@ -1196,9 +1754,16 @@ export type ConversationUncheckedUpdateWithoutReadsInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationCreateWithoutAuditEventsInput = {
@@ -1210,13 +1775,20 @@ export type ConversationCreateWithoutAuditEventsInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutAuditEventsInput = {
@@ -1232,9 +1804,16 @@ export type ConversationUncheckedCreateWithoutAuditEventsInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutAuditEventsInput = {
@@ -1262,13 +1841,20 @@ export type ConversationUpdateWithoutAuditEventsInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutAuditEventsInput = {
@@ -1284,9 +1870,16 @@ export type ConversationUncheckedUpdateWithoutAuditEventsInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationCreateWithoutWhatsappReadSyncInput = {
@@ -1298,13 +1891,20 @@ export type ConversationCreateWithoutWhatsappReadSyncInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   contact: Prisma.ContactCreateNestedOneWithoutConversationInput
   responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
   teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
   manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
   messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationUncheckedCreateWithoutWhatsappReadSyncInput = {
@@ -1320,9 +1920,16 @@ export type ConversationUncheckedCreateWithoutWhatsappReadSyncInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
   messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
   reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  resumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutConversationInput
 }
 
 export type ConversationCreateOrConnectWithoutWhatsappReadSyncInput = {
@@ -1350,13 +1957,20 @@ export type ConversationUpdateWithoutWhatsappReadSyncInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutWhatsappReadSyncInput = {
@@ -1372,9 +1986,132 @@ export type ConversationUncheckedUpdateWithoutWhatsappReadSyncInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
+}
+
+export type ConversationCreateWithoutResumptionsInput = {
+  id?: string
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+  contact: Prisma.ContactCreateNestedOneWithoutConversationInput
+  responsibleUser?: Prisma.UserCreateNestedOneWithoutAssignedConversationsInput
+  teamLastReadMessage?: Prisma.MessageCreateNestedOneWithoutTeamLastReadForInput
+  manualUnreadByUser?: Prisma.UserCreateNestedOneWithoutManualUnreadConversationsInput
+  lastCustomerMessage?: Prisma.MessageCreateNestedOneWithoutLastCustomerForInput
+  pendingCustomerMessage?: Prisma.MessageCreateNestedOneWithoutPendingCustomerForInput
+  messages?: Prisma.MessageCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncCreateNestedOneWithoutConversationInput
+}
+
+export type ConversationUncheckedCreateWithoutResumptionsInput = {
+  id?: string
+  contactId: string
+  responsibleUserId?: string | null
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadMessageId?: string | null
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  manualUnreadByUserId?: string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+  messages?: Prisma.MessageUncheckedCreateNestedManyWithoutConversationInput
+  reads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutConversationInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutConversationInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedCreateNestedOneWithoutConversationInput
+}
+
+export type ConversationCreateOrConnectWithoutResumptionsInput = {
+  where: Prisma.ConversationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutResumptionsInput, Prisma.ConversationUncheckedCreateWithoutResumptionsInput>
+}
+
+export type ConversationUpsertWithoutResumptionsInput = {
+  update: Prisma.XOR<Prisma.ConversationUpdateWithoutResumptionsInput, Prisma.ConversationUncheckedUpdateWithoutResumptionsInput>
+  create: Prisma.XOR<Prisma.ConversationCreateWithoutResumptionsInput, Prisma.ConversationUncheckedCreateWithoutResumptionsInput>
+  where?: Prisma.ConversationWhereInput
+}
+
+export type ConversationUpdateToOneWithWhereWithoutResumptionsInput = {
+  where?: Prisma.ConversationWhereInput
+  data: Prisma.XOR<Prisma.ConversationUpdateWithoutResumptionsInput, Prisma.ConversationUncheckedUpdateWithoutResumptionsInput>
+}
+
+export type ConversationUpdateWithoutResumptionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
+  responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
+  teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
+  manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
+  messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+}
+
+export type ConversationUncheckedUpdateWithoutResumptionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  contactId?: Prisma.StringFieldUpdateOperationsInput | string
+  responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
 }
 
 export type ConversationCreateManyResponsibleUserInput = {
@@ -1389,6 +2126,12 @@ export type ConversationCreateManyResponsibleUserInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
 }
 
 export type ConversationCreateManyManualUnreadByUserInput = {
@@ -1403,6 +2146,12 @@ export type ConversationCreateManyManualUnreadByUserInput = {
   teamLastReadAt?: Date | string | null
   manualUnreadAt?: Date | string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
 }
 
 export type ConversationUpdateWithoutResponsibleUserInput = {
@@ -1414,13 +2163,20 @@ export type ConversationUpdateWithoutResponsibleUserInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutResponsibleUserInput = {
@@ -1435,10 +2191,17 @@ export type ConversationUncheckedUpdateWithoutResponsibleUserInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateManyWithoutResponsibleUserInput = {
@@ -1453,6 +2216,12 @@ export type ConversationUncheckedUpdateManyWithoutResponsibleUserInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ConversationUpdateWithoutManualUnreadByUserInput = {
@@ -1464,13 +2233,20 @@ export type ConversationUpdateWithoutManualUnreadByUserInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutManualUnreadByUserInput = {
@@ -1485,10 +2261,17 @@ export type ConversationUncheckedUpdateWithoutManualUnreadByUserInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateManyWithoutManualUnreadByUserInput = {
@@ -1503,6 +2286,12 @@ export type ConversationUncheckedUpdateManyWithoutManualUnreadByUserInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 export type ConversationCreateManyTeamLastReadMessageInput = {
@@ -1517,6 +2306,52 @@ export type ConversationCreateManyTeamLastReadMessageInput = {
   manualUnreadAt?: Date | string | null
   manualUnreadByUserId?: string | null
   awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+}
+
+export type ConversationCreateManyLastCustomerMessageInput = {
+  id?: string
+  contactId: string
+  responsibleUserId?: string | null
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadMessageId?: string | null
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  manualUnreadByUserId?: string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageAt?: Date | string | null
+  pendingCustomerMessageId?: string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
+}
+
+export type ConversationCreateManyPendingCustomerMessageInput = {
+  id?: string
+  contactId: string
+  responsibleUserId?: string | null
+  lastMessageAt: Date | string
+  pinnedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  teamLastReadMessageId?: string | null
+  teamLastReadAt?: Date | string | null
+  manualUnreadAt?: Date | string | null
+  manualUnreadByUserId?: string | null
+  awaitingResponseSince?: Date | string | null
+  lastCustomerMessageAt?: Date | string | null
+  lastCustomerMessageId?: string | null
+  pendingCustomerMessageAt?: Date | string | null
+  awaitingCustomerSince?: Date | string | null
+  serviceWindowStateVersion?: number
 }
 
 export type ConversationUpdateWithoutTeamLastReadMessageInput = {
@@ -1528,13 +2363,20 @@ export type ConversationUpdateWithoutTeamLastReadMessageInput = {
   teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
   responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
   manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
   messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateWithoutTeamLastReadMessageInput = {
@@ -1549,10 +2391,17 @@ export type ConversationUncheckedUpdateWithoutTeamLastReadMessageInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
   messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
   reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
   auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
   whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
 }
 
 export type ConversationUncheckedUpdateManyWithoutTeamLastReadMessageInput = {
@@ -1567,6 +2416,152 @@ export type ConversationUncheckedUpdateManyWithoutTeamLastReadMessageInput = {
   manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type ConversationUpdateWithoutLastCustomerMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
+  responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
+  teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
+  manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  pendingCustomerMessage?: Prisma.MessageUpdateOneWithoutPendingCustomerForNestedInput
+  messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
+}
+
+export type ConversationUncheckedUpdateWithoutLastCustomerMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  contactId?: Prisma.StringFieldUpdateOperationsInput | string
+  responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
+}
+
+export type ConversationUncheckedUpdateManyWithoutLastCustomerMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  contactId?: Prisma.StringFieldUpdateOperationsInput | string
+  responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+}
+
+export type ConversationUpdateWithoutPendingCustomerMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  contact?: Prisma.ContactUpdateOneRequiredWithoutConversationNestedInput
+  responsibleUser?: Prisma.UserUpdateOneWithoutAssignedConversationsNestedInput
+  teamLastReadMessage?: Prisma.MessageUpdateOneWithoutTeamLastReadForNestedInput
+  manualUnreadByUser?: Prisma.UserUpdateOneWithoutManualUnreadConversationsNestedInput
+  lastCustomerMessage?: Prisma.MessageUpdateOneWithoutLastCustomerForNestedInput
+  messages?: Prisma.MessageUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUpdateManyWithoutConversationNestedInput
+}
+
+export type ConversationUncheckedUpdateWithoutPendingCustomerMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  contactId?: Prisma.StringFieldUpdateOperationsInput | string
+  responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
+  messages?: Prisma.MessageUncheckedUpdateManyWithoutConversationNestedInput
+  reads?: Prisma.ConversationReadUncheckedUpdateManyWithoutConversationNestedInput
+  auditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutConversationNestedInput
+  whatsappReadSync?: Prisma.WhatsAppReadSyncUncheckedUpdateOneWithoutConversationNestedInput
+  resumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutConversationNestedInput
+}
+
+export type ConversationUncheckedUpdateManyWithoutPendingCustomerMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  contactId?: Prisma.StringFieldUpdateOperationsInput | string
+  responsibleUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastMessageAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  pinnedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  teamLastReadMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  teamLastReadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  manualUnreadByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  awaitingResponseSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastCustomerMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pendingCustomerMessageAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  awaitingCustomerSince?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  serviceWindowStateVersion?: Prisma.IntFieldUpdateOperationsInput | number
 }
 
 
@@ -1578,12 +2573,14 @@ export type ConversationCountOutputType = {
   messages: number
   reads: number
   auditEvents: number
+  resumptions: number
 }
 
 export type ConversationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   messages?: boolean | ConversationCountOutputTypeCountMessagesArgs
   reads?: boolean | ConversationCountOutputTypeCountReadsArgs
   auditEvents?: boolean | ConversationCountOutputTypeCountAuditEventsArgs
+  resumptions?: boolean | ConversationCountOutputTypeCountResumptionsArgs
 }
 
 /**
@@ -1617,6 +2614,13 @@ export type ConversationCountOutputTypeCountAuditEventsArgs<ExtArgs extends runt
   where?: Prisma.ConversationAuditEventWhereInput
 }
 
+/**
+ * ConversationCountOutputType without action
+ */
+export type ConversationCountOutputTypeCountResumptionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ConversationResumptionWhereInput
+}
+
 
 export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1631,14 +2635,23 @@ export type ConversationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   manualUnreadAt?: boolean
   manualUnreadByUserId?: boolean
   awaitingResponseSince?: boolean
+  lastCustomerMessageAt?: boolean
+  lastCustomerMessageId?: boolean
+  pendingCustomerMessageAt?: boolean
+  pendingCustomerMessageId?: boolean
+  awaitingCustomerSince?: boolean
+  serviceWindowStateVersion?: boolean
   contact?: boolean | Prisma.ContactDefaultArgs<ExtArgs>
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
   teamLastReadMessage?: boolean | Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>
   manualUnreadByUser?: boolean | Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>
+  lastCustomerMessage?: boolean | Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>
+  pendingCustomerMessage?: boolean | Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>
   messages?: boolean | Prisma.Conversation$messagesArgs<ExtArgs>
   reads?: boolean | Prisma.Conversation$readsArgs<ExtArgs>
   auditEvents?: boolean | Prisma.Conversation$auditEventsArgs<ExtArgs>
   whatsappReadSync?: boolean | Prisma.Conversation$whatsappReadSyncArgs<ExtArgs>
+  resumptions?: boolean | Prisma.Conversation$resumptionsArgs<ExtArgs>
   _count?: boolean | Prisma.ConversationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["conversation"]>
 
@@ -1655,10 +2668,18 @@ export type ConversationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.
   manualUnreadAt?: boolean
   manualUnreadByUserId?: boolean
   awaitingResponseSince?: boolean
+  lastCustomerMessageAt?: boolean
+  lastCustomerMessageId?: boolean
+  pendingCustomerMessageAt?: boolean
+  pendingCustomerMessageId?: boolean
+  awaitingCustomerSince?: boolean
+  serviceWindowStateVersion?: boolean
   contact?: boolean | Prisma.ContactDefaultArgs<ExtArgs>
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
   teamLastReadMessage?: boolean | Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>
   manualUnreadByUser?: boolean | Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>
+  lastCustomerMessage?: boolean | Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>
+  pendingCustomerMessage?: boolean | Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>
 }, ExtArgs["result"]["conversation"]>
 
 export type ConversationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1674,10 +2695,18 @@ export type ConversationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.
   manualUnreadAt?: boolean
   manualUnreadByUserId?: boolean
   awaitingResponseSince?: boolean
+  lastCustomerMessageAt?: boolean
+  lastCustomerMessageId?: boolean
+  pendingCustomerMessageAt?: boolean
+  pendingCustomerMessageId?: boolean
+  awaitingCustomerSince?: boolean
+  serviceWindowStateVersion?: boolean
   contact?: boolean | Prisma.ContactDefaultArgs<ExtArgs>
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
   teamLastReadMessage?: boolean | Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>
   manualUnreadByUser?: boolean | Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>
+  lastCustomerMessage?: boolean | Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>
+  pendingCustomerMessage?: boolean | Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>
 }, ExtArgs["result"]["conversation"]>
 
 export type ConversationSelectScalar = {
@@ -1693,18 +2722,27 @@ export type ConversationSelectScalar = {
   manualUnreadAt?: boolean
   manualUnreadByUserId?: boolean
   awaitingResponseSince?: boolean
+  lastCustomerMessageAt?: boolean
+  lastCustomerMessageId?: boolean
+  pendingCustomerMessageAt?: boolean
+  pendingCustomerMessageId?: boolean
+  awaitingCustomerSince?: boolean
+  serviceWindowStateVersion?: boolean
 }
 
-export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "contactId" | "responsibleUserId" | "lastMessageAt" | "pinnedAt" | "createdAt" | "updatedAt" | "teamLastReadMessageId" | "teamLastReadAt" | "manualUnreadAt" | "manualUnreadByUserId" | "awaitingResponseSince", ExtArgs["result"]["conversation"]>
+export type ConversationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "contactId" | "responsibleUserId" | "lastMessageAt" | "pinnedAt" | "createdAt" | "updatedAt" | "teamLastReadMessageId" | "teamLastReadAt" | "manualUnreadAt" | "manualUnreadByUserId" | "awaitingResponseSince" | "lastCustomerMessageAt" | "lastCustomerMessageId" | "pendingCustomerMessageAt" | "pendingCustomerMessageId" | "awaitingCustomerSince" | "serviceWindowStateVersion", ExtArgs["result"]["conversation"]>
 export type ConversationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contact?: boolean | Prisma.ContactDefaultArgs<ExtArgs>
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
   teamLastReadMessage?: boolean | Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>
   manualUnreadByUser?: boolean | Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>
+  lastCustomerMessage?: boolean | Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>
+  pendingCustomerMessage?: boolean | Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>
   messages?: boolean | Prisma.Conversation$messagesArgs<ExtArgs>
   reads?: boolean | Prisma.Conversation$readsArgs<ExtArgs>
   auditEvents?: boolean | Prisma.Conversation$auditEventsArgs<ExtArgs>
   whatsappReadSync?: boolean | Prisma.Conversation$whatsappReadSyncArgs<ExtArgs>
+  resumptions?: boolean | Prisma.Conversation$resumptionsArgs<ExtArgs>
   _count?: boolean | Prisma.ConversationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ConversationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1712,12 +2750,16 @@ export type ConversationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
   teamLastReadMessage?: boolean | Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>
   manualUnreadByUser?: boolean | Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>
+  lastCustomerMessage?: boolean | Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>
+  pendingCustomerMessage?: boolean | Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>
 }
 export type ConversationIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contact?: boolean | Prisma.ContactDefaultArgs<ExtArgs>
   responsibleUser?: boolean | Prisma.Conversation$responsibleUserArgs<ExtArgs>
   teamLastReadMessage?: boolean | Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>
   manualUnreadByUser?: boolean | Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>
+  lastCustomerMessage?: boolean | Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>
+  pendingCustomerMessage?: boolean | Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>
 }
 
 export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1727,10 +2769,13 @@ export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     responsibleUser: Prisma.$UserPayload<ExtArgs> | null
     teamLastReadMessage: Prisma.$MessagePayload<ExtArgs> | null
     manualUnreadByUser: Prisma.$UserPayload<ExtArgs> | null
+    lastCustomerMessage: Prisma.$MessagePayload<ExtArgs> | null
+    pendingCustomerMessage: Prisma.$MessagePayload<ExtArgs> | null
     messages: Prisma.$MessagePayload<ExtArgs>[]
     reads: Prisma.$ConversationReadPayload<ExtArgs>[]
     auditEvents: Prisma.$ConversationAuditEventPayload<ExtArgs>[]
     whatsappReadSync: Prisma.$WhatsAppReadSyncPayload<ExtArgs> | null
+    resumptions: Prisma.$ConversationResumptionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1745,6 +2790,12 @@ export type $ConversationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     manualUnreadAt: Date | null
     manualUnreadByUserId: string | null
     awaitingResponseSince: Date | null
+    lastCustomerMessageAt: Date | null
+    lastCustomerMessageId: string | null
+    pendingCustomerMessageAt: Date | null
+    pendingCustomerMessageId: string | null
+    awaitingCustomerSince: Date | null
+    serviceWindowStateVersion: number
   }, ExtArgs["result"]["conversation"]>
   composites: {}
 }
@@ -2143,10 +3194,13 @@ export interface Prisma__ConversationClient<T, Null = never, ExtArgs extends run
   responsibleUser<T extends Prisma.Conversation$responsibleUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$responsibleUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   teamLastReadMessage<T extends Prisma.Conversation$teamLastReadMessageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$teamLastReadMessageArgs<ExtArgs>>): Prisma.Prisma__MessageClient<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   manualUnreadByUser<T extends Prisma.Conversation$manualUnreadByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$manualUnreadByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  lastCustomerMessage<T extends Prisma.Conversation$lastCustomerMessageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$lastCustomerMessageArgs<ExtArgs>>): Prisma.Prisma__MessageClient<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  pendingCustomerMessage<T extends Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$pendingCustomerMessageArgs<ExtArgs>>): Prisma.Prisma__MessageClient<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   messages<T extends Prisma.Conversation$messagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$messagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reads<T extends Prisma.Conversation$readsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$readsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationReadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   auditEvents<T extends Prisma.Conversation$auditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$auditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationAuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   whatsappReadSync<T extends Prisma.Conversation$whatsappReadSyncArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$whatsappReadSyncArgs<ExtArgs>>): Prisma.Prisma__WhatsAppReadSyncClient<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  resumptions<T extends Prisma.Conversation$resumptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Conversation$resumptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationResumptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2188,6 +3242,12 @@ export interface ConversationFieldRefs {
   readonly manualUnreadAt: Prisma.FieldRef<"Conversation", 'DateTime'>
   readonly manualUnreadByUserId: Prisma.FieldRef<"Conversation", 'String'>
   readonly awaitingResponseSince: Prisma.FieldRef<"Conversation", 'DateTime'>
+  readonly lastCustomerMessageAt: Prisma.FieldRef<"Conversation", 'DateTime'>
+  readonly lastCustomerMessageId: Prisma.FieldRef<"Conversation", 'String'>
+  readonly pendingCustomerMessageAt: Prisma.FieldRef<"Conversation", 'DateTime'>
+  readonly pendingCustomerMessageId: Prisma.FieldRef<"Conversation", 'String'>
+  readonly awaitingCustomerSince: Prisma.FieldRef<"Conversation", 'DateTime'>
+  readonly serviceWindowStateVersion: Prisma.FieldRef<"Conversation", 'Int'>
 }
     
 
@@ -2646,6 +3706,44 @@ export type Conversation$manualUnreadByUserArgs<ExtArgs extends runtime.Types.Ex
 }
 
 /**
+ * Conversation.lastCustomerMessage
+ */
+export type Conversation$lastCustomerMessageArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Message
+   */
+  select?: Prisma.MessageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Message
+   */
+  omit?: Prisma.MessageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MessageInclude<ExtArgs> | null
+  where?: Prisma.MessageWhereInput
+}
+
+/**
+ * Conversation.pendingCustomerMessage
+ */
+export type Conversation$pendingCustomerMessageArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Message
+   */
+  select?: Prisma.MessageSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Message
+   */
+  omit?: Prisma.MessageOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MessageInclude<ExtArgs> | null
+  where?: Prisma.MessageWhereInput
+}
+
+/**
  * Conversation.messages
  */
 export type Conversation$messagesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2734,6 +3832,30 @@ export type Conversation$whatsappReadSyncArgs<ExtArgs extends runtime.Types.Exte
    */
   include?: Prisma.WhatsAppReadSyncInclude<ExtArgs> | null
   where?: Prisma.WhatsAppReadSyncWhereInput
+}
+
+/**
+ * Conversation.resumptions
+ */
+export type Conversation$resumptionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ConversationResumption
+   */
+  select?: Prisma.ConversationResumptionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ConversationResumption
+   */
+  omit?: Prisma.ConversationResumptionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationResumptionInclude<ExtArgs> | null
+  where?: Prisma.ConversationResumptionWhereInput
+  orderBy?: Prisma.ConversationResumptionOrderByWithRelationInput | Prisma.ConversationResumptionOrderByWithRelationInput[]
+  cursor?: Prisma.ConversationResumptionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ConversationResumptionScalarFieldEnum | Prisma.ConversationResumptionScalarFieldEnum[]
 }
 
 /**

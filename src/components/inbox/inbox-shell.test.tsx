@@ -76,6 +76,7 @@ const defaultInbox = {
         preferredName: null,
         name: "Carlos",
         phone: "5561999999999",
+        messagingRestricted: false,
         type: null,
         tags: [],
       },
@@ -86,8 +87,15 @@ const defaultInbox = {
       unreadCount: 1,
       manuallyUnread: false,
       manualUnreadRevision: null,
-      awaitingResponseSince: null,
       revision: "2026-08-20T14:30:00.000Z",
+      serviceWindow: {
+        enforcement: "INACTIVE",
+        status: "CLOSED",
+        closesAt: null,
+        sendMode: "FREE_FORM",
+        reason: null,
+        resumption: null,
+      },
   }],
   conversation: null,
   users: [],
@@ -125,6 +133,9 @@ const defaultInbox = {
   sendMedia: vi.fn(),
   sendRecording: vi.fn(),
   retryMessage: vi.fn(),
+  resumeConversation: vi.fn().mockResolvedValue(true),
+  resumePending: false,
+  resumeError: null,
   markRead: vi.fn(),
   markUnread: vi.fn().mockResolvedValue(undefined),
   markUnreadPending: false,
@@ -135,6 +146,9 @@ const defaultInbox = {
   setResponsible: vi.fn(),
   setContactType: vi.fn().mockResolvedValue(true),
   replaceContactTags: vi.fn().mockResolvedValue(true),
+  setMessagingRestriction: vi.fn().mockResolvedValue(true),
+  messagingRestrictionPending: false,
+  messagingRestrictionError: null,
 };
 
 const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT" };
@@ -237,6 +251,7 @@ describe("InboxShell", () => {
     await userEventController.click(screen.getByRole("button", { name: "Abrir configurações" }));
     expect(screen.getByRole("menuitem", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
     expect(screen.queryByRole("menuitem", { name: "Configurar classificações" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Configurar WhatsApp" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Configurar usuários" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Meta normal" })).not.toBeInTheDocument();
 
@@ -245,6 +260,7 @@ describe("InboxShell", () => {
     await userEventController.click(screen.getByRole("button", { name: "Abrir configurações" }));
     expect(screen.getByRole("menuitem", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
     expect(screen.getByRole("menuitem", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
+    expect(screen.getByRole("menuitem", { name: "Configurar WhatsApp" })).toHaveAttribute("href", "/configuracoes/whatsapp");
     expect(screen.getByRole("menuitem", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
     await userEventController.keyboard("{Escape}");
     expect(screen.getByRole("link", { name: "Meta normal" })).toHaveAttribute("href", "/configuracoes/meta");

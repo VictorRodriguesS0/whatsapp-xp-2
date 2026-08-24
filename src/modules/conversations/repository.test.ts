@@ -75,6 +75,16 @@ describe("Prisma conversation repository", () => {
 
     expect(conversationQuery).toMatchObject({
       select: {
+        resumptions: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            clientRequestId: true,
+            sourceMessageId: true,
+            status: true,
+            reservationUntil: true,
+          },
+        },
         messages: {
           take: 1,
           orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],

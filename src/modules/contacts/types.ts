@@ -3,6 +3,7 @@ import type {
   UpdateContactDefinitionInput,
   UpdateContactInput,
 } from "./schemas";
+import type { ContactMessagingRestrictionAction } from "@/generated/prisma/enums";
 
 export type DefinitionRecord = {
   id: string;
@@ -31,6 +32,7 @@ export type ContactRecord = {
   preferredName: string | null;
   phone: string | null;
   whatsappAppContact?: { fullName: string | null; active: boolean } | null;
+  messagingOptOutAt: Date | null;
   contactTypeId: string | null;
   contactType: DefinitionRecord | null;
   tagAssignments: Array<{ tag: DefinitionRecord }>;
@@ -42,6 +44,7 @@ export type ContactDto = {
   whatsappAppName?: string | null;
   name: string;
   phone: string;
+  messagingRestricted: boolean;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };
@@ -52,6 +55,23 @@ export type ContactClassificationDto = Pick<
 > & { name: string };
 
 export type ContactUpdateData = UpdateContactInput;
+
+export type ContactMessagingRestrictionUpdateData = {
+  messagingOptOutAt: Date | null;
+  messagingRestrictionReason: string | null;
+  messagingRestrictedByUserId: string | null;
+};
+
+export type ContactMessagingRestrictionEventCreateData = {
+  contactId: string;
+  actorUserId: string;
+  action: ContactMessagingRestrictionAction;
+  reason: string;
+};
+
+export type ContactMessagingRestrictionDto = {
+  messagingRestricted: boolean;
+};
 
 export type DefinitionCreateData = CreateContactDefinitionInput & {
   normalizedName: string;
@@ -66,6 +86,14 @@ export type ContactRepository = {
   isActorActive(id: string): Promise<boolean>;
   findContact(id: string): Promise<ContactRecord | null>;
   updateContact(id: string, data: ContactUpdateData): Promise<ContactRecord>;
+  lockContactForMessagingRestriction(id: string): Promise<ContactRecord | null>;
+  updateContactMessagingRestriction(
+    id: string,
+    data: ContactMessagingRestrictionUpdateData,
+  ): Promise<ContactRecord>;
+  createContactMessagingRestrictionEvent(
+    data: ContactMessagingRestrictionEventCreateData,
+  ): Promise<void>;
 
   listContactTypes(): Promise<DefinitionRecord[]>;
   listActiveContactTypes(): Promise<DefinitionRecord[]>;

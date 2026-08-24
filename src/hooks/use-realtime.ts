@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useSyncExternalStore } from "react";
 
-import type { RealtimeEvent } from "@/modules/realtime/events";
+import {
+  realtimeEventSchema,
+  type RealtimeEvent,
+} from "@/modules/realtime/events";
 
 type Subscriber = {
   onSync: () => void;
@@ -26,49 +29,7 @@ function emitStatus(next: boolean) {
 }
 
 function isRealtimeEvent(value: unknown): value is RealtimeEvent {
-  if (!value || typeof value !== "object") return false;
-  const event = value as {
-    type?: unknown;
-    conversationId?: unknown;
-    sourceConversationId?: unknown;
-    targetConversationId?: unknown;
-    userId?: unknown;
-    messageId?: unknown;
-    mediaId?: unknown;
-    contactId?: unknown;
-    scope?: unknown;
-    revision?: unknown;
-  };
-  if (typeof event.type !== "string") return false;
-  if (event.type === "user.updated") return typeof event.userId === "string";
-  if (event.type === "meta-health.updated") return true;
-  if (event.type === "conversation.merged") {
-    return (
-      typeof event.sourceConversationId === "string" &&
-      typeof event.targetConversationId === "string"
-    );
-  }
-  if (event.type === "media.updated") {
-    return (
-      typeof event.conversationId === "string" &&
-      typeof event.messageId === "string" &&
-      typeof event.mediaId === "string"
-    );
-  }
-  if (event.type === "contact.updated") {
-    return typeof event.contactId === "string";
-  }
-  if (event.type === "contacts.synced") {
-    return (
-      typeof event.revision === "string" &&
-      Object.keys(event).every((key) => key === "type" || key === "revision")
-    );
-  }
-  if (event.type === "settings.updated") {
-    return event.scope === "contact-types" || event.scope === "contact-tags";
-  }
-  return ["conversation.updated", "message.created", "message.status", "read.updated", "responsible.updated"].includes(event.type)
-    && typeof event.conversationId === "string";
+  return realtimeEventSchema.safeParse(value).success;
 }
 
 function clearReconnectTimer() {

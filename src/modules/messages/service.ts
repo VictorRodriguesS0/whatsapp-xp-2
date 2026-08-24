@@ -11,6 +11,7 @@ import {
   MessageOperationalState,
   MessageStatus,
   MessageType,
+  OutboundPayloadKind,
   type MessageType as MessageTypeValue,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
@@ -18,6 +19,7 @@ import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
 import { runConversationTransaction } from "@/modules/conversations/service";
 import { refreshResponseState } from "@/modules/conversations/shared-state";
+import { assertFreeFormSendAllowed } from "@/modules/messaging-policy/service";
 import type {
   MessageDto,
   QuotedReplyRecord,
@@ -102,6 +104,11 @@ export type MessageServiceRecord = {
   sentByUser: { id: string; name: string };
   status: MessageStatus;
   failureReason: string | null;
+  outboundPayloadKind: OutboundPayloadKind;
+  templateName: string | null;
+  templateLanguage: string | null;
+  templateComponents: unknown;
+  templateDefinitionHash: string | null;
   operationalState: MessageOperationalState;
   providerAttemptedAt: Date | null;
   deliveryLeaseId: string | null;
@@ -112,6 +119,14 @@ export type MessageServiceRecord = {
   mediaObject: MessageMediaRecord | null;
 };
 
+export type PreparedTemplatePayload = {
+  kind: "TEMPLATE";
+  name: string;
+  language: "pt_BR";
+  definitionHash: string;
+  bodyParameters: [{ type: "text"; text: string }];
+};
+
 export type PendingMessageInput = {
   conversationId: string;
   clientRequestId: string;
@@ -120,6 +135,13 @@ export type PendingMessageInput = {
   body: string | null;
   replyToMessageId: string | null;
   externalTimestamp: Date;
+  payload?: PreparedTemplatePayload;
+};
+
+export type PreparedTemplateMessageInput = {
+  clientRequestId: string;
+  body: string;
+  payload: PreparedTemplatePayload;
 };
 
 export type StoredMessageMediaInput = {
@@ -221,7 +243,15 @@ export type MessageServiceDependencies = {
   now?: () => Date;
   createUuid?: () => string;
   deliveryLeaseMs?: number;
+  assertFreeFormSendAllowed?(
+    conversationId: string,
+    now: Date,
+  ): Promise<void>;
 };
+
+function freeFormGuard(dependencies: MessageServiceDependencies) {
+  return dependencies.assertFreeFormSendAllowed ?? assertFreeFormSendAllowed;
+}
 
 const replyPreviewSelect = {
   id: true,
@@ -231,6 +261,7 @@ const replyPreviewSelect = {
   content: true,
   sentByUser: { select: { id: true, name: true } },
   mediaObject: { select: { originalFilename: true } },
+  revokedAt: true,
 } as const;
 
 const prismaMessageScalarSelect = {
@@ -248,6 +279,11 @@ const prismaMessageScalarSelect = {
   sentByUserId: true,
   status: true,
   failureReason: true,
+  outboundPayloadKind: true,
+  templateName: true,
+  templateLanguage: true,
+  templateComponents: true,
+  templateDefinitionHash: true,
   operationalState: true,
   providerAttemptedAt: true,
   deliveryLeaseId: true,
@@ -306,6 +342,11 @@ async function hydrateServiceRecord(row: PrismaMessageRow): Promise<MessageServi
     sentByUser,
     status: row.status,
     failureReason: row.failureReason,
+    outboundPayloadKind: row.outboundPayloadKind,
+    templateName: row.templateName,
+    templateLanguage: row.templateLanguage,
+    templateComponents: row.templateComponents,
+    templateDefinitionHash: row.templateDefinitionHash,
     operationalState: row.operationalState,
     providerAttemptedAt: row.providerAttemptedAt,
     deliveryLeaseId: row.deliveryLeaseId,
@@ -478,6 +519,20 @@ export const prismaMessageRepository: MessageServiceRepository = {
             replyToWhatsappMessageId: replyTarget?.whatsappMessageId ?? null,
             sentByUserId: input.sentByUserId,
             status: MessageStatus.PENDING,
+            ...(input.payload
+              ? {
+                  outboundPayloadKind: OutboundPayloadKind.TEMPLATE,
+                  templateName: input.payload.name,
+                  templateLanguage: input.payload.language,
+                  templateComponents: [
+                    {
+                      type: "body",
+                      parameters: input.payload.bodyParameters,
+                    },
+                  ],
+                  templateDefinitionHash: input.payload.definitionHash,
+                }
+              : {}),
             externalTimestamp: input.externalTimestamp,
           },
         });
@@ -663,6 +718,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
             messageId: updated.id,
             whatsappMessageId: parsedWhatsappMessageId,
           });
+          await refreshResponseState(transaction, updated.conversationId);
         });
         break;
       } catch (error) {
@@ -675,12 +731,23 @@ export const prismaMessageRepository: MessageServiceRepository = {
     return hydrated;
   },
   async markFailed(messageId, failureReason, operationalState) {
-    const row = await prisma.message.update({
-      where: { id: messageId },
-      data: { status: MessageStatus.FAILED, failureReason, operationalState, deliveryLeaseId: null, deliveryLeaseUntil: null },
-      select: prismaMessageScalarSelect,
+    await runConversationTransaction(prisma, async (transaction) => {
+      const failed = await transaction.message.update({
+        where: { id: messageId },
+        data: {
+          status: MessageStatus.FAILED,
+          failureReason,
+          operationalState,
+          deliveryLeaseId: null,
+          deliveryLeaseUntil: null,
+        },
+        select: { conversationId: true },
+      });
+      await refreshResponseState(transaction, failed.conversationId);
     });
-    return hydrateServiceRecord(row);
+    const hydrated = await this.findById(messageId);
+    if (!hydrated) throw new Error("Failed outbound message could not be hydrated");
+    return hydrated;
   },
   async findById(messageId) {
     const row = await prisma.message.findUnique({ where: { id: messageId }, select: prismaMessageScalarSelect });
@@ -724,6 +791,7 @@ const defaultDependencies: MessageServiceDependencies = {
   concurrency: defaultConcurrency,
   idempotencyInFlight: defaultIdempotencyInFlight,
   publishRealtime,
+  assertFreeFormSendAllowed,
 };
 
 function toMessageDto(message: MessageServiceRecord): MessageDto {
@@ -743,6 +811,7 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
+          revokedAt: message.replyToMessage.revokedAt,
         })
       : message.replyToWhatsappMessageId
         ? { available: false }
@@ -754,6 +823,7 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     sentBy: { id: message.sentByUser.id, name: message.sentByUser.name },
     status: message.status,
     failureReason: message.failureReason,
+    editedAt: null,
     revokedAt: null,
     reactions: [],
     externalTimestamp: message.externalTimestamp.toISOString(),
@@ -797,6 +867,46 @@ class ProviderCallError extends Error {
   }
 }
 
+class ProviderCommitError extends Error {}
+
+function preparedBodyParameters(
+  message: MessageServiceRecord,
+): [{ type: "text"; text: string }] {
+  if (!Array.isArray(message.templateComponents) || message.templateComponents.length !== 1) {
+    throw new Error("Invalid prepared template components");
+  }
+  const body = message.templateComponents[0];
+  if (
+    !body ||
+    typeof body !== "object" ||
+    Array.isArray(body) ||
+    Object.keys(body).sort().join(",") !== "parameters,type" ||
+    !("type" in body) ||
+    body.type !== "body" ||
+    !("parameters" in body) ||
+    !Array.isArray(body.parameters) ||
+    body.parameters.length !== 1
+  ) {
+    throw new Error("Invalid prepared template components");
+  }
+  const parameter = body.parameters[0];
+  if (
+    !parameter ||
+    typeof parameter !== "object" ||
+    Array.isArray(parameter) ||
+    Object.keys(parameter).sort().join(",") !== "text,type" ||
+    !("type" in parameter) ||
+    parameter.type !== "text" ||
+    !("text" in parameter) ||
+    typeof parameter.text !== "string" ||
+    parameter.text.length < 1 ||
+    parameter.text.length > 80
+  ) {
+    throw new Error("Invalid prepared template parameter");
+  }
+  return [{ type: "text", text: parameter.text }];
+}
+
 async function providerCall<T>(call: () => Promise<T>): Promise<T> {
   try {
     return await call();
@@ -809,6 +919,35 @@ async function deliver(
   message: MessageServiceRecord,
   dependencies: MessageServiceDependencies,
 ): Promise<MessageServiceRecord> {
+  if (message.outboundPayloadKind === OutboundPayloadKind.TEMPLATE) {
+    if (
+      !message.templateName ||
+      message.templateLanguage !== "pt_BR" ||
+      !message.templateDefinitionHash ||
+      !/^[0-9a-f]{64}$/u.test(message.templateDefinitionHash)
+    ) {
+      throw new Error("Invalid prepared template message");
+    }
+    const bodyParameters = preparedBodyParameters(message);
+    const result = await providerCall(() =>
+      dependencies.provider.sendTemplate({
+        to: message.contactPhone,
+        name: message.templateName!,
+        language: message.templateLanguage!,
+        bodyParameters,
+      }),
+    );
+    try {
+      return await dependencies.repository.markSent(
+        message.id,
+        result.whatsappMessageId,
+      );
+    } catch (error) {
+      throw new ProviderCommitError("Provider result was not committed", {
+        cause: error,
+      });
+    }
+  }
   if (message.type === MessageType.TEXT) {
     const result = await providerCall(() => dependencies.provider.sendText({
       to: message.contactPhone,
@@ -847,6 +986,33 @@ async function deliverAndCommit(
     const clock = dependencies.now ?? (() => new Date());
     const leaseId = (dependencies.createUuid ?? randomUUID)();
     const now = clock();
+    try {
+      if (message.outboundPayloadKind === OutboundPayloadKind.FREE_FORM) {
+        await freeFormGuard(dependencies)(message.conversationId, now);
+      }
+    } catch (error) {
+      if (
+        error instanceof HttpError &&
+        (error.code === "WHATSAPP_SERVICE_WINDOW_CLOSED" ||
+          error.code === "WHATSAPP_CONTACT_OPTED_OUT")
+      ) {
+        try {
+          const failed = await dependencies.repository.markFailed(
+            message.id,
+            "Envio bloqueado pela política do WhatsApp",
+            MessageOperationalState.LOCAL_FAILURE,
+          );
+          publishSafely(dependencies, {
+            type: "message.status",
+            conversationId: failed.conversationId,
+            messageId: failed.id,
+          });
+        } catch {
+          // A ausência de uma confirmação local nunca autoriza chamar a Meta.
+        }
+      }
+      throw error;
+    }
     const claimed = await dependencies.repository.claimReadyForDelivery(message.id, {
       leaseId,
       now,
@@ -905,6 +1071,15 @@ async function deliverAndCommit(
         } catch {
           final = (await dependencies.repository.findById(attempted.id)) ?? attempted;
         }
+      } else if (error instanceof ProviderCommitError) {
+        try {
+          final = await dependencies.repository.markOperation(
+            attempted.id,
+            MessageOperationalState.OUTCOME_UNKNOWN,
+          );
+        } catch {
+          final = (await dependencies.repository.findById(attempted.id)) ?? attempted;
+        }
       } else {
         final = (await dependencies.repository.findById(attempted.id)) ?? attempted;
       }
@@ -956,6 +1131,7 @@ async function sendMessageOnce(
     ? outboundTextSchema.parse(input)
     : outboundMediaFieldsSchema.parse(input);
   const clientRequestId = clientRequestIdSchema.parse(parsed.clientRequestId);
+  const clock = dependencies.now ?? (() => new Date());
   const existing = await dependencies.repository.findByClientRequestId(clientRequestId);
   if (existing) {
     assertSameIdempotentOperation(
@@ -974,6 +1150,10 @@ async function sendMessageOnce(
       (existing.status === MessageStatus.PENDING && existing.operationalState === MessageOperationalState.READY)
     );
     if (repairableMedia) {
+      await freeFormGuard(dependencies)(
+        parsedConversationId,
+        clock(),
+      );
       const validatedFile = await validateOutboundFile(input);
       let storedKey: string | undefined;
       let attachStarted = false;
@@ -1019,6 +1199,7 @@ async function sendMessageOnce(
     }
     return toMessageDto(existing);
   }
+  await freeFormGuard(dependencies)(parsedConversationId, clock());
   let validatedFile: MessageFileInput | undefined;
   if (input.type !== MessageType.TEXT) {
     validatedFile = await validateOutboundFile(input);
@@ -1030,7 +1211,7 @@ async function sendMessageOnce(
     type: input.type,
     body: parsed.body ?? null,
     replyToMessageId: parsed.replyToMessageId ?? null,
-    externalTimestamp: new Date(),
+    externalTimestamp: clock(),
   });
   if (!created.created) {
     assertSameIdempotentOperation(
@@ -1119,6 +1300,91 @@ export function sendMessage(
   return operation;
 }
 
+function assertPreparedTemplateIdentity(
+  message: MessageServiceRecord,
+  actor: SessionUser,
+  conversationId: string,
+  input: PreparedTemplateMessageInput,
+): void {
+  assertSameIdempotentOperation(message, actor, conversationId, undefined);
+  if (
+    message.outboundPayloadKind !== OutboundPayloadKind.TEMPLATE ||
+    message.type !== MessageType.TEXT ||
+    message.body !== input.body ||
+    message.templateName !== input.payload.name ||
+    message.templateLanguage !== input.payload.language ||
+    message.templateDefinitionHash !== input.payload.definitionHash ||
+    preparedBodyParameters(message)[0].text !==
+      input.payload.bodyParameters[0].text
+  ) {
+    throw new HttpError(409, "Identificador de envio já utilizado");
+  }
+}
+
+export async function sendPreparedTemplateMessage(
+  actor: SessionUser,
+  conversationId: string,
+  input: PreparedTemplateMessageInput,
+  dependencies: MessageServiceDependencies = defaultDependencies,
+): Promise<MessageServiceRecord> {
+  const parsedActorId = messageUuidSchema.parse(actor.id);
+  const parsedConversationId = messageUuidSchema.parse(conversationId);
+  const clientRequestId = clientRequestIdSchema.parse(input.clientRequestId);
+  const existing = await dependencies.repository.findByClientRequestId(
+    clientRequestId,
+  );
+  if (existing) {
+    assertPreparedTemplateIdentity(
+      existing,
+      actor,
+      parsedConversationId,
+      input,
+    );
+    if (
+      existing.status === MessageStatus.PENDING &&
+      existing.operationalState === MessageOperationalState.READY
+    ) {
+      await deliverAndCommit(existing, dependencies);
+      return (await dependencies.repository.findById(existing.id)) ?? existing;
+    }
+    return existing;
+  }
+
+  const created = await dependencies.repository.createPending({
+    conversationId: parsedConversationId,
+    clientRequestId,
+    sentByUserId: parsedActorId,
+    type: MessageType.TEXT,
+    body: input.body,
+    replyToMessageId: null,
+    externalTimestamp: (dependencies.now ?? (() => new Date()))(),
+    payload: input.payload,
+  });
+  assertPreparedTemplateIdentity(
+    created.message,
+    actor,
+    parsedConversationId,
+    input,
+  );
+  if (created.created) {
+    publishSafely(dependencies, {
+      type: "message.created",
+      conversationId: created.message.conversationId,
+      messageId: created.message.id,
+    });
+  }
+  if (
+    created.message.status === MessageStatus.PENDING &&
+    created.message.operationalState === MessageOperationalState.READY
+  ) {
+    await deliverAndCommit(created.message, dependencies);
+  }
+  return (
+    (await dependencies.repository.findById(created.message.id)) ??
+    created.message
+  );
+}
+
 export async function retryMessage(
   actor: SessionUser,
   messageId: string,
@@ -1134,6 +1400,17 @@ export async function retryMessage(
   if (current.type !== MessageType.TEXT && !current.mediaObject) {
     throw new HttpError(409, "A mídia original não está disponível; envie um novo arquivo");
   }
+  if (current.outboundPayloadKind === OutboundPayloadKind.TEMPLATE) {
+    throw new HttpError(
+      409,
+      "Mensagens de retomada não podem ser reenviadas automaticamente",
+    );
+  }
+  const clock = dependencies.now ?? (() => new Date());
+  await freeFormGuard(dependencies)(
+    current.conversationId,
+    clock(),
+  );
   const claimed = await dependencies.repository.claimFailedForRetry(parsedMessageId);
   if (!claimed) throw new HttpError(409, "Mensagem já está sendo reenviada");
   publishSafely(dependencies, { type: "message.status", conversationId: claimed.conversationId, messageId: claimed.id });

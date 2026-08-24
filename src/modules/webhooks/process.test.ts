@@ -1,6 +1,11 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.hoisted(() => {
+  process.env.WHATSAPP_PHONE_NUMBER_ID = "test-phone-number-id";
+  process.env.WHATSAPP_BUSINESS_ACCOUNT_ID = "123456789";
+});
 
 import {
   MessageDirection,
@@ -14,13 +19,15 @@ import {
   inboundTextFixture,
   phoneQualityFixture,
   statusFixture,
+  templateQualityFixture,
+  templateStatusFixture,
 } from "@/test/fixtures/meta-webhooks";
 import { resetTestDatabase } from "@/test/database";
 
 import { normalizeWebhook } from "./normalize";
 import type {
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
+  NormalizedMessageMutationEvent,
 } from "./types";
 import {
   processWebhookEvents,
@@ -75,6 +82,19 @@ type State = {
     sourceTimestamp: Date;
     sourceVersionKey: string;
   }>;
+  templateStatusUpdates: Array<{
+    metaTemplateId: string;
+    status: string;
+  }>;
+  templateQualityUpdates: Array<{
+    metaTemplateId: string;
+    qualityScore: string;
+  }>;
+  businessEchoReadAdvances: Array<{
+    conversationId: string;
+    messageId: string | null;
+    externalTimestamp: Date;
+  }>;
 };
 
 function cloneState(state: State): State {
@@ -85,10 +105,13 @@ function cloneState(state: State): State {
     messages: new Map(structuredClone([...state.messages])),
     media: new Map(structuredClone([...state.media])),
     appContacts: new Map(structuredClone([...state.appContacts])),
+    templateStatusUpdates: structuredClone(state.templateStatusUpdates),
+    templateQualityUpdates: structuredClone(state.templateQualityUpdates),
+    businessEchoReadAdvances: structuredClone(state.businessEchoReadAdvances),
   };
 }
 
-function createHarness(options: { failCreateMessage?: boolean } = {}) {
+function createHarness(options: { failCreateMessage?: boolean; now?: Date } = {}) {
   let state: State = {
     events: new Map(),
     contacts: new Map(),
@@ -96,6 +119,9 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     messages: new Map(),
     media: new Map(),
     appContacts: new Map(),
+    templateStatusUpdates: [],
+    templateQualityUpdates: [],
+    businessEchoReadAdvances: [],
   };
   let committed = false;
   const publications: Array<{ event: unknown; afterCommit: boolean }> = [];
@@ -274,15 +300,83 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
             ? (conversation.awaitingResponseSince ?? latest.externalTimestamp)
             : null;
       },
+      advanceTeamReadFromBusinessEcho: async (
+        conversationId,
+        boundary,
+      ) => {
+        target.businessEchoReadAdvances.push({
+          conversationId,
+          messageId: boundary.id,
+          externalTimestamp: boundary.externalTimestamp,
+        });
+      },
       updateMessageStatus: async (messageId, status, failureReason) => {
         const message = [...target.messages.values()].find(({ id }) => id === messageId);
         if (!message) throw new Error("missing message");
         message.status = status;
         return { ...message, failureReason };
       },
-      findReactionTarget: async () => { throw new Error("unused"); },
+      reconcileFailedOutbound: async (messageId, conversationId) => {
+        const message = [...target.messages.values()].find(
+          ({ id }) => id === messageId,
+        );
+        if (!message || message.conversationId !== conversationId) {
+          throw new Error("missing failed outbound");
+        }
+        const conversation = target.conversations.get(conversationId);
+        if (!conversation) throw new Error("missing conversation");
+        conversation.awaitingResponseSince = [...target.messages.values()]
+          .filter(
+            (candidate) =>
+              candidate.conversationId === conversationId &&
+              candidate.direction === MessageDirection.INBOUND,
+          )
+          .sort(
+            (left, right) =>
+              right.externalTimestamp.getTime() -
+                left.externalTimestamp.getTime() ||
+              right.id.localeCompare(left.id),
+          )[0]?.externalTimestamp ?? null;
+      },
+      findReactionTarget: async (whatsappMessageId) => {
+        const message = target.messages.get(whatsappMessageId);
+        if (!message) return null;
+        const conversation = target.conversations.get(message.conversationId);
+        const contact = conversation
+          ? [...target.contacts.values()].find((item) => item.id === conversation.contactId)
+          : null;
+        if (!contact) throw new Error("missing contact");
+        return {
+          id: message.id,
+          conversationId: message.conversationId,
+          status: message.status,
+          contactWhatsappId: contact.whatsappId,
+          contactWhatsappUserId: contact.whatsappUserId,
+          contactPhone: contact.phone,
+        };
+      },
       applyReaction: async () => { throw new Error("unused"); },
-      revokeMessage: async () => { throw new Error("unused"); },
+      applyMessageMutation: async (input) => {
+        const message = [...target.messages.values()].find(({ id }) => id === input.messageId);
+        if (!message) return "MISSING";
+        message.body = input.action === "REVOKE" ? null : input.body;
+        message.content = input.action === "REVOKE" ? null : input.content;
+        return "APPLIED";
+      },
+      updateTemplateStatus: async (event) => {
+        target.templateStatusUpdates.push({
+          metaTemplateId: event.metaTemplateId,
+          status: event.status,
+        });
+        return event.metaTemplateId === "987654321";
+      },
+      updateTemplateQuality: async (event) => {
+        target.templateQualityUpdates.push({
+          metaTemplateId: event.metaTemplateId,
+          qualityScore: event.qualityScore,
+        });
+        return event.metaTemplateId === "987654321";
+      },
     };
   }
 
@@ -315,6 +409,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     applyMetaOperationalEvent: async (event) => {
       operationalApplications.push(event);
     },
+    now: options.now ? () => options.now! : undefined,
   };
 
   return {
@@ -343,18 +438,18 @@ describe("webhook event processing", () => {
       replyToWhatsappMessageId: null,
       origin: "WHATSAPP_BUSINESS_APP",
     } satisfies NormalizedMessageEchoEvent;
-  const control = {
-      kind: "messageEchoControl",
+  const mutation = {
+      kind: "messageMutation",
       action: "EDIT",
-      whatsappMessageId: "wamid.echo-control-pending-task-2",
+      providerEventId: "wamid.echo-mutation-pending-task-2",
       originalWhatsappMessageId: "wamid.echo-original-pending-task-2",
-      to: "5511999990001",
-      toUserId: "BR.Customer123",
-      toParentUserId: null,
       timestamp: new Date("2026-08-21T12:00:00.000Z"),
       timestampRaw: "1787313600",
+      body: "texto corrigido",
+      content: null,
+      identity: { phone: "5511999990001", whatsappUserId: "BR.Customer123" },
       origin: "WHATSAPP_BUSINESS_APP",
-    } satisfies NormalizedMessageEchoControlEvent;
+    } satisfies NormalizedMessageMutationEvent;
 
   it("persists an echo as actorless outbound SENT and publishes only after commit", async () => {
     const harness = createHarness();
@@ -375,6 +470,13 @@ describe("webhook event processing", () => {
       body: "synthetic echo",
     });
     expect(harness.state.media).toHaveLength(0);
+    expect(harness.state.businessEchoReadAdvances).toEqual([
+      {
+        conversationId: "conversation-1",
+        messageId: "message-1",
+        externalTimestamp: echo.timestamp,
+      },
+    ]);
     expect(scheduled).toEqual([]);
     expect(harness.publications).toEqual([
       {
@@ -462,27 +564,63 @@ describe("webhook event processing", () => {
     });
   });
 
-  it("deduplicates controls without creating domain state", async () => {
+  it("completes and deduplicates a stale mutation whose target is unavailable", async () => {
     const harness = createHarness();
 
-    await expect(processWebhookEvents([control], harness.dependencies)).resolves.toEqual({
+    await expect(processWebhookEvents([mutation], harness.dependencies)).resolves.toEqual({
       processed: 1,
       duplicates: 0,
     });
-    await expect(processWebhookEvents([control], harness.dependencies)).resolves.toEqual({
+    await expect(processWebhookEvents([mutation], harness.dependencies)).resolves.toEqual({
       processed: 0,
       duplicates: 1,
     });
 
     expect(
       harness.state.events.get(
-        "message-echo-control:EDIT:wamid.echo-control-pending-task-2:wamid.echo-original-pending-task-2",
+        "message-mutation:wamid.echo-mutation-pending-task-2",
       ),
     ).toMatchObject({ status: WebhookStatus.PROCESSED });
     expect(harness.state.contacts).toHaveLength(0);
     expect(harness.state.conversations).toHaveLength(0);
     expect(harness.state.messages).toHaveLength(0);
     expect(harness.state.media).toHaveLength(0);
+    expect(harness.publications).toEqual([]);
+  });
+
+  it("applies an official-app edit to its original and publishes only IDs", async () => {
+    const harness = createHarness();
+    const original = {
+      ...echo,
+      whatsappMessageId: mutation.originalWhatsappMessageId,
+      body: "texto original",
+    };
+
+    await processWebhookEvents([original], harness.dependencies);
+    await expect(processWebhookEvents([mutation], harness.dependencies)).resolves.toEqual({
+      processed: 1,
+      duplicates: 0,
+    });
+
+    expect(harness.state.messages.get(original.whatsappMessageId)?.body).toBe(
+      "texto corrigido",
+    );
+    expect(harness.publications.at(-1)).toEqual({
+      afterCommit: true,
+      event: {
+        type: "message.updated",
+        conversationId: "conversation-1",
+        messageId: "message-1",
+      },
+    });
+  });
+
+  it("keeps a recent missing mutation retryable", async () => {
+    const harness = createHarness({ now: mutation.timestamp });
+
+    await expect(
+      processWebhookEvents([mutation], harness.dependencies),
+    ).rejects.toBeInstanceOf(WebhookProcessingError);
     expect(harness.publications).toEqual([]);
   });
 
@@ -822,8 +960,84 @@ describe("WhatsApp app contact batch processing", () => {
   });
 });
 
+describe("template webhook event processing", () => {
+  it("deduplicates status, health and quality updates with only safe invalidations", async () => {
+    const harness = createHarness();
+    const events = [
+      ...normalizeWebhook(templateStatusFixture("PAUSED")),
+      ...normalizeWebhook(templateQualityFixture("YELLOW")),
+    ];
+
+    await expect(
+      processWebhookEvents(events, harness.dependencies),
+    ).resolves.toEqual({ processed: 3, duplicates: 0 });
+    await expect(
+      processWebhookEvents(events, harness.dependencies),
+    ).resolves.toEqual({ processed: 0, duplicates: 3 });
+
+    expect(harness.state.templateStatusUpdates).toEqual([
+      { metaTemplateId: "987654321", status: "PAUSED" },
+    ]);
+    expect(harness.state.templateQualityUpdates).toEqual([
+      { metaTemplateId: "987654321", qualityScore: "YELLOW" },
+    ]);
+    expect(harness.publications).toEqual([
+      {
+        afterCommit: true,
+        event: { type: "meta-health.updated" },
+      },
+      {
+        afterCommit: true,
+        event: { type: "settings.updated", scope: "whatsapp-policy" },
+      },
+      {
+        afterCommit: true,
+        event: { type: "settings.updated", scope: "whatsapp-policy" },
+      },
+    ]);
+    expect(JSON.stringify(harness.publications)).not.toContain("987654321");
+  });
+});
+
 describe("webhook PostgreSQL integration", () => {
   beforeEach(resetTestDatabase);
+
+  it("updates known template status and quality once without creating provider rows", async () => {
+    await prisma.whatsAppTemplate.create({
+      data: {
+        metaId: "987654321",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        category: "UTILITY",
+        status: "PENDING",
+        qualityScore: null,
+        components: [],
+        bodyText: "Olá, {{1}}",
+        parameterCount: 1,
+        supported: true,
+        definitionHash: "a".repeat(64),
+        syncedAt: new Date("2026-08-23T12:00:00.000Z"),
+      },
+    });
+    const events = [
+      ...normalizeWebhook(templateStatusFixture("APPROVED")),
+      ...normalizeWebhook(templateQualityFixture("GREEN")),
+    ];
+
+    await processWebhookEvents(events);
+    await processWebhookEvents(events);
+
+    await expect(
+      prisma.whatsAppTemplate.findFirstOrThrow({
+        select: { status: true, qualityScore: true },
+      }),
+    ).resolves.toEqual({ status: "APPROVED", qualityScore: "GREEN" });
+    await expect(prisma.whatsAppTemplate.count()).resolves.toBe(1);
+    await expect(
+      prisma.webhookEvent.count({ where: { status: WebhookStatus.PROCESSED } }),
+    ).resolves.toBe(3);
+    await expect(prisma.metaOperationalAlert.count()).resolves.toBe(1);
+  });
 
   it("commits one inbound message and one deduplication event across retries", async () => {
     const events = normalizeWebhook(inboundTextFixture);

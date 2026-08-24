@@ -52,6 +52,20 @@ const users: ConversationUserRecord[] = [victor, marcos, joao].map((user) => ({
   active: true,
 }));
 
+type TestServiceWindowPolicyContext = {
+  enforcement: "INACTIVE" | "ACTIVE";
+  resumptionTemplate: {
+    templateName: string;
+    language: string;
+    bodyText: string;
+  } | null;
+};
+
+const inactiveServiceWindowPolicy: TestServiceWindowPolicyContext = {
+  enforcement: "INACTIVE",
+  resumptionTemplate: null,
+};
+
 function message(
   id: string,
   conversationId: string,
@@ -105,6 +119,7 @@ function conversation(
       name,
       preferredName: null,
       phone,
+      messagingOptOutAt: null,
       contactType: null,
       tagAssignments: [],
       ...contactOverrides,
@@ -124,7 +139,11 @@ function conversation(
     teamLastReadMessageId,
     teamLastReadAt: teamLastReadMessage?.externalTimestamp ?? null,
     manualUnreadAt: null,
-    awaitingResponseSince: null,
+    lastCustomerMessageAt: null,
+    lastCustomerMessageId: null,
+    pendingCustomerMessageId: null,
+    awaitingCustomerSince: null,
+    confirmingResumptions: [],
   };
 }
 
@@ -137,11 +156,13 @@ function createRepository(
     lastReadMessageId: string;
     lastReadAt: Date;
   }> = [],
+  serviceWindowPolicy: TestServiceWindowPolicyContext = inactiveServiceWindowPolicy,
 ): ConversationRepository & {
   reads: typeof initialReads;
   upsertCalls: Array<[string, string, string]>;
   responsibleUpdates: Array<[string, string | null]>;
   pinUpdates: Array<[string, Date | null]>;
+  policyLoads: number;
 } {
   const records = initialConversations.map((record) => ({ ...record }));
   const messages = initialMessages.map((record) => ({ ...record }));
@@ -186,11 +207,17 @@ function createRepository(
     upsertCalls: typeof upsertCalls;
     responsibleUpdates: typeof responsibleUpdates;
     pinUpdates: typeof pinUpdates;
+    policyLoads: number;
   } = {
     reads,
     upsertCalls,
     responsibleUpdates,
     pinUpdates,
+    policyLoads: 0,
+    getServiceWindowPolicyContext: async () => {
+      repository.policyLoads += 1;
+      return serviceWindowPolicy;
+    },
     list: async (_userId, query) => {
       const normalizedSearch = query.search?.toLocaleLowerCase("pt-BR");
       const canonicalPhoneSearch = query.search?.replace(/\D/gu, "");
@@ -365,6 +392,168 @@ function createRepository(
 }
 
 describe("conversation service", () => {
+  it("maps one authoritative policy load across list states and renders a safe resumption preview", async () => {
+    const now = new Date();
+    const open = Object.assign(
+      conversation(
+        "10000000-0000-4000-8000-000000000001",
+        "Cliente aberto",
+        "5511999990001",
+        now,
+      ),
+      {
+        lastCustomerMessageAt: new Date(now.getTime() - 23 * 60 * 60 * 1_000),
+        pendingCustomerMessageId: "90000000-0000-4000-8000-000000000001",
+        awaitingCustomerSince: null,
+        confirmingResumptions: [],
+      },
+    );
+    const resumable = Object.assign(
+      conversation(
+        "10000000-0000-4000-8000-000000000002",
+        "Nome Meta",
+        "5511999990002",
+        new Date(now.getTime() - 1),
+        null,
+        [],
+        null,
+        { preferredName: "Bia" },
+      ),
+      {
+        lastCustomerMessageAt: new Date(now.getTime() - 25 * 60 * 60 * 1_000),
+        pendingCustomerMessageId: "90000000-0000-4000-8000-000000000002",
+        awaitingCustomerSince: null,
+        confirmingResumptions: [],
+      },
+    );
+    const restricted = Object.assign(
+      conversation(
+        "10000000-0000-4000-8000-000000000003",
+        "Contato restrito",
+        "5511999990003",
+        new Date(now.getTime() - 2),
+        null,
+        [],
+        null,
+        { messagingOptOutAt: now },
+      ),
+      {
+        lastCustomerMessageAt: new Date(now.getTime() - 60_000),
+        pendingCustomerMessageId: "90000000-0000-4000-8000-000000000003",
+        awaitingCustomerSince: null,
+        confirmingResumptions: [],
+      },
+    );
+    const awaiting = Object.assign(
+      conversation(
+        "10000000-0000-4000-8000-000000000005",
+        "Aguardando cliente",
+        "5511999990005",
+        new Date(now.getTime() - 3),
+      ),
+      {
+        lastCustomerMessageAt: new Date(now.getTime() - 25 * 60 * 60 * 1_000),
+        pendingCustomerMessageId: null,
+        awaitingCustomerSince: new Date(now.getTime() - 60_000),
+        confirmingResumptions: [],
+      },
+    );
+    const repository = createRepository(
+      [open, resumable, restricted, awaiting],
+      [],
+      [],
+      {
+        enforcement: "ACTIVE",
+        resumptionTemplate: {
+          templateName: "retomar_atendimento",
+          language: "pt_BR",
+          bodyText: "Olá, {{1}}! Podemos continuar?",
+        },
+      },
+    );
+
+    const result = await listConversations(victor.id, {}, repository);
+
+    expect(repository.policyLoads).toBe(1);
+    expect(result.items.find(({ id }) => id === open.id)?.serviceWindow).toEqual({
+      enforcement: "ACTIVE",
+      status: "OPEN",
+      closesAt: new Date(open.lastCustomerMessageAt.getTime() + 24 * 60 * 60 * 1_000).toISOString(),
+      sendMode: "FREE_FORM",
+      reason: null,
+      resumption: null,
+    });
+    expect(result.items.find(({ id }) => id === resumable.id)?.serviceWindow).toMatchObject({
+      enforcement: "ACTIVE",
+      status: "CLOSED",
+      sendMode: "RESUMPTION",
+      resumption: {
+        templateName: "retomar_atendimento",
+        language: "pt_BR",
+        previewBody: "Olá, Bia! Podemos continuar?",
+      },
+    });
+    expect(result.items.find(({ id }) => id === restricted.id)).toMatchObject({
+      contact: { messagingRestricted: true },
+      serviceWindow: {
+        enforcement: "ACTIVE",
+        sendMode: "BLOCKED",
+        reason: "CONTACT_OPTED_OUT",
+        resumption: null,
+      },
+    });
+    expect(result.items.find(({ id }) => id === awaiting.id)?.serviceWindow).toMatchObject({
+      enforcement: "ACTIVE",
+      status: "CLOSED",
+      sendMode: "AWAITING_CUSTOMER",
+      reason: null,
+      resumption: null,
+    });
+    expect(JSON.stringify(result.items)).not.toMatch(/90000000|sourceMessageId|templateId|metaId|parameters/);
+  });
+
+  it("returns a confirming state in detail without reusing the generic awaiting marker", async () => {
+    const now = new Date();
+    const confirming = Object.assign(
+      conversation(
+        "10000000-0000-4000-8000-000000000004",
+        "Carlos",
+        "5511999990004",
+        now,
+      ),
+      {
+        lastCustomerMessageAt: new Date(now.getTime() - 25 * 60 * 60 * 1_000),
+        lastCustomerMessageId: "90000000-0000-4000-8000-000000000004",
+        pendingCustomerMessageId: null,
+        awaitingCustomerSince: null,
+        confirmingResumptions: [{
+          sourceMessageId: "90000000-0000-4000-8000-000000000004",
+          status: "OUTCOME_UNKNOWN",
+          reservationUntil: null,
+        }],
+      },
+    );
+    const repository = createRepository(
+      [confirming],
+      [],
+      [],
+      { enforcement: "ACTIVE", resumptionTemplate: null },
+    );
+
+    const result = await getConversation(victor.id, confirming.id, repository);
+
+    expect(repository.policyLoads).toBe(1);
+    expect(result.serviceWindow).toMatchObject({
+      enforcement: "ACTIVE",
+      status: "CLOSED",
+      sendMode: "CONFIRMING",
+      reason: null,
+      resumption: null,
+    });
+    expect(result).not.toHaveProperty("awaitingResponseSince");
+    expect(JSON.stringify(result)).not.toContain("90000000");
+  });
+
   it("resolves the safe contact DTO with immutable profile name, formatted phone, and ordered assigned classifications", async () => {
     const typeId = "40000000-0000-4000-8000-000000000001";
     const firstTagId = "50000000-0000-4000-8000-000000000001";
@@ -424,6 +613,7 @@ describe("conversation service", () => {
       whatsappAppName: null,
       name: "Bia",
       phone: "+55 (11) 99999-1234",
+      messagingRestricted: false,
       type: { id: typeId, name: "Cliente", color: "#112233", active: false },
       tags: [
         { id: firstTagId, name: "Primeiro", color: "#778899", active: true },
@@ -437,6 +627,7 @@ describe("conversation service", () => {
     expect(JSON.stringify(result.items[0]?.contact)).not.toContain(
       "provider.example",
     );
+    expect(result.items[0]).not.toHaveProperty("awaitingResponseSince");
   });
 
   it("uses the exact display fallback when preferred and profile names are blank", async () => {
@@ -1035,7 +1226,7 @@ describe("conversation service", () => {
     expect(result.responsible).toBeNull();
   });
 
-  it("maps current reactions and revocation into message DTOs", async () => {
+  it("maps edits and sanitizes revoked message DTOs", async () => {
     const conversationId = "10000000-0000-4000-8000-000000000001";
     const timestamp = new Date("2026-08-22T12:00:00.000Z");
     const target = message(
@@ -1053,6 +1244,7 @@ describe("conversation service", () => {
       }>;
     };
     target.revokedAt = new Date("2026-08-22T12:05:00.000Z");
+    target.editedAt = new Date("2026-08-22T12:04:00.000Z");
     target.reactions = [
       {
         id: "30000000-0000-4000-8000-000000000002",
@@ -1077,11 +1269,15 @@ describe("conversation service", () => {
     const result = await getConversation(victor.id, conversationId, repository);
 
     expect(result.messages[0]).toMatchObject({
+      body: null,
+      content: null,
+      canReply: false,
+      replyTo: null,
+      mediaObjectId: null,
+      mediaState: null,
+      editedAt: "2026-08-22T12:04:00.000Z",
       revokedAt: "2026-08-22T12:05:00.000Z",
-      reactions: [
-        { reactor: "CONTACT", emoji: "👍", status: "SENT", sentBy: null },
-        { reactor: "BUSINESS", emoji: "❤️", status: "SENT", sentBy: { id: victor.id, name: victor.name } },
-      ],
+      reactions: [],
     });
   });
 });

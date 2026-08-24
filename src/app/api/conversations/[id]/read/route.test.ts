@@ -20,7 +20,6 @@ const state = {
   unreadCount: 0,
   manuallyUnread: false,
   manualUnreadRevision: null,
-  awaitingResponseSince: null,
   revision: "2026-08-21T12:00:00.000Z",
 };
 

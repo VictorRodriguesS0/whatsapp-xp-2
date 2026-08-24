@@ -13,6 +13,7 @@ const fixture: ConversationListItem = {
     preferredName: null,
     name: "Carlos Lima",
     phone: "+55 61 99999-0001",
+    messagingRestricted: false,
     type: null,
     tags: [],
   },
@@ -40,8 +41,15 @@ const fixture: ConversationListItem = {
   unreadCount: 3,
   manuallyUnread: false,
   manualUnreadRevision: null,
-  awaitingResponseSince: "2026-08-20T14:30:00.000Z",
   revision: "2026-08-20T14:30:00.000Z",
+  serviceWindow: {
+    enforcement: "INACTIVE",
+    status: "CLOSED",
+    closesAt: null,
+    sendMode: "FREE_FORM",
+    reason: null,
+    resumption: null,
+  },
 };
 
 const richPreviewCases: Array<[
@@ -64,6 +72,29 @@ describe("ConversationList", () => {
     const row = screen.getByRole("button", { name: /Carlos Lima/i });
     expect(row).not.toHaveAttribute("aria-label");
     expect(row).toHaveAccessibleName(/Vocês têm esse modelo em estoque\?/i);
+  });
+
+  it("shows the shared awaiting-customer state without restoring the generic marker", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          serviceWindow: {
+            enforcement: "ACTIVE",
+            status: "CLOSED",
+            closesAt: "2026-08-23T12:00:00.000Z",
+            sendMode: "AWAITING_CUSTOMER",
+            reason: null,
+            resumption: null,
+          },
+        }]}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    expect(screen.getByText("Aguardando cliente")).toBeVisible();
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
   });
 
   it("shows one distinct contact type without disturbing queue indicators", () => {
@@ -89,7 +120,7 @@ describe("ConversationList", () => {
     const marker = screen.getByLabelText("Tipo de contato de Carlos Lima");
     expect(within(marker).getAllByText("Cliente")).toHaveLength(1);
     expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
-    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
     expect(screen.getByText("Marcos")).toBeVisible();
 
     rerender(
@@ -164,11 +195,11 @@ describe("ConversationList", () => {
     expect(screen.queryByLabelText("Etiquetas de Carlos Lima")).not.toBeInTheDocument();
   });
 
-  it("keeps shared unread state distinct from awaiting a response", () => {
+  it("keeps shared unread state without the generic awaiting-response marker", () => {
     render(
       <ConversationList
         items={[
-          { ...fixture, unreadCount: 0, manuallyUnread: true, awaitingResponseSince: null },
+          { ...fixture, unreadCount: 0, manuallyUnread: true },
           { ...fixture, id: "10000000-0000-4000-8000-000000000002", unreadCount: 0, manuallyUnread: false },
         ]}
         selectedId={null}
@@ -177,8 +208,7 @@ describe("ConversationList", () => {
     );
 
     expect(screen.getByLabelText("Conversa marcada como não lida")).toBeVisible();
-    expect(screen.getByText("Aguardando resposta")).toBeVisible();
-    expect(screen.getAllByText("Aguardando resposta")).toHaveLength(1);
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
   });
 
   it("describes pending media without merging its state with unread or response indicators", () => {
@@ -200,8 +230,28 @@ describe("ConversationList", () => {
     );
 
     expect(screen.getByText("Baixando áudio")).toBeVisible();
-    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
     expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
+  });
+
+  it("shows the current tombstone instead of a revoked message preview", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          latestMessage: {
+            ...fixture.latestMessage!,
+            body: "Conteúdo antigo",
+            revokedAt: "2026-08-24T02:20:00.000Z",
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Mensagem apagada")).toBeVisible();
+    expect(screen.queryByText("Conteúdo antigo")).not.toBeInTheDocument();
   });
 
   it("exposes the selected conversation and a 44px interaction target", () => {

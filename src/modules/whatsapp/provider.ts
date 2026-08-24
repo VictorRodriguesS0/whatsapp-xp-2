@@ -31,7 +31,32 @@ export type MediaDownload = {
   sizeBytes: bigint | null;
 };
 
+export type ProviderTemplateComponent = {
+  type: string;
+  format: string | null;
+  text: string | null;
+};
+
+export type ProviderTemplate = {
+  metaId: string;
+  name: string;
+  language: string;
+  category: string;
+  status: string;
+  qualityScore: string | null;
+  components: ProviderTemplateComponent[];
+};
+
+export type TemplateSendInput = {
+  to: string;
+  name: string;
+  language: string;
+  bodyParameters: Array<{ type: "text"; text: string }>;
+};
+
 export interface WhatsAppProvider {
+  listTemplates(): Promise<ProviderTemplate[]>;
+  sendTemplate(input: TemplateSendInput): Promise<SendResult>;
   markRead(input: { messageId: string }): Promise<void>;
   sendText(input: { to: string; body: string } & ProviderReplyContext): Promise<SendResult>;
   sendReaction(input: {

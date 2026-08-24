@@ -18,6 +18,7 @@ const outboundFixture: MessageDto = {
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
   status: "DELIVERED",
   failureReason: null,
+  editedAt: null,
   revokedAt: null,
   reactions: [],
   externalTimestamp: "2026-08-20T14:31:00.000Z",
@@ -143,6 +144,67 @@ describe("MessageBubble", () => {
   ] as const)("describes %s status as %s", (status, label) => {
     render(<MessageBubble message={{ ...outboundFixture, status }} />);
     expect(screen.getByText(label)).toBeVisible();
+  });
+
+  it("labels an edited message beside its timestamp", () => {
+    render(<MessageBubble message={{
+      ...outboundFixture,
+      editedAt: "2026-08-20T14:32:00.000Z",
+    }} />);
+
+    expect(screen.getByText("editada")).toBeVisible();
+    expect(screen.getByText(outboundFixture.body!)).toBeVisible();
+  });
+
+  it("renders a revoked message as a safe tombstone without content or actions", () => {
+    render(
+      <MessageBubble
+        message={{
+          ...outboundFixture,
+          type: "IMAGE",
+          body: "Conteúdo que não pode aparecer",
+          content: {
+            kind: "location",
+            latitude: -15.7,
+            longitude: -47.8,
+            name: "Local secreto",
+            address: null,
+          },
+          canReply: true,
+          replyTo: {
+            available: true,
+            messageId: "40000000-0000-4000-8000-000000000001",
+            direction: "INBOUND",
+            type: "TEXT",
+            author: "Cliente",
+            summary: "Prévia secreta",
+          },
+          mediaObjectId: "media-secret",
+          mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+          editedAt: "2026-08-20T14:32:00.000Z",
+          revokedAt: "2026-08-20T14:33:00.000Z",
+          reactions: [{
+            id: "reaction-secret",
+            reactor: "CONTACT",
+            emoji: "👍",
+            status: "SENT",
+            sentBy: null,
+          }],
+        }}
+        onReact={vi.fn()}
+        onReply={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Mensagem apagada")).toBeVisible();
+    expect(screen.queryByText("Conteúdo que não pode aparecer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Local secreto")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prévia secreta")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByText("👍")).not.toBeInTheDocument();
+    expect(screen.queryByText("editada")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Responder à mensagem" }))
+      .not.toBeInTheDocument();
   });
 
   it("keeps a failed message in place and retries the same row", () => {

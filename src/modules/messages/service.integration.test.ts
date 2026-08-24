@@ -56,6 +56,77 @@ describe("outbound message PostgreSQL concurrency", () => {
   beforeEach(resetTestDatabase);
   afterEach(async () => Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))));
 
+  it("restores the exact pending inbound after rejection and keeps it consumed for an unknown outcome", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = {
+      id: victor.id,
+      name: victor.name,
+      email: victor.email,
+      role: victor.role,
+    };
+    const inbound = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.INBOUND,
+        type: MessageType.TEXT,
+        body: "Preciso de ajuda",
+        status: MessageStatus.RECEIVED,
+        externalTimestamp: new Date("2026-08-23T10:00:00.000Z"),
+      },
+    });
+    await refreshResponseState(prisma, conversation.id);
+
+    const provider = new DemoWhatsAppProvider();
+    provider.sendText = async () => {
+      throw new WhatsAppProviderError("rejected", "provider detail");
+    };
+    const dependencies: MessageServiceDependencies = {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+    };
+    const rejected = await sendMessage(
+      actor,
+      conversation.id,
+      {
+        type: MessageType.TEXT,
+        clientRequestId: randomUUID(),
+        body: "Olá",
+      },
+      dependencies,
+    );
+    expect(rejected.status).toBe(MessageStatus.FAILED);
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { pendingCustomerMessageId: true },
+      }),
+    ).resolves.toEqual({ pendingCustomerMessageId: inbound.id });
+
+    provider.sendText = async () => {
+      throw new WhatsAppProviderError("unknown", "provider detail");
+    };
+    const uncertain = await sendMessage(
+      actor,
+      conversation.id,
+      {
+        type: MessageType.TEXT,
+        clientRequestId: randomUUID(),
+        body: "Olá novamente",
+      },
+      dependencies,
+    );
+    expect(uncertain).toMatchObject({ status: MessageStatus.PENDING });
+    await expect(
+      prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: { pendingCustomerMessageId: true },
+      }),
+    ).resolves.toEqual({ pendingCustomerMessageId: null });
+  });
+
   it("persists and sends one same-conversation quoted target", async () => {
     const { conversation, victor } = await seedReadFixture();
     const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };

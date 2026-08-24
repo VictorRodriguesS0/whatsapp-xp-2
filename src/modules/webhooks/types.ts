@@ -48,17 +48,20 @@ export type NormalizedMessageEchoEvent = {
   origin: "WHATSAPP_BUSINESS_APP";
 };
 
-export type NormalizedMessageEchoControlEvent = {
-  kind: "messageEchoControl";
+export type NormalizedMessageMutationEvent = {
+  kind: "messageMutation";
   action: "EDIT" | "REVOKE";
-  whatsappMessageId: string;
+  providerEventId: string;
   originalWhatsappMessageId: string;
-  to: string | null;
-  toUserId: string | null;
-  toParentUserId: string | null;
   timestamp: Date;
   timestampRaw: string;
-  origin: "WHATSAPP_BUSINESS_APP";
+  body: string | null;
+  content: MessageContent | null;
+  identity: {
+    phone: string | null;
+    whatsappUserId: string | null;
+  };
+  origin: "CONTACT" | "WHATSAPP_BUSINESS_APP";
 };
 
 export type NormalizedReactionEvent = {
@@ -111,15 +114,35 @@ export type NormalizedContactSyncBatchEvent = {
   quarantined: number;
 };
 
+export type NormalizedTemplateStatusEvent = {
+  kind: "templateStatus";
+  metaTemplateId: string;
+  name: string;
+  language: string;
+  status: string;
+  entryTimeRaw: string;
+};
+
+export type NormalizedTemplateQualityEvent = {
+  kind: "templateQuality";
+  metaTemplateId: string;
+  name: string;
+  language: string;
+  qualityScore: string;
+  entryTimeRaw: string;
+};
+
 export type NormalizedWebhookEvent =
   | NormalizedMessageEvent
   | NormalizedStatusEvent
   | NormalizedMessageEchoEvent
-  | NormalizedMessageEchoControlEvent
+  | NormalizedMessageMutationEvent
   | NormalizedReactionEvent
   | NormalizedReactionEchoEvent
   | NormalizedMetaOperationalEvent
-  | NormalizedContactSyncBatchEvent;
+  | NormalizedContactSyncBatchEvent
+  | NormalizedTemplateStatusEvent
+  | NormalizedTemplateQualityEvent;
 
 export type ProcessSummary = {
   processed: number;
