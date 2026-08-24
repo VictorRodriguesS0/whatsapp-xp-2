@@ -410,6 +410,8 @@ export const ModelName = {
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
   WebhookEvent: 'WebhookEvent',
+  MetaHealthSnapshot: 'MetaHealthSnapshot',
+  MetaOperationalAlert: 'MetaOperationalAlert',
   QuickReply: 'QuickReply'
 } as const
 
@@ -426,7 +428,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent" | "quickReply"
+    modelProps: "user" | "session" | "contact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "webhookEvent" | "metaHealthSnapshot" | "metaOperationalAlert" | "quickReply"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1392,6 +1394,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MetaHealthSnapshot: {
+      payload: Prisma.$MetaHealthSnapshotPayload<ExtArgs>
+      fields: Prisma.MetaHealthSnapshotFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MetaHealthSnapshotFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MetaHealthSnapshotFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>
+        }
+        findFirst: {
+          args: Prisma.MetaHealthSnapshotFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MetaHealthSnapshotFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>
+        }
+        findMany: {
+          args: Prisma.MetaHealthSnapshotFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>[]
+        }
+        create: {
+          args: Prisma.MetaHealthSnapshotCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>
+        }
+        createMany: {
+          args: Prisma.MetaHealthSnapshotCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MetaHealthSnapshotCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>[]
+        }
+        delete: {
+          args: Prisma.MetaHealthSnapshotDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>
+        }
+        update: {
+          args: Prisma.MetaHealthSnapshotUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>
+        }
+        deleteMany: {
+          args: Prisma.MetaHealthSnapshotDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MetaHealthSnapshotUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MetaHealthSnapshotUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>[]
+        }
+        upsert: {
+          args: Prisma.MetaHealthSnapshotUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaHealthSnapshotPayload>
+        }
+        aggregate: {
+          args: Prisma.MetaHealthSnapshotAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMetaHealthSnapshot>
+        }
+        groupBy: {
+          args: Prisma.MetaHealthSnapshotGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MetaHealthSnapshotGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MetaHealthSnapshotCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MetaHealthSnapshotCountAggregateOutputType> | number
+        }
+      }
+    }
+    MetaOperationalAlert: {
+      payload: Prisma.$MetaOperationalAlertPayload<ExtArgs>
+      fields: Prisma.MetaOperationalAlertFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MetaOperationalAlertFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MetaOperationalAlertFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>
+        }
+        findFirst: {
+          args: Prisma.MetaOperationalAlertFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MetaOperationalAlertFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>
+        }
+        findMany: {
+          args: Prisma.MetaOperationalAlertFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>[]
+        }
+        create: {
+          args: Prisma.MetaOperationalAlertCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>
+        }
+        createMany: {
+          args: Prisma.MetaOperationalAlertCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MetaOperationalAlertCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>[]
+        }
+        delete: {
+          args: Prisma.MetaOperationalAlertDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>
+        }
+        update: {
+          args: Prisma.MetaOperationalAlertUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>
+        }
+        deleteMany: {
+          args: Prisma.MetaOperationalAlertDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MetaOperationalAlertUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MetaOperationalAlertUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>[]
+        }
+        upsert: {
+          args: Prisma.MetaOperationalAlertUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaOperationalAlertPayload>
+        }
+        aggregate: {
+          args: Prisma.MetaOperationalAlertAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMetaOperationalAlert>
+        }
+        groupBy: {
+          args: Prisma.MetaOperationalAlertGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MetaOperationalAlertGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MetaOperationalAlertCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MetaOperationalAlertCountAggregateOutputType> | number
+        }
+      }
+    }
     QuickReply: {
       payload: Prisma.$QuickReplyPayload<ExtArgs>
       fields: Prisma.QuickReplyFieldRefs
@@ -1709,6 +1859,52 @@ export const WebhookEventScalarFieldEnum = {
 export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[keyof typeof WebhookEventScalarFieldEnum]
 
 
+export const MetaHealthSnapshotScalarFieldEnum = {
+  id: 'id',
+  phoneNumberId: 'phoneNumberId',
+  wabaId: 'wabaId',
+  displayPhoneNumber: 'displayPhoneNumber',
+  verifiedName: 'verifiedName',
+  qualityRating: 'qualityRating',
+  accountReviewStatus: 'accountReviewStatus',
+  accountEvent: 'accountEvent',
+  messagingLimit: 'messagingLimit',
+  lastSyncAttemptAt: 'lastSyncAttemptAt',
+  lastSuccessfulSyncAt: 'lastSuccessfulSyncAt',
+  lastSyncErrorCode: 'lastSyncErrorCode',
+  syncLeaseId: 'syncLeaseId',
+  syncLeaseUntil: 'syncLeaseUntil',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaHealthSnapshotScalarFieldEnum = (typeof MetaHealthSnapshotScalarFieldEnum)[keyof typeof MetaHealthSnapshotScalarFieldEnum]
+
+
+export const MetaOperationalAlertScalarFieldEnum = {
+  id: 'id',
+  snapshotId: 'snapshotId',
+  deduplicationKey: 'deduplicationKey',
+  category: 'category',
+  severity: 'severity',
+  source: 'source',
+  sourceField: 'sourceField',
+  eventCode: 'eventCode',
+  resourceId: 'resourceId',
+  summary: 'summary',
+  details: 'details',
+  occurredAt: 'occurredAt',
+  active: 'active',
+  resolvedAt: 'resolvedAt',
+  acknowledgedAt: 'acknowledgedAt',
+  acknowledgedByUserId: 'acknowledgedByUserId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaOperationalAlertScalarFieldEnum = (typeof MetaOperationalAlertScalarFieldEnum)[keyof typeof MetaOperationalAlertScalarFieldEnum]
+
+
 export const QuickReplyScalarFieldEnum = {
   id: 'id',
   shortcut: 'shortcut',
@@ -1987,6 +2183,48 @@ export type ListEnumWebhookStatusFieldRefInput<$PrismaModel> = FieldRefInputType
 
 
 /**
+ * Reference to a field of type 'MetaAlertCategory'
+ */
+export type EnumMetaAlertCategoryFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MetaAlertCategory'>
+    
+
+
+/**
+ * Reference to a field of type 'MetaAlertCategory[]'
+ */
+export type ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MetaAlertCategory[]'>
+    
+
+
+/**
+ * Reference to a field of type 'MetaAlertSeverity'
+ */
+export type EnumMetaAlertSeverityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MetaAlertSeverity'>
+    
+
+
+/**
+ * Reference to a field of type 'MetaAlertSeverity[]'
+ */
+export type ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MetaAlertSeverity[]'>
+    
+
+
+/**
+ * Reference to a field of type 'MetaAlertSource'
+ */
+export type EnumMetaAlertSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MetaAlertSource'>
+    
+
+
+/**
+ * Reference to a field of type 'MetaAlertSource[]'
+ */
+export type ListEnumMetaAlertSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'MetaAlertSource[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -2163,6 +2401,8 @@ export type GlobalOmitConfig = {
   conversationRead?: Prisma.ConversationReadOmit
   conversationAuditEvent?: Prisma.ConversationAuditEventOmit
   webhookEvent?: Prisma.WebhookEventOmit
+  metaHealthSnapshot?: Prisma.MetaHealthSnapshotOmit
+  metaOperationalAlert?: Prisma.MetaOperationalAlertOmit
   quickReply?: Prisma.QuickReplyOmit
 }
 

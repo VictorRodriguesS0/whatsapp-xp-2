@@ -110,3 +110,31 @@ export const ConversationAuditAction = {
 } as const
 
 export type ConversationAuditAction = (typeof ConversationAuditAction)[keyof typeof ConversationAuditAction]
+
+
+export const MetaAlertCategory = {
+  PHONE_QUALITY: 'PHONE_QUALITY',
+  ACCOUNT: 'ACCOUNT',
+  ACCOUNT_REVIEW: 'ACCOUNT_REVIEW',
+  PHONE_NAME: 'PHONE_NAME',
+  TEMPLATE: 'TEMPLATE'
+} as const
+
+export type MetaAlertCategory = (typeof MetaAlertCategory)[keyof typeof MetaAlertCategory]
+
+
+export const MetaAlertSeverity = {
+  INFO: 'INFO',
+  ATTENTION: 'ATTENTION',
+  CRITICAL: 'CRITICAL'
+} as const
+
+export type MetaAlertSeverity = (typeof MetaAlertSeverity)[keyof typeof MetaAlertSeverity]
+
+
+export const MetaAlertSource = {
+  WEBHOOK: 'WEBHOOK',
+  RECONCILIATION: 'RECONCILIATION'
+} as const
+
+export type MetaAlertSource = (typeof MetaAlertSource)[keyof typeof MetaAlertSource]

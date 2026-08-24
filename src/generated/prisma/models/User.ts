@@ -213,6 +213,7 @@ export type UserWhereInput = {
   manualUnreadConversations?: Prisma.ConversationListRelationFilter
   conversationAuditEvents?: Prisma.ConversationAuditEventListRelationFilter
   sentReactions?: Prisma.MessageReactionListRelationFilter
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -231,6 +232,7 @@ export type UserOrderByWithRelationInput = {
   manualUnreadConversations?: Prisma.ConversationOrderByRelationAggregateInput
   conversationAuditEvents?: Prisma.ConversationAuditEventOrderByRelationAggregateInput
   sentReactions?: Prisma.MessageReactionOrderByRelationAggregateInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -252,6 +254,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   manualUnreadConversations?: Prisma.ConversationListRelationFilter
   conversationAuditEvents?: Prisma.ConversationAuditEventListRelationFilter
   sentReactions?: Prisma.MessageReactionListRelationFilter
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -298,6 +301,7 @@ export type UserCreateInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -316,6 +320,7 @@ export type UserUncheckedCreateInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUpdateInput = {
@@ -334,6 +339,7 @@ export type UserUpdateInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -352,6 +358,7 @@ export type UserUncheckedUpdateInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -552,6 +559,22 @@ export type UserUpdateOneRequiredWithoutConversationAuditEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutConversationAuditEventsInput, Prisma.UserUpdateWithoutConversationAuditEventsInput>, Prisma.UserUncheckedUpdateWithoutConversationAuditEventsInput>
 }
 
+export type UserCreateNestedOneWithoutAcknowledgedMetaAlertsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAcknowledgedMetaAlertsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutAcknowledgedMetaAlertsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAcknowledgedMetaAlertsInput
+  upsert?: Prisma.UserUpsertWithoutAcknowledgedMetaAlertsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAcknowledgedMetaAlertsInput, Prisma.UserUpdateWithoutAcknowledgedMetaAlertsInput>, Prisma.UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput>
+}
+
 export type UserCreateWithoutSessionsInput = {
   id?: string
   name: string
@@ -567,6 +590,7 @@ export type UserCreateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutSessionsInput = {
@@ -584,6 +608,7 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutSessionsInput = {
@@ -617,6 +642,7 @@ export type UserUpdateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -634,6 +660,7 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutAssignedConversationsInput = {
@@ -651,6 +678,7 @@ export type UserCreateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutAssignedConversationsInput = {
@@ -668,6 +696,7 @@ export type UserUncheckedCreateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutAssignedConversationsInput = {
@@ -690,6 +719,7 @@ export type UserCreateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutManualUnreadConversationsInput = {
@@ -707,6 +737,7 @@ export type UserUncheckedCreateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutManualUnreadConversationsInput = {
@@ -740,6 +771,7 @@ export type UserUpdateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedConversationsInput = {
@@ -757,6 +789,7 @@ export type UserUncheckedUpdateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUpsertWithoutManualUnreadConversationsInput = {
@@ -785,6 +818,7 @@ export type UserUpdateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutManualUnreadConversationsInput = {
@@ -802,6 +836,7 @@ export type UserUncheckedUpdateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutSentMessagesInput = {
@@ -819,6 +854,7 @@ export type UserCreateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutSentMessagesInput = {
@@ -836,6 +872,7 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutSentMessagesInput = {
@@ -869,6 +906,7 @@ export type UserUpdateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentMessagesInput = {
@@ -886,6 +924,7 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutSentReactionsInput = {
@@ -903,6 +942,7 @@ export type UserCreateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutSentReactionsInput = {
@@ -920,6 +960,7 @@ export type UserUncheckedCreateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutSentReactionsInput = {
@@ -953,6 +994,7 @@ export type UserUpdateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentReactionsInput = {
@@ -970,6 +1012,7 @@ export type UserUncheckedUpdateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutConversationReadsInput = {
@@ -987,6 +1030,7 @@ export type UserCreateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutConversationReadsInput = {
@@ -1004,6 +1048,7 @@ export type UserUncheckedCreateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutConversationReadsInput = {
@@ -1037,6 +1082,7 @@ export type UserUpdateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationReadsInput = {
@@ -1054,6 +1100,7 @@ export type UserUncheckedUpdateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutConversationAuditEventsInput = {
@@ -1071,6 +1118,7 @@ export type UserCreateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutConversationAuditEventsInput = {
@@ -1088,6 +1136,7 @@ export type UserUncheckedCreateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutConversationAuditEventsInput = {
@@ -1121,6 +1170,7 @@ export type UserUpdateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationAuditEventsInput = {
@@ -1138,6 +1188,95 @@ export type UserUncheckedUpdateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
+}
+
+export type UserCreateWithoutAcknowledgedMetaAlertsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+}
+
+export type UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+}
+
+export type UserCreateOrConnectWithoutAcknowledgedMetaAlertsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+}
+
+export type UserUpsertWithoutAcknowledgedMetaAlertsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAcknowledgedMetaAlertsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput>
+}
+
+export type UserUpdateWithoutAcknowledgedMetaAlertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
 }
 
 
@@ -1153,6 +1292,7 @@ export type UserCountOutputType = {
   manualUnreadConversations: number
   conversationAuditEvents: number
   sentReactions: number
+  acknowledgedMetaAlerts: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1163,6 +1303,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   manualUnreadConversations?: boolean | UserCountOutputTypeCountManualUnreadConversationsArgs
   conversationAuditEvents?: boolean | UserCountOutputTypeCountConversationAuditEventsArgs
   sentReactions?: boolean | UserCountOutputTypeCountSentReactionsArgs
+  acknowledgedMetaAlerts?: boolean | UserCountOutputTypeCountAcknowledgedMetaAlertsArgs
 }
 
 /**
@@ -1224,6 +1365,13 @@ export type UserCountOutputTypeCountSentReactionsArgs<ExtArgs extends runtime.Ty
   where?: Prisma.MessageReactionWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAcknowledgedMetaAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.MetaOperationalAlertWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1241,6 +1389,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   manualUnreadConversations?: boolean | Prisma.User$manualUnreadConversationsArgs<ExtArgs>
   conversationAuditEvents?: boolean | Prisma.User$conversationAuditEventsArgs<ExtArgs>
   sentReactions?: boolean | Prisma.User$sentReactionsArgs<ExtArgs>
+  acknowledgedMetaAlerts?: boolean | Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1286,6 +1435,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   manualUnreadConversations?: boolean | Prisma.User$manualUnreadConversationsArgs<ExtArgs>
   conversationAuditEvents?: boolean | Prisma.User$conversationAuditEventsArgs<ExtArgs>
   sentReactions?: boolean | Prisma.User$sentReactionsArgs<ExtArgs>
+  acknowledgedMetaAlerts?: boolean | Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1301,6 +1451,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     manualUnreadConversations: Prisma.$ConversationPayload<ExtArgs>[]
     conversationAuditEvents: Prisma.$ConversationAuditEventPayload<ExtArgs>[]
     sentReactions: Prisma.$MessageReactionPayload<ExtArgs>[]
+    acknowledgedMetaAlerts: Prisma.$MetaOperationalAlertPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1712,6 +1863,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   manualUnreadConversations<T extends Prisma.User$manualUnreadConversationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$manualUnreadConversationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   conversationAuditEvents<T extends Prisma.User$conversationAuditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$conversationAuditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationAuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sentReactions<T extends Prisma.User$sentReactionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sentReactionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageReactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  acknowledgedMetaAlerts<T extends Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MetaOperationalAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2307,6 +2459,30 @@ export type User$sentReactionsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.MessageReactionScalarFieldEnum | Prisma.MessageReactionScalarFieldEnum[]
+}
+
+/**
+ * User.acknowledgedMetaAlerts
+ */
+export type User$acknowledgedMetaAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the MetaOperationalAlert
+   */
+  select?: Prisma.MetaOperationalAlertSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the MetaOperationalAlert
+   */
+  omit?: Prisma.MetaOperationalAlertOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MetaOperationalAlertInclude<ExtArgs> | null
+  where?: Prisma.MetaOperationalAlertWhereInput
+  orderBy?: Prisma.MetaOperationalAlertOrderByWithRelationInput | Prisma.MetaOperationalAlertOrderByWithRelationInput[]
+  cursor?: Prisma.MetaOperationalAlertWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.MetaOperationalAlertScalarFieldEnum | Prisma.MetaOperationalAlertScalarFieldEnum[]
 }
 
 /**
