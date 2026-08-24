@@ -13,7 +13,10 @@ export type PublicErrorOperation =
   | "contact-types"
   | "contact-type-save"
   | "contact-tags"
-  | "contact-tag-save";
+  | "contact-tag-save"
+  | "whatsapp-policy"
+  | "whatsapp-policy-save"
+  | "resumption";
 
 const fallback: Record<PublicErrorOperation, string> = {
   login: "Não foi possível entrar agora. Tente novamente.",
@@ -31,9 +34,35 @@ const fallback: Record<PublicErrorOperation, string> = {
   "contact-type-save": "Não foi possível atualizar o tipo de contato.",
   "contact-tags": "Não foi possível carregar as etiquetas.",
   "contact-tag-save": "Não foi possível salvar as etiquetas.",
+  "whatsapp-policy": "Não foi possível carregar a configuração do WhatsApp.",
+  "whatsapp-policy-save": "Não foi possível atualizar a configuração do WhatsApp.",
+  resumption: "Não foi possível retomar esta conversa.",
 };
 
-export function publicErrorMessage(operation: PublicErrorOperation, status?: number, network = false) {
+const whatsappDomainCopy: Record<string, string> = {
+  WHATSAPP_SERVICE_WINDOW_CLOSED:
+    "A janela de 24 horas terminou. Use a retomada aprovada.",
+  WHATSAPP_TEMPLATE_NOT_READY:
+    "O modelo aprovado ainda não está pronto para uso.",
+  WHATSAPP_TEMPLATE_NOT_ELIGIBLE:
+    "O modelo selecionado não pode ser usado para retomada.",
+  WHATSAPP_TEMPLATE_SYNC_FAILED:
+    "Não foi possível sincronizar os modelos com a Meta.",
+  WHATSAPP_RESUMPTION_ALREADY_STARTED:
+    "Esta solicitação já foi respondida ou retomada.",
+  WHATSAPP_CONTACT_OPTED_OUT:
+    "Este contato está marcado como não contatar.",
+  WHATSAPP_RESUMPTION_OUTCOME_UNKNOWN:
+    "O envio pode ter ocorrido. Confirme no WhatsApp antes de tentar novamente.",
+};
+
+export function publicErrorMessage(
+  operation: PublicErrorOperation,
+  status?: number,
+  network = false,
+  code?: string,
+) {
+  if (code && whatsappDomainCopy[code]) return whatsappDomainCopy[code];
   if (operation === "login" && status === 401) return "E-mail ou senha inválidos.";
   if (operation === "login" && status === 429) return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
   if (status === 429) return "Muitas solicitações. Aguarde um momento e tente novamente.";

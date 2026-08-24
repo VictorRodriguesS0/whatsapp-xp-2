@@ -28,4 +28,14 @@ describe("public error messages", () => {
       "Muitas solicitações. Aguarde um momento e tente novamente.",
     );
   });
+
+  it.each([
+    ["WHATSAPP_SERVICE_WINDOW_CLOSED", "A janela de 24 horas terminou. Use a retomada aprovada."],
+    ["WHATSAPP_TEMPLATE_NOT_READY", "O modelo aprovado ainda não está pronto para uso."],
+    ["WHATSAPP_RESUMPTION_ALREADY_STARTED", "Esta solicitação já foi respondida ou retomada."],
+    ["WHATSAPP_CONTACT_OPTED_OUT", "Este contato está marcado como não contatar."],
+    ["WHATSAPP_RESUMPTION_OUTCOME_UNKNOWN", "O envio pode ter ocorrido. Confirme no WhatsApp antes de tentar novamente."],
+  ] as const)("maps the safe WhatsApp domain code %s", (code, copy) => {
+    expect(publicErrorMessage("resumption", 409, false, code)).toBe(copy);
+  });
 });
