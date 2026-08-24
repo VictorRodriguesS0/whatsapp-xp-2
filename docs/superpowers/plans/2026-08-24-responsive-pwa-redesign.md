@@ -433,17 +433,17 @@ git commit -m "feat: add shared XP interface primitives"
 - Skeleton renders only when `loading && items.length === 0`.
 - Connected content remains interactive while the reconnection status is announced.
 
-- [ ] **Step 1: Write the deferred realtime regression test**
+- [x] **Step 1: Write the deferred realtime regression test**
 
 Start with a loaded first page, defer the second `/api/conversations` response, trigger `FakeEventSource.instances[0].onopen`, and assert the old item remains throughout `loadingList === true`. Resolve the response and assert the authoritative page replaces it. Reject a refresh and assert old items remain with a public retry error.
 
-- [ ] **Step 2: Run the hook test and verify RED**
+- [x] **Step 2: Run the hook test and verify RED**
 
 Run: `npm test -- src/hooks/use-inbox.test.tsx`
 
 Expected: FAIL because `refreshList({ reset: true })` currently executes `setConversations([])`.
 
-- [ ] **Step 3: Preserve visible data while resetting pagination**
+- [x] **Step 3: Preserve visible data while resetting pagination**
 
 Remove only the destructive clear from the `reset` branch:
 
@@ -460,15 +460,15 @@ if (reset) {
 
 Keep `changeSearch()` clearing stale results from a different query. On success, `hasLoadedAdditionalPages.current === false` replaces rows atomically. On failure, list error is shown above preserved rows.
 
-- [ ] **Step 4: Write and implement skeleton tests**
+- [x] **Step 4: Write and implement skeleton tests**
 
 Require six inert geometry rows, a single polite status `Carregando conversas`, and no conversation buttons. Replace the initial centered spinner with the skeleton; never render it over existing items.
 
-- [ ] **Step 5: Refine connection status**
+- [x] **Step 5: Refine connection status**
 
 Keep `role="status"`, add `aria-live="polite"`, keep it non-modal and reserve only its own compact height. Name the export `ConnectionStatus` and retain a compatibility alias if tests or imports need an incremental migration.
 
-- [ ] **Step 6: Run focused tests and commit**
+- [x] **Step 6: Run focused tests and commit**
 
 Run:
 
