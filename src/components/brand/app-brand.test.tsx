@@ -18,4 +18,10 @@ describe("AppBrand", () => {
     expect(screen.getByLabelText("XP Eletrônicos")).toBeInTheDocument();
     expect(screen.getByRole("img")).toHaveAttribute("src", "/brand/xp-symbol.png");
   });
+
+  it("gives a compact linked mark the full 44px inline hit target", () => {
+    render(<AppBrand compact href="/conversas" />);
+
+    expect(screen.getByRole("link", { name: "XP Eletrônicos" })).toHaveClass("min-w-11");
+  });
 });

@@ -17,7 +17,7 @@ export function AppBrand({ compact = false, href, label = "XP Eletrônicos" }: A
   );
   const className = cn(
     "inline-flex min-h-11 items-center gap-2 rounded-xl text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)]",
-    compact && "justify-center",
+    compact && "min-w-11 justify-center",
   );
 
   return href ? <a aria-label={label} className={className} href={href}>{content}</a> : <div aria-label={label} className={className}>{content}</div>;
