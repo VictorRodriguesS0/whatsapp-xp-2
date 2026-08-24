@@ -74,7 +74,7 @@
 - Produces: `ThemeProvider`, `useTheme()` and `themeBootstrapScript`.
 - Consumes: `localStorage["xp-atendimento-theme"]` and `matchMedia("(prefers-color-scheme: dark)")`.
 
-- [ ] **Step 1: Write failing pure theme tests**
+- [x] **Step 1: Write failing pure theme tests**
 
 Cover valid/invalid persisted values, all three preferences, system light/dark resolution and the fixed storage key.
 
@@ -85,13 +85,13 @@ expect(resolveTheme("system", true)).toBe("dark");
 expect(isThemePreference("sepia")).toBe(false);
 ```
 
-- [ ] **Step 2: Run the pure test and verify RED**
+- [x] **Step 2: Run the pure test and verify RED**
 
 Run: `npm test -- src/lib/theme.test.ts`
 
 Expected: FAIL because `src/lib/theme.ts` does not exist.
 
-- [ ] **Step 3: Implement the minimal pure contract**
+- [x] **Step 3: Implement the minimal pure contract**
 
 ```ts
 export const THEME_STORAGE_KEY = "xp-atendimento-theme";
@@ -110,17 +110,17 @@ export function resolveTheme(
 }
 ```
 
-- [ ] **Step 4: Write failing provider tests**
+- [x] **Step 4: Write failing provider tests**
 
 Render a probe under `ThemeProvider`. Assert that an invalid stored value falls back to `system`; `setPreference("dark")` persists it; `document.documentElement.dataset.theme` and `colorScheme` change; a system media-query event changes the resolved theme only under `system`; and the generated bootstrap contains no user data or remote URL.
 
-- [ ] **Step 5: Run the provider test and verify RED**
+- [x] **Step 5: Run the provider test and verify RED**
 
 Run: `npm test -- src/components/theme/theme-provider.test.tsx`
 
 Expected: FAIL because the provider is absent.
 
-- [ ] **Step 6: Implement bootstrap and provider**
+- [x] **Step 6: Implement bootstrap and provider**
 
 The context contract must stay small:
 
@@ -134,7 +134,7 @@ type ThemeContextValue = {
 
 `themeBootstrapScript` must synchronously read the stored preference, resolve the media query, set `data-theme`, set `style.colorScheme`, and fall back to `system` inside `try/catch`. The provider must repeat the same operation after hydration and subscribe/unsubscribe to media-query changes.
 
-- [ ] **Step 7: Define independent light and dark tokens**
+- [x] **Step 7: Define independent light and dark tokens**
 
 Replace the current palette with semantic tokens. Keep the approved brand constants and give dark surfaces their own values:
 
@@ -194,11 +194,11 @@ Replace the current palette with semantic tokens. Keep the approved brand consta
 
 Also set `overflow-wrap: anywhere`, media-safe max widths, `:focus-visible`, selection colors, `scrollbar-gutter`, 200% zoom-safe sizing and the existing reduced-motion override.
 
-- [ ] **Step 8: Wire Geist and pre-paint theme into the root layout**
+- [x] **Step 8: Wire Geist and pre-paint theme into the root layout**
 
 Use `Geist` from `next/font/google`, `suppressHydrationWarning` on `<html>`, the bootstrap `<script>` before children and `ThemeProvider` around the app. Do not load a runtime font URL.
 
-- [ ] **Step 9: Run focused checks and commit**
+- [x] **Step 9: Run focused checks and commit**
 
 Run: `npm test -- src/lib/theme.test.ts src/components/theme/theme-provider.test.tsx src/app/login/page.test.tsx`
 
