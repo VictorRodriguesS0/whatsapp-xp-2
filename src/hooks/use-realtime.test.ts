@@ -75,6 +75,43 @@ describe("useRealtime", () => {
     hook.unmount();
   });
 
+  it("routes strict message and reaction mutation invalidations", () => {
+    const onEvent = vi.fn();
+    const hook = renderHook(() => useRealtime({ onSync: vi.fn(), onEvent }));
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "message.updated",
+        conversationId: "conversation-id",
+        messageId: "message-id",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "reaction.updated",
+        conversationId: "conversation-id",
+        messageId: "message-id",
+      });
+      FakeEventSource.instances[0].emit("update", {
+        type: "message.updated",
+        conversationId: "conversation-id",
+        messageId: "message-id",
+        previousBody: "must-not-cross-the-client-boundary",
+      });
+    });
+
+    expect(onEvent).toHaveBeenCalledTimes(2);
+    expect(onEvent).toHaveBeenNthCalledWith(1, {
+      type: "message.updated",
+      conversationId: "conversation-id",
+      messageId: "message-id",
+    });
+    expect(onEvent).toHaveBeenNthCalledWith(2, {
+      type: "reaction.updated",
+      conversationId: "conversation-id",
+      messageId: "message-id",
+    });
+    hook.unmount();
+  });
+
   it("routes only complete ID-only conversation.merged events", () => {
     const onEvent = vi.fn();
     const hook = renderHook(() =>

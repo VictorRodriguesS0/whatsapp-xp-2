@@ -99,6 +99,7 @@ const contextInclude = {
       type: true,
       body: true,
       content: true,
+      revokedAt: true,
       sentByUser: { select: { id: true, name: true } },
     },
   },
@@ -107,15 +108,16 @@ const contextInclude = {
 type ContextMessage = Prisma.MessageGetPayload<{ include: typeof contextInclude }>;
 
 function contextMessageDto(message: ContextMessage, now: Date): MessageDto {
+  const revoked = message.revokedAt !== null;
   return {
     id: message.id,
     clientRequestId: message.clientRequestId,
     direction: message.direction,
     type: message.type,
-    body: message.body,
-    content: parseMessageContent(message.content),
-    canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
-    replyTo: message.replyToMessage
+    body: revoked ? null : message.body,
+    content: revoked ? null : parseMessageContent(message.content),
+    canReply: !revoked && whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
+    replyTo: !revoked && message.replyToMessage
       ? quotedReplyPreview({
           id: message.replyToMessage.id,
           direction: message.replyToMessage.direction,
@@ -123,17 +125,19 @@ function contextMessageDto(message: ContextMessage, now: Date): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
+          revokedAt: message.replyToMessage.revokedAt,
         })
-      : message.replyToWhatsappMessageId
+      : !revoked && message.replyToWhatsappMessageId
         ? { available: false }
         : null,
-    mediaObjectId: message.mediaObjectId,
-    mediaState: message.mediaObject ? toMediaStateDto(message.mediaObject, now) : null,
+    mediaObjectId: revoked ? null : message.mediaObjectId,
+    mediaState: !revoked && message.mediaObject ? toMediaStateDto(message.mediaObject, now) : null,
     sentBy: message.sentByUser,
     status: message.status,
     failureReason: message.failureReason,
+    editedAt: message.editedAt?.toISOString() ?? null,
     revokedAt: message.revokedAt?.toISOString() ?? null,
-    reactions: [...message.reactions]
+    reactions: (revoked ? [] : [...message.reactions])
       .sort((left, right) => (
         (left.reactor === "CONTACT" ? 0 : 1) -
         (right.reactor === "CONTACT" ? 0 : 1)

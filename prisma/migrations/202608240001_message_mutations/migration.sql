@@ -24,3 +24,17 @@ CREATE UNIQUE INDEX "message_revisions_provider_event_id_key"
 
 CREATE INDEX "message_revisions_message_id_provider_timestamp_provider_event_id_idx"
   ON "message_revisions"("message_id", "provider_timestamp", "provider_event_id");
+
+CREATE OR REPLACE FUNCTION refresh_message_search_text()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.revoked_at IS NOT NULL THEN
+    NEW.search_text := 'mensagem apagada';
+  ELSE
+    NEW.search_text := build_message_search_text(NEW.body, NEW.content, NEW.media_object_id);
+  END IF;
+  RETURN NEW;
+END;
+$$;

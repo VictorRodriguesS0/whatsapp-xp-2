@@ -26,14 +26,15 @@ import {
   reconcileReplyLinks,
 } from "@/modules/messages/reply-linking.server";
 import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
+import { applyMessageMutation } from "@/modules/messages/mutations";
 import { applyMetaOperationalEvent } from "@/modules/meta-health/service";
 
 import type {
   NormalizedMedia,
   NormalizedContactSyncItem,
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMessageMutationEvent,
   NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
@@ -111,7 +112,14 @@ export type WebhookRepository = {
     providerEventId: string;
     providerTimestamp: Date;
   }): Promise<"APPLIED" | "IGNORED">;
-  revokeMessage(messageId: string, revokedAt: Date): Promise<MessageRecord>;
+  applyMessageMutation(input: {
+    messageId: string;
+    providerEventId: string;
+    action: "EDIT" | "REVOKE";
+    providerTimestamp: Date;
+    body: string | null;
+    content: MessageContent | null;
+  }): Promise<"APPLIED" | "IGNORED" | "MISSING">;
 };
 
 export type WebhookProcessDependencies = {
@@ -809,12 +817,8 @@ export function createPrismaWebhookRepository(
       });
       return "APPLIED";
     },
-    revokeMessage(messageId, revokedAt) {
-      return client.message.update({
-        where: { id: messageId },
-        data: { revokedAt },
-        select: { id: true, conversationId: true, status: true },
-      });
+    applyMessageMutation(input) {
+      return applyMessageMutation(client, input);
     },
   };
 }
@@ -905,8 +909,8 @@ function deduplicationKey(
       return `status:${event.whatsappMessageId}:${event.status}:${event.timestampRaw}`;
     case "messageEcho":
       return `message-echo:${event.whatsappMessageId}`;
-    case "messageEchoControl":
-      return `message-echo-control:${event.action}:${event.whatsappMessageId}:${event.originalWhatsappMessageId}`;
+    case "messageMutation":
+      return `message-mutation:${event.providerEventId}`;
     case "reaction":
       return `reaction:${event.whatsappMessageId}`;
     case "reactionEcho":
@@ -1051,7 +1055,7 @@ function numericIdentity(value: string | null): string | null {
 
 function reactionIdentityMatches(
   target: ReactionTargetRecord,
-  event: NormalizedReactionEvent | NormalizedReactionEchoEvent | NormalizedMessageEchoControlEvent,
+  event: NormalizedReactionEvent | NormalizedReactionEchoEvent | NormalizedMessageMutationEvent,
 ): boolean {
   const phoneIdentities = new Set(
     [target.contactWhatsappId, target.contactPhone]
@@ -1061,11 +1065,15 @@ function reactionIdentityMatches(
   if (event.kind === "reaction") {
     return phoneIdentities.has(numericIdentity(event.from) ?? "");
   }
-  const phoneMatches = event.to
-    ? phoneIdentities.has(numericIdentity(event.to) ?? "")
+  const phone = event.kind === "messageMutation" ? event.identity.phone : event.to;
+  const whatsappUserId = event.kind === "messageMutation"
+    ? event.identity.whatsappUserId
+    : event.toUserId;
+  const phoneMatches = phone
+    ? phoneIdentities.has(numericIdentity(phone) ?? "")
     : false;
-  const userMatches = event.toUserId
-    ? event.toUserId === target.contactWhatsappUserId
+  const userMatches = whatsappUserId
+    ? whatsappUserId === target.contactWhatsappUserId
     : false;
   return phoneMatches || userMatches;
 }
@@ -1104,30 +1112,42 @@ async function processReaction(
   };
 }
 
-async function processMessageEchoControl(
-  event: NormalizedMessageEchoControlEvent,
+async function processMessageMutation(
+  event: NormalizedMessageMutationEvent,
   key: string,
   repository: WebhookRepository,
+  now: Date,
 ): Promise<{
   duplicate: boolean;
   realtime: readonly RealtimeEvent[];
   pendingMediaId: string | null;
 }> {
-  if (event.action === "REVOKE") {
-    const target = await repository.findReactionTarget(event.originalWhatsappMessageId);
-    if (target) {
-      if (!reactionIdentityMatches(target, event)) throw new WebhookIdentityConflictError();
-      const revoked = await repository.revokeMessage(target.id, event.timestamp);
-      await repository.completeEvent(key);
-      return {
-        duplicate: false,
-        realtime: [{ type: "message.status", conversationId: revoked.conversationId, messageId: revoked.id }],
-        pendingMediaId: null,
-      };
+  const target = await repository.findReactionTarget(event.originalWhatsappMessageId);
+  if (!target) {
+    if (Math.abs(now.getTime() - event.timestamp.getTime()) <= MISSING_STATUS_RETRY_GRACE_MS) {
+      throw new WebhookProcessingError(true);
     }
+    await repository.completeEvent(key);
+    return { duplicate: false, realtime: [], pendingMediaId: null };
   }
+  if (!reactionIdentityMatches(target, event)) throw new WebhookIdentityConflictError();
+  const applied = await repository.applyMessageMutation({
+    messageId: target.id,
+    providerEventId: event.providerEventId,
+    action: event.action,
+    providerTimestamp: event.timestamp,
+    body: event.body,
+    content: event.content,
+  });
+  if (applied === "MISSING") throw new WebhookProcessingError(true);
   await repository.completeEvent(key);
-  return { duplicate: false, realtime: [], pendingMediaId: null };
+  return {
+    duplicate: applied === "IGNORED",
+    realtime: applied === "APPLIED"
+      ? [{ type: "message.updated", conversationId: target.conversationId, messageId: target.id }]
+      : [],
+    pendingMediaId: null,
+  };
 }
 
 async function processStatus(
@@ -1267,8 +1287,8 @@ export async function processWebhookEvents(
             return processStatus(event, key, repository, now);
           case "messageEcho":
             return processMessageEcho(event, key, repository);
-          case "messageEchoControl":
-            return processMessageEchoControl(event, key, repository);
+          case "messageMutation":
+            return processMessageMutation(event, key, repository, now);
           case "reaction":
           case "reactionEcho":
             return processReaction(event, key, repository, now);

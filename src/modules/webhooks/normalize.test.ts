@@ -12,11 +12,13 @@ import {
   inboundListReplyFixture,
   inboundLocationFixture,
   inboundMediaFixture,
+  inboundMutationFixture,
   inboundOrderFixture,
   inboundStickerFixture,
   inboundSystemFixture,
   inboundTextFixture,
   locationFixture,
+  messageEchoMutationFixture,
   phoneNameFixture,
   phoneQualityFixture,
   stickerFixture,
@@ -672,21 +674,95 @@ describe("Meta webhook normalization", () => {
   it.each([
     ["edit", "EDIT"],
     ["revoke", "REVOKE"],
-  ] as const)("normalizes a valid app %s control as a deduplicable no-op", (rawAction, action) => {
-    expect(normalizeWebhook(messageEchoControlFixture(rawAction))).toEqual([
-      {
-        kind: "messageEchoControl",
+  ] as const)("normalizes a valid app %s as a unified mutation", (rawAction, action) => {
+    expect(normalizeWebhook(messageEchoMutationFixture(rawAction))).toEqual([
+      expect.objectContaining({
+        kind: "messageMutation",
         action,
-        whatsappMessageId: `wamid.echo-${rawAction}`,
-        originalWhatsappMessageId: "wamid.echo-original",
-        to: "5511999990001",
-        toUserId: "BR.Customer123",
-        toParentUserId: null,
-        timestamp: new Date("2026-08-19T10:00:04.000Z"),
-        timestampRaw: "1787133604",
+        providerEventId: `wamid.echo-${rawAction}-text`,
+        originalWhatsappMessageId: "wamid.echo-original-text",
+        identity: {
+          phone: "5511999990001",
+          whatsappUserId: "BR.Customer123",
+        },
         origin: "WHATSAPP_BUSINESS_APP",
+      }),
+    ]);
+  });
+
+  it("normalizes inbound text edits instead of creating an unsupported message", () => {
+    expect(normalizeWebhook(inboundMutationFixture("edit"))).toEqual([
+      {
+        kind: "messageMutation",
+        action: "EDIT",
+        providerEventId: "wamid.inbound-edit-text",
+        originalWhatsappMessageId: "wamid.inbound-original-text",
+        timestamp: new Date("2026-08-19T10:01:00.000Z"),
+        timestampRaw: "1787133660",
+        body: "Texto corrigido",
+        content: null,
+        identity: { phone: "5511999990001", whatsappUserId: null },
+        origin: "CONTACT",
       },
     ]);
+  });
+
+  it("normalizes an app media-caption edit without accepting replacement media fields", () => {
+    expect(normalizeWebhook(messageEchoMutationFixture("edit", "image"))).toEqual([
+      expect.objectContaining({
+        kind: "messageMutation",
+        action: "EDIT",
+        body: "Legenda corrigida",
+        content: null,
+      }),
+    ]);
+  });
+
+  it("normalizes revokes without replacement content on both webhook surfaces", () => {
+    for (const fixture of [
+      inboundMutationFixture("revoke"),
+      messageEchoMutationFixture("revoke"),
+    ]) {
+      expect(normalizeWebhook(fixture)).toEqual([
+        expect.objectContaining({
+          kind: "messageMutation",
+          action: "REVOKE",
+          body: null,
+          content: null,
+        }),
+      ]);
+    }
+  });
+
+  it.each([
+    ["missing original", () => {
+      const payload = inboundMutationFixture("edit") as Record<string, any>;
+      delete payload.entry[0].changes[0].value.messages[0].edit.original_message_id;
+      return payload;
+    }],
+    ["missing replacement", () => {
+      const payload = inboundMutationFixture("edit") as Record<string, any>;
+      delete payload.entry[0].changes[0].value.messages[0].edit.message;
+      return payload;
+    }],
+    ["unsupported replacement", () => {
+      const payload = inboundMutationFixture("edit") as Record<string, any>;
+      payload.entry[0].changes[0].value.messages[0].edit.message = {
+        type: "sticker",
+        sticker: { id: "private-provider-id" },
+      };
+      return payload;
+    }],
+    ["replacement attached to revoke", () => {
+      const payload = messageEchoMutationFixture("revoke") as Record<string, any>;
+      payload.entry[0].changes[0].value.message_echoes[0].revoke.message = {
+        type: "text",
+        text: { body: "must-not-survive" },
+      };
+      return payload;
+    }],
+  ] as const)("quarantines a malformed mutation: %s", (_name, fixture) => {
+    expect(() => normalizeWebhook(fixture())).toThrow(WebhookPayloadError);
   });
 
   it("normalizes multiple echoes, multiple changes, and standard messages together", () => {

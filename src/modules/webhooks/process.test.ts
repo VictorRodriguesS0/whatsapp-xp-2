@@ -19,8 +19,8 @@ import { resetTestDatabase } from "@/test/database";
 
 import { normalizeWebhook } from "./normalize";
 import type {
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
+  NormalizedMessageMutationEvent,
 } from "./types";
 import {
   processWebhookEvents,
@@ -94,7 +94,7 @@ function cloneState(state: State): State {
   };
 }
 
-function createHarness(options: { failCreateMessage?: boolean } = {}) {
+function createHarness(options: { failCreateMessage?: boolean; now?: Date } = {}) {
   let state: State = {
     events: new Map(),
     contacts: new Map(),
@@ -297,9 +297,31 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
         message.status = status;
         return { ...message, failureReason };
       },
-      findReactionTarget: async () => { throw new Error("unused"); },
+      findReactionTarget: async (whatsappMessageId) => {
+        const message = target.messages.get(whatsappMessageId);
+        if (!message) return null;
+        const conversation = target.conversations.get(message.conversationId);
+        const contact = conversation
+          ? [...target.contacts.values()].find((item) => item.id === conversation.contactId)
+          : null;
+        if (!contact) throw new Error("missing contact");
+        return {
+          id: message.id,
+          conversationId: message.conversationId,
+          status: message.status,
+          contactWhatsappId: contact.whatsappId,
+          contactWhatsappUserId: contact.whatsappUserId,
+          contactPhone: contact.phone,
+        };
+      },
       applyReaction: async () => { throw new Error("unused"); },
-      revokeMessage: async () => { throw new Error("unused"); },
+      applyMessageMutation: async (input) => {
+        const message = [...target.messages.values()].find(({ id }) => id === input.messageId);
+        if (!message) return "MISSING";
+        message.body = input.action === "REVOKE" ? null : input.body;
+        message.content = input.action === "REVOKE" ? null : input.content;
+        return "APPLIED";
+      },
     };
   }
 
@@ -332,6 +354,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     applyMetaOperationalEvent: async (event) => {
       operationalApplications.push(event);
     },
+    now: options.now ? () => options.now! : undefined,
   };
 
   return {
@@ -360,18 +383,18 @@ describe("webhook event processing", () => {
       replyToWhatsappMessageId: null,
       origin: "WHATSAPP_BUSINESS_APP",
     } satisfies NormalizedMessageEchoEvent;
-  const control = {
-      kind: "messageEchoControl",
+  const mutation = {
+      kind: "messageMutation",
       action: "EDIT",
-      whatsappMessageId: "wamid.echo-control-pending-task-2",
+      providerEventId: "wamid.echo-mutation-pending-task-2",
       originalWhatsappMessageId: "wamid.echo-original-pending-task-2",
-      to: "5511999990001",
-      toUserId: "BR.Customer123",
-      toParentUserId: null,
       timestamp: new Date("2026-08-21T12:00:00.000Z"),
       timestampRaw: "1787313600",
+      body: "texto corrigido",
+      content: null,
+      identity: { phone: "5511999990001", whatsappUserId: "BR.Customer123" },
       origin: "WHATSAPP_BUSINESS_APP",
-    } satisfies NormalizedMessageEchoControlEvent;
+    } satisfies NormalizedMessageMutationEvent;
 
   it("persists an echo as actorless outbound SENT and publishes only after commit", async () => {
     const harness = createHarness();
@@ -486,27 +509,63 @@ describe("webhook event processing", () => {
     });
   });
 
-  it("deduplicates controls without creating domain state", async () => {
+  it("completes and deduplicates a stale mutation whose target is unavailable", async () => {
     const harness = createHarness();
 
-    await expect(processWebhookEvents([control], harness.dependencies)).resolves.toEqual({
+    await expect(processWebhookEvents([mutation], harness.dependencies)).resolves.toEqual({
       processed: 1,
       duplicates: 0,
     });
-    await expect(processWebhookEvents([control], harness.dependencies)).resolves.toEqual({
+    await expect(processWebhookEvents([mutation], harness.dependencies)).resolves.toEqual({
       processed: 0,
       duplicates: 1,
     });
 
     expect(
       harness.state.events.get(
-        "message-echo-control:EDIT:wamid.echo-control-pending-task-2:wamid.echo-original-pending-task-2",
+        "message-mutation:wamid.echo-mutation-pending-task-2",
       ),
     ).toMatchObject({ status: WebhookStatus.PROCESSED });
     expect(harness.state.contacts).toHaveLength(0);
     expect(harness.state.conversations).toHaveLength(0);
     expect(harness.state.messages).toHaveLength(0);
     expect(harness.state.media).toHaveLength(0);
+    expect(harness.publications).toEqual([]);
+  });
+
+  it("applies an official-app edit to its original and publishes only IDs", async () => {
+    const harness = createHarness();
+    const original = {
+      ...echo,
+      whatsappMessageId: mutation.originalWhatsappMessageId,
+      body: "texto original",
+    };
+
+    await processWebhookEvents([original], harness.dependencies);
+    await expect(processWebhookEvents([mutation], harness.dependencies)).resolves.toEqual({
+      processed: 1,
+      duplicates: 0,
+    });
+
+    expect(harness.state.messages.get(original.whatsappMessageId)?.body).toBe(
+      "texto corrigido",
+    );
+    expect(harness.publications.at(-1)).toEqual({
+      afterCommit: true,
+      event: {
+        type: "message.updated",
+        conversationId: "conversation-1",
+        messageId: "message-1",
+      },
+    });
+  });
+
+  it("keeps a recent missing mutation retryable", async () => {
+    const harness = createHarness({ now: mutation.timestamp });
+
+    await expect(
+      processWebhookEvents([mutation], harness.dependencies),
+    ).rejects.toBeInstanceOf(WebhookProcessingError);
     expect(harness.publications).toEqual([]);
   });
 

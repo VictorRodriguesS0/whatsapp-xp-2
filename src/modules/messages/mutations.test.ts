@@ -37,6 +37,9 @@ describe("message mutation persistence contract", () => {
       'CREATE INDEX "message_revisions_message_id_provider_timestamp_provider_event_id_idx"',
     );
     expect(sql).toMatch(
+      /IF NEW\.revoked_at IS NOT NULL THEN\s+NEW\.search_text := 'mensagem apagada'/u,
+    );
+    expect(sql).toMatch(
       /FOREIGN KEY \("message_id"\) REFERENCES "messages"\("id"\)\s+ON DELETE CASCADE/u,
     );
     expect(sql).not.toMatch(/\b(?:DROP|TRUNCATE)\b/iu);

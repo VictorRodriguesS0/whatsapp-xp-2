@@ -10,9 +10,9 @@ import type {
   NormalizedMedia,
   NormalizedContactSyncBatchEvent,
   NormalizedContactSyncItem,
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMessageMutationEvent,
   NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
@@ -664,10 +664,92 @@ function normalizeUnknownContent(message: UnknownRecord): MessageContent | null 
   return parseMessageContent({ kind: "unknown", rawType: message.type });
 }
 
+function normalizeMutationReplacement(
+  control: UnknownRecord,
+): { body: string | null; content: MessageContent | null } | null {
+  const replacement = record(control.message);
+  const rawType = exactBoundedProviderString(replacement?.type, 64);
+
+  if (!replacement || !rawType) return null;
+
+  if (rawType === "text") {
+    const text = record(replacement.text);
+    const body = strictCleanString(text?.body, 4096, { trim: false });
+    return text && body ? { body, content: null } : null;
+  }
+
+  if (rawType === "image" || rawType === "video" || rawType === "document") {
+    const media = record(replacement[rawType]);
+    if (
+      !media ||
+      !hasOwn(media, "caption") ||
+      typeof media.caption !== "string" ||
+      media.caption.length > 4096
+    ) {
+      return null;
+    }
+
+    return {
+      body: cleanString(media.caption, 4096, { trim: false }),
+      content: null,
+    };
+  }
+
+  return null;
+}
+
+function normalizeMessageMutation(input: {
+  message: UnknownRecord;
+  action: "edit" | "revoke";
+  providerEventId: string;
+  timestamp: { date: Date; raw: string };
+  identity: NormalizedMessageMutationEvent["identity"];
+  origin: NormalizedMessageMutationEvent["origin"];
+}): NormalizedMessageMutationEvent | null {
+  const control = record(input.message[input.action]);
+  const originalWhatsappMessageId = exactIdentifier(
+    control?.original_message_id,
+    512,
+  );
+
+  if (!control || !originalWhatsappMessageId) return null;
+
+  if (input.action === "revoke") {
+    if (hasOwn(control, "message")) return null;
+    return {
+      kind: "messageMutation",
+      action: "REVOKE",
+      providerEventId: input.providerEventId,
+      originalWhatsappMessageId,
+      timestamp: input.timestamp.date,
+      timestampRaw: input.timestamp.raw,
+      body: null,
+      content: null,
+      identity: input.identity,
+      origin: input.origin,
+    };
+  }
+
+  const replacement = normalizeMutationReplacement(control);
+  if (!replacement) return null;
+
+  return {
+    kind: "messageMutation",
+    action: "EDIT",
+    providerEventId: input.providerEventId,
+    originalWhatsappMessageId,
+    timestamp: input.timestamp.date,
+    timestampRaw: input.timestamp.raw,
+    ...replacement,
+    identity: input.identity,
+    origin: input.origin,
+  };
+}
+
 function normalizeMessage(
   candidate: unknown,
   contactNames: Map<string, string>,
-): NormalizedMessageEvent | NormalizedReactionEvent | null {
+): NormalizedMessageEvent | NormalizedMessageMutationEvent | NormalizedReactionEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const from = whatsappUserId(message?.from);
@@ -676,6 +758,22 @@ function normalizeMessage(
 
   if (!message || !whatsappMessageId || !from || !rawType || !parsedTimestamp) {
     return null;
+  }
+
+  if (rawType === "edit" || rawType === "revoke") {
+    const hasUserId = hasOwn(message, "from_user_id");
+    const whatsappUserId = hasUserId
+      ? businessScopedUserId(message.from_user_id)
+      : null;
+    if (hasUserId && !whatsappUserId) return null;
+    return normalizeMessageMutation({
+      message,
+      action: rawType,
+      providerEventId: whatsappMessageId,
+      timestamp: parsedTimestamp,
+      identity: { phone: from, whatsappUserId },
+      origin: "CONTACT",
+    });
   }
 
   if (rawType === "reaction") {
@@ -853,7 +951,7 @@ function normalizeContactSyncBatch(value: UnknownRecord): NormalizedContactSyncB
 
 function normalizeMessageEcho(
   candidate: unknown,
-): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | NormalizedReactionEchoEvent | null {
+): NormalizedMessageEchoEvent | NormalizedMessageMutationEvent | NormalizedReactionEchoEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const hasLegacyRecipient = message ? hasOwn(message, "to") : false;
@@ -881,28 +979,14 @@ function normalizeMessageEcho(
   }
 
   if (rawType === "edit" || rawType === "revoke") {
-    const control = record(message[rawType]);
-    const originalWhatsappMessageId = exactIdentifier(
-      control?.original_message_id,
-      512,
-    );
-
-    if (!control || !originalWhatsappMessageId) {
-      return null;
-    }
-
-    return {
-      kind: "messageEchoControl",
-      action: rawType === "edit" ? "EDIT" : "REVOKE",
-      whatsappMessageId,
-      originalWhatsappMessageId,
-      to,
-      toUserId,
-      toParentUserId,
-      timestamp: parsedTimestamp.date,
-      timestampRaw: parsedTimestamp.raw,
+    return normalizeMessageMutation({
+      message,
+      action: rawType,
+      providerEventId: whatsappMessageId,
+      timestamp: parsedTimestamp,
+      identity: { phone: to, whatsappUserId: toUserId },
       origin: "WHATSAPP_BUSINESS_APP",
-    };
+    });
   }
 
   if (rawType === "reaction") {

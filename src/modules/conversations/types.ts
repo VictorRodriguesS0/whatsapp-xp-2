@@ -77,6 +77,7 @@ export type QuotedReplyRecord = {
   content: unknown;
   sentByUser: ConversationUserRecord | null;
   mediaObject: { originalFilename: string } | null;
+  revokedAt?: Date | null;
 };
 
 export function toMediaStateDto(
@@ -116,6 +117,7 @@ export type MessageRecord = {
   sentByUser: ConversationUserRecord | null;
   status: MessageStatus;
   failureReason: string | null;
+  editedAt?: Date | null;
   revokedAt: Date | null;
   reactions: MessageReactionRecord[];
   externalTimestamp: Date;
@@ -153,6 +155,7 @@ export type MessageDto = {
   sentBy: ResponsibleUserDto | null;
   status: MessageStatus;
   failureReason: string | null;
+  editedAt?: string | null;
   revokedAt: string | null;
   reactions: ReactionDto[];
   externalTimestamp: string;

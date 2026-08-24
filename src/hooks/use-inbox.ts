@@ -142,6 +142,7 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     sentBy: { id: actor.id, name: actor.name },
     status: "PENDING",
     failureReason: null,
+    editedAt: null,
     revokedAt: null,
     reactions: [],
     externalTimestamp: now,
@@ -1253,6 +1254,7 @@ export function useInbox(initialUser: SessionUser) {
     if (
       event.type === "message.created" ||
       event.type === "message.status" ||
+      event.type === "message.updated" ||
       event.type === "media.updated" ||
       event.type === "reaction.updated"
     ) {

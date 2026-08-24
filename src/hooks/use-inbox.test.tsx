@@ -1235,6 +1235,69 @@ describe("useInbox", () => {
     hook.unmount();
   });
 
+  it("refreshes the selected conversation after an ID-only message.updated event", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let listFetches = 0;
+    let detailFetches = 0;
+    const original = replyableMessage("message-id");
+    const edited = {
+      ...original,
+      body: "Texto corrigido no WhatsApp",
+      editedAt: "2026-08-24T02:15:00.000Z",
+    };
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({
+          data: { items: [listItem("conversation-id")], nextCursor: null },
+          error: null,
+        });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({
+          data: conversationDetail(
+            "conversation-id",
+            [detailFetches === 1 ? original : edited],
+          ),
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+    expect(hook.result.current.conversation?.messages[0]?.body).toBe(
+      "Tem esse produto?",
+    );
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "message.updated",
+        conversationId: "conversation-id",
+        messageId: "message-id",
+      });
+    });
+
+    await waitFor(() => expect(
+      hook.result.current.conversation?.messages[0]?.body,
+    ).toBe("Texto corrigido no WhatsApp"));
+    expect(hook.result.current.conversation?.messages[0]?.editedAt).toBe(
+      "2026-08-24T02:15:00.000Z",
+    );
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
+    hook.unmount();
+  });
+
   it("moves a selected merged source to its target across paginated state and ignores stale source responses", async () => {
     vi.stubGlobal("EventSource", FakeEventSource);
     let resolveSource!: (value: Response) => void;

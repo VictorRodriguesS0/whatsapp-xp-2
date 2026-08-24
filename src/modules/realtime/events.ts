@@ -24,6 +24,11 @@ export const realtimeEventSchema = z.discriminatedUnion("type", [
     messageId: id,
   }),
   z.strictObject({
+    type: z.literal("message.updated"),
+    conversationId: id,
+    messageId: id,
+  }),
+  z.strictObject({
     type: z.literal("media.updated"),
     conversationId: id,
     messageId: id,

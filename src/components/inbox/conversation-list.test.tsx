@@ -196,6 +196,26 @@ describe("ConversationList", () => {
     expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
   });
 
+  it("shows the current tombstone instead of a revoked message preview", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          latestMessage: {
+            ...fixture.latestMessage!,
+            body: "Conteúdo antigo",
+            revokedAt: "2026-08-24T02:20:00.000Z",
+          },
+        }]}
+        selectedId={null}
+        onSelect={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Mensagem apagada")).toBeVisible();
+    expect(screen.queryByText("Conteúdo antigo")).not.toBeInTheDocument();
+  });
+
   it("exposes the selected conversation and a 44px interaction target", () => {
     const onSelect = vi.fn();
     render(<ConversationList items={[fixture]} selectedId={fixture.id} onSelect={onSelect} />);
