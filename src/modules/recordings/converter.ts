@@ -19,7 +19,7 @@ export const RAW_RECORDING_MIME_TYPES = new Set(["audio/webm", "audio/ogg", "aud
 
 export type ProcessResult = { stdout: string; stderr: string };
 export type RunBoundedProcess = (input: {
-  command: "ffmpeg" | "ffprobe";
+  command: "ffmpeg" | "ffprobe" | "pdftoppm";
   args: string[];
   timeoutMs: number;
   diagnosticLimitBytes: number;
