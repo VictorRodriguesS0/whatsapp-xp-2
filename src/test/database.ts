@@ -32,6 +32,8 @@ export async function resetTestDatabase(): Promise<void> {
   assertDedicatedTestDatabase();
 
   await prisma.$transaction([
+    prisma.metaOperationalAlert.deleteMany(),
+    prisma.metaHealthSnapshot.deleteMany(),
     prisma.conversationRead.deleteMany(),
     prisma.whatsAppReadSync.deleteMany(),
     prisma.message.deleteMany(),

@@ -85,6 +85,25 @@ enum ConversationAuditAction {
   MARKED_UNREAD
 }
 
+enum MetaAlertCategory {
+  PHONE_QUALITY
+  ACCOUNT
+  ACCOUNT_REVIEW
+  PHONE_NAME
+  TEMPLATE
+}
+
+enum MetaAlertSeverity {
+  INFO
+  ATTENTION
+  CRITICAL
+}
+
+enum MetaAlertSource {
+  WEBHOOK
+  RECONCILIATION
+}
+
 model User {
   id                        String                   @id @default(uuid()) @db.Uuid
   name                      String
@@ -101,6 +120,7 @@ model User {
   manualUnreadConversations Conversation[]           @relation("ManualUnreadByUser")
   conversationAuditEvents   ConversationAuditEvent[]
   sentReactions             MessageReaction[]        @relation("ReactionSentByUser")
+  acknowledgedMetaAlerts    MetaOperationalAlert[]    @relation("MetaAlertAcknowledgement")
 
   @@map("users")
 }
@@ -374,6 +394,56 @@ model WebhookEvent {
   createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
 
   @@map("webhook_events")
+}
+
+model MetaHealthSnapshot {
+  id                   String                 @id @default(uuid()) @db.Uuid
+  phoneNumberId        String                 @unique @map("phone_number_id")
+  wabaId               String                 @map("waba_id")
+  displayPhoneNumber   String?                @map("display_phone_number")
+  verifiedName         String?                @map("verified_name")
+  qualityRating        String?                @map("quality_rating")
+  accountReviewStatus  String?                @map("account_review_status")
+  accountEvent         String?                @map("account_event")
+  messagingLimit       String?                @map("messaging_limit")
+  lastSyncAttemptAt    DateTime?              @map("last_sync_attempt_at") @db.Timestamptz(3)
+  lastSuccessfulSyncAt DateTime?              @map("last_successful_sync_at") @db.Timestamptz(3)
+  lastSyncErrorCode    String?                @map("last_sync_error_code")
+  syncLeaseId          String?                @map("sync_lease_id") @db.Uuid
+  syncLeaseUntil       DateTime?              @map("sync_lease_until") @db.Timestamptz(3)
+  createdAt            DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
+  alerts               MetaOperationalAlert[]
+
+  @@index([syncLeaseUntil])
+  @@map("meta_health_snapshots")
+}
+
+model MetaOperationalAlert {
+  id                   String              @id @default(uuid()) @db.Uuid
+  snapshotId           String              @map("snapshot_id") @db.Uuid
+  deduplicationKey     String?             @unique @map("deduplication_key")
+  category             MetaAlertCategory
+  severity             MetaAlertSeverity
+  source               MetaAlertSource
+  sourceField          String              @map("source_field")
+  eventCode            String              @map("event_code")
+  resourceId           String?             @map("resource_id")
+  summary              String
+  details              Json?
+  occurredAt           DateTime            @map("occurred_at") @db.Timestamptz(3)
+  active               Boolean             @default(true)
+  resolvedAt           DateTime?           @map("resolved_at") @db.Timestamptz(3)
+  acknowledgedAt       DateTime?           @map("acknowledged_at") @db.Timestamptz(3)
+  acknowledgedByUserId String?             @map("acknowledged_by_user_id") @db.Uuid
+  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  snapshot             MetaHealthSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  acknowledgedByUser   User?               @relation("MetaAlertAcknowledgement", fields: [acknowledgedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([snapshotId, active, severity, occurredAt])
+  @@index([occurredAt, id])
+  @@map("meta_operational_alerts")
 }
 
 model QuickReply {

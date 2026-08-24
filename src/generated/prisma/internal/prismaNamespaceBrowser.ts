@@ -66,6 +66,8 @@ export const ModelName = {
   ConversationAuditEvent: 'ConversationAuditEvent',
   WhatsAppReadSync: 'WhatsAppReadSync',
   WebhookEvent: 'WebhookEvent',
+  MetaHealthSnapshot: 'MetaHealthSnapshot',
+  MetaOperationalAlert: 'MetaOperationalAlert',
   QuickReply: 'QuickReply'
 } as const
 
@@ -320,6 +322,52 @@ export const WebhookEventScalarFieldEnum = {
 } as const
 
 export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[keyof typeof WebhookEventScalarFieldEnum]
+
+
+export const MetaHealthSnapshotScalarFieldEnum = {
+  id: 'id',
+  phoneNumberId: 'phoneNumberId',
+  wabaId: 'wabaId',
+  displayPhoneNumber: 'displayPhoneNumber',
+  verifiedName: 'verifiedName',
+  qualityRating: 'qualityRating',
+  accountReviewStatus: 'accountReviewStatus',
+  accountEvent: 'accountEvent',
+  messagingLimit: 'messagingLimit',
+  lastSyncAttemptAt: 'lastSyncAttemptAt',
+  lastSuccessfulSyncAt: 'lastSuccessfulSyncAt',
+  lastSyncErrorCode: 'lastSyncErrorCode',
+  syncLeaseId: 'syncLeaseId',
+  syncLeaseUntil: 'syncLeaseUntil',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaHealthSnapshotScalarFieldEnum = (typeof MetaHealthSnapshotScalarFieldEnum)[keyof typeof MetaHealthSnapshotScalarFieldEnum]
+
+
+export const MetaOperationalAlertScalarFieldEnum = {
+  id: 'id',
+  snapshotId: 'snapshotId',
+  deduplicationKey: 'deduplicationKey',
+  category: 'category',
+  severity: 'severity',
+  source: 'source',
+  sourceField: 'sourceField',
+  eventCode: 'eventCode',
+  resourceId: 'resourceId',
+  summary: 'summary',
+  details: 'details',
+  occurredAt: 'occurredAt',
+  active: 'active',
+  resolvedAt: 'resolvedAt',
+  acknowledgedAt: 'acknowledgedAt',
+  acknowledgedByUserId: 'acknowledgedByUserId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaOperationalAlertScalarFieldEnum = (typeof MetaOperationalAlertScalarFieldEnum)[keyof typeof MetaOperationalAlertScalarFieldEnum]
 
 
 export const QuickReplyScalarFieldEnum = {

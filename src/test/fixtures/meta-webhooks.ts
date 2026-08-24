@@ -34,6 +34,51 @@ export const inboundTextFixture = {
   ],
 } as const;
 
+const operationalTime = 1787486400;
+
+function operationalFixture(field: string, value: Record<string, unknown>) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [{ id: "waba-1", time: operationalTime, changes: [{ field, value }] }],
+  };
+}
+
+export const phoneQualityFixture = (event = "FLAGGED") =>
+  operationalFixture("phone_number_quality_update", {
+    event,
+    display_phone_number: "+5561999990000",
+    current_limit: "TIER_10K",
+    previous_limit: "TIER_1K",
+    private_provider_field: "must-not-survive",
+  });
+
+export const accountUpdateFixture = (event = "DISABLED_UPDATE") =>
+  operationalFixture("account_update", {
+    event,
+    phone_number: "+5561999990000",
+    current_limit: "TIER_10K",
+  });
+
+export const accountReviewFixture = (decision = "PENDING") =>
+  operationalFixture("account_review_update", { decision });
+
+export const phoneNameFixture = (decision = "REJECTED") =>
+  operationalFixture("phone_number_name_update", {
+    decision,
+    display_phone_number: "+5561999990000",
+    requested_verified_name: "XP Eletrônicos",
+    rejection_reason: "provider-only-copy",
+  });
+
+export const templateStatusFixture = (event = "REJECTED") =>
+  operationalFixture("message_template_status_update", {
+    event,
+    message_template_id: "template-1",
+    message_template_name: "aviso_produto",
+    message_template_language: "pt_BR",
+    reason: "provider-only-copy",
+  });
+
 type MediaKind = "image" | "audio" | "video" | "document";
 
 export function inboundMediaFixture(kind: MediaKind) {
