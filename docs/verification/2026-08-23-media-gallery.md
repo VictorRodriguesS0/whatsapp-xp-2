@@ -38,7 +38,18 @@ The audit was repeated immediately before deployment. The candidate contained th
 - Unauthenticated conversations and media preview requests: HTTP 401.
 - Invalid Meta webhook signature: HTTP 401.
 - Post-start logs contained zero unhandled/fatal/5xx markers and zero sensitive-value markers.
-- Authenticated Chrome verification opened a read conversation containing an image, a video and a PDF. The viewer filled the viewport, loaded the image at its natural dimensions, exposed native video controls, navigated `1 de 3` through `3 de 3`, and rendered the complete PDF in the authenticated preview iframe.
+- Authenticated Chrome verification opened a read conversation containing an image, a video and a PDF. The viewer filled the viewport, loaded the image at its natural dimensions, exposed native video controls and navigated `1 de 3` through `3 de 3`. The original check observed the PDF iframe shell but did not prove that its document content rendered; the production hotfix below closes that verification gap.
 - Escape closed the desktop viewer and restored focus to the opening thumbnail.
 - In a 390 by 844 mobile viewport, browser Back closed only the viewer, kept the conversation and composer open, and restored focus to the image thumbnail.
 - No browser console warning or error was emitted during the tested flow.
+
+## PDF same-origin hotfix
+
+- Configuration revision: `2c1ef9f0f8a18431144134e9bf2ee963a5cced16`.
+- Root cause reproduced in the authenticated production viewer: Caddy added `X-Frame-Options: DENY` and `frame-ancestors 'none'` to the media preview response, so the browser refused the same-origin iframe.
+- A regression assertion was added first and failed against the old configuration. It passed after limiting the exception to `/api/media/*?preview=1`.
+- The exact Caddy 2.10.2 production image validated and adapted the candidate configuration before deployment.
+- The site-specific gateway file was backed up at `/srv/backups/example-app/gateway-whatsapp-site-20260824T020458Z.caddy` before a graceful Caddy reload.
+- The unauthenticated preview probe returned `SAMEORIGIN` plus `frame-ancestors 'self'`; download and page probes retained `DENY` plus `frame-ancestors 'none'`.
+- `GET /api/health` remained healthy, all container IDs were unchanged and no application or database container was restarted.
+- The original authenticated browser flow was repeated. The PDF rendered visibly inside the full-screen viewer with the browser PDF toolbar, one complete page and no console warning or error.
