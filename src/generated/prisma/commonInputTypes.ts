@@ -365,6 +365,23 @@ export type EnumMessageOperationalStateWithAggregatesFilter<$PrismaModel = never
   _max?: Prisma.NestedEnumMessageOperationalStateFilter<$PrismaModel>
 }
 
+export type EnumMessageRevisionActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.MessageRevisionAction | Prisma.EnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  in?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMessageRevisionActionFilter<$PrismaModel> | $Enums.MessageRevisionAction
+}
+
+export type EnumMessageRevisionActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MessageRevisionAction | Prisma.EnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  in?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMessageRevisionActionWithAggregatesFilter<$PrismaModel> | $Enums.MessageRevisionAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMessageRevisionActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMessageRevisionActionFilter<$PrismaModel>
+}
+
 export type EnumReactionReactorFilter<$PrismaModel = never> = {
   equals?: $Enums.ReactionReactor | Prisma.EnumReactionReactorFieldRefInput<$PrismaModel>
   in?: $Enums.ReactionReactor[] | Prisma.ListEnumReactionReactorFieldRefInput<$PrismaModel>
@@ -876,6 +893,23 @@ export type NestedEnumMessageOperationalStateWithAggregatesFilter<$PrismaModel =
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumMessageOperationalStateFilter<$PrismaModel>
   _max?: Prisma.NestedEnumMessageOperationalStateFilter<$PrismaModel>
+}
+
+export type NestedEnumMessageRevisionActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.MessageRevisionAction | Prisma.EnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  in?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMessageRevisionActionFilter<$PrismaModel> | $Enums.MessageRevisionAction
+}
+
+export type NestedEnumMessageRevisionActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MessageRevisionAction | Prisma.EnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  in?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MessageRevisionAction[] | Prisma.ListEnumMessageRevisionActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMessageRevisionActionWithAggregatesFilter<$PrismaModel> | $Enums.MessageRevisionAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMessageRevisionActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMessageRevisionActionFilter<$PrismaModel>
 }
 
 export type NestedEnumReactionReactorFilter<$PrismaModel = never> = {
