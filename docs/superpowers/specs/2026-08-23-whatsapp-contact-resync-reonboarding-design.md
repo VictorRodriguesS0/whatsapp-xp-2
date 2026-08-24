@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-23
 
-**Status:** aprovado em conversa; aguardando revisão do documento
+**Status:** aprovado pelo usuário após revisão do documento
 
 **Escopo:** refazer o onboarding oficial de coexistência do número da XP Eletrônicos e solicitar somente a carga inicial da agenda do WhatsApp Business App, preservando integralmente o histórico já armazenado pelo atendimento
 
