@@ -161,11 +161,13 @@ describe("ThemeProvider", () => {
       "overflow-wrap: anywhere;",
       "max-width: 100%;",
       ":focus-visible",
-      "scrollbar-gutter: stable both-edges;",
       "::selection",
       "prefers-reduced-motion: reduce",
     ]) {
       expect(styles).toContain(token);
     }
+
+    expect(styles).not.toContain("scrollbar-gutter: stable both-edges;");
+    expect(styles).not.toContain("min-inline-size: 20rem;");
   });
 });

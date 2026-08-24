@@ -54,7 +54,7 @@ export function InboxShell({
   const globalMessageSearch = useMessageSearch({ scope: "global" });
   const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
-  const detailsTrigger = useRef<HTMLButtonElement>(null);
+  const detailsRestoreTarget = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
   const selectedIdRef = useRef<string | null>(inbox.selectedId);
   const detailsOpenRef = useRef(detailsOpen);
@@ -147,7 +147,8 @@ export function InboxShell({
     })();
   }
 
-  function openDetails() {
+  function openDetails(trigger: HTMLButtonElement | null) {
+    detailsRestoreTarget.current = trigger;
     setDetailsOpen(true);
     mobileHistory.enterDetails();
   }
@@ -251,7 +252,6 @@ export function InboxShell({
           <section aria-hidden={isMobile && mobileView === "list" ? true : undefined} aria-label="Conversa ativa" className="thread-pane min-h-0 bg-[var(--panel)]" inert={isMobile && mobileView === "list" || undefined} role="region">
             <ConversationView
               conversation={inbox.conversation}
-              detailsTriggerRef={detailsTrigger}
               error={inbox.conversationError}
               loading={inbox.loadingConversation}
               markUnreadError={inbox.markUnreadError}
@@ -307,7 +307,7 @@ export function InboxShell({
 
       <Dialog
         onOpenChange={(open) => {
-          if (open) openDetails();
+          if (open) openDetails(detailsRestoreTarget.current);
           else if (detailsOpenRef.current) mobileHistory.leaveDetails();
         }}
         open={detailsOpen}
@@ -316,7 +316,7 @@ export function InboxShell({
           className="customer-dialog"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            detailsTrigger.current?.focus();
+            detailsRestoreTarget.current?.focus();
           }}
         >
           <DialogTitle className="pr-12 text-lg font-bold text-[var(--text)]">Dados do cliente</DialogTitle>

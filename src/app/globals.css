@@ -72,11 +72,6 @@
   box-sizing: border-box;
 }
 
-html {
-  min-inline-size: 20rem;
-  scrollbar-gutter: stable both-edges;
-}
-
 html,
 body {
   min-height: 100%;
@@ -346,7 +341,7 @@ a {
   .message-composer__audio-controls { flex-wrap: wrap; }
 }
 
-@media (prefers-reduced-motion: no-preference) {
+@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
   .conversation-pane,
   .thread-pane {
     transition: opacity 140ms ease, transform 140ms ease;

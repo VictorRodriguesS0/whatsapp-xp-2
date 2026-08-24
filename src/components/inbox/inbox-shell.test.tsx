@@ -203,6 +203,34 @@ describe("InboxShell", () => {
     routerReplaceMock.mockReset();
   });
 
+  it("restores focus to Mais opções when mobile details opened from its menu close", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 767px)" })));
+    const userEventController = userEvent.setup();
+    useInboxMock.mockReturnValue({
+      ...defaultInbox,
+      selectedId: "conversation-id",
+      conversation: {
+        ...defaultInbox.conversations[0],
+        createdAt: "2026-08-20T14:30:00.000Z",
+        updatedAt: "2026-08-20T14:31:00.000Z",
+        messages: [],
+        lastReadMessageId: null,
+        lastReadAt: null,
+      },
+    });
+    render(<InboxShell initialUser={user} />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    const moreTrigger = screen.getByRole("button", { name: "Mais opções" });
+
+    await userEventController.click(moreTrigger);
+    await userEventController.click(await screen.findByRole("menuitem", { name: "Abrir dados do cliente" }));
+    const dialog = await screen.findByRole("dialog", { name: "Dados do cliente" });
+    expect(dialog).toBeVisible();
+    await userEventController.click(within(dialog).getByRole("button", { name: "Fechar" }));
+
+    await waitFor(() => expect(moreTrigger).toHaveFocus());
+  });
+
   it("shows both admin settings actions only to administrators", async () => {
     const { rerender } = render(<InboxShell initialUser={user} />);
     const userEventController = userEvent.setup();
@@ -318,6 +346,7 @@ describe("InboxShell", () => {
     await userEventController.keyboard("{Escape}");
 
     await waitFor(() => expect(trigger).toHaveFocus());
+    await waitFor(() => expect(screen.queryByRole("dialog", { name: "Dados do cliente" })).not.toBeInTheDocument());
     expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
   });
 

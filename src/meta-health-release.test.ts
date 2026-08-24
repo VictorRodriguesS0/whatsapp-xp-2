@@ -25,7 +25,7 @@ describe("Meta health integrated release", () => {
   });
 
   it("mounts the admin badge and page with the agreed freshness controls", () => {
-    expect(source("src/components/inbox/inbox-shell.tsx")).toContain("MetaHealthBadge");
+    expect(source("src/components/inbox/conversation-sidebar.tsx")).toContain("MetaHealthBadge");
     expect(source("src/app/configuracoes/meta/page.tsx")).toContain("MetaHealthScreen");
     expect(source("src/modules/meta-health/severity.ts")).toContain("15 * 60_000");
     expect(source("src/hooks/use-meta-health.ts")).toContain("60_000");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -49,7 +49,6 @@ function removeMediaHistoryMarker(conversationId: string) {
 
 export function ConversationView({
   conversation,
-  detailsTriggerRef,
   loading,
   error,
   onBack,
@@ -74,14 +73,13 @@ export function ConversationView({
   onReplyToMessage,
 }: {
   conversation: InboxConversation | null;
-  detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
   loading: boolean;
   error: string | null;
   onBack: () => void;
   markUnreadError?: string | null;
   markUnreadPending?: boolean;
   onMarkUnread?: (conversationId: string) => Promise<unknown>;
-  onOpenDetails: () => void;
+  onOpenDetails: (trigger: HTMLButtonElement | null) => void;
   onRetryLoad: () => void;
   onVisibleMessage: (messageId: string) => void;
   onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
@@ -306,7 +304,6 @@ export function ConversationView({
     <div className="flex h-full min-h-0 flex-col">
       <ThreadHeader
         conversation={conversation}
-        detailsTriggerRef={detailsTriggerRef}
         markUnreadError={markUnreadError}
         markUnreadPending={markUnreadPending}
         onBack={onBack}

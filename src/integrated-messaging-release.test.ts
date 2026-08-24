@@ -7,7 +7,7 @@ const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf
 describe("integrated messaging release", () => {
   it("contains message search, quoted replies, and reactions in the same source tree", () => {
     expect(source("src/components/inbox/inbox-shell.tsx")).toContain("MessageSearchResults");
-    expect(source("src/components/inbox/conversation-view.tsx")).toContain("ConversationMessageSearch");
+    expect(source("src/components/inbox/thread-header.tsx")).toContain("ConversationMessageSearch");
     expect(source("src/components/inbox/message-bubble.tsx")).toContain("QuotedReplyPreview");
     expect(source("src/components/inbox/message-bubble.tsx")).toContain("MessageReactions");
     expect(source("src/modules/messages/service.ts")).toContain("replyToMessageId");

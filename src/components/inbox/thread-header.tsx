@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, CircleDot, Info, LoaderCircle, MoreHorizontal } from "lucide-react";
-import { useRef, type RefObject } from "react";
+import { useRef } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -17,18 +17,16 @@ function initials(name: string) {
 
 type ThreadHeaderProps = {
   conversation: InboxConversation | null;
-  detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
   markUnreadError?: string | null;
   markUnreadPending?: boolean;
   onBack: () => void;
   onMarkUnread?: (conversationId: string) => Promise<unknown>;
-  onOpenDetails: () => void;
+  onOpenDetails: (trigger: HTMLButtonElement | null) => void;
   onSearchTarget?: (result: MessageSearchResultDto) => void;
 };
 
 export function ThreadHeader({
   conversation,
-  detailsTriggerRef,
   markUnreadError,
   markUnreadPending,
   onBack,
@@ -82,8 +80,8 @@ export function ThreadHeader({
           {markUnreadPending ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <CircleDot aria-hidden="true" className="size-4" />}
           <span className="hidden md:inline">{markUnreadPending ? "Marcando…" : "Marcar como não lida"}</span>
         </Button>
-        <Button asChild aria-label="Abrir dados do cliente" className="details-trigger min-h-11 min-w-11" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost">
-          <button ref={detailsTriggerRef} type="button"><Info aria-hidden="true" className="size-5" /></button>
+        <Button asChild aria-label="Abrir dados do cliente" className="details-trigger min-h-11 min-w-11" disabled={!conversation} onClick={(event) => onOpenDetails(event.currentTarget)} size="icon" variant="ghost">
+          <button type="button"><Info aria-hidden="true" className="size-5" /></button>
         </Button>
       </div>
 
@@ -101,7 +99,7 @@ export function ThreadHeader({
             <CircleDot aria-hidden="true" className="size-4" />
             Marcar como não lida
           </DropdownMenuItem>
-          <DropdownMenuItem disabled={!conversation} onSelect={onOpenDetails}>
+          <DropdownMenuItem disabled={!conversation} onSelect={() => onOpenDetails(moreTriggerRef.current)}>
             <Info aria-hidden="true" className="size-4" />
             Abrir dados do cliente
           </DropdownMenuItem>
