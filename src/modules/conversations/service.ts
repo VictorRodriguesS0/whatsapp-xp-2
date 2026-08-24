@@ -218,7 +218,7 @@ function messageOrder(left: MessageRecord, right: MessageRecord): number {
 }
 
 function toMessageDto(message: MessageRecord): MessageDto {
-  const revoked = message.revokedAt !== null;
+  const revoked = Boolean(message.revokedAt);
   const mediaState = !revoked && message.mediaObject
     ? toMediaStateDto(message.mediaObject, new Date())
     : null;

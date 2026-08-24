@@ -68,7 +68,7 @@ export function MessageBubble({
 }: MessageBubbleProps) {
   const isHighlighted = highlighted || searchHighlighted;
   const outbound = message.direction === "OUTBOUND";
-  const revoked = message.revokedAt !== null;
+  const revoked = Boolean(message.revokedAt);
   const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
   const canReply = !revoked && message.canReply && Boolean(onReply);

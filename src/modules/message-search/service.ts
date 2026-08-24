@@ -108,7 +108,7 @@ const contextInclude = {
 type ContextMessage = Prisma.MessageGetPayload<{ include: typeof contextInclude }>;
 
 function contextMessageDto(message: ContextMessage, now: Date): MessageDto {
-  const revoked = message.revokedAt !== null;
+  const revoked = Boolean(message.revokedAt);
   return {
     id: message.id,
     clientRequestId: message.clientRequestId,
