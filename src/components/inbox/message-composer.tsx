@@ -299,7 +299,7 @@ export function MessageComposer({
         <>
           {file ? (
             <div className="message-composer__file message-composer__state mb-2 flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--canvas)] px-3">
-              <span className="message-composer__file-name min-w-0 break-words text-sm text-[var(--text)]">{file.name}</span>
+              <span className="message-composer__file-name min-w-0 truncate text-sm text-[var(--text)]">{file.name}</span>
               <Button aria-label="Remover anexo" className="min-h-11 min-w-11" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} size="icon" variant="ghost"><X aria-hidden="true" className="size-4" /></Button>
             </div>
           ) : null}

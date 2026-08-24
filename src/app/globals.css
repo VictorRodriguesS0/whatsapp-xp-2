@@ -281,7 +281,10 @@ a {
     overflow: visible;
     text-overflow: clip;
   }
-  .message-composer__quoted-reply .quoted-reply-preview__summary { -webkit-line-clamp: unset; }
+  .message-composer__quoted-reply .quoted-reply-preview__summary {
+    display: block;
+    -webkit-line-clamp: unset;
+  }
   .message-composer__quoted-reply,
   .message-composer__recording-details,
   .message-composer__audio-preview,

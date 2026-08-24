@@ -21,7 +21,7 @@ export function QuickReplyMenu({ items, activeIndex, onSelect }: {
           type="button"
         >
           <span className="block text-sm font-bold text-[var(--accent)]">/{item.shortcut}</span>
-          <span className="message-composer__quick-reply-message mt-0.5 block break-words text-sm text-[var(--muted)]">{item.message}</span>
+          <span className="message-composer__quick-reply-message mt-0.5 block truncate text-sm text-[var(--muted)]">{item.message}</span>
         </button>
       ))}
     </div>

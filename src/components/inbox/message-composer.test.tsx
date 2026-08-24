@@ -110,33 +110,38 @@ describe("MessageComposer", () => {
     expect(declarationValues(compactRowRule, "flex-wrap")).toContain("wrap");
     expect(declarationValues(compactStateRule, "flex-wrap")).toContain("wrap");
     expect(declarationValues(cssRule(compactMedia!, ".message-composer__field"), "min-width")).toContain("0");
-    expect(declarationValues(cssRule(compactMedia!, ".message-composer__file-name"), "overflow-wrap")).toContain("anywhere");
+    const compactFileRule = cssRule(compactMedia!, ".message-composer__file-name");
+    expect(declarationValues(compactFileRule, "overflow-wrap")).toContain("anywhere");
+    expect(declarationValues(compactFileRule, "white-space")).toContain("normal");
+    expect(declarationValues(compactFileRule, "overflow")).toContain("visible");
+    expect(declarationValues(compactFileRule, "text-overflow")).toContain("clip");
     expect(declarationValues(cssRule(compactMedia!, ".message-composer__quick-reply-message"), "white-space")).toContain("normal");
     expect(declarationValues(cssRule(compactMedia!, ".message-composer__quoted-reply .quoted-reply-preview__author"), "white-space")).toContain("normal");
     expect(declarationValuesForSelector(compactMedia!, ".message-composer__quoted-reply .quoted-reply-preview__summary", "-webkit-line-clamp")).toContain("unset");
+    expect(declarationValuesForSelector(compactMedia!, ".message-composer__quoted-reply .quoted-reply-preview__summary", "display")).toContain("block");
     expect(declarationValues(cssRule(compactMedia!, ".message-composer__recording-label"), "white-space")).toContain("normal");
     expect(container.querySelector(".message-composer__state")).toBeNull();
   });
 
-  it("uses wrapping hooks for narrow quick reply, attachment, quoted reply, and audio states", async () => {
+  it("keeps desktop truncation while exposing narrow-only wrapping hooks", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
       { id: "1", shortcut: "mensagem-muito-longa", message: "Uma resposta rápida suficientemente longa para continuar legível em 320 pixels.", position: 10, active: true },
     ] }, error: null })));
     const rendered = render(<MessageComposer {...props({ replyTo: reply })} />);
 
     expect(rendered.container.querySelector(".message-composer__quoted-reply")).toBeTruthy();
-    expect(rendered.container.querySelector(".message-composer__quoted-reply .quoted-reply-preview__author")).not.toHaveClass("truncate", "whitespace-nowrap");
-    expect(rendered.container.querySelector(".message-composer__quoted-reply .quoted-reply-preview__summary")).not.toHaveClass("truncate", "whitespace-nowrap");
+    expect(rendered.container.querySelector(".message-composer__quoted-reply .quoted-reply-preview__author")).toHaveClass("truncate");
+    expect(rendered.container.querySelector(".message-composer__quoted-reply .quoted-reply-preview__summary")).toHaveClass("line-clamp-2");
 
     fireEvent.change(screen.getByLabelText("Mensagem"), { target: { value: "/mensagem" } });
     expect((await screen.findByRole("listbox", { name: "Respostas rápidas" })).querySelector(".message-composer__quick-reply")).toBeTruthy();
-    expect(rendered.container.querySelector(".message-composer__quick-reply-message")).not.toHaveClass("truncate", "whitespace-nowrap");
+    expect(rendered.container.querySelector(".message-composer__quick-reply-message")).toHaveClass("truncate");
 
     fireEvent.change(screen.getByLabelText("Mensagem"), { target: { value: "" } });
     const input = rendered.container.querySelector<HTMLInputElement>('input[type="file"]')!;
     fireEvent.change(input, { target: { files: [new File(["pdf"], "arquivo-com-um-nome-longo-para-validar-quebra-no-compositor.pdf", { type: "application/pdf" })] } });
     expect(rendered.container.querySelector(".message-composer__file")).toBeTruthy();
-    expect(rendered.container.querySelector(".message-composer__file-name")).not.toHaveClass("truncate", "whitespace-nowrap");
+    expect(rendered.container.querySelector(".message-composer__file-name")).toHaveClass("truncate");
 
     recorder.phase = "recording";
     rendered.rerender(<MessageComposer {...props({ replyTo: reply })} />);

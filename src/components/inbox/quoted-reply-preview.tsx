@@ -27,7 +27,7 @@ export function QuotedReplyPreview({
   const typeLabel = reply.available ? quotedReplyTypeLabel(reply.type) : null;
   const content = reply.available ? (
     <>
-      <span className="quoted-reply-preview__author block break-words text-xs font-bold text-[var(--accent)]">
+      <span className="quoted-reply-preview__author block truncate text-xs font-bold text-[var(--accent)]">
         {reply.author}
         <span className="font-medium text-[var(--muted)]"> · {typeLabel}</span>
       </span>
