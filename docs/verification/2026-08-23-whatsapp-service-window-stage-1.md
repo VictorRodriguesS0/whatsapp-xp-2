@@ -27,18 +27,38 @@ A aplicação não cria, aprova nem altera templates na Meta. Um administrador d
 
 ## Gate local antes da KVM
 
-- [ ] `npm run db:generate`
-- [ ] `npm run db:validate`
-- [ ] `npm test`
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm run build`
-- [ ] `npm audit --omit=dev`
-- [ ] `scripts/test-deployment.ps1`
-- [ ] `scripts/verify-compose.ps1`
-- [ ] `scripts/verify-kvm-deployment.ps1`
-- [ ] revisão de privacidade e segredos
-- [ ] `git diff --check` e árvore candidata limpa
+- [x] `npm run db:generate`
+- [x] `npm run db:validate`
+- [x] `npm test`
+- [x] `npm run lint`
+- [x] `npm run typecheck`
+- [x] `npm run build`
+- [x] `npm audit --omit=dev`
+- [x] `scripts/test-deployment.ps1`
+- [x] `scripts/verify-compose.ps1`
+- [x] `scripts/verify-kvm-deployment.ps1`
+- [x] revisão de privacidade e segredos
+- [x] `git diff --check` e árvore candidata limpa
+
+Evidência local em 24 de agosto de 2026, após integrar exatamente a revisão
+`2c5d7504d3cdb31e3657fa0f357939a7f82ec92a` então ativa em produção:
+
+- 178 arquivos de teste e 1.620 testes aprovados;
+- 2 arquivos e 3 testes opcionais ignorados pelas flags existentes;
+- 304 testes focados de mutações, webhook, realtime, banco, políticas e retomadas;
+- schema Prisma válido e 20 migrações aplicadas na base local isolada;
+- build Next.js de produção com 31 páginas;
+- zero vulnerabilidades em dependências de produção;
+- os três validadores de deploy aprovados em processos isolados;
+- nenhuma credencial Meta rastreada e nenhuma variável sensível exposta como
+  `NEXT_PUBLIC_*`;
+- o único padrão semelhante a token encontrado pertence ao schema comprimido
+  gerado pelo Prisma, não a uma credencial.
+
+A Release 2 de sincronização de edições/exclusões foi auditada enquanto ainda
+estava em execução paralela, publicada isoladamente, verificada e depois
+integrada à candidata no commit de merge `1703f39`. O relatório de produção
+correspondente também foi incorporado por equivalência de patch.
 
 ## Auditoria obrigatória imediatamente antes do deploy
 
