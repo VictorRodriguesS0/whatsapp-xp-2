@@ -34,6 +34,45 @@ afterEach(() => {
 });
 
 describe("MessageMedia", () => {
+  it.each([
+    ["IMAGE", "image/jpeg", "Abrir imagem"],
+    ["VIDEO", "video/mp4", "Abrir vídeo"],
+    ["DOCUMENT", "application/pdf", "Abrir PDF"],
+  ] as const)("opens an available %s through an accessible trigger", (type, mediaMimeType, label) => {
+    const onOpenMedia = vi.fn();
+    render(<MessageMedia
+      message={{
+        ...baseMessage,
+        type,
+        mediaMimeType,
+        mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+      }}
+      onOpenMedia={onOpenMedia}
+    />);
+
+    const trigger = screen.getByRole("button", { name: label });
+    fireEvent.click(trigger);
+
+    expect(onOpenMedia).toHaveBeenCalledOnce();
+    expect(onOpenMedia).toHaveBeenCalledWith(baseMessage.id);
+    expect(trigger).toHaveFocus();
+  });
+
+  it("keeps a non-PDF document as a direct download", () => {
+    render(<MessageMedia
+      message={{
+        ...baseMessage,
+        type: "DOCUMENT",
+        mediaMimeType: "application/zip",
+        mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+      }}
+      onOpenMedia={vi.fn()}
+    />);
+
+    expect(screen.queryByRole("button", { name: "Abrir PDF" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Baixar documento" })).toHaveAttribute("download");
+  });
+
   it("does not steal focus when pending media first renders", () => {
     const outsideControl = document.createElement("button");
     document.body.append(outsideControl);

@@ -27,6 +27,7 @@ export type ContactClassificationDto = {
 export type ContactDto = {
   id: string;
   profileName: string;
+  whatsappAppName?: string | null;
   preferredName: string | null;
   name: string;
   phone: string;
@@ -47,6 +48,7 @@ export type ConversationContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
+  whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactType: ContactClassificationRecord | null;
   tagAssignments: Array<{ tag: ContactClassificationRecord }>;
 };
@@ -61,6 +63,7 @@ export type MediaStateDto = {
 
 export type SafeMessageMediaRecord = {
   status: MediaStatus;
+  mimeType: string;
   downloadLeaseUntil: Date | null;
   downloadNextAttemptAt: Date | null;
   downloadAttempts: number;
@@ -145,6 +148,7 @@ export type MessageDto = {
   canReply: boolean;
   replyTo: QuotedReplyDto | null;
   mediaObjectId: string | null;
+  mediaMimeType?: string | null;
   mediaState: MediaStateDto | null;
   sentBy: ResponsibleUserDto | null;
   status: MessageStatus;
@@ -159,6 +163,7 @@ export type ConversationListRecord = {
   id: string;
   contact: ConversationContactRecord;
   responsibleUser: ConversationUserRecord | null;
+  pinnedAt: Date | null;
   lastMessageAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -180,6 +185,7 @@ export type ConversationListItem = {
   id: string;
   contact: ContactDto;
   responsible: ResponsibleUserDto | null;
+  pinnedAt: string | null;
   lastMessageAt: string;
   latestMessage: MessageDto | null;
   unreadCount: number;
@@ -198,6 +204,7 @@ export type ConversationDetail = ConversationListItem & {
 };
 
 export type ConversationCursor = {
+  pinnedAt: Date | null;
   lastMessageAt: Date;
   id: string;
 };
@@ -248,6 +255,18 @@ export type SharedConversationStateDto = {
   revision: string;
 };
 
+export type PinnedConversationStateDto = {
+  conversationId: string;
+  pinnedAt: string | null;
+  revision: string;
+};
+
+export type ConversationPinRecord = {
+  id: string;
+  pinnedAt: Date | null;
+  updatedAt: Date;
+};
+
 export type ConversationRepository = {
   list(
     userId: string,
@@ -272,6 +291,11 @@ export type ConversationRepository = {
     conversationId: string,
     userId: string | null,
   ): Promise<void>;
+  findPinState(conversationId: string): Promise<ConversationPinRecord | null>;
+  updatePinnedAt(
+    conversationId: string,
+    pinnedAt: Date | null,
+  ): Promise<ConversationPinRecord>;
   transaction<T>(
     operation: (repository: ConversationRepository) => Promise<T>,
   ): Promise<T>;

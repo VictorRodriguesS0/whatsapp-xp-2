@@ -29,6 +29,7 @@ import type {
   ConversationListOptions,
   ConversationListRecord,
   ConversationListResult,
+  PinnedConversationStateDto,
   ConversationReadDto,
   ConversationRepository,
   ConversationUserRecord,
@@ -70,6 +71,7 @@ const messageSelect = {
   mediaObject: {
     select: {
       status: true,
+      mimeType: true,
       downloadLeaseUntil: true,
       downloadNextAttemptAt: true,
       downloadAttempts: true,
@@ -100,6 +102,7 @@ const tagAssignmentOrderBy: Prisma.ContactTagAssignmentOrderByWithRelationInput[
 ];
 const conversationSelect = {
   id: true,
+  pinnedAt: true,
   lastMessageAt: true,
   createdAt: true,
   updatedAt: true,
@@ -116,6 +119,7 @@ const conversationSelect = {
       name: true,
       preferredName: true,
       phone: true,
+      whatsappAppContact: { select: { fullName: true, active: true } },
       contactType: { select: classificationSelect },
       tagAssignments: {
         orderBy: tagAssignmentOrderBy,
@@ -133,6 +137,7 @@ type PrismaConversationRepositoryClient = Pick<
 
 type BaseConversationRow = {
   id: string;
+  pinnedAt: Date | null;
   lastMessageAt: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -236,6 +241,7 @@ function toMessageDto(message: MessageRecord): MessageDto {
         ? { available: false }
         : null,
     mediaObjectId: message.mediaObjectId,
+    mediaMimeType: message.mediaObject?.mimeType ?? null,
     mediaState,
     sentBy: message.sentByUser
       ? { id: message.sentByUser.id, name: message.sentByUser.name }
@@ -280,8 +286,16 @@ function toContactDto(
     id: contact.id,
     profileName: contact.name,
     preferredName: contact.preferredName,
+    whatsappAppName:
+      contact.whatsappAppContact?.active === true
+        ? contact.whatsappAppContact.fullName
+        : null,
     name: resolveContactName({
       preferredName: contact.preferredName,
+      whatsappAppName:
+        contact.whatsappAppContact?.active === true
+          ? contact.whatsappAppContact.fullName
+          : null,
       profileName: contact.name,
       phone: contact.phone,
     }),
@@ -306,6 +320,7 @@ function toListItem(record: ConversationListRecord): ConversationListItem {
     responsible: record.responsibleUser
       ? { id: record.responsibleUser.id, name: record.responsibleUser.name }
       : null,
+    pinnedAt: record.pinnedAt?.toISOString() ?? null,
     lastMessageAt: record.lastMessageAt.toISOString(),
     latestMessage: record.latestMessage
       ? toMessageDto(record.latestMessage)
@@ -344,6 +359,7 @@ function toReadDto(read: {
 function encodeCursor(record: ConversationListRecord): string {
   return Buffer.from(
     JSON.stringify({
+      pinnedAt: record.pinnedAt?.toISOString() ?? null,
       lastMessageAt: record.lastMessageAt.toISOString(),
       id: record.id,
     }),
@@ -365,7 +381,11 @@ function decodeCursor(cursor: string): ConversationCursor {
     throw new HttpError(400, "Cursor inválido");
   }
 
-  return { lastMessageAt: new Date(parsed.data.lastMessageAt), id: parsed.data.id };
+  return {
+    pinnedAt: parsed.data.pinnedAt ? new Date(parsed.data.pinnedAt) : null,
+    lastMessageAt: new Date(parsed.data.lastMessageAt),
+    id: parsed.data.id,
+  };
 }
 
 function cursorWhere(cursor?: ConversationCursor): Prisma.ConversationWhereInput {
@@ -373,10 +393,22 @@ function cursorWhere(cursor?: ConversationCursor): Prisma.ConversationWhereInput
     return {};
   }
 
-  return {
+  const messageBoundary: Prisma.ConversationWhereInput = {
     OR: [
       { lastMessageAt: { lt: cursor.lastMessageAt } },
       { lastMessageAt: cursor.lastMessageAt, id: { lt: cursor.id } },
+    ],
+  };
+
+  if (!cursor.pinnedAt) {
+    return { AND: [{ pinnedAt: null }, messageBoundary] };
+  }
+
+  return {
+    OR: [
+      { pinnedAt: null },
+      { pinnedAt: { lt: cursor.pinnedAt } },
+      { AND: [{ pinnedAt: cursor.pinnedAt }, messageBoundary] },
     ],
   };
 }
@@ -390,6 +422,14 @@ function searchWhere(search?: string): Prisma.ConversationWhereInput {
   const searchPredicates: Prisma.ContactWhereInput[] = [
     { preferredName: { contains: search, mode: "insensitive" } },
     { name: { contains: search, mode: "insensitive" } },
+    {
+      whatsappAppContact: {
+        is: {
+          active: true,
+          fullName: { contains: search, mode: "insensitive" },
+        },
+      },
+    },
   ];
 
   if (canonicalPhoneSearch && /^\+?[\d\s().-]+$/u.test(search)) {
@@ -486,7 +526,11 @@ export function createPrismaConversationRepository(
             cursorWhere(query.cursor),
           ],
         },
-        orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
+        orderBy: [
+          { pinnedAt: { sort: "desc", nulls: "last" } },
+          { lastMessageAt: "desc" },
+          { id: "desc" },
+        ],
         take: query.take,
         select: {
           ...conversationSelect,
@@ -592,6 +636,19 @@ export function createPrismaConversationRepository(
         data: { responsibleUserId: userId },
       });
     },
+    findPinState(conversationId) {
+      return client.conversation.findUnique({
+        where: { id: conversationId },
+        select: { id: true, pinnedAt: true, updatedAt: true },
+      });
+    },
+    updatePinnedAt(conversationId, pinnedAt) {
+      return client.conversation.update({
+        where: { id: conversationId },
+        data: { pinnedAt },
+        select: { id: true, pinnedAt: true, updatedAt: true },
+      });
+    },
     transaction: async (operation) => operation(repository),
   };
 
@@ -625,6 +682,36 @@ export async function listConversations(
     items: page.map(toListItem),
     nextCursor: hasMore && page.length > 0 ? encodeCursor(page.at(-1)!) : null,
   };
+}
+
+export async function setConversationPinned(
+  userId: string,
+  conversationId: string,
+  pinned: boolean,
+  repository: ConversationRepository = conversationRepository,
+  now: () => Date = () => new Date(),
+): Promise<PinnedConversationStateDto> {
+  conversationIdSchema.parse(userId);
+  const parsedConversationId = conversationIdSchema.parse(conversationId);
+
+  return repository.transaction(async (transaction) => {
+    const current = await transaction.findPinState(parsedConversationId);
+    if (!current) throw new HttpError(404, "Conversa não encontrada");
+
+    const matchesRequestedState = (current.pinnedAt !== null) === pinned;
+    const persisted = matchesRequestedState
+      ? current
+      : await transaction.updatePinnedAt(
+          parsedConversationId,
+          pinned ? now() : null,
+        );
+
+    return {
+      conversationId: persisted.id,
+      pinnedAt: persisted.pinnedAt?.toISOString() ?? null,
+      revision: persisted.updatedAt.toISOString(),
+    };
+  });
 }
 
 export async function getConversation(

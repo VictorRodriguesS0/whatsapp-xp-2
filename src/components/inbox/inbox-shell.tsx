@@ -244,6 +244,9 @@ export function InboxShell({
                 onLoadMore={() => void inbox.loadMore()}
                 onRetry={inbox.refreshList}
                 onSelect={selectConversation}
+                onSetPinned={(id, pinned) => void inbox.setPinned(id, pinned)}
+                pinError={inbox.pinError}
+                pinPendingIds={inbox.pinPendingIds}
                 search={inbox.search}
                 selectedId={inbox.selectedId}
               /> : <MessageSearchResults

@@ -149,7 +149,11 @@ describe("Prisma conversation repository", () => {
           },
         ]),
       },
-      orderBy: [{ lastMessageAt: "desc" }, { id: "desc" }],
+      orderBy: [
+        { pinnedAt: { sort: "desc", nulls: "last" } },
+        { lastMessageAt: "desc" },
+        { id: "desc" },
+      ],
       take: 51,
       select: {
         contact: {
@@ -202,6 +206,14 @@ describe("Prisma conversation repository", () => {
           OR: [
             { preferredName: { contains: "Loja 2", mode: "insensitive" } },
             { name: { contains: "Loja 2", mode: "insensitive" } },
+            {
+              whatsappAppContact: {
+                is: {
+                  active: true,
+                  fullName: { contains: "Loja 2", mode: "insensitive" },
+                },
+              },
+            },
           ],
         },
       },

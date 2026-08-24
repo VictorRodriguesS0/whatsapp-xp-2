@@ -7,6 +7,26 @@ import {
 } from "./contact-display";
 
 describe("contact display helpers", () => {
+  it("prefers manual, then WhatsApp app, then public profile, then phone", () => {
+    expect(resolveContactName({
+      preferredName: "Nome manual",
+      whatsappAppName: "Nome da agenda",
+      profileName: "Nome público",
+      phone: "5561992250908",
+    })).toBe("Nome manual");
+    expect(resolveContactName({
+      preferredName: null,
+      whatsappAppName: "Nome da agenda",
+      profileName: "Nome público",
+      phone: "5561992250908",
+    })).toBe("Nome da agenda");
+    expect(resolveContactName({
+      whatsappAppName: null,
+      profileName: "Nome público",
+      phone: "5561992250908",
+    })).toBe("Nome público");
+  });
+
   it("uses a trimmed preferred name before the Meta profile name and phone", () => {
     expect(
       resolveContactName({

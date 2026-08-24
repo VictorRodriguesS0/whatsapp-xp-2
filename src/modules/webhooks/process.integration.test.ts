@@ -23,6 +23,7 @@ import {
   type WebhookProcessDependencies,
 } from "./process";
 import type {
+  NormalizedContactSyncBatchEvent,
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
@@ -1501,6 +1502,80 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
           status: WebhookStatus.PROCESSED,
         },
       ]);
+    });
+  },
+);
+
+describe.skipIf(!process.env.TEST_DATABASE_URL)(
+  "WhatsApp Business App contact schema",
+  () => {
+    beforeEach(resetTestDatabase);
+
+    afterAll(async () => {
+      await prisma.$disconnect();
+    });
+
+    it("stores an address-book contact without creating an inbox conversation", async () => {
+      const rows = await prisma.$queryRaw<Array<{ id: string }>>`
+        INSERT INTO whatsapp_app_contacts
+          (id, phone, full_name, active, source_timestamp, source_version_key, created_at, updated_at)
+        VALUES
+          (gen_random_uuid(), '556199225908', 'Contato da loja', true,
+           '2026-08-23T12:00:00.000Z', 'version-key', NOW(), NOW())
+        RETURNING id::text
+      `;
+
+      expect(rows).toHaveLength(1);
+      await expect(prisma.contact.count()).resolves.toBe(0);
+      await expect(prisma.conversation.count()).resolves.toBe(0);
+    });
+
+    it("links an add and a remove clears only the synced name", async () => {
+      const contact = await prisma.contact.create({
+        data: {
+          whatsappId: "5561992250908",
+          phone: "5561992250908",
+          name: "Nome público",
+          preferredName: "Nome manual",
+        },
+      });
+      const sync = (
+        action: "ADD" | "REMOVE",
+        timestamp: string,
+        version: string,
+      ): NormalizedContactSyncBatchEvent => ({
+        kind: "contactSyncBatch",
+        quarantined: 0,
+        items: [{
+          action,
+          phone: "5561992250908",
+          fullName: action === "ADD" ? "Nome da agenda" : null,
+          sourceTimestamp: new Date(Number(timestamp) * 1000),
+          sourceTimestampRaw: timestamp,
+          sourceVersionKey: version.repeat(64),
+        }],
+      });
+
+      await processWebhookEvents([sync("ADD", "1787486400", "a")]);
+      await expect(prisma.contact.findUniqueOrThrow({
+        where: { id: contact.id },
+        include: { whatsappAppContact: true },
+      })).resolves.toMatchObject({
+        preferredName: "Nome manual",
+        whatsappAppContact: { active: true, fullName: "Nome da agenda" },
+      });
+      await expect(prisma.conversation.count()).resolves.toBe(0);
+
+      await processWebhookEvents([sync("REMOVE", "1787486401", "b")]);
+      await expect(prisma.contact.findUniqueOrThrow({
+        where: { id: contact.id },
+        include: { whatsappAppContact: true },
+      })).resolves.toMatchObject({
+        name: "Nome público",
+        preferredName: "Nome manual",
+        whatsappAppContact: { active: false, fullName: null },
+      });
+      await expect(prisma.conversation.count()).resolves.toBe(0);
     });
   },
 );

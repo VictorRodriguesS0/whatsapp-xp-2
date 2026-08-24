@@ -117,6 +117,23 @@ describe("local media storage", () => {
     expect(result).toEqual(bytes);
   });
 
+  it("opens only the requested inclusive byte range", async () => {
+    const storage = new LocalMediaStorage(await temporaryRoot(), {
+      now: () => new Date("2026-08-20T12:00:00.000Z"),
+      randomUUID: () => "123e4567-e89b-42d3-a456-426614174000",
+    });
+    const stored = await storage.put({
+      filename: "range.bin",
+      bytes: Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7]),
+      mimeType: "application/octet-stream",
+    });
+
+    const stream = await storage.open(stored.key, { start: 2n, end: 5n });
+
+    const result = new Uint8Array(await new Response(stream).arrayBuffer());
+    expect([...result]).toEqual([2, 3, 4, 5]);
+  });
+
   it("creates the dedicated root and every partition with restrictive permissions", async () => {
     const parent = await temporaryRoot();
     const root = join(parent, "dedicated");

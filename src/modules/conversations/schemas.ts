@@ -30,6 +30,7 @@ export const conversationListOptionsSchema = z
   .strict();
 
 export const conversationCursorSchema = z.object({
+  pinnedAt: z.iso.datetime({ offset: true }).nullable(),
   lastMessageAt: z.iso.datetime({ offset: true }),
   id: conversationIdSchema,
 });
@@ -42,5 +43,9 @@ export const responsibleSchema = z.object({
   userId: z.string().uuid().nullable(),
 });
 
+export const pinConversationSchema = z
+  .strictObject({ pinned: z.boolean() });
+
 export type MarkReadInput = z.infer<typeof markReadSchema>;
 export type ResponsibleInput = z.infer<typeof responsibleSchema>;
+export type PinConversationInput = z.infer<typeof pinConversationSchema>;

@@ -32,6 +32,7 @@ export type MediaDownload = {
 };
 
 export interface WhatsAppProvider {
+  markRead(input: { messageId: string }): Promise<void>;
   sendText(input: { to: string; body: string } & ProviderReplyContext): Promise<SendResult>;
   sendReaction(input: {
     to: string;

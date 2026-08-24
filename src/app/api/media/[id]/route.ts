@@ -1,17 +1,30 @@
 import { HttpError, toErrorResponse } from "@/lib/http";
 import { requireUser } from "@/modules/auth/guards";
-import { getMediaForDownload } from "@/modules/media/service";
+import {
+  getMediaForDownload,
+  MediaRangeNotSatisfiableError,
+} from "@/modules/media/service";
 import { messageUuidSchema } from "@/modules/messages/schemas";
 
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
+type MediaDownload = Awaited<ReturnType<typeof getMediaForDownload>>;
 type MediaRouteDependencies = {
   requireUser: typeof requireUser;
-  getMediaForDownload: typeof getMediaForDownload;
+  getMediaForDownload: (
+    actorId: string,
+    mediaId: string,
+    options?: { rangeHeader?: string | null },
+  ) => Promise<MediaDownload>;
 };
 
-const defaultDependencies: MediaRouteDependencies = { requireUser, getMediaForDownload };
+const defaultDependencies: MediaRouteDependencies = {
+  requireUser,
+  getMediaForDownload: (actorId, mediaId, options) => (
+    getMediaForDownload(actorId, mediaId, undefined, options)
+  ),
+};
 
 function disposition(filename: string, attachment: boolean): string {
   const safeFilename = filename.split(/[\r\n]/, 1)[0] || "arquivo";
@@ -29,23 +42,49 @@ export function createMediaRouteHandlers(
   dependencies: MediaRouteDependencies = defaultDependencies,
 ) {
   return {
-    GET: async (_request: Request, context: RouteContext): Promise<Response> => {
+    GET: async (request: Request, context: RouteContext): Promise<Response> => {
       try {
         const actor = await dependencies.requireUser();
         const { id } = await context.params;
         const parsed = messageUuidSchema.safeParse(id);
         if (!parsed.success) throw new HttpError(404, "Mídia não encontrada");
-        const media = await dependencies.getMediaForDownload(actor.id, parsed.data);
+        const media = await dependencies.getMediaForDownload(actor.id, parsed.data, {
+          rangeHeader: request.headers.get("range"),
+        });
+        const url = new URL(request.url);
+        const previewPdf = url.searchParams.get("preview") === "1" && media.mimeType === "application/pdf";
+        const forceDownload = url.searchParams.get("download") === "1";
+        const attachment = forceDownload || (media.kind === "document" && !previewPdf);
+        const headers: Record<string, string> = {
+          "Content-Type": media.mimeType,
+          "Content-Length": (media.range?.length ?? media.sizeBytes).toString(),
+          "Content-Disposition": disposition(media.filename, attachment),
+          "Accept-Ranges": "bytes",
+          "X-Content-Type-Options": "nosniff",
+          "Cache-Control": "private, no-store",
+        };
+        if (media.range) {
+          headers["Content-Range"] = `bytes ${media.range.start}-${media.range.end}/${media.sizeBytes}`;
+        }
         return new Response(media.stream, {
-          headers: {
-            "Content-Type": media.mimeType,
-            "Content-Length": media.sizeBytes.toString(),
-            "Content-Disposition": disposition(media.filename, media.kind === "document"),
-            "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, no-store",
-          },
+          status: media.range ? 206 : 200,
+          headers,
         });
       } catch (error) {
+        if (error instanceof MediaRangeNotSatisfiableError) {
+          return Response.json(
+            { error: error.message },
+            {
+              status: 416,
+              headers: {
+                "Content-Range": `bytes */${error.sizeBytes}`,
+                "Accept-Ranges": "bytes",
+                "X-Content-Type-Options": "nosniff",
+                "Cache-Control": "private, no-store",
+              },
+            },
+          );
+        }
         if (error instanceof HttpError) return toErrorResponse(error);
         return toErrorResponse(error);
       }

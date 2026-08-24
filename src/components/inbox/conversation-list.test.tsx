@@ -17,6 +17,7 @@ const fixture: ConversationListItem = {
     tags: [],
   },
   responsible: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
+  pinnedAt: null,
   lastMessageAt: "2026-08-20T14:30:00.000Z",
   latestMessage: {
     id: "40000000-0000-4000-8000-000000000001",
@@ -204,6 +205,54 @@ describe("ConversationList", () => {
     expect(conversation).toHaveClass("min-h-11");
     fireEvent.click(conversation);
     expect(onSelect).toHaveBeenCalledWith(fixture.id);
+  });
+
+  it("fixes and unfixes a conversation without opening it", () => {
+    const onSelect = vi.fn();
+    const onSetPinned = vi.fn();
+    const { rerender } = render(
+      <ConversationList
+        items={[fixture]}
+        selectedId={null}
+        onSelect={onSelect}
+        onSetPinned={onSetPinned}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Fixar conversa de Carlos Lima" }));
+    expect(onSetPinned).toHaveBeenCalledWith(fixture.id, true);
+    expect(onSelect).not.toHaveBeenCalled();
+
+    rerender(
+      <ConversationList
+        items={[{ ...fixture, pinnedAt: "2026-08-23T13:45:00.000Z" }]}
+        selectedId={null}
+        onSelect={onSelect}
+        onSetPinned={onSetPinned}
+        pinPendingIds={new Set([fixture.id])}
+      />,
+    );
+
+    const unpin = screen.getByRole("button", { name: "Desfixar conversa de Carlos Lima" });
+    expect(unpin).toBeDisabled();
+    expect(unpin).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Conversa fixada")).toBeVisible();
+  });
+
+  it("shows a pin failure without hiding the conversation list", () => {
+    render(
+      <ConversationList
+        items={[fixture]}
+        selectedId={null}
+        onSelect={vi.fn()}
+        pinError="Não foi possível atualizar a fixação da conversa."
+      />,
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Não foi possível atualizar a fixação da conversa.",
+    );
+    expect(screen.getByRole("button", { name: /Carlos Lima/i })).toBeVisible();
   });
 
   it("renders useful loading, empty and error states", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, ImageIcon, LoaderCircle } from "lucide-react";
+import { FileText, ImageIcon, LoaderCircle, Play } from "lucide-react";
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -74,7 +74,13 @@ async function requestRecovery(mediaId: string, manual: boolean, signal: AbortSi
   return payload.data;
 }
 
-export function MessageMedia({ message }: { message: InboxMessage }) {
+export function MessageMedia({
+  message,
+  onOpenMedia,
+}: {
+  message: InboxMessage;
+  onOpenMedia?: (messageId: string) => void;
+}) {
   const [manualRequestKey, setManualRequestKey] = useState<string | null>(null);
   const [manualError, setManualError] = useState<{ key: string; message: string } | null>(null);
   const [automaticError, setAutomaticError] = useState<{ identity: string; nextAttemptAt: string | null } | null>(null);
@@ -278,14 +284,32 @@ export function MessageMedia({ message }: { message: InboxMessage }) {
   }
 
   if (message.type === "IMAGE") {
-    return <span className="block" ref={(element) => { reconciledFocusTarget.current = element; }} tabIndex={-1}><Image alt={message.body || message.localFileName || "Imagem da conversa"} className="max-h-80 h-auto w-auto max-w-full rounded-md object-contain" height={480} src={source} unoptimized width={640} /></span>;
+    const image = <Image alt={message.body || message.localFileName || "Imagem da conversa"} className="max-h-80 h-auto w-auto max-w-full rounded-md object-contain" height={480} src={source} unoptimized width={640} />;
+    if (!onOpenMedia) return <span className="block" ref={(element) => { reconciledFocusTarget.current = element; }} tabIndex={-1}>{image}</span>;
+    return <button aria-label="Abrir imagem" className="block cursor-zoom-in rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" onClick={(event) => { event.currentTarget.focus(); onOpenMedia(message.id); }} ref={(element) => { reconciledFocusTarget.current = element; }} type="button">{image}</button>;
   }
   if (message.type === "STICKER") {
     // eslint-disable-next-line @next/next/no-img-element -- Native img preserves animated WEBP sticker frames without image transformation.
     return <img alt="Figurinha" className="h-auto max-h-48 w-auto max-w-48 object-contain" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} tabIndex={-1} />;
   }
   if (message.type === "AUDIO") return <audio aria-label="Reproduzir áudio" className="max-w-full" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
-  if (message.type === "VIDEO") return <video aria-label={message.body || "Vídeo da conversa"} className="max-h-80 max-w-full rounded-md" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
+  if (message.type === "VIDEO") {
+    if (!onOpenMedia) return <video aria-label={message.body || "Vídeo da conversa"} className="max-h-80 max-w-full rounded-md" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
+    return (
+      <button aria-label="Abrir vídeo" className="group/video relative block overflow-hidden rounded-md outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" onClick={(event) => { event.currentTarget.focus(); onOpenMedia(message.id); }} ref={(element) => { reconciledFocusTarget.current = element; }} type="button">
+        <video aria-hidden="true" className="max-h-80 max-w-full" muted playsInline preload="metadata" src={source} />
+        <span className="absolute inset-0 flex items-center justify-center bg-black/15 transition-colors group-hover/video:bg-black/25"><span className="flex size-12 items-center justify-center rounded-full bg-black/65 text-white"><Play aria-hidden="true" className="ml-0.5 size-6 fill-current" /></span></span>
+      </button>
+    );
+  }
+  if ((message.localMimeType ?? message.mediaMimeType) === "application/pdf" && onOpenMedia) {
+    return (
+      <button aria-label="Abrir PDF" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] px-3 font-semibold text-[var(--accent)] outline-none hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-[var(--accent)]" onClick={(event) => { event.currentTarget.focus(); onOpenMedia(message.id); }} ref={(element) => { reconciledFocusTarget.current = element; }} type="button">
+        <FileText aria-hidden="true" className="size-4" />
+        {message.localFileName || message.body || "Visualizar PDF"}
+      </button>
+    );
+  }
   return (
     <a className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] px-3 font-semibold text-[var(--accent)] outline-none hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-[var(--accent)]" download href={source} ref={(element) => { reconciledFocusTarget.current = element; }}>
       <FileText aria-hidden="true" className="size-4" />

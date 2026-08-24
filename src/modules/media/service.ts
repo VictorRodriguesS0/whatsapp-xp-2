@@ -22,6 +22,11 @@ import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { WhatsAppProvider } from "@/modules/whatsapp/provider";
 import { LocalMediaStorage } from "./local-storage";
+import {
+  parseSingleByteRange,
+  type ByteRange,
+  UnsatisfiableByteRangeError,
+} from "./byte-range";
 import { MediaTaskLimiter } from "./task-limiter";
 import type { MediaStorage } from "./storage";
 import { stageMediaStream, type StagedMediaFile } from "./temp-file";
@@ -30,6 +35,22 @@ import { MediaValidationError, mediaRuleForMime, validateMediaFile } from "./val
 const DOWNLOAD_LEASE_MS = 2 * 60_000;
 const MAXIMUM_BACKOFF_MS = 30_000;
 export { MAX_MEDIA_DOWNLOAD_ATTEMPTS };
+
+export class MediaRangeNotSatisfiableError extends HttpError {
+  constructor(readonly sizeBytes: bigint) {
+    super(416, "Intervalo de mídia inválido");
+    this.name = "MediaRangeNotSatisfiableError";
+  }
+}
+
+export type MediaDownload = {
+  stream: ReadableStream<Uint8Array>;
+  mimeType: string;
+  sizeBytes: bigint;
+  filename: string;
+  kind: "image" | "audio" | "video" | "document";
+  range?: ByteRange;
+};
 
 export type MediaObjectRecord = {
   id: string;
@@ -486,7 +507,12 @@ export async function recoverMedia(
   return toMediaStateDto(current, (dependencies.now ?? (() => new Date()))());
 }
 
-export async function getMediaForDownload(actorId: string, mediaId: string, dependencies: MediaServiceDependencies = defaultDependencies) {
+export async function getMediaForDownload(
+  actorId: string,
+  mediaId: string,
+  dependencies: MediaServiceDependencies = defaultDependencies,
+  options: { rangeHeader?: string | null } = {},
+): Promise<MediaDownload> {
   const parsedActorId = parsePublicUuid(actorId, "Usuário não encontrado");
   const id = parsePublicUuid(mediaId, "Mídia não encontrada");
   let media = await dependencies.repository.findVisibleById(id, parsedActorId);
@@ -497,8 +523,18 @@ export async function getMediaForDownload(actorId: string, mediaId: string, depe
   }
   if (!media || media.status !== MediaStatus.AVAILABLE || !media.storageKey) throw new HttpError(424, "Mídia indisponível");
   const rule = mediaRuleForMime(media.mimeType);
+  let range;
+  try {
+    range = parseSingleByteRange(options.rangeHeader ?? null, media.sizeBytes);
+  } catch (error) {
+    if (error instanceof UnsatisfiableByteRangeError) {
+      throw new MediaRangeNotSatisfiableError(media.sizeBytes);
+    }
+    throw error;
+  }
   return {
-    stream: await dependencies.storage.open(media.storageKey), mimeType: rule.mimeType, sizeBytes: media.sizeBytes,
+    stream: await dependencies.storage.open(media.storageKey, range ?? undefined), mimeType: rule.mimeType, sizeBytes: media.sizeBytes,
     filename: safeOriginalFilename(media.originalFilename), kind: rule.kind,
+    range: range ?? undefined,
   };
 }

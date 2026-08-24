@@ -12,7 +12,12 @@ import {
 import { prisma } from "@/lib/db";
 import { resetTestDatabase } from "@/test/database";
 
-import { getConversation, listConversations } from "./service";
+import {
+  CONVERSATION_PAGE_SIZE,
+  getConversation,
+  listConversations,
+  setConversationPinned,
+} from "./service";
 import { advanceSharedRead } from "./shared-state";
 
 const lowerId = "20000000-0000-4000-8000-000000000001";
@@ -80,6 +85,72 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
     });
   });
 
+  it("paginates an unlimited shared pinned queue before unpinned conversations", async () => {
+    const user = await prisma.user.create({
+      data: {
+        name: "Victor",
+        email: "victor.pins@example.test",
+        passwordHash: "not-used-by-this-fixture",
+        role: UserRole.ADMIN,
+      },
+    });
+    const conversations = await Promise.all(
+      Array.from({ length: CONVERSATION_PAGE_SIZE + 2 }, (_, index) =>
+        prisma.conversation.create({
+          data: {
+            contact: {
+              create: {
+                whatsappId: `55619000${index.toString().padStart(4, "0")}`,
+                phone: `55619000${index.toString().padStart(4, "0")}`,
+                name: `Contato ${index}`,
+              },
+            },
+            lastMessageAt: new Date(Date.UTC(2026, 7, 23, 10, index)),
+          },
+        }),
+      ),
+    );
+    await Promise.all(
+      conversations.slice(0, CONVERSATION_PAGE_SIZE).map((conversation, index) =>
+        prisma.conversation.update({
+          where: { id: conversation.id },
+          data: { pinnedAt: new Date(Date.UTC(2026, 7, 23, 11, index)) },
+        }),
+      ),
+    );
+    const servicePinned = conversations[CONVERSATION_PAGE_SIZE]!;
+    const unpinned = conversations[CONVERSATION_PAGE_SIZE + 1]!;
+    const pinnedAt = new Date("2026-08-23T12:00:00.000Z");
+
+    const firstState = await setConversationPinned(
+      user.id,
+      servicePinned.id,
+      true,
+      undefined,
+      () => pinnedAt,
+    );
+    const repeatedState = await setConversationPinned(
+      user.id,
+      servicePinned.id,
+      true,
+      undefined,
+      () => new Date("2026-08-23T13:00:00.000Z"),
+    );
+    const firstPage = await listConversations(user.id, {});
+    const secondPage = await listConversations(user.id, {
+      cursor: firstPage.nextCursor ?? undefined,
+    });
+    const allItems = [...firstPage.items, ...secondPage.items];
+
+    expect(firstState.pinnedAt).toBe(pinnedAt.toISOString());
+    expect(repeatedState.pinnedAt).toBe(pinnedAt.toISOString());
+    expect(firstPage.items).toHaveLength(CONVERSATION_PAGE_SIZE);
+    expect(secondPage.items).toHaveLength(2);
+    expect(new Set(allItems.map(({ id }) => id)).size).toBe(allItems.length);
+    expect(allItems.at(-2)).toMatchObject({ pinnedAt: expect.any(String) });
+    expect(allItems.at(-1)).toMatchObject({ id: unpinned.id, pinnedAt: null });
+  });
+
   it("keeps the highest equal-timestamp message during concurrent read attempts", async () => {
     const { conversation, user } = await seedEqualTimestampFixture();
     await advanceSharedRead(user.id, conversation.id, lowerId, null);
@@ -135,6 +206,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
       nextAttemptAt: leaseUntil.toISOString(),
       canRetry: false,
     });
+    expect(dto?.mediaMimeType).toBe("image/jpeg");
     const serialized = JSON.stringify(dto);
     expect(serialized).not.toContain("secret-storage-key");
     expect(serialized).not.toContain("private-provider-filename.jpg");

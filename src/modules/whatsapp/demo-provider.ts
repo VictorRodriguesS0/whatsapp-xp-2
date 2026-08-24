@@ -16,6 +16,8 @@ export class DemoWhatsAppProvider implements WhatsAppProvider {
     return `demo-${this.createUuid()}`;
   }
 
+  async markRead(_input: { messageId: string }): Promise<void> {}
+
   async sendText(_input: { to: string; body: string } & ProviderReplyContext) {
     return { whatsappMessageId: this.id(), status: "SENT" as const };
   }

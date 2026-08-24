@@ -5,7 +5,7 @@ import { constants } from "node:fs";
 import { chmod, lstat, mkdir, open, realpath, stat, unlink } from "node:fs/promises";
 import { isAbsolute, parse, relative, resolve, sep } from "node:path";
 
-import type { MediaStorage, MediaStoragePutInput, MediaStorageStreamInput, StoredMedia } from "./storage";
+import type { MediaStorage, MediaStoragePutInput, MediaStorageRange, MediaStorageStreamInput, StoredMedia } from "./storage";
 import { closeWithCleanup, writeAll } from "./file-io";
 
 const STORAGE_KEY_PATTERN = /^(\d{4})\/(0[1-9]|1[0-2])\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/i;
@@ -65,12 +65,29 @@ export async function ensurePrivateDirectoryTree(target: string, enforcePrivateT
 }
 
 type ReadableFileHandle = {
-  read(buffer: Uint8Array): Promise<{ bytesRead: number }>;
+  read(
+    buffer: Uint8Array,
+    offset?: number,
+    length?: number,
+    position?: number,
+  ): Promise<{ bytesRead: number }>;
   close(): Promise<void>;
 };
 
-export function closingFileHandleStream(handle: ReadableFileHandle): ReadableStream<Uint8Array> {
+function safeFileOffset(value: bigint): number {
+  if (value < 0n || value > BigInt(Number.MAX_SAFE_INTEGER)) {
+    throw new InvalidStorageKeyError();
+  }
+  return Number(value);
+}
+
+export function closingFileHandleStream(
+  handle: ReadableFileHandle,
+  range?: MediaStorageRange,
+): ReadableStream<Uint8Array> {
   let closePromise: Promise<void> | undefined;
+  let position = range ? safeFileOffset(range.start) : null;
+  let remaining = range ? safeFileOffset(range.end - range.start + 1n) : null;
   const close = () => {
     closePromise ??= handle.close();
     return closePromise;
@@ -78,13 +95,22 @@ export function closingFileHandleStream(handle: ReadableFileHandle): ReadableStr
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
       try {
-        const buffer = new Uint8Array(64 * 1024);
-        const { bytesRead } = await handle.read(buffer);
+        if (remaining === 0) {
+          await close();
+          controller.close();
+          return;
+        }
+        const buffer = new Uint8Array(Math.min(64 * 1024, remaining ?? 64 * 1024));
+        const { bytesRead } = position === null
+          ? await handle.read(buffer)
+          : await handle.read(buffer, 0, buffer.byteLength, position);
         if (bytesRead === 0) {
           await close();
           controller.close();
           return;
         }
+        if (position !== null) position += bytesRead;
+        if (remaining !== null) remaining -= bytesRead;
         controller.enqueue(buffer.subarray(0, bytesRead));
       } catch (error) {
         await close().catch(() => undefined);
@@ -228,7 +254,7 @@ export class LocalMediaStorage implements MediaStorage {
     };
   }
 
-  async open(key: string): Promise<ReadableStream<Uint8Array>> {
+  async open(key: string, range?: MediaStorageRange): Promise<ReadableStream<Uint8Array>> {
     if (!STORAGE_KEY_PATTERN.test(key)) {
       throw new InvalidStorageKeyError();
     }
@@ -242,6 +268,12 @@ export class LocalMediaStorage implements MediaStorage {
     if (!pathStat.isFile() || pathStat.isSymbolicLink()) {
       throw new InvalidStorageKeyError();
     }
+    if (
+      range &&
+      (range.start < 0n || range.end < range.start || range.end >= BigInt(pathStat.size))
+    ) {
+      throw new InvalidStorageKeyError();
+    }
     const physical = await realpath(candidate);
     assertContained(root, physical);
     const noFollow = "O_NOFOLLOW" in constants ? constants.O_NOFOLLOW : 0;
@@ -249,7 +281,7 @@ export class LocalMediaStorage implements MediaStorage {
     try {
       const openedStat = await handle.stat();
       if (!openedStat.isFile()) throw new InvalidStorageKeyError();
-      return closingFileHandleStream(handle);
+      return closingFileHandleStream(handle, range);
     } catch (error) {
       await handle.close().catch(() => undefined);
       throw error;

@@ -54,6 +54,7 @@ export const ModelName = {
   User: 'User',
   Session: 'Session',
   Contact: 'Contact',
+  WhatsAppAppContact: 'WhatsAppAppContact',
   ContactType: 'ContactType',
   ContactTagDefinition: 'ContactTagDefinition',
   ContactTagAssignment: 'ContactTagAssignment',
@@ -63,6 +64,7 @@ export const ModelName = {
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
+  WhatsAppReadSync: 'WhatsAppReadSync',
   WebhookEvent: 'WebhookEvent',
   MetaHealthSnapshot: 'MetaHealthSnapshot',
   MetaOperationalAlert: 'MetaOperationalAlert',
@@ -120,11 +122,26 @@ export const ContactScalarFieldEnum = {
   preferredName: 'preferredName',
   profilePictureUrl: 'profilePictureUrl',
   contactTypeId: 'contactTypeId',
+  whatsappAppContactId: 'whatsappAppContactId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
 
 export type ContactScalarFieldEnum = (typeof ContactScalarFieldEnum)[keyof typeof ContactScalarFieldEnum]
+
+
+export const WhatsAppAppContactScalarFieldEnum = {
+  id: 'id',
+  phone: 'phone',
+  fullName: 'fullName',
+  active: 'active',
+  sourceTimestamp: 'sourceTimestamp',
+  sourceVersionKey: 'sourceVersionKey',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppAppContactScalarFieldEnum = (typeof WhatsAppAppContactScalarFieldEnum)[keyof typeof WhatsAppAppContactScalarFieldEnum]
 
 
 export const ContactTypeScalarFieldEnum = {
@@ -169,6 +186,7 @@ export const ConversationScalarFieldEnum = {
   contactId: 'contactId',
   responsibleUserId: 'responsibleUserId',
   lastMessageAt: 'lastMessageAt',
+  pinnedAt: 'pinnedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   teamLastReadMessageId: 'teamLastReadMessageId',
@@ -274,6 +292,23 @@ export const ConversationAuditEventScalarFieldEnum = {
 } as const
 
 export type ConversationAuditEventScalarFieldEnum = (typeof ConversationAuditEventScalarFieldEnum)[keyof typeof ConversationAuditEventScalarFieldEnum]
+
+
+export const WhatsAppReadSyncScalarFieldEnum = {
+  conversationId: 'conversationId',
+  targetMessageId: 'targetMessageId',
+  confirmedMessageId: 'confirmedMessageId',
+  failedTargetMessageId: 'failedTargetMessageId',
+  attemptCount: 'attemptCount',
+  nextAttemptAt: 'nextAttemptAt',
+  leaseId: 'leaseId',
+  leaseUntil: 'leaseUntil',
+  lastFailureKind: 'lastFailureKind',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppReadSyncScalarFieldEnum = (typeof WhatsAppReadSyncScalarFieldEnum)[keyof typeof WhatsAppReadSyncScalarFieldEnum]
 
 
 export const WebhookEventScalarFieldEnum = {

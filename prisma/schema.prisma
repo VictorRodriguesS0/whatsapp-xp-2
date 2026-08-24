@@ -75,6 +75,11 @@ enum WebhookStatus {
   FAILED
 }
 
+enum ReadReceiptFailureKind {
+  TRANSIENT
+  REJECTED
+}
+
 enum ConversationAuditAction {
   READ
   MARKED_UNREAD
@@ -142,13 +147,30 @@ model Contact {
   preferredName     String?                @map("preferred_name")
   profilePictureUrl String?                @map("profile_picture_url")
   contactTypeId     String?                @map("contact_type_id") @db.Uuid
+  whatsappAppContactId String?             @unique @map("whatsapp_app_contact_id") @db.Uuid
   createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
   conversation      Conversation?
   contactType       ContactType?           @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
+  whatsappAppContact WhatsAppAppContact?    @relation(fields: [whatsappAppContactId], references: [id], onDelete: SetNull)
   tagAssignments    ContactTagAssignment[]
 
   @@map("contacts")
+}
+
+model WhatsAppAppContact {
+  id               String    @id @default(uuid()) @db.Uuid
+  phone            String    @unique
+  fullName         String?   @map("full_name")
+  active           Boolean   @default(true)
+  sourceTimestamp  DateTime  @map("source_timestamp") @db.Timestamptz(3)
+  sourceVersionKey String    @map("source_version_key")
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  contact          Contact?
+
+  @@index([active, phone])
+  @@map("whatsapp_app_contacts")
 }
 
 model ContactType {
@@ -200,6 +222,7 @@ model Conversation {
   contactId             String                   @unique @map("contact_id") @db.Uuid
   responsibleUserId     String?                  @map("responsible_user_id") @db.Uuid
   lastMessageAt         DateTime                 @map("last_message_at") @db.Timestamptz(3)
+  pinnedAt              DateTime?                @map("pinned_at") @db.Timestamptz(3)
   createdAt             DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt             DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
   teamLastReadMessageId String?                  @map("team_last_read_message_id") @db.Uuid
@@ -214,8 +237,10 @@ model Conversation {
   messages              Message[]
   reads                 ConversationRead[]
   auditEvents           ConversationAuditEvent[]
+  whatsappReadSync      WhatsAppReadSync?
 
   @@index([lastMessageAt])
+  @@index([pinnedAt(sort: Desc), lastMessageAt(sort: Desc), id(sort: Desc)], map: "conversations_pinned_queue_idx")
   @@map("conversations")
 }
 
@@ -251,6 +276,9 @@ model Message {
   lastReadFor              ConversationRead[]      @relation("LastReadMessage")
   teamLastReadFor          Conversation[]          @relation("TeamLastReadMessage")
   reactions                MessageReaction[]
+  readSyncTargets          WhatsAppReadSync[]       @relation("ReadSyncTarget")
+  readSyncConfirmations    WhatsAppReadSync[]       @relation("ReadSyncConfirmed")
+  readSyncFailures         WhatsAppReadSync[]       @relation("ReadSyncFailed")
 
   @@index([conversationId, externalTimestamp])
   @@index([conversationId, direction, externalTimestamp, id], map: "messages_response_state_idx")
@@ -333,6 +361,27 @@ model ConversationAuditEvent {
 
   @@index([conversationId, createdAt])
   @@map("conversation_audit_events")
+}
+
+model WhatsAppReadSync {
+  conversationId        String                  @id @map("conversation_id") @db.Uuid
+  targetMessageId       String                  @map("target_message_id") @db.Uuid
+  confirmedMessageId    String?                 @map("confirmed_message_id") @db.Uuid
+  failedTargetMessageId String?                 @map("failed_target_message_id") @db.Uuid
+  attemptCount          Int                     @default(0) @map("attempt_count")
+  nextAttemptAt         DateTime?               @map("next_attempt_at") @db.Timestamptz(3)
+  leaseId               String?                 @map("lease_id") @db.Uuid
+  leaseUntil            DateTime?               @map("lease_until") @db.Timestamptz(3)
+  lastFailureKind       ReadReceiptFailureKind? @map("last_failure_kind")
+  createdAt             DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt             DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation          Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  targetMessage         Message                 @relation("ReadSyncTarget", fields: [targetMessageId], references: [id], onDelete: Cascade)
+  confirmedMessage      Message?                @relation("ReadSyncConfirmed", fields: [confirmedMessageId], references: [id], onDelete: SetNull)
+  failedTargetMessage   Message?                @relation("ReadSyncFailed", fields: [failedTargetMessageId], references: [id], onDelete: SetNull)
+
+  @@index([nextAttemptAt, leaseUntil], map: "whatsapp_read_sync_due_idx")
+  @@map("whatsapp_read_sync")
 }
 
 model WebhookEvent {

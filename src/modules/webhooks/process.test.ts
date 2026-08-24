@@ -68,6 +68,13 @@ type State = {
     }
   >;
   media: Map<string, { id: string; status: string; metaMediaId: string }>;
+  appContacts: Map<string, {
+    phone: string;
+    fullName: string | null;
+    active: boolean;
+    sourceTimestamp: Date;
+    sourceVersionKey: string;
+  }>;
 };
 
 function cloneState(state: State): State {
@@ -77,6 +84,7 @@ function cloneState(state: State): State {
     conversations: new Map(structuredClone([...state.conversations])),
     messages: new Map(structuredClone([...state.messages])),
     media: new Map(structuredClone([...state.media])),
+    appContacts: new Map(structuredClone([...state.appContacts])),
   };
 }
 
@@ -87,6 +95,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     conversations: new Map(),
     messages: new Map(),
     media: new Map(),
+    appContacts: new Map(),
   };
   let committed = false;
   const publications: Array<{ event: unknown; afterCommit: boolean }> = [];
@@ -119,6 +128,31 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
         if (!event) throw new Error("missing reservation");
         event.status = WebhookStatus.PROCESSED;
         event.errorSummary = null;
+      },
+      syncAppContact: async (item) => {
+        const existing = target.appContacts.get(item.phone);
+        const incomingRank = item.action === "REMOVE" ? 1 : 0;
+        const existingRank = existing?.active === false ? 1 : 0;
+        const ordering = existing
+          ? item.sourceTimestamp.getTime() - existing.sourceTimestamp.getTime() ||
+            incomingRank - existingRank ||
+            item.sourceVersionKey.localeCompare(existing.sourceVersionKey)
+          : 1;
+        if (existing && ordering <= 0) return false;
+        if (
+          item.action === "REMOVE" &&
+          item.sourceTimestamp.getTime() === 0 &&
+          existing &&
+          existing.sourceTimestamp.getTime() > 0
+        ) return false;
+        target.appContacts.set(item.phone, {
+          phone: item.phone,
+          fullName: item.action === "ADD" ? item.fullName : null,
+          active: item.action === "ADD",
+          sourceTimestamp: item.sourceTimestamp,
+          sourceVersionKey: item.sourceVersionKey,
+        });
+        return true;
       },
       upsertContact: async ({ whatsappId, phone, name }) => {
         const existing = target.contacts.get(whatsappId);
@@ -712,6 +746,79 @@ describe("webhook event processing", () => {
     ).resolves.toEqual({ processed: 2, duplicates: 0 });
     expect(harness.state.messages.has("wamid.text-1")).toBe(true);
     expect(harness.operationalApplications).toHaveLength(1);
+  });
+});
+
+describe("WhatsApp app contact batch processing", () => {
+  it("persists valid contact items idempotently and publishes no PII", async () => {
+    const harness = createHarness();
+    const event = {
+      kind: "contactSyncBatch" as const,
+      quarantined: 1,
+      items: [{
+        action: "ADD" as const,
+        phone: "5561992250908",
+        fullName: "Cliente XP",
+        sourceTimestamp: new Date("2026-08-23T12:00:00.000Z"),
+        sourceTimestampRaw: "1787486400",
+        sourceVersionKey: "a".repeat(64),
+      }],
+    };
+
+    await expect(processWebhookEvents([event], harness.dependencies)).resolves.toEqual({
+      processed: 1,
+      duplicates: 0,
+      quarantined: 1,
+    });
+    await expect(processWebhookEvents([event], harness.dependencies)).resolves.toMatchObject({
+      processed: 0,
+      duplicates: 1,
+    });
+    expect(harness.state.appContacts.get("5561992250908")).toMatchObject({
+      fullName: "Cliente XP",
+      active: true,
+    });
+    expect(JSON.stringify(harness.publications)).not.toContain("Cliente XP");
+    expect(JSON.stringify(harness.publications)).not.toContain("5561992250908");
+  });
+
+  it("uses deterministic ordering and never lets a zero tombstone erase positive state", async () => {
+    const harness = createHarness();
+    const item = (
+      action: "ADD" | "REMOVE",
+      timestamp: Date,
+      key: string,
+      fullName: string | null,
+    ) => ({
+      action,
+      phone: "5561992250908",
+      fullName,
+      sourceTimestamp: timestamp,
+      sourceTimestampRaw: String(timestamp.getTime() / 1000),
+      sourceVersionKey: key.repeat(64),
+    });
+    const batch = (items: ReturnType<typeof item>[]) => ({
+      kind: "contactSyncBatch" as const,
+      quarantined: 0,
+      items,
+    });
+    const positive = new Date("2026-08-23T12:00:00.000Z");
+
+    await processWebhookEvents([batch([item("ADD", positive, "a", "Nome A")])], harness.dependencies);
+    await processWebhookEvents([batch([item("REMOVE", new Date(0), "z", null)])], harness.dependencies);
+    expect(harness.state.appContacts.get("5561992250908")).toMatchObject({
+      active: true,
+      fullName: "Nome A",
+    });
+
+    await processWebhookEvents([batch([item("ADD", positive, "b", "Nome B")])], harness.dependencies);
+    expect(harness.state.appContacts.get("5561992250908")?.fullName).toBe("Nome B");
+
+    await processWebhookEvents([batch([item("REMOVE", positive, "c", null)])], harness.dependencies);
+    expect(harness.state.appContacts.get("5561992250908")).toMatchObject({
+      active: false,
+      fullName: null,
+    });
   });
 });
 

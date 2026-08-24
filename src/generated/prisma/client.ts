@@ -57,6 +57,11 @@ export type Session = Prisma.SessionModel
  */
 export type Contact = Prisma.ContactModel
 /**
+ * Model WhatsAppAppContact
+ * 
+ */
+export type WhatsAppAppContact = Prisma.WhatsAppAppContactModel
+/**
  * Model ContactType
  * 
  */
@@ -101,6 +106,11 @@ export type ConversationRead = Prisma.ConversationReadModel
  * 
  */
 export type ConversationAuditEvent = Prisma.ConversationAuditEventModel
+/**
+ * Model WhatsAppReadSync
+ * 
+ */
+export type WhatsAppReadSync = Prisma.WhatsAppReadSyncModel
 /**
  * Model WebhookEvent
  * 

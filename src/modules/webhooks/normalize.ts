@@ -8,6 +8,8 @@ import {
 
 import type {
   NormalizedMedia,
+  NormalizedContactSyncBatchEvent,
+  NormalizedContactSyncItem,
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
@@ -760,6 +762,95 @@ function normalizeMessage(
   };
 }
 
+function normalizeContactSyncName(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0 || value.length > 256) {
+    return null;
+  }
+
+  const cleaned = value
+    .replace(/[\u0000-\u001f\u007f-\u009f\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/gu, "")
+    .replace(/\s+/gu, " ")
+    .trim();
+
+  return cleaned || null;
+}
+
+function normalizeContactSyncPhone(value: unknown): string | null {
+  if (typeof value !== "string" || value.length === 0 || value.length > 64) {
+    return null;
+  }
+
+  const digits = value.replace(/\D/gu, "");
+  return /^\d{1,32}$/u.test(digits) ? digits : null;
+}
+
+function contactSyncVersionKey(input: {
+  action: "ADD" | "REMOVE";
+  phone: string;
+  fullName: string | null;
+  timestamp: string;
+}): string {
+  return createHash("sha256")
+    .update(JSON.stringify(input), "utf8")
+    .digest("hex");
+}
+
+function normalizeContactSyncItem(candidate: unknown): NormalizedContactSyncItem | null {
+  const item = record(candidate);
+  const contact = record(item?.contact);
+  const metadata = record(item?.metadata);
+
+  if (!item || item.type !== "contact" || !contact || !metadata) {
+    return null;
+  }
+
+  const action = item.action === "add"
+    ? "ADD"
+    : item.action === "remove"
+      ? "REMOVE"
+      : null;
+  const phone = normalizeContactSyncPhone(contact.phone_number);
+  const parsedTimestamp = parseTimestamp(metadata.timestamp);
+  const fullName = action === "ADD"
+    ? normalizeContactSyncName(contact.full_name)
+    : null;
+
+  if (!action || !phone || !parsedTimestamp || (action === "ADD" && !fullName)) {
+    return null;
+  }
+
+  return {
+    action,
+    phone,
+    fullName,
+    sourceTimestamp: parsedTimestamp.date,
+    sourceTimestampRaw: parsedTimestamp.raw,
+    sourceVersionKey: contactSyncVersionKey({
+      action,
+      phone,
+      fullName,
+      timestamp: parsedTimestamp.raw,
+    }),
+  };
+}
+
+function normalizeContactSyncBatch(value: UnknownRecord): NormalizedContactSyncBatchEvent {
+  if (!Array.isArray(value.state_sync) || value.state_sync.length > 5_000) {
+    throw new WebhookPayloadError();
+  }
+
+  const items: NormalizedContactSyncItem[] = [];
+  let quarantined = 0;
+
+  for (const candidate of value.state_sync) {
+    const item = normalizeContactSyncItem(candidate);
+    if (item) items.push(item);
+    else quarantined += 1;
+  }
+
+  return { kind: "contactSyncBatch", items, quarantined };
+}
+
 function normalizeMessageEcho(
   candidate: unknown,
 ): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | NormalizedReactionEchoEvent | null {
@@ -995,7 +1086,11 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         continue;
       }
 
-      if (field !== "messages" && field !== "smb_message_echoes") {
+      if (
+        field !== "messages" &&
+        field !== "smb_message_echoes" &&
+        field !== "smb_app_state_sync"
+      ) {
         continue;
       }
 
@@ -1003,6 +1098,11 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
 
       if (!value) {
         throw new WebhookPayloadError();
+      }
+
+      if (field === "smb_app_state_sync") {
+        events.push(normalizeContactSyncBatch(value));
+        continue;
       }
 
       if (field === "smb_message_echoes") {

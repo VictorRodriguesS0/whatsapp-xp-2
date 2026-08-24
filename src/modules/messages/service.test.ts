@@ -277,6 +277,8 @@ class FakeProvider implements WhatsAppProvider {
     return { whatsappMessageId: `wamid.${this.calls.length}`, status: "SENT" as const };
   }
 
+  async markRead(): Promise<void> {}
+
   async sendText(input: Parameters<WhatsAppProvider["sendText"]>[0]) {
     this.textInputs.push(input);
     this.calls.push("text");

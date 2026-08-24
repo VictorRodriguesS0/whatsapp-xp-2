@@ -66,6 +66,7 @@ function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.00
     id,
     contact: { id: `contact-${id}`, name, phone: "5561999999999", profilePictureUrl: null },
     responsible: null,
+    pinnedAt: null,
     lastMessageAt,
     latestMessage: null,
     unreadCount: 0,
@@ -1643,6 +1644,87 @@ describe("useInbox", () => {
     expect(hook.result.current.markUnreadError).toBe("Não foi possível marcar como não lida.");
   });
 
+  it("pins optimistically, blocks duplicate actions, and reconciles the server timestamp", async () => {
+    let resolvePin!: (value: Response) => void;
+    let pinFetches = 0;
+    const older = listItem("conversation-a", "Ana", "2026-08-23T12:00:00.000Z");
+    const newer = listItem("conversation-b", "Bia", "2026-08-23T13:00:00.000Z");
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") return response({ data: { items: [newer, older], nextCursor: null }, error: null });
+      if (url === "/api/conversations/conversation-a/pin" && init?.method === "PATCH") {
+        pinFetches += 1;
+        return new Promise<Response>((resolve) => { resolvePin = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+
+    let first!: Promise<void>;
+    let duplicate!: Promise<void>;
+    act(() => {
+      first = hook.result.current.setPinned("conversation-a", true);
+      duplicate = hook.result.current.setPinned("conversation-a", true);
+    });
+
+    expect(first).toBe(duplicate);
+    expect(pinFetches).toBe(1);
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual([
+      "conversation-a",
+      "conversation-b",
+    ]);
+    expect(hook.result.current.pinPendingIds.has("conversation-a")).toBe(true);
+
+    const pinnedAt = "2026-08-23T13:45:00.000Z";
+    await act(async () => {
+      resolvePin(await response({
+        data: { conversationId: "conversation-a", pinnedAt, revision: pinnedAt },
+        error: null,
+      }));
+      await first;
+    });
+
+    expect(hook.result.current.conversations[0]).toMatchObject({
+      id: "conversation-a",
+      pinnedAt,
+      revision: pinnedAt,
+    });
+    expect(hook.result.current.pinPendingIds.has("conversation-a")).toBe(false);
+    expect(hook.result.current.pinError).toBeNull();
+  });
+
+  it("restores server ordering and exposes only a safe pin failure", async () => {
+    let listFetches = 0;
+    const older = listItem("conversation-a", "Ana", "2026-08-23T12:00:00.000Z");
+    const newer = listItem("conversation-b", "Bia", "2026-08-23T13:00:00.000Z");
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [newer, older], nextCursor: null }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/pin" && init?.method === "PATCH") {
+        return response({ data: null, error: { message: "Graph OAuthException 190" } }, false, 502);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+
+    await act(() => hook.result.current.setPinned("conversation-a", true));
+
+    expect(listFetches).toBe(2);
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual([
+      "conversation-b",
+      "conversation-a",
+    ]);
+    expect(hook.result.current.pinError).toBe("Não foi possível atualizar a fixação da conversa.");
+    expect(hook.result.current.pinError).not.toMatch(/Graph|OAuthException|190/i);
+  });
+
   it("refreshes the first page for every shared update but reloads detail only for the selected conversation", async () => {
     vi.stubGlobal("EventSource", FakeEventSource);
     let listFetches = 0;
@@ -1683,6 +1765,54 @@ describe("useInbox", () => {
     });
     await waitFor(() => expect(listFetches).toBe(3));
     expect(detailFetches).toBe(2);
+  });
+
+  it("drops stale paginated pin state after a shared conversation update", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let firstPageFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        firstPageFetches += 1;
+        return response({
+          data: firstPageFetches === 1
+            ? { items: [listItem("first-page")], nextCursor: "page-2" }
+            : { items: [listItem("authoritative")], nextCursor: null },
+          error: null,
+        });
+      }
+      if (url === "/api/conversations?cursor=page-2") {
+        return response({
+          data: {
+            items: [{ ...listItem("stale-pinned"), pinnedAt: "2026-08-23T12:00:00.000Z" }],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.nextCursor).toBe("page-2"));
+    await act(() => hook.result.current.loadMore());
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual([
+      "first-page",
+      "stale-pinned",
+    ]);
+
+    act(() => {
+      FakeEventSource.instances[0].emit("update", {
+        type: "conversation.updated",
+        conversationId: "stale-pinned",
+        revision: "2026-08-23T12:01:00.000Z",
+      });
+    });
+
+    await waitFor(() => expect(hook.result.current.conversations.map(({ id }) => id)).toEqual([
+      "authoritative",
+    ]));
+    hook.unmount();
   });
 
   it("refreshes the first page for media updates and reloads detail only when the conversation is selected", async () => {

@@ -144,6 +144,26 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     });
   }
 
+  async markRead(input: { messageId: string }): Promise<void> {
+    await this.operation(async (signal) => {
+      const response = await this.request(
+        this.endpoint(`${encodeURIComponent(this.config.phoneNumberId)}/messages`),
+        {
+          method: "POST",
+          headers: this.authorizationHeaders({ "Content-Type": "application/json" }),
+          body: JSON.stringify({
+            messaging_product: "whatsapp",
+            status: "read",
+            message_id: input.messageId,
+          }),
+          signal,
+        },
+      );
+      const payload = await this.json(response, signal);
+      if (payload.success !== true) throw unknownProviderError();
+    });
+  }
+
   sendText(input: { to: string; body: string; contextMessageId?: string }) {
     const context = input.contextMessageId
       ? { context: { message_id: input.contextMessageId } }
