@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { MessageDto } from "@/modules/conversations/types";
 
@@ -25,8 +25,6 @@ const outboundFixture: MessageDto = {
 };
 
 describe("MessageBubble", () => {
-  afterEach(() => vi.useRealTimers());
-
   it("exposes a focusable message target and a semantic search highlight", () => {
     render(<MessageBubble message={outboundFixture} searchHighlighted />);
     const article = screen.getByRole("article");
@@ -45,9 +43,7 @@ describe("MessageBubble", () => {
     );
 
     const action = screen.getByRole("button", { name: "Responder à mensagem" });
-    expect(action).toHaveClass("min-h-11", "min-w-11");
-    expect(action).toHaveClass("opacity-100", "min-[720px]:opacity-0");
-    expect(action).not.toHaveClass("sm:opacity-0");
+    expect(action.closest(".message-actions-desktop")).not.toBeNull();
     fireEvent.click(action);
     expect(reply).toHaveBeenCalledWith(expect.objectContaining({ id: outboundFixture.id }));
 
@@ -213,25 +209,15 @@ describe("MessageBubble", () => {
     expect(screen.getByRole("link", { name: "Abrir no Google Maps" })).toBeVisible();
     const heading = screen.getByRole("heading", { name: "XP Eletrônicos" });
     expect(heading.closest('[data-reply-swipe-ignore="true"]')).not.toBeNull();
-    expect(heading.closest("article")?.firstElementChild).toHaveClass(
+    expect(heading.closest("article")?.querySelector("[data-message-bubble]")).toHaveClass(
       "max-w-[min(78%,42rem)]",
+      "max-[767px]:max-w-[min(86%,36rem)]",
     );
   });
 
-  it("opens reactions after a 500ms long press and cancels after pointer movement", () => {
-    vi.useFakeTimers();
-    const { container, rerender } = render(<MessageBubble message={outboundFixture} onReact={vi.fn()} />);
-    const bubble = container.querySelector<HTMLElement>("[data-message-bubble]")!;
-    fireEvent.pointerDown(bubble, { button: 0, clientX: 10, clientY: 10 });
-    act(() => vi.advanceTimersByTime(500));
-    expect(screen.getByRole("toolbar", { name: "Reações rápidas" })).toBeVisible();
-
-    fireEvent.keyDown(document, { key: "Escape" });
-    rerender(<MessageBubble message={{ ...outboundFixture, id: "another-message" }} onReact={vi.fn()} />);
-    const movedBubble = container.querySelector<HTMLElement>("[data-message-bubble]")!;
-    fireEvent.pointerDown(movedBubble, { button: 0, clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(movedBubble, { clientX: 30, clientY: 10 });
-    act(() => vi.advanceTimersByTime(500));
-    expect(screen.queryByRole("toolbar", { name: "Reações rápidas" })).not.toBeInTheDocument();
+  it("uses one explicit mobile action trigger instead of floating bubble controls", () => {
+    render(<MessageBubble message={{ ...outboundFixture, canReply: true }} onReact={vi.fn()} onReply={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Ações da mensagem" })).toHaveClass("min-h-11", "min-w-11");
+    expect(screen.getByRole("button", { name: "Reagir à mensagem" }).closest(".message-actions-desktop")).not.toBeNull();
   });
 });
