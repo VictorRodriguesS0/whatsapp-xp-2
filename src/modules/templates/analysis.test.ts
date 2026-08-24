@@ -7,6 +7,7 @@ import type { ProviderTemplate } from "@/modules/whatsapp/provider";
 import {
   analyzeProviderTemplate,
   renderServiceResumption,
+  resolveServiceResumptionContactName,
 } from "./analysis";
 
 function template(
@@ -139,5 +140,24 @@ describe("service-resumption template analysis", () => {
     expect(
       renderServiceResumption("Olá, {{1}}!", "x".repeat(100)),
     ).toBe(`Olá, ${"x".repeat(80)}!`);
+  });
+
+  it("uses one canonical contact name for both preview and send", () => {
+    expect(
+      resolveServiceResumptionContactName({
+        preferredName: "  Bia  ",
+        whatsappAppName: "Nome do celular",
+        whatsappAppActive: true,
+        profileName: "Nome Meta",
+      }),
+    ).toBe("Bia");
+    expect(
+      resolveServiceResumptionContactName({
+        preferredName: null,
+        whatsappAppName: "Contato removido",
+        whatsappAppActive: false,
+        profileName: "   ",
+      }),
+    ).toBe("cliente");
   });
 });

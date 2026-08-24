@@ -22,7 +22,10 @@ import {
 } from "@/modules/messages/service";
 import { messageUuidSchema } from "@/modules/messages/schemas";
 import { publishRealtime } from "@/modules/realtime/hub";
-import { renderServiceResumption } from "@/modules/templates/analysis";
+import {
+  renderServiceResumption,
+  resolveServiceResumptionContactName,
+} from "@/modules/templates/analysis";
 
 import { resumeConversationSchema } from "./schemas";
 import type {
@@ -122,7 +125,9 @@ function createRepositoryForClient(
               messagingOptOutAt: true,
               preferredName: true,
               name: true,
-              whatsappAppContact: { select: { fullName: true } },
+              whatsappAppContact: {
+                select: { fullName: true, active: true },
+              },
             },
           },
         },
@@ -156,10 +161,14 @@ function createRepositoryForClient(
         },
       });
       if (!conversation || !configuration) return null;
-      const resolvedContactName =
-        conversation.contact.preferredName ??
-        conversation.contact.whatsappAppContact?.fullName ??
-        conversation.contact.name;
+      const resolvedContactName = resolveServiceResumptionContactName({
+        preferredName: conversation.contact.preferredName,
+        whatsappAppName:
+          conversation.contact.whatsappAppContact?.fullName ?? null,
+        whatsappAppActive:
+          conversation.contact.whatsappAppContact?.active === true,
+        profileName: conversation.contact.name,
+      });
       return {
         conversationId: conversation.id,
         pendingCustomerMessageId: conversation.pendingCustomerMessageId,

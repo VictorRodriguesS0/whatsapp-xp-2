@@ -3,9 +3,18 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ConversationResumptionStatus,
+  MessageOperationalState,
+  MessageStatus,
+} from "@/generated/prisma/enums";
+
+import {
   assertFreeFormSendAllowed,
   calculateServiceWindow,
   getMessagingPolicySnapshot,
+  isConfirmingCurrentResumption,
+  preparedAttemptBlocksResumption,
+  resolveServiceResumptionTemplate,
   type MessagingPolicyRepository,
 } from "./service";
 
@@ -21,6 +30,7 @@ function repository(
       lastCustomerMessageAt: new Date("2026-08-22T12:00:00.001Z"),
       pendingCustomerMessageId: "50000000-0000-4000-8000-000000000002",
       awaitingCustomerSince: null,
+      confirmingResumption: false,
       messagingOptOutAt: null,
       resumptionTemplate: null,
       ...overrides,
@@ -29,6 +39,118 @@ function repository(
 }
 
 describe("WhatsApp service-window policy", () => {
+  it("distinguishes a recoverable prepared attempt from a definitive local failure", () => {
+    expect(preparedAttemptBlocksResumption({
+      status: MessageStatus.PENDING,
+      operationalState: MessageOperationalState.READY,
+      providerAttemptedAt: null,
+    })).toBe(true);
+    expect(preparedAttemptBlocksResumption({
+      status: MessageStatus.FAILED,
+      operationalState: MessageOperationalState.LOCAL_FAILURE,
+      providerAttemptedAt: null,
+    })).toBe(false);
+  });
+
+  it.each([
+    {
+      label: "an old unknown outcome",
+      resumption: {
+        sourceMessageId: "50000000-0000-4000-8000-000000000099",
+        status: ConversationResumptionStatus.OUTCOME_UNKNOWN,
+        reservationUntil: null,
+      },
+      expected: false,
+    },
+    {
+      label: "an expired reservation",
+      resumption: {
+        sourceMessageId: "50000000-0000-4000-8000-000000000002",
+        status: ConversationResumptionStatus.RESERVED,
+        reservationUntil: new Date("2026-08-23T11:59:59.999Z"),
+      },
+      expected: false,
+    },
+    {
+      label: "an expired reservation with a prepared blocking attempt",
+      resumption: {
+        sourceMessageId: "50000000-0000-4000-8000-000000000002",
+        status: ConversationResumptionStatus.RESERVED,
+        reservationUntil: new Date("2026-08-23T11:59:59.999Z"),
+        hasBlockingAttempt: true,
+      },
+      expected: true,
+    },
+    {
+      label: "a current live reservation",
+      resumption: {
+        sourceMessageId: "50000000-0000-4000-8000-000000000002",
+        status: ConversationResumptionStatus.RESERVED,
+        reservationUntil: new Date("2026-08-23T12:00:00.001Z"),
+      },
+      expected: true,
+    },
+    {
+      label: "a current unknown outcome",
+      resumption: {
+        sourceMessageId: "50000000-0000-4000-8000-000000000002",
+        status: ConversationResumptionStatus.OUTCOME_UNKNOWN,
+        reservationUntil: null,
+      },
+      expected: true,
+    },
+  ])("recognizes $label without blocking a newer request", ({ resumption, expected }) => {
+    expect(
+      isConfirmingCurrentResumption(
+        "50000000-0000-4000-8000-000000000002",
+        [resumption],
+        now,
+      ),
+    ).toBe(expected);
+  });
+
+  it("accepts only a fresh, exact approved pt_BR assignment", () => {
+    const syncedAt = new Date("2026-08-23T11:30:00.000Z");
+    const configuration = {
+      mode: "ACTIVE" as const,
+      lastTemplateSyncStatus: "SUCCEEDED" as const,
+      lastTemplateSyncSucceededAt: syncedAt,
+    };
+    const template = {
+      name: "retomar_atendimento",
+      language: "pt_BR",
+      status: "APPROVED",
+      supported: true,
+      parameterCount: 1,
+      bodyText: "Olá, {{1}}!",
+      syncedAt,
+    };
+
+    expect(resolveServiceResumptionTemplate(configuration, template, now)).toEqual({
+      templateName: "retomar_atendimento",
+      language: "pt_BR",
+      bodyText: "Olá, {{1}}!",
+    });
+    for (const invalid of [
+      { configuration: { ...configuration, mode: "INACTIVE" as const }, template },
+      { configuration: { ...configuration, lastTemplateSyncStatus: "FAILED" as const }, template },
+      { configuration: { ...configuration, lastTemplateSyncSucceededAt: new Date("2026-08-22T11:59:59.999Z") }, template: { ...template, syncedAt: new Date("2026-08-22T11:59:59.999Z") } },
+      { configuration, template: { ...template, syncedAt: new Date("2026-08-23T11:29:59.999Z") } },
+      { configuration, template: { ...template, status: "PAUSED" } },
+      { configuration, template: { ...template, supported: false } },
+      { configuration, template: { ...template, language: "en_US" } },
+      { configuration, template: { ...template, parameterCount: 2 } },
+    ]) {
+      expect(
+        resolveServiceResumptionTemplate(
+          invalid.configuration,
+          invalid.template,
+          now,
+        ),
+      ).toBeNull();
+    }
+  });
+
   it("closes a conversation with no customer message", () => {
     expect(calculateServiceWindow(null, now)).toEqual({
       status: "CLOSED",

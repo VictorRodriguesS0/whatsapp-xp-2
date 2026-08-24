@@ -115,3 +115,21 @@ export function renderServiceResumption(
   const parameter = resolvedName?.trim().slice(0, 80) || "cliente";
   return bodyText.replaceAll("{{1}}", parameter);
 }
+
+export function resolveServiceResumptionContactName(input: {
+  preferredName: string | null;
+  whatsappAppName: string | null;
+  whatsappAppActive: boolean;
+  profileName: string | null;
+}): string {
+  const candidates = [
+    input.preferredName,
+    input.whatsappAppActive ? input.whatsappAppName : null,
+    input.profileName,
+  ];
+  for (const candidate of candidates) {
+    const normalized = candidate?.trim();
+    if (normalized) return normalized.slice(0, 80);
+  }
+  return "cliente";
+}

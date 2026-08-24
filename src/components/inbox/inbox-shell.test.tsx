@@ -82,7 +82,6 @@ const defaultInbox = {
       unreadCount: 1,
       manuallyUnread: false,
       manualUnreadRevision: null,
-      awaitingResponseSince: null,
       revision: "2026-08-20T14:30:00.000Z",
   }],
   conversation: null,

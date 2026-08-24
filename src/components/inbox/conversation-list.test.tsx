@@ -42,6 +42,14 @@ const fixture: ConversationListItem = {
   manuallyUnread: false,
   manualUnreadRevision: null,
   revision: "2026-08-20T14:30:00.000Z",
+  serviceWindow: {
+    enforcement: "INACTIVE",
+    status: "CLOSED",
+    closesAt: null,
+    sendMode: "FREE_FORM",
+    reason: null,
+    resumption: null,
+  },
 };
 
 const richPreviewCases: Array<[

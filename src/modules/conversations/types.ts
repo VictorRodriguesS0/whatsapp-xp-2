@@ -1,4 +1,5 @@
 import type {
+  ConversationResumptionStatus,
   MediaStatus,
   MessageDirection,
   MessageStatus,
@@ -7,6 +8,7 @@ import type {
   ReactionStatus,
 } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
+import type { ServiceWindowDto } from "@/modules/messaging-policy/types";
 import type { QuotedReplyDto } from "@/modules/messages/reply-context";
 
 export const MAX_MEDIA_DOWNLOAD_ATTEMPTS = 5;
@@ -172,7 +174,25 @@ export type ConversationListRecord = {
   teamLastReadMessageId: string | null;
   teamLastReadAt: Date | null;
   manualUnreadAt: Date | null;
-  awaitingResponseSince: Date | null;
+  lastCustomerMessageAt: Date | null;
+  lastCustomerMessageId: string | null;
+  pendingCustomerMessageId: string | null;
+  awaitingCustomerSince: Date | null;
+  confirmingResumptions: Array<{
+    sourceMessageId: string;
+    status: ConversationResumptionStatus;
+    reservationUntil: Date | null;
+    hasBlockingAttempt?: boolean;
+  }>;
+};
+
+export type ServiceWindowPolicyContext = {
+  enforcement: "INACTIVE" | "ACTIVE";
+  resumptionTemplate: {
+    templateName: string;
+    language: string;
+    bodyText: string;
+  } | null;
 };
 
 export type ConversationDetailRecord = ConversationListRecord & {
@@ -192,6 +212,7 @@ export type ConversationListItem = {
   manuallyUnread: boolean;
   manualUnreadRevision: string | null;
   revision: string;
+  serviceWindow: ServiceWindowDto;
 };
 
 export type ConversationDetail = ConversationListItem & {
@@ -266,6 +287,9 @@ export type ConversationPinRecord = {
 };
 
 export type ConversationRepository = {
+  getServiceWindowPolicyContext(
+    now: Date,
+  ): Promise<ServiceWindowPolicyContext>;
   list(
     userId: string,
     query: ConversationListQuery,
