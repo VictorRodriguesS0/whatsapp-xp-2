@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-23
 
-**Status:** aprovado em conversa; aguardando revisão do documento
+**Status:** aprovado em conversa; atualizado para remover o indicador genérico legado
 
 **Escopo:** aplicar as regras oficiais da janela de atendimento do WhatsApp, permitir a retomada de solicitações pendentes por template aprovado e registrar a base operacional de consentimento sem transformar o atendimento em ferramenta de marketing
 
@@ -29,6 +29,14 @@ Referências oficiais:
 - Templates com mídia, botões, carrossel, autenticação ou catálogo na primeira versão.
 - Consentimento genérico ou permanente inferido de uma mensagem antiga.
 - Alterar a regra de horário comercial já cadastrada na aplicação.
+
+## Remoção do indicador genérico atual
+
+O indicador legado **Aguardando resposta**, exibido atualmente em cada linha da lista de conversas, será removido. Ele não será renomeado nem reaproveitado como interface para esta funcionalidade.
+
+A lista, os DTOs enviados ao navegador e os eventos de estado compartilhado deixam de expor `awaitingResponseSince`. A coluna existente pode permanecer temporariamente no banco apenas para compatibilidade de rollback, sem apresentação ou decisão de negócio nova.
+
+A elegibilidade de retomada passa a usar um ponteiro explícito para a mensagem recebida e ainda não respondida. Assim, o novo estado **Aguardando cliente** existe somente depois de um template de retomada aceito pela Meta e não se confunde com o indicador genérico removido.
 
 ## Regras da janela de 24 horas
 
@@ -105,6 +113,8 @@ O schema recebe estruturas aditivas para separar estado oficial, configuração 
 
 - `Conversation.lastCustomerMessageAt`: último timestamp recebido do cliente, monotônico;
 - `Conversation.lastCustomerMessageId`: mensagem que sustenta o timestamp e permite rastrear a solicitação;
+- `Conversation.pendingCustomerMessageAt`: timestamp da mensagem recebida mais recente que continua sem resposta válida da empresa;
+- `Conversation.pendingCustomerMessageId`: ponteiro explícito para essa mensagem pendente, usado como evidência da retomada e nunca exibido ao navegador;
 - `Conversation.awaitingCustomerSince`: instante do template de retomada confirmado;
 - `Conversation.serviceWindowStateVersion`: versão usada no controle de concorrência;
 - `Contact.messagingOptOutAt`: instante do opt-out, anulável;
@@ -116,7 +126,7 @@ O schema recebe estruturas aditivas para separar estado oficial, configuração 
 
 O histórico conserva exatamente qual definição e quais parâmetros foram usados, mesmo que o template seja alterado ou deixe de ser aprovado. Tokens, payloads brutos, telefone e segredos nunca são copiados para esse histórico.
 
-As migrations são aditivas. Conversas antigas sem uma mensagem recebida correlacionável não ganham autorização automática por backfill. Quando for possível derivar com segurança o último evento recebido a partir das mensagens existentes, um backfill monotônico e idempotente preenche apenas o estado da janela; ele não cria consentimento nem retomadas.
+As migrations são aditivas. Conversas antigas sem uma mensagem recebida correlacionável não ganham autorização automática por backfill. Quando for possível derivar com segurança o último evento recebido a partir das mensagens existentes, um backfill monotônico e idempotente preenche apenas o estado da janela; ele não cria consentimento nem retomadas. Os campos `pendingCustomerMessageAt` e `pendingCustomerMessageId` também não são preenchidos por esse backfill: passam a ser materializados somente pelo processamento autoritativo de mensagens após a entrega, impedindo que o estado genérico legado seja convertido em autorização.
 
 ## Sincronização de templates
 
@@ -229,6 +239,7 @@ O desenvolvimento segue TDD com evidência RED/GREEN para:
 A etapa 1 é aceita quando:
 
 - migrations estão aplicadas uma vez e a aplicação permanece saudável;
+- o indicador genérico **Aguardando resposta** não aparece mais na lista de conversas nem nos DTOs enviados ao navegador;
 - sincronização administrativa lista o estado oficial sem expor segredos;
 - um template aprovado compatível pode ser selecionado e pré-visualizado;
 - os fluxos atuais dentro da janela permanecem funcionais;
