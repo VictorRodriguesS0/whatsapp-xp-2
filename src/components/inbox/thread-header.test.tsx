@@ -13,12 +13,33 @@ const conversation = {
 
 describe("ThreadHeader", () => {
   it("keeps a long contact identity shrinkable and all direct controls at 44px", () => {
-    render(<ThreadHeader conversation={conversation} onBack={vi.fn()} onOpenDetails={vi.fn()} />);
+    render(<ThreadHeader conversation={conversation} onBack={vi.fn()} onOpenDetails={vi.fn()} onSearchTarget={vi.fn()} />);
 
     expect(screen.getByTestId("thread-heading-container")).toHaveClass("min-w-0");
     for (const name of ["Voltar para conversas", "Pesquisar nesta conversa", "Mais opções"]) {
       expect(screen.getByRole("button", { name })).toHaveClass("min-h-11");
     }
+  });
+
+  it("gives the opened conversation search a full second header row", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <ThreadHeader conversation={conversation} onBack={vi.fn()} onOpenDetails={vi.fn()} onSearchTarget={vi.fn()} />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Pesquisar nesta conversa" }));
+
+    expect(container.querySelector("header")).toHaveClass("flex-wrap");
+    expect(screen.getByRole("searchbox", { name: "Pesquisar nesta conversa" }).parentElement).toHaveClass(
+      "order-last",
+      "basis-full",
+    );
+  });
+
+  it("does not expose in-thread search without a target handler", () => {
+    render(<ThreadHeader conversation={conversation} onBack={vi.fn()} onOpenDetails={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Pesquisar nesta conversa" })).not.toBeInTheDocument();
   });
 
   it("moves mobile secondary actions into Mais opções while retaining desktop names", async () => {

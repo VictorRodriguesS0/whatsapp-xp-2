@@ -9,6 +9,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { InboxMessage } from "@/hooks/use-inbox";
 import { cn } from "@/lib/utils";
 
+import { canReplyToMessage, isMessageExpired } from "./message-interaction-eligibility";
+
 const LazyFullEmojiPicker = dynamic(
   () => import("./full-emoji-picker").then(({ FullEmojiPicker }) => FullEmojiPicker),
   { ssr: false },
@@ -17,16 +19,12 @@ const LazyFullEmojiPicker = dynamic(
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
 const HISTORY_KEY = "__xpMessageActions";
 
-function isExpired(message: InboxMessage) {
-  return Date.now() - new Date(message.externalTimestamp).getTime() > 30 * 24 * 60 * 60 * 1_000;
-}
-
 function canReactTo(message: InboxMessage) {
   return !message.id.startsWith("optimistic:")
     && !message.revokedAt
     && message.status !== "PENDING"
     && message.status !== "FAILED"
-    && !isExpired(message);
+    && !isMessageExpired(message);
 }
 
 function QuickReactionPicker({ onSelect, onFullPicker }: { onSelect: (emoji: string) => void; onFullPicker: () => void }) {
@@ -49,7 +47,7 @@ export function MessageActions({ message, onReply, onReact }: {
   onReply?: (message: InboxMessage) => void;
   onReact?: (messageId: string, emoji: string) => unknown;
 }) {
-  const canReply = message.canReply && !isExpired(message) && Boolean(onReply);
+  const canReply = canReplyToMessage(message, onReply);
   const canReact = Boolean(onReact) && canReactTo(message);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
   const popTriggeredClose = useRef(false);

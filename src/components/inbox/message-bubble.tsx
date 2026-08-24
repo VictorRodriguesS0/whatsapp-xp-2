@@ -10,6 +10,7 @@ import type { MessageDto } from "@/modules/conversations/types";
 
 import { MessageMedia } from "./message-media";
 import { MessageActions } from "./message-actions";
+import { canReplyToMessage } from "./message-interaction-eligibility";
 import { MessageReactions } from "./message-reactions";
 import { MessageRichContent } from "./message-rich-content";
 import { QuotedReplyPreview } from "./quoted-reply-preview";
@@ -66,7 +67,7 @@ export function MessageBubble({
   const outbound = message.direction === "OUTBOUND";
   const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
-  const canReply = message.canReply && Boolean(onReply);
+  const canReply = canReplyToMessage(message, onReply);
   const gesture = useMessageReplyGesture(canReply, () => onReply?.(message));
   return (
     <article
@@ -85,9 +86,14 @@ export function MessageBubble({
       tabIndex={-1}
     >
       <div
-        className={cn("relative max-w-[min(78%,42rem)] overflow-hidden break-words border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)] max-[767px]:max-w-[min(86%,36rem)]", outbound ? "rounded-[14px_14px_4px_14px] bg-[var(--outbound)]" : "rounded-[14px_14px_14px_4px] bg-[var(--inbound)]")}
+        className="relative max-w-[min(78%,42rem)] break-words max-[767px]:max-w-[min(86%,36rem)]"
         data-message-bubble
+        data-testid="message-bubble"
       >
+        <div
+          className={cn("min-w-0 max-w-full overflow-hidden border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)]", outbound ? "rounded-[14px_14px_4px_14px] bg-[var(--outbound)]" : "rounded-[14px_14px_14px_4px] bg-[var(--inbound)]")}
+          data-testid="message-bubble-content"
+        >
         {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]" data-reply-swipe-ignore="true">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
         {message.replyTo ? (
           <div className="mb-2">
@@ -112,6 +118,7 @@ export function MessageBubble({
             {onRetry && canRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
           </div>
         ) : null}
+        </div>
         {onReact ? (
           <MessageReactions
             message={message}

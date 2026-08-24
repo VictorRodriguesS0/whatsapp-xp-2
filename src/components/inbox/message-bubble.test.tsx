@@ -24,6 +24,23 @@ const outboundFixture: MessageDto = {
   createdAt: "2026-08-20T14:31:00.000Z",
 };
 
+function pointer(
+  target: Element,
+  type: "down" | "move" | "up",
+  { x, y }: { x: number; y: number },
+) {
+  const event = new Event(`pointer${type}`, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    pointerId: { value: 7 },
+    pointerType: { value: "touch" },
+    isPrimary: { value: true },
+    button: { value: 0 },
+    clientX: { value: x },
+    clientY: { value: y },
+  });
+  fireEvent(target, event);
+}
+
 describe("MessageBubble", () => {
   it("exposes a focusable message target and a semantic search highlight", () => {
     render(<MessageBubble message={outboundFixture} searchHighlighted />);
@@ -215,9 +232,49 @@ describe("MessageBubble", () => {
     );
   });
 
+  it("does not reply when an expired message is swiped", () => {
+    const reply = vi.fn();
+    render(
+      <MessageBubble
+        message={{ ...outboundFixture, canReply: true, externalTimestamp: "2020-01-01T00:00:00.000Z" }}
+        onReply={reply}
+      />,
+    );
+    const article = screen.getByRole("article");
+
+    pointer(article, "down", { x: 0, y: 0 });
+    pointer(article, "move", { x: 56, y: 0 });
+    pointer(article, "up", { x: 56, y: 0 });
+
+    expect(reply).not.toHaveBeenCalled();
+  });
+
   it("uses one explicit mobile action trigger instead of floating bubble controls", () => {
     render(<MessageBubble message={{ ...outboundFixture, canReply: true }} onReact={vi.fn()} onReply={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Ações da mensagem" })).toHaveClass("min-h-11", "min-w-11");
     expect(screen.getByRole("button", { name: "Reagir à mensagem" }).closest(".message-actions-desktop")).not.toBeNull();
+  });
+
+  it("keeps reaction badges outside the clipped bubble content while containing long content", () => {
+    render(
+      <MessageBubble
+        message={{
+          ...outboundFixture,
+          reactions: [{
+            id: "reaction-id",
+            emoji: "👍",
+            reactor: "CONTACT",
+            sentBy: null,
+            status: "SENT",
+          }],
+        }}
+        onReact={vi.fn()}
+      />,
+    );
+
+    const bubble = screen.getByTestId("message-bubble");
+    expect(bubble).not.toHaveClass("overflow-hidden");
+    expect(screen.getByTestId("message-bubble-content")).toHaveClass("overflow-hidden");
+    expect(screen.getByRole("button", { name: "Cliente reagiu com 👍" }).parentElement).toHaveClass("-mb-3");
   });
 });

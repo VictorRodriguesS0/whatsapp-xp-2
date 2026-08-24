@@ -50,7 +50,7 @@ export function ThreadHeader({
   const controlsDisabled = !conversation || !onMarkUnread || markUnreadPending;
 
   return (
-    <header className="flex min-h-16 shrink-0 items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3">
+    <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-2 border-b border-[var(--border)] bg-[var(--panel)] px-3">
       <Button aria-label="Voltar para conversas" className="mobile-back min-h-11 min-w-11" onClick={onBack} size="icon" variant="ghost">
         <ArrowLeft aria-hidden="true" className="size-5" />
       </Button>
@@ -67,7 +67,7 @@ export function ThreadHeader({
         </>
       ) : <h2 className="min-w-0 flex-1 font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>Conversa</h2>}
 
-      {conversation ? <ConversationMessageSearch conversationId={conversation.id} onTarget={onSearchTarget ?? (() => {})} /> : null}
+      {conversation && onSearchTarget ? <ConversationMessageSearch conversationId={conversation.id} onTarget={onSearchTarget} /> : null}
 
       <div className="thread-header-desktop-actions flex shrink-0 items-center gap-1">
         <Button
