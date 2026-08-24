@@ -260,6 +260,14 @@ describe("ConversationList", () => {
       <ConversationList items={[]} selectedId={null} onSelect={vi.fn()} loading />,
     );
     expect(screen.getByRole("status")).toHaveTextContent("Carregando conversas");
+    expect(screen.getAllByTestId("conversation-list-skeleton-row")).toHaveLength(6);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+
+    rerender(
+      <ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} loading />,
+    );
+    expect(screen.getByRole("button", { name: /Carlos Lima/i })).toBeVisible();
+    expect(screen.queryByTestId("conversation-list-skeleton-row")).not.toBeInTheDocument();
 
     rerender(
       <ConversationList items={[]} selectedId={null} onSelect={vi.fn()} search="Carlos" />,

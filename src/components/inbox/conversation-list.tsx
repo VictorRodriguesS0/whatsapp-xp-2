@@ -13,6 +13,7 @@ import type { ConversationListItem } from "@/modules/conversations/types";
 
 import { ContactTagChip } from "./contact-tag-chip";
 import { ContactTypeChip } from "./contact-type-chip";
+import { ConversationListSkeleton } from "./conversation-list-skeleton";
 import { richMessagePreview } from "./message-rich-content";
 
 export { richMessagePreview } from "./message-rich-content";
@@ -94,7 +95,7 @@ export function ConversationList({
   pinError,
 }: ConversationListProps) {
   if (loading && items.length === 0) {
-    return <div className="flex min-h-40 items-center justify-center p-6"><Spinner label="Carregando conversas" /></div>;
+    return <ConversationListSkeleton />;
   }
 
   if (error && items.length === 0) {
