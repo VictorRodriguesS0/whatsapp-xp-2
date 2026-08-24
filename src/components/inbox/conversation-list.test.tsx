@@ -40,7 +40,6 @@ const fixture: ConversationListItem = {
   unreadCount: 3,
   manuallyUnread: false,
   manualUnreadRevision: null,
-  awaitingResponseSince: "2026-08-20T14:30:00.000Z",
   revision: "2026-08-20T14:30:00.000Z",
 };
 
@@ -81,7 +80,7 @@ describe("ConversationList", () => {
     const marker = screen.getByLabelText("Tipo de contato de Carlos Lima");
     expect(within(marker).getAllByText("Cliente")).toHaveLength(1);
     expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
-    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
     expect(screen.getByText("Marcos")).toBeVisible();
 
     rerender(
@@ -156,11 +155,11 @@ describe("ConversationList", () => {
     expect(screen.queryByLabelText("Etiquetas de Carlos Lima")).not.toBeInTheDocument();
   });
 
-  it("keeps shared unread state distinct from awaiting a response", () => {
+  it("keeps shared unread state without the generic awaiting-response marker", () => {
     render(
       <ConversationList
         items={[
-          { ...fixture, unreadCount: 0, manuallyUnread: true, awaitingResponseSince: null },
+          { ...fixture, unreadCount: 0, manuallyUnread: true },
           { ...fixture, id: "10000000-0000-4000-8000-000000000002", unreadCount: 0, manuallyUnread: false },
         ]}
         selectedId={null}
@@ -169,8 +168,7 @@ describe("ConversationList", () => {
     );
 
     expect(screen.getByLabelText("Conversa marcada como não lida")).toBeVisible();
-    expect(screen.getByText("Aguardando resposta")).toBeVisible();
-    expect(screen.getAllByText("Aguardando resposta")).toHaveLength(1);
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
   });
 
   it("describes pending media without merging its state with unread or response indicators", () => {
@@ -192,7 +190,7 @@ describe("ConversationList", () => {
     );
 
     expect(screen.getByText("Baixando áudio")).toBeVisible();
-    expect(screen.getByText("Aguardando resposta")).toBeVisible();
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
     expect(screen.getByLabelText("3 mensagens não lidas")).toBeVisible();
   });
 

@@ -171,7 +171,6 @@ export function ConversationList({
                     {item.unreadCount > 0 ? <Badge aria-label={`${item.unreadCount} ${item.unreadCount === 1 ? "mensagem não lida" : "mensagens não lidas"}`}>{item.unreadCount}</Badge> : null}
                     {item.manuallyUnread ? <span aria-label="Conversa marcada como não lida" className="size-2 shrink-0 rounded-full bg-[var(--accent)]" role="img" title="Conversa marcada como não lida" /> : null}
                   </span>
-                  {item.awaitingResponseSince ? <span className="mt-1 block text-xs font-medium text-[var(--text)]">Aguardando resposta</span> : null}
                   <span className="mt-1 block truncate text-xs text-[var(--muted)]">{item.responsible?.name ?? "Sem responsável"}</span>
                   {item.contact.type ? (
                     <span aria-label={`Tipo de contato de ${item.contact.name}`} className="mt-1.5 flex min-w-0">

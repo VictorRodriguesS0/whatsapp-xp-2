@@ -61,7 +61,6 @@ const conversation: InboxConversation = {
   unreadCount: 0,
   manuallyUnread: false,
   manualUnreadRevision: null,
-  awaitingResponseSince: message.externalTimestamp,
   revision: message.createdAt,
   createdAt: message.createdAt,
   updatedAt: message.createdAt,

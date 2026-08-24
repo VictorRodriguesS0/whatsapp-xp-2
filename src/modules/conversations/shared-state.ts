@@ -4,6 +4,7 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import {
   ConversationAuditAction,
   MessageDirection,
+  MessageStatus,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -100,7 +101,6 @@ async function sharedState(
       id: true,
       updatedAt: true,
       manualUnreadAt: true,
-      awaitingResponseSince: true,
       teamLastReadAt: true,
       teamLastReadMessage: {
         select: { id: true, externalTimestamp: true },
@@ -133,8 +133,6 @@ async function sharedState(
     unreadCount,
     manuallyUnread: conversation.manualUnreadAt !== null,
     manualUnreadRevision: conversation.manualUnreadAt?.toISOString() ?? null,
-    awaitingResponseSince:
-      conversation.awaitingResponseSince?.toISOString() ?? null,
     revision: conversation.updatedAt.toISOString(),
   };
 }
@@ -266,34 +264,67 @@ export async function refreshResponseState(
 ): Promise<void> {
   await lockConversation(client, conversationId);
   const latestOutbound = await client.message.findFirst({
-    where: { conversationId, direction: MessageDirection.OUTBOUND },
+    where: {
+      conversationId,
+      direction: MessageDirection.OUTBOUND,
+      status: { not: MessageStatus.FAILED },
+    },
+    orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
+    select: { id: true, externalTimestamp: true },
+  });
+  const latestInbound = await client.message.findFirst({
+    where: { conversationId, direction: MessageDirection.INBOUND },
+    orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
+    select: { id: true, externalTimestamp: true },
+  });
+  const unansweredWhere = {
+    conversationId,
+    direction: MessageDirection.INBOUND,
+    ...(latestOutbound
+      ? {
+          OR: [
+            { externalTimestamp: { gt: latestOutbound.externalTimestamp } },
+            {
+              externalTimestamp: latestOutbound.externalTimestamp,
+              id: { gt: latestOutbound.id },
+            },
+          ],
+        }
+      : {}),
+  } as const;
+  const latestUnansweredInbound = await client.message.findFirst({
+    where: unansweredWhere,
     orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
     select: { id: true, externalTimestamp: true },
   });
   const firstUnansweredInbound = await client.message.findFirst({
     where: {
-      conversationId,
-      direction: MessageDirection.INBOUND,
-      ...(latestOutbound
-        ? {
-            OR: [
-              { externalTimestamp: { gt: latestOutbound.externalTimestamp } },
-              {
-                externalTimestamp: latestOutbound.externalTimestamp,
-                id: { gt: latestOutbound.id },
-              },
-            ],
-          }
-        : {}),
+      ...unansweredWhere,
     },
     orderBy: [{ externalTimestamp: "asc" }, { id: "asc" }],
-    select: { externalTimestamp: true },
+    select: { id: true, externalTimestamp: true },
+  });
+  const current = await client.conversation.findUniqueOrThrow({
+    where: { id: conversationId },
+    select: { awaitingCustomerSince: true },
   });
 
   await client.conversation.update({
     where: { id: conversationId },
     data: {
       awaitingResponseSince: firstUnansweredInbound?.externalTimestamp ?? null,
+      lastCustomerMessageAt: latestInbound?.externalTimestamp ?? null,
+      lastCustomerMessageId: latestInbound?.id ?? null,
+      pendingCustomerMessageAt:
+        latestUnansweredInbound?.externalTimestamp ?? null,
+      pendingCustomerMessageId: latestUnansweredInbound?.id ?? null,
+      awaitingCustomerSince:
+        current.awaitingCustomerSince &&
+        latestInbound &&
+        latestInbound.externalTimestamp > current.awaitingCustomerSince
+          ? null
+          : current.awaitingCustomerSince,
+      serviceWindowStateVersion: { increment: 1 },
     },
   });
 }

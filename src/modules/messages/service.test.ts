@@ -10,6 +10,7 @@ import {
   MessageType,
   UserRole,
 } from "@/generated/prisma/enums";
+import { HttpError } from "@/lib/http";
 import type { MediaStorage } from "@/modules/media/storage";
 import type { SessionUser } from "@/modules/auth/session";
 import type { WhatsAppProvider } from "@/modules/whatsapp/provider";
@@ -332,11 +333,92 @@ function harness() {
       repository.history.push(`publish:${event.type}`);
       published.push(event.type);
     },
+    assertFreeFormSendAllowed: async () => undefined,
   };
   return { dependencies, repository, storage, provider, published };
 }
 
 describe("outbound message service", () => {
+  it("rejects a closed-window media send before validation, persistence, quota, or provider calls", async () => {
+    const state = harness();
+    const limiter = new CountingLimiter();
+    state.dependencies.limiter = limiter;
+    state.dependencies.assertFreeFormSendAllowed = async () => {
+      throw new HttpError(
+        409,
+        "A janela de atendimento terminou.",
+        "WHATSAPP_SERVICE_WINDOW_CLOSED",
+      );
+    };
+
+    await expect(
+      sendMessage(
+        actor,
+        conversationId,
+        {
+          type: MessageType.IMAGE,
+          clientRequestId: randomUUID(),
+          file: {
+            filename: "invalida.jpg",
+            mimeType: "image/jpeg",
+            bytes: Uint8Array.from([0]),
+          },
+        },
+        state.dependencies,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "WHATSAPP_SERVICE_WINDOW_CLOSED",
+    });
+    expect(state.repository.records).toHaveLength(0);
+    expect(state.storage.files).toHaveLength(0);
+    expect(state.provider.calls).toHaveLength(0);
+    expect(limiter.calls).toBe(0);
+  });
+
+  it("marks a just-created row failed when the window closes before the provider claim", async () => {
+    const state = harness();
+    const limiter = new CountingLimiter();
+    let checks = 0;
+    state.dependencies.limiter = limiter;
+    state.dependencies.assertFreeFormSendAllowed = async () => {
+      checks += 1;
+      if (checks === 2) {
+        throw new HttpError(
+          409,
+          "A janela de atendimento terminou.",
+          "WHATSAPP_SERVICE_WINDOW_CLOSED",
+        );
+      }
+    };
+
+    await expect(
+      sendMessage(
+        actor,
+        conversationId,
+        {
+          type: MessageType.TEXT,
+          clientRequestId: randomUUID(),
+          body: "Olá",
+        },
+        state.dependencies,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "WHATSAPP_SERVICE_WINDOW_CLOSED",
+    });
+
+    expect(checks).toBe(2);
+    expect([...state.repository.records.values()]).toEqual([
+      expect.objectContaining({
+        status: MessageStatus.FAILED,
+        operationalState: MessageOperationalState.LOCAL_FAILURE,
+      }),
+    ]);
+    expect(state.provider.calls).toHaveLength(0);
+    expect(limiter.calls).toBe(0);
+  });
+
   it("persists and delivers a quoted text using the original official ID", async () => {
     const state = harness();
     const originalId = "21000000-0000-4000-8000-000000000001";

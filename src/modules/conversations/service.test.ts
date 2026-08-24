@@ -436,6 +436,7 @@ describe("conversation service", () => {
     expect(JSON.stringify(result.items[0]?.contact)).not.toContain(
       "provider.example",
     );
+    expect(result.items[0]).not.toHaveProperty("awaitingResponseSince");
   });
 
   it("uses the exact display fallback when preferred and profile names are blank", async () => {

@@ -326,7 +326,6 @@ function toListItem(record: ConversationListRecord): ConversationListItem {
     unreadCount: record.unreadCount,
     manuallyUnread: record.manualUnreadAt !== null,
     manualUnreadRevision: record.manualUnreadAt?.toISOString() ?? null,
-    awaitingResponseSince: record.awaitingResponseSince?.toISOString() ?? null,
     revision: record.updatedAt.toISOString(),
   };
 }

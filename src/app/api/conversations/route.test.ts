@@ -15,6 +15,32 @@ const actor = {
 };
 
 describe("conversation collection route", () => {
+  it("preserves a stable domain error code", async () => {
+    const { GET } = createConversationsRouteHandlers({
+      requireUser: async () => {
+        throw new HttpError(
+          409,
+          "A janela de atendimento terminou.",
+          "WHATSAPP_SERVICE_WINDOW_CLOSED",
+        );
+      },
+      listConversations: async () => ({ items: [], nextCursor: null }),
+    });
+
+    const response = await GET(
+      new Request("http://localhost:3000/api/conversations"),
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      data: null,
+      error: {
+        code: "WHATSAPP_SERVICE_WINDOW_CLOSED",
+        message: "A janela de atendimento terminou.",
+      },
+    });
+  });
+
   it("authenticates before parsing query options", async () => {
     const listConversations = vi.fn(async () => ({ items: [], nextCursor: null }));
     const { GET } = createConversationsRouteHandlers({

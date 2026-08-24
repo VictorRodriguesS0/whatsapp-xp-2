@@ -238,14 +238,48 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("shared conversation state", () 
     });
   });
 
-  it("refreshes awaiting-response state from the first inbound in the unanswered suffix", async () => {
-    const { conversation, firstTimestamp } = await seedMessages();
+  it("materializes the latest inbound and restores its pending pointer after a definitive failure", async () => {
+    const { conversation, victor, firstTimestamp, secondTimestamp } =
+      await seedMessages();
 
     await refreshResponseState(prisma, conversation.id);
     await expect(
       prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
     ).resolves.toMatchObject({
       awaitingResponseSince: firstTimestamp,
+      lastCustomerMessageAt: secondTimestamp,
+      lastCustomerMessageId: higherId,
+      pendingCustomerMessageAt: secondTimestamp,
+      pendingCustomerMessageId: higherId,
+      serviceWindowStateVersion: 1,
+    });
+
+    const outbound = await prisma.message.create({
+      data: {
+        conversationId: conversation.id,
+        direction: MessageDirection.OUTBOUND,
+        type: MessageType.TEXT,
+        body: "Resposta em processamento",
+        sentByUserId: victor.id,
+        status: MessageStatus.PENDING,
+        externalTimestamp: new Date(secondTimestamp.getTime() + 1_000),
+      },
+    });
+    await refreshResponseState(prisma, conversation.id);
+    await expect(
+      prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
+    ).resolves.toMatchObject({ pendingCustomerMessageId: null });
+
+    await prisma.message.update({
+      where: { id: outbound.id },
+      data: { status: MessageStatus.FAILED },
+    });
+    await refreshResponseState(prisma, conversation.id);
+    await expect(
+      prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
+    ).resolves.toMatchObject({
+      pendingCustomerMessageAt: secondTimestamp,
+      pendingCustomerMessageId: higherId,
     });
   });
 });

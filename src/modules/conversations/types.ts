@@ -189,7 +189,6 @@ export type ConversationListItem = {
   unreadCount: number;
   manuallyUnread: boolean;
   manualUnreadRevision: string | null;
-  awaitingResponseSince: string | null;
   revision: string;
 };
 
@@ -249,7 +248,6 @@ export type SharedConversationStateDto = {
   unreadCount: number;
   manuallyUnread: boolean;
   manualUnreadRevision: string | null;
-  awaitingResponseSince: string | null;
   revision: string;
 };
 

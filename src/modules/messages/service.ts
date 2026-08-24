@@ -18,6 +18,7 @@ import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
 import { runConversationTransaction } from "@/modules/conversations/service";
 import { refreshResponseState } from "@/modules/conversations/shared-state";
+import { assertFreeFormSendAllowed } from "@/modules/messaging-policy/service";
 import type {
   MessageDto,
   QuotedReplyRecord,
@@ -221,7 +222,15 @@ export type MessageServiceDependencies = {
   now?: () => Date;
   createUuid?: () => string;
   deliveryLeaseMs?: number;
+  assertFreeFormSendAllowed?(
+    conversationId: string,
+    now: Date,
+  ): Promise<void>;
 };
+
+function freeFormGuard(dependencies: MessageServiceDependencies) {
+  return dependencies.assertFreeFormSendAllowed ?? assertFreeFormSendAllowed;
+}
 
 const replyPreviewSelect = {
   id: true,
@@ -663,6 +672,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
             messageId: updated.id,
             whatsappMessageId: parsedWhatsappMessageId,
           });
+          await refreshResponseState(transaction, updated.conversationId);
         });
         break;
       } catch (error) {
@@ -675,12 +685,23 @@ export const prismaMessageRepository: MessageServiceRepository = {
     return hydrated;
   },
   async markFailed(messageId, failureReason, operationalState) {
-    const row = await prisma.message.update({
-      where: { id: messageId },
-      data: { status: MessageStatus.FAILED, failureReason, operationalState, deliveryLeaseId: null, deliveryLeaseUntil: null },
-      select: prismaMessageScalarSelect,
+    await runConversationTransaction(prisma, async (transaction) => {
+      const failed = await transaction.message.update({
+        where: { id: messageId },
+        data: {
+          status: MessageStatus.FAILED,
+          failureReason,
+          operationalState,
+          deliveryLeaseId: null,
+          deliveryLeaseUntil: null,
+        },
+        select: { conversationId: true },
+      });
+      await refreshResponseState(transaction, failed.conversationId);
     });
-    return hydrateServiceRecord(row);
+    const hydrated = await this.findById(messageId);
+    if (!hydrated) throw new Error("Failed outbound message could not be hydrated");
+    return hydrated;
   },
   async findById(messageId) {
     const row = await prisma.message.findUnique({ where: { id: messageId }, select: prismaMessageScalarSelect });
@@ -724,6 +745,7 @@ const defaultDependencies: MessageServiceDependencies = {
   concurrency: defaultConcurrency,
   idempotencyInFlight: defaultIdempotencyInFlight,
   publishRealtime,
+  assertFreeFormSendAllowed,
 };
 
 function toMessageDto(message: MessageServiceRecord): MessageDto {
@@ -847,6 +869,31 @@ async function deliverAndCommit(
     const clock = dependencies.now ?? (() => new Date());
     const leaseId = (dependencies.createUuid ?? randomUUID)();
     const now = clock();
+    try {
+      await freeFormGuard(dependencies)(message.conversationId, now);
+    } catch (error) {
+      if (
+        error instanceof HttpError &&
+        (error.code === "WHATSAPP_SERVICE_WINDOW_CLOSED" ||
+          error.code === "WHATSAPP_CONTACT_OPTED_OUT")
+      ) {
+        try {
+          const failed = await dependencies.repository.markFailed(
+            message.id,
+            "Envio bloqueado pela política do WhatsApp",
+            MessageOperationalState.LOCAL_FAILURE,
+          );
+          publishSafely(dependencies, {
+            type: "message.status",
+            conversationId: failed.conversationId,
+            messageId: failed.id,
+          });
+        } catch {
+          // A ausência de uma confirmação local nunca autoriza chamar a Meta.
+        }
+      }
+      throw error;
+    }
     const claimed = await dependencies.repository.claimReadyForDelivery(message.id, {
       leaseId,
       now,
@@ -956,6 +1003,7 @@ async function sendMessageOnce(
     ? outboundTextSchema.parse(input)
     : outboundMediaFieldsSchema.parse(input);
   const clientRequestId = clientRequestIdSchema.parse(parsed.clientRequestId);
+  const clock = dependencies.now ?? (() => new Date());
   const existing = await dependencies.repository.findByClientRequestId(clientRequestId);
   if (existing) {
     assertSameIdempotentOperation(
@@ -974,6 +1022,10 @@ async function sendMessageOnce(
       (existing.status === MessageStatus.PENDING && existing.operationalState === MessageOperationalState.READY)
     );
     if (repairableMedia) {
+      await freeFormGuard(dependencies)(
+        parsedConversationId,
+        clock(),
+      );
       const validatedFile = await validateOutboundFile(input);
       let storedKey: string | undefined;
       let attachStarted = false;
@@ -1019,6 +1071,7 @@ async function sendMessageOnce(
     }
     return toMessageDto(existing);
   }
+  await freeFormGuard(dependencies)(parsedConversationId, clock());
   let validatedFile: MessageFileInput | undefined;
   if (input.type !== MessageType.TEXT) {
     validatedFile = await validateOutboundFile(input);
@@ -1030,7 +1083,7 @@ async function sendMessageOnce(
     type: input.type,
     body: parsed.body ?? null,
     replyToMessageId: parsed.replyToMessageId ?? null,
-    externalTimestamp: new Date(),
+    externalTimestamp: clock(),
   });
   if (!created.created) {
     assertSameIdempotentOperation(
@@ -1134,6 +1187,11 @@ export async function retryMessage(
   if (current.type !== MessageType.TEXT && !current.mediaObject) {
     throw new HttpError(409, "A mídia original não está disponível; envie um novo arquivo");
   }
+  const clock = dependencies.now ?? (() => new Date());
+  await freeFormGuard(dependencies)(
+    current.conversationId,
+    clock(),
+  );
   const claimed = await dependencies.repository.claimFailedForRetry(parsedMessageId);
   if (!claimed) throw new HttpError(409, "Mensagem já está sendo reenviada");
   publishSafely(dependencies, { type: "message.status", conversationId: claimed.conversationId, messageId: claimed.id });
