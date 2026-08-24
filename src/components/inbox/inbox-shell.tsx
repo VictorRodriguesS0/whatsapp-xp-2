@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, MessageSquareText, Search, Settings, Tags } from "lucide-react";
+import { LogOut, MessageSquareText, Search, Settings, ShieldCheck, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -187,6 +187,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                   {initialUser.role === "ADMIN" ? (
                     <>
                       <Button asChild aria-label="Configurar classificações" size="icon" variant="ghost"><a href="/configuracoes/atendimento"><Tags aria-hidden="true" className="size-4" /></a></Button>
+                      <Button asChild aria-label="Configurar WhatsApp" size="icon" variant="ghost"><a href="/configuracoes/whatsapp"><ShieldCheck aria-hidden="true" className="size-4" /></a></Button>
                       <Button asChild aria-label="Configurar usuários" size="icon" variant="ghost"><a href="/configuracoes/usuarios"><Settings aria-hidden="true" className="size-4" /></a></Button>
                     </>
                   ) : null}
