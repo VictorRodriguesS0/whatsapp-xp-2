@@ -294,6 +294,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("shared conversation state", () 
         {
           id: echoId,
           conversationId: conversation.id,
+          whatsappMessageId: "wamid.shared-later-official-echo",
           direction: MessageDirection.OUTBOUND,
           type: MessageType.TEXT,
           body: "resposta oficial",
