@@ -99,6 +99,24 @@ export type NormalizedContactSyncBatchEvent = {
   quarantined: number;
 };
 
+export type NormalizedTemplateStatusEvent = {
+  kind: "templateStatus";
+  metaTemplateId: string;
+  name: string;
+  language: string;
+  status: string;
+  entryTimeRaw: string;
+};
+
+export type NormalizedTemplateQualityEvent = {
+  kind: "templateQuality";
+  metaTemplateId: string;
+  name: string;
+  language: string;
+  qualityScore: string;
+  entryTimeRaw: string;
+};
+
 export type NormalizedWebhookEvent =
   | NormalizedMessageEvent
   | NormalizedStatusEvent
@@ -106,7 +124,9 @@ export type NormalizedWebhookEvent =
   | NormalizedMessageEchoControlEvent
   | NormalizedReactionEvent
   | NormalizedReactionEchoEvent
-  | NormalizedContactSyncBatchEvent;
+  | NormalizedContactSyncBatchEvent
+  | NormalizedTemplateStatusEvent
+  | NormalizedTemplateQualityEvent;
 
 export type ProcessSummary = {
   processed: number;

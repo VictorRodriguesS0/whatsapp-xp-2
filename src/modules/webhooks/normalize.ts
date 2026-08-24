@@ -16,6 +16,8 @@ import type {
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
+  NormalizedTemplateQualityEvent,
+  NormalizedTemplateStatusEvent,
   NormalizedWebhookEvent,
 } from "./types";
 import { isSingleEmoji } from "@/modules/reactions/emoji";
@@ -915,6 +917,74 @@ function normalizeStatus(candidate: unknown): NormalizedStatusEvent | null {
   };
 }
 
+function exactEntryTime(value: unknown): string | null {
+  if (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  ) {
+    return String(value);
+  }
+  return typeof value === "string" && /^\d{1,16}$/u.test(value)
+    ? value
+    : null;
+}
+
+function templateIdentity(value: UnknownRecord) {
+  const rawMetaTemplateId = value.message_template_id;
+  const metaTemplateId =
+    typeof rawMetaTemplateId === "number" &&
+    Number.isSafeInteger(rawMetaTemplateId) &&
+    rawMetaTemplateId >= 0
+      ? String(rawMetaTemplateId)
+      : exactIdentifier(rawMetaTemplateId, 256);
+  const name = exactIdentifier(value.message_template_name, 512);
+  const language = exactIdentifier(value.message_template_language, 32);
+  if (
+    !metaTemplateId ||
+    !name ||
+    !language ||
+    !/^\d{1,256}$/u.test(metaTemplateId) ||
+    !/^[a-z0-9_]{1,512}$/u.test(name) ||
+    !/^[a-z]{2}_[A-Z]{2}$/u.test(language)
+  ) {
+    throw new WebhookPayloadError();
+  }
+  return { metaTemplateId, name, language };
+}
+
+function templateToken(value: unknown, maximum: number): string {
+  const token = exactIdentifier(value, maximum);
+  if (!token || !/^[A-Z][A-Z0-9_]*$/u.test(token)) {
+    throw new WebhookPayloadError();
+  }
+  return token;
+}
+
+function normalizeTemplateStatus(
+  value: UnknownRecord,
+  entryTimeRaw: string,
+): NormalizedTemplateStatusEvent {
+  return {
+    kind: "templateStatus",
+    ...templateIdentity(value),
+    status: templateToken(value.event, 64),
+    entryTimeRaw,
+  };
+}
+
+function normalizeTemplateQuality(
+  value: UnknownRecord,
+  entryTimeRaw: string,
+): NormalizedTemplateQualityEvent {
+  return {
+    kind: "templateQuality",
+    ...templateIdentity(value),
+    qualityScore: templateToken(value.new_quality_score, 32),
+    entryTimeRaw,
+  };
+}
+
 export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
   const root = record(payload);
 
@@ -949,7 +1019,9 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
       if (
         field !== "messages" &&
         field !== "smb_message_echoes" &&
-        field !== "smb_app_state_sync"
+        field !== "smb_app_state_sync" &&
+        field !== "message_template_status_update" &&
+        field !== "message_template_quality_update"
       ) {
         continue;
       }
@@ -958,6 +1030,20 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
 
       if (!value) {
         throw new WebhookPayloadError();
+      }
+
+      if (
+        field === "message_template_status_update" ||
+        field === "message_template_quality_update"
+      ) {
+        const entryTimeRaw = exactEntryTime(entry.time);
+        if (!entryTimeRaw) throw new WebhookPayloadError();
+        events.push(
+          field === "message_template_status_update"
+            ? normalizeTemplateStatus(value, entryTimeRaw)
+            : normalizeTemplateQuality(value, entryTimeRaw),
+        );
+        continue;
       }
 
       if (field === "smb_app_state_sync") {

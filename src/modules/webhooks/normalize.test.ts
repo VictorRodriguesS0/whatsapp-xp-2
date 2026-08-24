@@ -17,6 +17,8 @@ import {
   locationFixture,
   stickerFixture,
   statusFixture,
+  templateQualityFixture,
+  templateStatusFixture,
   unsupportedMessageFixture,
 } from "@/test/fixtures/meta-webhooks";
 
@@ -1101,5 +1103,42 @@ describe("WhatsApp Business App contact sync normalization", () => {
         contactSyncItem("remove", { contact: { phone_number: "1" } }),
       ))),
     ).toThrow(WebhookPayloadError);
+  });
+});
+
+describe("WhatsApp template webhook normalization", () => {
+  it("normalizes official status and quality updates without raw provider fields", () => {
+    expect(normalizeWebhook(templateStatusFixture())).toEqual([
+      {
+        kind: "templateStatus",
+        metaTemplateId: "987654321",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        status: "APPROVED",
+        entryTimeRaw: "1787133602",
+      },
+    ]);
+    expect(normalizeWebhook(templateQualityFixture())).toEqual([
+      {
+        kind: "templateQuality",
+        metaTemplateId: "987654321",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        qualityScore: "GREEN",
+        entryTimeRaw: "1787133603",
+      },
+    ]);
+  });
+
+  it.each([
+    ["invalid time", (payload: any) => { payload.entry[0].time = "bad"; }],
+    ["invalid id", (payload: any) => { payload.entry[0].changes[0].value.message_template_id = "bad id"; }],
+    ["invalid name", (payload: any) => { payload.entry[0].changes[0].value.message_template_name = "Bad-Name"; }],
+    ["invalid language", (payload: any) => { payload.entry[0].changes[0].value.message_template_language = "pt-br"; }],
+    ["invalid status", (payload: any) => { payload.entry[0].changes[0].value.event = "APPROVED\nsecret"; }],
+  ])("rejects a bounded template status with %s", (_label, mutate) => {
+    const payload = structuredClone(templateStatusFixture()) as any;
+    mutate(payload);
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
 });

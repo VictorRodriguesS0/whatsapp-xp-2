@@ -34,6 +34,8 @@ import type {
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
+  NormalizedTemplateQualityEvent,
+  NormalizedTemplateStatusEvent,
   NormalizedWebhookEvent,
   ProcessSummary,
 } from "./types";
@@ -104,6 +106,8 @@ export type WebhookRepository = {
     providerTimestamp: Date;
   }): Promise<"APPLIED" | "IGNORED">;
   revokeMessage(messageId: string, revokedAt: Date): Promise<MessageRecord>;
+  updateTemplateStatus(event: NormalizedTemplateStatusEvent): Promise<boolean>;
+  updateTemplateQuality(event: NormalizedTemplateQualityEvent): Promise<boolean>;
 };
 
 export type WebhookProcessDependencies = {
@@ -800,6 +804,28 @@ export function createPrismaWebhookRepository(
         select: { id: true, conversationId: true, status: true },
       });
     },
+    async updateTemplateStatus(event) {
+      const result = await client.whatsAppTemplate.updateMany({
+        where: {
+          metaId: event.metaTemplateId,
+          name: event.name,
+          language: event.language,
+        },
+        data: { status: event.status },
+      });
+      return result.count === 1;
+    },
+    async updateTemplateQuality(event) {
+      const result = await client.whatsAppTemplate.updateMany({
+        where: {
+          metaId: event.metaTemplateId,
+          name: event.name,
+          language: event.language,
+        },
+        data: { qualityScore: event.qualityScore },
+      });
+      return result.count === 1;
+    },
   };
 }
 
@@ -896,6 +922,10 @@ function deduplicationKey(
       return `reaction-echo:${event.whatsappMessageId}`;
     case "contactSyncBatch":
       return `contact-sync-batch:${event.items[0]?.sourceVersionKey ?? "empty"}`;
+    case "templateStatus":
+      return `template-status:${event.metaTemplateId}:${event.status}:${event.entryTimeRaw}`;
+    case "templateQuality":
+      return `template-quality:${event.metaTemplateId}:${event.qualityScore}:${event.entryTimeRaw}`;
   }
 }
 
@@ -1142,6 +1172,29 @@ async function processStatus(
   return { duplicate: false, realtime, pendingMediaId: null };
 }
 
+async function processTemplateUpdate(
+  event: NormalizedTemplateStatusEvent | NormalizedTemplateQualityEvent,
+  key: string,
+  repository: WebhookRepository,
+): Promise<{
+  duplicate: boolean;
+  realtime: readonly RealtimeEvent[];
+  pendingMediaId: null;
+}> {
+  const changed =
+    event.kind === "templateStatus"
+      ? await repository.updateTemplateStatus(event)
+      : await repository.updateTemplateQuality(event);
+  await repository.completeEvent(key);
+  return {
+    duplicate: false,
+    realtime: changed
+      ? [{ type: "settings.updated", scope: "whatsapp-policy" }]
+      : [],
+    pendingMediaId: null,
+  };
+}
+
 export async function processWebhookEvents(
   events: readonly NormalizedWebhookEvent[],
   dependencies: WebhookProcessDependencies = defaultDependencies,
@@ -1229,6 +1282,9 @@ export async function processWebhookEvents(
           case "reaction":
           case "reactionEcho":
             return processReaction(event, key, repository, now);
+          case "templateStatus":
+          case "templateQuality":
+            return processTemplateUpdate(event, key, repository);
         }
       });
     } catch (error) {

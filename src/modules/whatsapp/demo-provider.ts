@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import type {
   MediaMessageType,
   MediaUploadSource,
+  ProviderTemplate,
   TemplateSendInput,
   ProviderReplyContext,
   WhatsAppProvider,
@@ -19,7 +20,7 @@ export class DemoWhatsAppProvider implements WhatsAppProvider {
 
   async markRead(_input: { messageId: string }): Promise<void> {}
 
-  async listTemplates() {
+  async listTemplates(): Promise<ProviderTemplate[]> {
     return [];
   }
 

@@ -127,6 +127,58 @@ export function statusFixture(
   };
 }
 
+export function templateStatusFixture(
+  status = "APPROVED",
+  entryTime: string | number = 1787133602,
+) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "123456789",
+        time: entryTime,
+        changes: [
+          {
+            field: "message_template_status_update",
+            value: {
+              event: status,
+              message_template_id: 987654321,
+              message_template_name: "retomar_atendimento",
+              message_template_language: "pt_BR",
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export function templateQualityFixture(
+  qualityScore = "GREEN",
+  entryTime: string | number = 1787133603,
+) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "123456789",
+        time: entryTime,
+        changes: [
+          {
+            field: "message_template_quality_update",
+            value: {
+              new_quality_score: qualityScore,
+              message_template_id: 987654321,
+              message_template_name: "retomar_atendimento",
+              message_template_language: "pt_BR",
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 function inboundRichFixture(
   type: string,
   content: unknown,

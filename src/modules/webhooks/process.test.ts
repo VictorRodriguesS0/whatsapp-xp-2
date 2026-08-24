@@ -13,6 +13,8 @@ import {
   inboundMediaFixture,
   inboundTextFixture,
   statusFixture,
+  templateQualityFixture,
+  templateStatusFixture,
 } from "@/test/fixtures/meta-webhooks";
 import { resetTestDatabase } from "@/test/database";
 
@@ -74,6 +76,14 @@ type State = {
     sourceTimestamp: Date;
     sourceVersionKey: string;
   }>;
+  templateStatusUpdates: Array<{
+    metaTemplateId: string;
+    status: string;
+  }>;
+  templateQualityUpdates: Array<{
+    metaTemplateId: string;
+    qualityScore: string;
+  }>;
 };
 
 function cloneState(state: State): State {
@@ -84,6 +94,8 @@ function cloneState(state: State): State {
     messages: new Map(structuredClone([...state.messages])),
     media: new Map(structuredClone([...state.media])),
     appContacts: new Map(structuredClone([...state.appContacts])),
+    templateStatusUpdates: structuredClone(state.templateStatusUpdates),
+    templateQualityUpdates: structuredClone(state.templateQualityUpdates),
   };
 }
 
@@ -95,6 +107,8 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     messages: new Map(),
     media: new Map(),
     appContacts: new Map(),
+    templateStatusUpdates: [],
+    templateQualityUpdates: [],
   };
   let committed = false;
   const publications: Array<{ event: unknown; afterCommit: boolean }> = [];
@@ -281,6 +295,20 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       findReactionTarget: async () => { throw new Error("unused"); },
       applyReaction: async () => { throw new Error("unused"); },
       revokeMessage: async () => { throw new Error("unused"); },
+      updateTemplateStatus: async (event) => {
+        target.templateStatusUpdates.push({
+          metaTemplateId: event.metaTemplateId,
+          status: event.status,
+        });
+        return event.metaTemplateId === "987654321";
+      },
+      updateTemplateQuality: async (event) => {
+        target.templateQualityUpdates.push({
+          metaTemplateId: event.metaTemplateId,
+          qualityScore: event.qualityScore,
+        });
+        return event.metaTemplateId === "987654321";
+      },
     };
   }
 
@@ -785,8 +813,79 @@ describe("WhatsApp app contact batch processing", () => {
   });
 });
 
+describe("template webhook event processing", () => {
+  it("deduplicates status and quality updates and publishes only safe settings invalidation", async () => {
+    const harness = createHarness();
+    const events = [
+      ...normalizeWebhook(templateStatusFixture("PAUSED")),
+      ...normalizeWebhook(templateQualityFixture("YELLOW")),
+    ];
+
+    await expect(
+      processWebhookEvents(events, harness.dependencies),
+    ).resolves.toEqual({ processed: 2, duplicates: 0 });
+    await expect(
+      processWebhookEvents(events, harness.dependencies),
+    ).resolves.toEqual({ processed: 0, duplicates: 2 });
+
+    expect(harness.state.templateStatusUpdates).toEqual([
+      { metaTemplateId: "987654321", status: "PAUSED" },
+    ]);
+    expect(harness.state.templateQualityUpdates).toEqual([
+      { metaTemplateId: "987654321", qualityScore: "YELLOW" },
+    ]);
+    expect(harness.publications).toEqual([
+      {
+        afterCommit: true,
+        event: { type: "settings.updated", scope: "whatsapp-policy" },
+      },
+      {
+        afterCommit: true,
+        event: { type: "settings.updated", scope: "whatsapp-policy" },
+      },
+    ]);
+    expect(JSON.stringify(harness.publications)).not.toContain("987654321");
+  });
+});
+
 describe("webhook PostgreSQL integration", () => {
   beforeEach(resetTestDatabase);
+
+  it("updates known template status and quality once without creating provider rows", async () => {
+    await prisma.whatsAppTemplate.create({
+      data: {
+        metaId: "987654321",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        category: "UTILITY",
+        status: "PENDING",
+        qualityScore: null,
+        components: [],
+        bodyText: "Olá, {{1}}",
+        parameterCount: 1,
+        supported: true,
+        definitionHash: "a".repeat(64),
+        syncedAt: new Date("2026-08-23T12:00:00.000Z"),
+      },
+    });
+    const events = [
+      ...normalizeWebhook(templateStatusFixture("APPROVED")),
+      ...normalizeWebhook(templateQualityFixture("GREEN")),
+    ];
+
+    await processWebhookEvents(events);
+    await processWebhookEvents(events);
+
+    await expect(
+      prisma.whatsAppTemplate.findFirstOrThrow({
+        select: { status: true, qualityScore: true },
+      }),
+    ).resolves.toEqual({ status: "APPROVED", qualityScore: "GREEN" });
+    await expect(prisma.whatsAppTemplate.count()).resolves.toBe(1);
+    await expect(
+      prisma.webhookEvent.count({ where: { status: WebhookStatus.PROCESSED } }),
+    ).resolves.toBe(2);
+  });
 
   it("commits one inbound message and one deduplication event across retries", async () => {
     const events = normalizeWebhook(inboundTextFixture);

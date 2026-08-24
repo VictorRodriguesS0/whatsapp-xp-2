@@ -48,7 +48,7 @@ export const realtimeEventSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("contacts.synced"), revision: id }),
   z.strictObject({
     type: z.literal("settings.updated"),
-    scope: z.enum(["contact-types", "contact-tags"]),
+    scope: z.enum(["contact-types", "contact-tags", "whatsapp-policy"]),
   }),
 ]);
 
