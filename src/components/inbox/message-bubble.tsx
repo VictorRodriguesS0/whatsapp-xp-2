@@ -45,6 +45,7 @@ type MessageBubbleProps = {
   searchHighlighted?: boolean;
   onReply?: (message: InboxMessage) => void;
   onNavigateReply?: (messageId: string) => void;
+  onOpenMedia?: (messageId: string) => void;
   onRetry?: (id: string) => void;
   onReact?: (messageId: string, emoji: string) => unknown;
   onRetryReaction?: (messageId: string, reactionId: string) => unknown;
@@ -58,6 +59,7 @@ export function MessageBubble({
   searchHighlighted = false,
   onReply,
   onNavigateReply,
+  onOpenMedia,
   onRetry,
   onReact,
   onRetryReaction,
@@ -146,7 +148,7 @@ export function MessageBubble({
             />
           </div>
         ) : null}
-        <MessageMedia message={message} />
+        <MessageMedia message={message} onOpenMedia={onOpenMedia} />
         <MessageRichContent message={message} />
         {message.body ? <p className={cn("whitespace-pre-wrap break-words text-[var(--text)]", message.type !== "TEXT" && "mt-2")} data-reply-swipe-ignore="true">{message.body}</p> : null}
         <div className={cn("mt-1 flex items-center justify-end gap-1 text-[11px] tabular-nums", message.status === "FAILED" ? "text-[var(--danger)]" : "text-[var(--muted)]")} data-reply-swipe-ignore="true">

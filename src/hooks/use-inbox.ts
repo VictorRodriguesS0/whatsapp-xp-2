@@ -28,6 +28,7 @@ import { useMessageReactions } from "./use-message-reactions";
 export type InboxMessage = MessageDto & {
   previewUrl?: string;
   localFileName?: string;
+  localMimeType?: string;
 };
 
 export type InboxConversation = Omit<ConversationDetail, "messages"> & {
@@ -147,6 +148,7 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     createdAt: now,
     previewUrl: pending.kind === "media" ? pending.previewUrl : undefined,
     localFileName: pending.kind === "media" ? pending.file.name : undefined,
+    localMimeType: pending.kind === "media" ? pending.file.type : undefined,
   };
 }
 
@@ -303,6 +305,7 @@ function withPendingMedia(message: MessageDto, pending: PendingMedia): InboxMess
     ...message,
     previewUrl: pending.previewUrl,
     localFileName: pending.file.name,
+    localMimeType: pending.file.type,
   };
 }
 
