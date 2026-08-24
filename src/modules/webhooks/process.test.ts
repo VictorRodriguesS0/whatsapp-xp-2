@@ -74,6 +74,11 @@ type State = {
     sourceTimestamp: Date;
     sourceVersionKey: string;
   }>;
+  businessEchoReadAdvances: Array<{
+    conversationId: string;
+    messageId: string | null;
+    externalTimestamp: Date;
+  }>;
 };
 
 function cloneState(state: State): State {
@@ -84,6 +89,7 @@ function cloneState(state: State): State {
     messages: new Map(structuredClone([...state.messages])),
     media: new Map(structuredClone([...state.media])),
     appContacts: new Map(structuredClone([...state.appContacts])),
+    businessEchoReadAdvances: structuredClone(state.businessEchoReadAdvances),
   };
 }
 
@@ -95,6 +101,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     messages: new Map(),
     media: new Map(),
     appContacts: new Map(),
+    businessEchoReadAdvances: [],
   };
   let committed = false;
   const publications: Array<{ event: unknown; afterCommit: boolean }> = [];
@@ -272,6 +279,16 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
             ? (conversation.awaitingResponseSince ?? latest.externalTimestamp)
             : null;
       },
+      advanceTeamReadFromBusinessEcho: async (
+        conversationId,
+        boundary,
+      ) => {
+        target.businessEchoReadAdvances.push({
+          conversationId,
+          messageId: boundary.id,
+          externalTimestamp: boundary.externalTimestamp,
+        });
+      },
       updateMessageStatus: async (messageId, status, failureReason) => {
         const message = [...target.messages.values()].find(({ id }) => id === messageId);
         if (!message) throw new Error("missing message");
@@ -369,6 +386,13 @@ describe("webhook event processing", () => {
       body: "synthetic echo",
     });
     expect(harness.state.media).toHaveLength(0);
+    expect(harness.state.businessEchoReadAdvances).toEqual([
+      {
+        conversationId: "conversation-1",
+        messageId: "message-1",
+        externalTimestamp: echo.timestamp,
+      },
+    ]);
     expect(scheduled).toEqual([]);
     expect(harness.publications).toEqual([
       {

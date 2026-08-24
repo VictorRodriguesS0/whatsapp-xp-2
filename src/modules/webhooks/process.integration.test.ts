@@ -1359,11 +1359,21 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ]);
 
       const conversation = await prisma.conversation.findFirstOrThrow();
+      const inbound = await prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: "wamid.echo-order-inbound" },
+      });
+      const manualUnreadAt = new Date("2026-08-21T12:02:30.000Z");
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { manualUnreadAt },
+      });
       await expect(
         prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
       ).resolves.toMatchObject({
         lastMessageAt: inboundTimestamp,
         awaitingResponseSince: inboundTimestamp,
+        teamLastReadMessageId: null,
+        manualUnreadAt,
       });
 
       await processWebhookEvents([
@@ -1377,6 +1387,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ).resolves.toMatchObject({
         lastMessageAt: inboundTimestamp,
         awaitingResponseSince: inboundTimestamp,
+        teamLastReadMessageId: null,
+        manualUnreadAt,
       });
 
       const latestTimestamp = new Date("2026-08-21T12:03:00.000Z");
@@ -1391,7 +1403,21 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ).resolves.toMatchObject({
         lastMessageAt: latestTimestamp,
         awaitingResponseSince: null,
+        teamLastReadMessageId: inbound.id,
+        teamLastReadAt: inboundTimestamp,
+        manualUnreadAt,
       });
+      await expect(
+        prisma.conversationRead.count({ where: { conversationId: conversation.id } }),
+      ).resolves.toBe(0);
+      await expect(
+        prisma.whatsAppReadSync.count({ where: { conversationId: conversation.id } }),
+      ).resolves.toBe(0);
+      await expect(
+        prisma.conversationAuditEvent.count({
+          where: { conversationId: conversation.id },
+        }),
+      ).resolves.toBe(0);
     });
 
     it("reconciles contact reactions and removals without changing messages or response state", async () => {

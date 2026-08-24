@@ -11,9 +11,11 @@ import {
   type MessageStatus as MessageStatusValue,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import type { MessageBoundary } from "@/modules/conversations/boundary";
 import type { MessageContent } from "@/modules/messages/content";
 import { messageContentForPrisma } from "@/modules/messages/content.server";
 import {
+  advanceTeamReadFromBusinessEcho,
   compareBoundary,
   refreshResponseState,
 } from "@/modules/conversations/shared-state";
@@ -89,6 +91,10 @@ export type WebhookRepository = {
     externalTimestamp: Date;
   }): Promise<{ id: string; conversationId: string }>;
   refreshResponseState(conversationId: string): Promise<void>;
+  advanceTeamReadFromBusinessEcho(
+    conversationId: string,
+    echoBoundary: MessageBoundary,
+  ): Promise<void>;
   updateMessageStatus(
     messageId: string,
     status: NormalizedStatusEvent["status"],
@@ -697,6 +703,13 @@ export function createPrismaWebhookRepository(
     refreshResponseState(conversationId) {
       return refreshResponseState(client, conversationId);
     },
+    async advanceTeamReadFromBusinessEcho(conversationId, echoBoundary) {
+      await advanceTeamReadFromBusinessEcho(
+        client,
+        conversationId,
+        echoBoundary,
+      );
+    },
     updateMessageStatus(messageId, status, failureReason) {
       return client.message.update({
         where: { id: messageId },
@@ -1004,6 +1017,10 @@ async function processMessageEcho(
     externalTimestamp: event.timestamp,
   });
   await repository.refreshResponseState(conversation.id);
+  await repository.advanceTeamReadFromBusinessEcho(conversation.id, {
+    id: message.id,
+    externalTimestamp: event.timestamp,
+  });
   await repository.completeEvent(key);
 
   return {
