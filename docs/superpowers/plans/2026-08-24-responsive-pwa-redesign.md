@@ -777,17 +777,17 @@ git commit -m "feat: polish composer and contact inspector"
 - All administrative pages consume `SettingsPageShell` and keep authorization/behavior unchanged.
 - Login and public/error surfaces consume `AppBrand` and `ThemeMenu` without requiring authentication.
 
-- [ ] **Step 1: Write failing responsive users tests**
+- [x] **Step 1: Write failing responsive users tests**
 
 Require a table view with the existing columns and a mobile list/card view containing name, email, profile, status and all allowed actions. Assert both representations omit delete, the current admin cannot deactivate themself, and the mobile wrapper has no `min-w-[760px]`/`overflow-x-auto` contract.
 
-- [ ] **Step 2: Run the users suite and verify RED**
+- [x] **Step 2: Run the users suite and verify RED**
 
 Run: `npm test -- src/components/users/responsive-settings-list.test.tsx src/components/users/users-screen.test.tsx`
 
 Expected: new component missing and old horizontal table contract detected.
 
-- [ ] **Step 3: Implement `ResponsiveSettingsList`**
+- [x] **Step 3: Implement `ResponsiveSettingsList`**
 
 Render two synchronized semantic representations from the same user array and callbacks:
 
@@ -798,19 +798,19 @@ Render two synchronized semantic representations from the same user array and ca
 
 Cards place identity first, text status/profile second and labeled 44 px actions last. Avoid JS breakpoint state so dialogs and mutations survive rotation/resizing.
 
-- [ ] **Step 4: Adopt the shared settings shell**
+- [x] **Step 4: Adopt the shared settings shell**
 
 Migrate Users, Classifications, Quick Replies and Meta Health to `SettingsPageShell`. Keep every route-specific action, error message, focus return, live toast and permission restriction. Convert centered dialogs to `.modal-dialog` and ensure action rows stack below 390 px.
 
-- [ ] **Step 5: Redesign login without changing authentication**
+- [x] **Step 5: Redesign login without changing authentication**
 
 Use a two-area composition above 900 px and one compact card below it. Include the local XP symbol/wordmark, a restrained brand gradient, an operational value statement, theme menu and existing legal links. The form keeps the same labels, autocomplete, submit behavior and public error handling. On error, move focus to the alert or first invalid field without clearing typed email.
 
-- [ ] **Step 6: Bring public/legal/error/loading states into the same system**
+- [x] **Step 6: Bring public/legal/error/loading states into the same system**
 
 Replace hard-coded top borders and neutral slabs with shared brand/surface tokens, local brand, theme control where appropriate and responsive padding. Do not reveal error objects. Loading states use geometry-compatible skeletons or the existing named spinner, never unlabeled animation.
 
-- [ ] **Step 7: Run all non-inbox frontend tests and commit**
+- [x] **Step 7: Run all non-inbox frontend tests and commit**
 
 Run:
 
