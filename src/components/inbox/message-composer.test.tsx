@@ -1,5 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
@@ -62,6 +64,26 @@ describe("MessageComposer", () => {
     recorder.error = null;
     vi.clearAllMocks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [] }, error: null })));
+  });
+
+  it("keeps the composer keyboard-safe with stable safe-area and compact-width hooks", () => {
+    const { container } = render(<MessageComposer {...props()} />);
+    const composer = screen.getByTestId("message-composer");
+    const styles = readFileSync(join(process.cwd(), "src", "app", "globals.css"), "utf8");
+
+    expect(composer).toHaveClass("message-composer", "relative");
+    expect(composer.querySelector(".message-composer__row")).toBeTruthy();
+    expect(screen.getByLabelText("Mensagem")).toHaveClass(
+      "message-composer__field",
+      "min-w-0",
+      "bg-[var(--surface-elevated)]",
+    );
+    expect(screen.getByRole("button", { name: "Anexar arquivo" })).toHaveClass("min-h-11", "min-w-11");
+    expect(screen.getByRole("button", { name: "Gravar áudio" })).toHaveClass("min-h-11", "min-w-11");
+    expect(styles).toContain(".message-composer {");
+    expect(styles).toContain("env(safe-area-inset-bottom)");
+    expect(styles).toContain(".message-composer__field { min-width: 0;");
+    expect(container.querySelector(".message-composer__state")).toBeNull();
   });
 
   it("filters shared quick replies and inserts the selected text without sending", async () => {
@@ -229,6 +251,7 @@ describe("MessageComposer", () => {
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     fireEvent.change(input, { target: { files: [new File(["pdf"], "pedido.pdf", { type: "application/pdf" })] } });
     expect(screen.getByText("pedido.pdf")).toBeVisible();
+    expect(container.querySelector(".message-composer__state")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Gravar áudio" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remover anexo" }));
     expect(screen.queryByText("pedido.pdf")).not.toBeInTheDocument();

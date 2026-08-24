@@ -313,6 +313,8 @@ describe("InboxShell", () => {
 
     await userEventController.click(trigger);
     expect(screen.getByRole("dialog", { name: "Dados do cliente" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Dados do cliente" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Fechar" })).toHaveClass("min-h-11", "min-w-11");
     await userEventController.keyboard("{Escape}");
 
     await waitFor(() => expect(trigger).toHaveFocus());

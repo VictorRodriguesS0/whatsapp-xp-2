@@ -75,16 +75,17 @@ export function CustomerPanel({
 
   return (
     <div className="p-5">
-      <div className="flex items-center gap-3 border-b border-[var(--border)] pb-5">
+      <header className="flex items-start gap-3 border-b border-[var(--border)] pb-5">
         <Avatar className="size-12">
           {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
           <AvatarFallback>{initials(conversation.contact.name)}</AvatarFallback>
         </Avatar>
         <div className="min-w-0">
-          <h2 className="truncate text-base font-bold text-[var(--text)]">{conversation.contact.name}</h2>
-          <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--muted)]"><Phone aria-hidden="true" className="size-3.5" />{conversation.contact.phone}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">XP Atendimento</p>
+          <h2 className="mt-1 break-words text-base font-bold text-[var(--text)]">{conversation.contact.name}</h2>
+          <p aria-label={`Telefone de ${conversation.contact.name}`} className="mt-1 flex min-w-0 items-start gap-1.5 break-all text-sm text-[var(--muted)]"><Phone aria-hidden="true" className="mt-0.5 size-3.5 shrink-0" /><span>{conversation.contact.phone}</span></p>
         </div>
-      </div>
+      </header>
 
       <ContactTypeSelector
         availableTypes={availableTypes}

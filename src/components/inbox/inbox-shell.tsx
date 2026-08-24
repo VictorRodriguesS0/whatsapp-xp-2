@@ -66,6 +66,27 @@ export function InboxShell({
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
     ? inbox.conversation
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
+  const customerPanelProps = {
+    availableTags: inbox.contactTags,
+    availableTypes: inbox.contactTypes,
+    conversation: selectedListItem,
+    currentUserId: initialUser.id,
+    onRetryTags: () => void inbox.loadContactTags(),
+    onRetryTypes: () => void inbox.loadContactTypes(),
+    onSaveTags: inbox.replaceContactTags,
+    onSetContactType: inbox.setContactType,
+    onSetResponsible: (id: string | null) => void inbox.setResponsible(id),
+    pending: inbox.responsiblePending,
+    tagSaveError: inbox.contactTagSaveError,
+    tagSavePending: inbox.contactTagSavePendingId === selectedListItem?.contact.id,
+    tagsError: inbox.contactTagsError,
+    tagsLoading: inbox.contactTagsLoading,
+    typeSaveError: inbox.contactTypeSaveError,
+    typeSavePending: inbox.contactTypeSavePendingId === selectedListItem?.contact.id,
+    typesError: inbox.contactTypesError,
+    typesLoading: inbox.contactTypesLoading,
+    users: inbox.users,
+  };
   const selectedId = inbox.selectedId;
   const closeConversation = inbox.closeConversation;
   const isMobile = useMediaQuery("(max-width: 767px)");
@@ -279,27 +300,7 @@ export function InboxShell({
           </section>
 
           <aside aria-label="Dados do cliente" className="customer-pane min-h-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]">
-            <CustomerPanel
-              availableTags={inbox.contactTags}
-              availableTypes={inbox.contactTypes}
-              conversation={selectedListItem}
-              currentUserId={initialUser.id}
-              onRetryTags={() => void inbox.loadContactTags()}
-              onRetryTypes={() => void inbox.loadContactTypes()}
-              onSaveTags={inbox.replaceContactTags}
-              onSetContactType={inbox.setContactType}
-              onSetResponsible={(id) => void inbox.setResponsible(id)}
-              pending={inbox.responsiblePending}
-              tagSaveError={inbox.contactTagSaveError}
-              tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
-              tagsError={inbox.contactTagsError}
-              tagsLoading={inbox.contactTagsLoading}
-              typeSaveError={inbox.contactTypeSaveError}
-              typeSavePending={inbox.contactTypeSavePendingId === selectedListItem?.contact.id}
-              typesError={inbox.contactTypesError}
-              typesLoading={inbox.contactTypesLoading}
-              users={inbox.users}
-            />
+            <CustomerPanel {...customerPanelProps} />
           </aside>
         </div>
       </div>
@@ -320,27 +321,7 @@ export function InboxShell({
         >
           <DialogTitle className="pr-12 text-lg font-bold text-[var(--text)]">Dados do cliente</DialogTitle>
           <DialogDescription className="sr-only">Contato e responsável pela conversa selecionada.</DialogDescription>
-          <CustomerPanel
-            availableTags={inbox.contactTags}
-            availableTypes={inbox.contactTypes}
-            conversation={selectedListItem}
-            currentUserId={initialUser.id}
-            onRetryTags={() => void inbox.loadContactTags()}
-            onRetryTypes={() => void inbox.loadContactTypes()}
-            onSaveTags={inbox.replaceContactTags}
-            onSetContactType={inbox.setContactType}
-            onSetResponsible={(id) => void inbox.setResponsible(id)}
-            pending={inbox.responsiblePending}
-            tagSaveError={inbox.contactTagSaveError}
-            tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
-            tagsError={inbox.contactTagsError}
-            tagsLoading={inbox.contactTagsLoading}
-            typeSaveError={inbox.contactTypeSaveError}
-            typeSavePending={inbox.contactTypeSavePendingId === selectedListItem?.contact.id}
-            typesError={inbox.contactTypesError}
-            typesLoading={inbox.contactTypesLoading}
-            users={inbox.users}
-          />
+          <CustomerPanel {...customerPanelProps} />
         </DialogContent>
       </Dialog>
     </main>
