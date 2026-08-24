@@ -140,7 +140,6 @@ export function ConversationList({
           <li className="conversation-list-item group relative" key={item.id}>
             <button
               aria-current={selected ? "true" : undefined}
-              aria-label={`Abrir conversa com ${item.contact.name}`}
               className={cn(
                 "min-h-11 w-full py-2.5 pl-4 pr-16 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] motion-reduce:transition-none",
                 selected && "bg-[var(--selected)]",
@@ -150,8 +149,9 @@ export function ConversationList({
               ref={(element) => onButtonRef?.(item.id, element)}
               type="button"
             >
+              <span className="sr-only">Abrir conversa com </span>
               <span className="flex min-w-0 items-start gap-3">
-                <Avatar>
+                <Avatar aria-hidden="true">
                   {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
                   <AvatarFallback>{initials(item.contact.name)}</AvatarFallback>
                 </Avatar>

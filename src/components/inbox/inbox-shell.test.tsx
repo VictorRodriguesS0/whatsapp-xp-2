@@ -219,7 +219,7 @@ describe("InboxShell", () => {
       },
     });
     render(<InboxShell initialUser={user} />);
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ }));
     const moreTrigger = screen.getByRole("button", { name: "Mais opções" });
 
     await userEventController.click(moreTrigger);
@@ -295,7 +295,7 @@ describe("InboxShell", () => {
     vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 767px)" })));
     const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
     render(<InboxShell initialUser={user} />);
-    const conversationButton = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
+    const conversationButton = screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ });
     fireEvent.click(conversationButton);
     expect(screen.getByTestId("inbox-shell")).toHaveAttribute("data-mobile-view", "thread");
     await waitFor(() => expect(screen.getByRole("heading", { name: "Conversa" })).toHaveFocus());
@@ -312,7 +312,7 @@ describe("InboxShell", () => {
   it("does not move focus away from the conversation button on desktop", async () => {
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false }));
     render(<InboxShell initialUser={user} />);
-    const conversationButton = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
+    const conversationButton = screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ });
     conversationButton.focus();
 
     fireEvent.click(conversationButton);
@@ -397,7 +397,7 @@ describe("InboxShell", () => {
       },
     });
     render(<InboxShell initialUser={user} />);
-    const row = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
+    const row = screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ });
 
     fireEvent.keyDown(window, { key: "Escape" });
 
@@ -484,7 +484,7 @@ describe("InboxShell", () => {
       },
     });
     render(<InboxShell initialUser={user} />);
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ }));
     expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
 
     fireEvent.click(screen.getByRole("button", { name: "Abrir dados do cliente" }));
@@ -521,7 +521,7 @@ describe("InboxShell", () => {
 
     fireEvent(window, new PopStateEvent("popstate", { state: null }));
     expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ }));
 
     expect(pushState).toHaveBeenCalledOnce();
     expect(replaceState).not.toHaveBeenCalledWith(
@@ -579,7 +579,7 @@ describe("InboxShell", () => {
     await userEventController.click(screen.getByRole("option", { name: "Cliente" }));
     expect(defaultInbox.setContactType).toHaveBeenCalledWith("contact-id", "type-id");
 
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ }));
     await userEventController.click(screen.getByRole("button", { name: "Abrir dados do cliente" }));
     const dialog = await screen.findByRole("dialog", { name: "Dados do cliente" });
     await userEventController.click(
@@ -665,7 +665,7 @@ describe("InboxShell", () => {
 
     expect(conversationPane).not.toHaveAttribute("inert");
     expect(threadPane).toHaveAttribute("inert");
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    fireEvent.click(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ }));
     expect(shell).toHaveAttribute("data-mobile-view", "thread");
     expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
     expect(conversationPane).toHaveAttribute("inert");
@@ -679,7 +679,7 @@ describe("InboxShell", () => {
     await waitFor(() => expect(threadPane).not.toHaveAttribute("inert"));
     expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 767px)");
     expect(conversationPane).not.toHaveAttribute("inert");
-    expect(screen.getByRole("button", { name: "Abrir conversa com Carlos" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ })).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
     expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
     vi.unstubAllGlobals();

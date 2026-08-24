@@ -58,6 +58,14 @@ const richPreviewCases: Array<[
 ];
 
 describe("ConversationList", () => {
+  it("keeps all visible row text inside the button's accessible name", () => {
+    render(<ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} />);
+
+    const row = screen.getByRole("button", { name: /Carlos Lima/i });
+    expect(row).not.toHaveAttribute("aria-label");
+    expect(row).toHaveAccessibleName(/Vocês têm esse modelo em estoque\?/i);
+  });
+
   it("shows one distinct contact type without disturbing queue indicators", () => {
     const { rerender } = render(
       <ConversationList
