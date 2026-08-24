@@ -218,7 +218,7 @@ function DefinitionForm({
       <div className="flex flex-col-reverse gap-2 border-t border-[var(--border)] pt-4 sm:flex-row sm:justify-end">
         <Button disabled={busy} onClick={onCancel} variant="secondary">Cancelar</Button>
         <Button disabled={busy} type="submit">
-          {busy ? <Spinner className="text-white" label="Salvando" /> : dialog.mode === "create" ? kindCopy[dialog.kind].createSubmit : "Salvar alterações"}
+          {busy ? <Spinner className="text-[var(--primary-foreground)]" label="Salvando" /> : dialog.mode === "create" ? kindCopy[dialog.kind].createSubmit : "Salvar alterações"}
         </Button>
       </div>
     </form>

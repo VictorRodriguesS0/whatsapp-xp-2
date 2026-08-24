@@ -50,7 +50,7 @@ export function LoginForm() {
         <Input autoComplete="current-password" disabled={loading} id="password" name="password" required type="password" />
       </div>
       {error ? <p className="rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2 text-sm text-[var(--danger)]" ref={errorRef} role="alert" tabIndex={-1}>{error}</p> : null}
-      <Button className="w-full" disabled={loading} type="submit">{loading ? <Spinner className="text-white" label="Entrando" /> : "Entrar"}</Button>
+      <Button className="w-full" disabled={loading} type="submit">{loading ? <Spinner className="text-[var(--primary-foreground)]" label="Entrando" /> : "Entrar"}</Button>
     </form>
   );
 }

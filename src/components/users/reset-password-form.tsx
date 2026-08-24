@@ -56,7 +56,7 @@ export function ResetPasswordForm({ busy = false, onSubmit }: { busy?: boolean; 
         {errors.confirmation ? <p className="mt-1.5 text-sm text-[var(--danger)]" id="confirm-password-error" role="alert">{errors.confirmation}</p> : null}
       </div>
       <div className="flex justify-end border-t border-[var(--border)] pt-4">
-        <Button disabled={busy} type="submit">{busy ? <Spinner className="text-white" label="Redefinindo" /> : "Redefinir senha"}</Button>
+        <Button disabled={busy} type="submit">{busy ? <Spinner className="text-[var(--primary-foreground)]" label="Redefinindo" /> : "Redefinir senha"}</Button>
       </div>
     </form>
   );

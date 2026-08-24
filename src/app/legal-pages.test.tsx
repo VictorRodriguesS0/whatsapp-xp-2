@@ -61,9 +61,15 @@ describe("public legal pages", () => {
     expect(screen.getByText(/excluídos ou anonimizados/i)).toBeInTheDocument();
     expect(screen.getByText(/obrigação legal/i)).toBeInTheDocument();
     expect(screen.getByText("Comunicaremos o resultado da solicitação pelo mesmo canal.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Enviar solicitação pelo WhatsApp" })).toHaveAttribute(
+    const requestLink = screen.getByRole("link", { name: "Enviar solicitação pelo WhatsApp" });
+    expect(requestLink).toHaveAttribute(
       "href",
       "https://wa.me/556195149019?text=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados",
+    );
+    expect(requestLink).toHaveClass(
+      "bg-[var(--primary)]",
+      "text-[var(--primary-foreground)]",
+      "hover:bg-[var(--primary-hover)]",
     );
     expect(screen.getByRole("link", { name: "Ler a Política de Privacidade" })).toHaveAttribute(
       "href",

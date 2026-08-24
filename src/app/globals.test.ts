@@ -94,3 +94,32 @@ describe("public login responsive stylesheet", () => {
     expect(declarationValue(layout, "grid-template-columns")).toBe("minmax(0, 1.15fr) minmax(22rem, 0.85fr)");
   });
 });
+
+describe("semantic button contrast", () => {
+  it.each([
+    ["light", ':root[data-theme="light"]'],
+    ["dark", ':root[data-theme="dark"]'],
+  ])("keeps actual foreground text readable over normal and hover backgrounds in the %s theme", (_theme, selector) => {
+    const root = postcss.parse(stylesheet);
+    const theme = root.nodes?.find(
+      (node): node is Rule => node.type === "rule" && node.selector.includes(selector),
+    );
+
+    expect(theme).toBeDefined();
+    if (!theme) return;
+    for (const variant of ["primary", "destructive"]) {
+      const foregroundToken = `--${variant}-foreground`;
+      const foreground = declarationValue(theme, foregroundToken) ?? "";
+      expect(foreground, `${foregroundToken} must be an explicit color`).toMatch(/^#[0-9a-f]{6}$/i);
+
+      for (const backgroundToken of [`--${variant}`, `--${variant}-hover`]) {
+        const background = declarationValue(theme, backgroundToken) ?? "";
+        expect(background, `${backgroundToken} must be an explicit color`).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(
+          contrastRatio(foreground, background),
+          `${foregroundToken} text over ${backgroundToken} background`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+});

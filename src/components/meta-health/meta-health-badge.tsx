@@ -28,7 +28,7 @@ export function MetaHealthBadge({ initialSummary }: { initialSummary: MetaHealth
       <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", current.dot)} />
       <span className="whitespace-nowrap">{current.text}</span>
       {count > 0 ? (
-        <span aria-hidden="true" className="inline-flex min-w-4 items-center justify-center rounded-full bg-[var(--text)] px-1 text-[10px] leading-4 text-white">
+        <span aria-hidden="true" className="inline-flex min-w-4 items-center justify-center rounded-full bg-[var(--text)] px-1 text-[10px] leading-4 text-[var(--canvas)]">
           {count > 99 ? "99+" : count}
         </span>
       ) : null}
