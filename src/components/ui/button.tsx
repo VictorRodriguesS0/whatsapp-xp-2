@@ -21,10 +21,10 @@ export function Button({
   return (
     <Component
       className={cn(
-        "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-md px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--panel)] disabled:pointer-events-none disabled:opacity-55",
+        "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--surface)] disabled:pointer-events-none disabled:opacity-55",
         variant === "primary" && "bg-[var(--accent)] text-white hover:bg-[var(--accent-hover)]",
-        variant === "secondary" && "border border-[var(--border)] bg-[var(--panel)] text-[var(--text)] hover:bg-[var(--canvas)]",
-        variant === "ghost" && "text-[var(--muted)] hover:bg-[var(--canvas)] hover:text-[var(--text)]",
+        variant === "secondary" && "border border-[var(--border)] bg-[var(--surface-elevated)] text-[var(--text)] hover:bg-[var(--surface)]",
+        variant === "ghost" && "text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--text)]",
         variant === "danger" && "bg-[var(--danger)] text-white hover:bg-[var(--danger-hover)]",
         size === "icon" && "w-11 px-0",
         size === "small" && "px-3 text-xs",
