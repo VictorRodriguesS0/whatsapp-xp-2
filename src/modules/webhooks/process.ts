@@ -24,12 +24,14 @@ import {
   reconcileReplyLinks,
 } from "@/modules/messages/reply-linking.server";
 import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
+import { applyMetaOperationalEvent } from "@/modules/meta-health/service";
 
 import type {
   NormalizedMedia,
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
@@ -117,6 +119,7 @@ export type WebhookProcessDependencies = {
     errorSummary: string,
   ): Promise<void>;
   publishRealtime(event: RealtimeEvent): void;
+  applyMetaOperationalEvent(event: NormalizedMetaOperationalEvent): Promise<void>;
   now?(): Date;
 };
 
@@ -785,6 +788,7 @@ const defaultDependencies: WebhookProcessDependencies = {
       });
     }),
   publishRealtime,
+  applyMetaOperationalEvent,
 };
 
 function deduplicationKey(
@@ -803,6 +807,8 @@ function deduplicationKey(
       return `reaction:${event.whatsappMessageId}`;
     case "reactionEcho":
       return `reaction-echo:${event.whatsappMessageId}`;
+    case "metaOperational":
+      return event.deduplicationKey;
   }
 }
 
@@ -1066,7 +1072,27 @@ export async function processWebhookEvents(
     };
 
     try {
-      outcome = await dependencies.transaction(async (repository) => {
+      if (event.kind === "metaOperational") {
+        const reservation = await dependencies.transaction((repository) =>
+          repository.reserveEvent(key, event.kind),
+        );
+        if (reservation === WebhookStatus.PROCESSED) {
+          outcome = { duplicate: true, realtime: [], pendingMediaId: null };
+        } else {
+          if (reservation === WebhookStatus.PROCESSING) {
+            throw new WebhookProcessingError(true, false);
+          }
+          await dependencies.applyMetaOperationalEvent(event);
+          await dependencies.transaction(async (repository) => {
+            await repository.completeEvent(key);
+          });
+          outcome = {
+            duplicate: false,
+            realtime: [{ type: "meta-health.updated" }],
+            pendingMediaId: null,
+          };
+        }
+      } else outcome = await dependencies.transaction(async (repository) => {
         const reservation = await repository.reserveEvent(key, event.kind);
 
         if (reservation === WebhookStatus.PROCESSED) {

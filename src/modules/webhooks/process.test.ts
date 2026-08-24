@@ -12,6 +12,7 @@ import {
   inboundLocationFixture,
   inboundMediaFixture,
   inboundTextFixture,
+  phoneQualityFixture,
   statusFixture,
 } from "@/test/fixtures/meta-webhooks";
 import { resetTestDatabase } from "@/test/database";
@@ -89,6 +90,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
   };
   let committed = false;
   const publications: Array<{ event: unknown; afterCommit: boolean }> = [];
+  const operationalApplications: unknown[] = [];
 
   function repositoryFor(target: State): WebhookRepository {
     return {
@@ -276,6 +278,9 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       });
     },
     publishRealtime: (event) => publications.push({ event, afterCommit: committed }),
+    applyMetaOperationalEvent: async (event) => {
+      operationalApplications.push(event);
+    },
   };
 
   return {
@@ -284,6 +289,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       return state;
     },
     publications,
+    operationalApplications,
   };
 }
 
@@ -675,6 +681,37 @@ describe("webhook event processing", () => {
     expect(harness.state.messages.get("wamid.racing")?.status).toBe(MessageStatus.DELIVERED);
     expect(harness.state.events.get(`status:wamid.racing:DELIVERED:${timestamp}`)?.status)
       .toBe(WebhookStatus.PROCESSED);
+  });
+
+  it("persists and publishes a new operational event, then counts its duplicate", async () => {
+    const harness = createHarness();
+    const events = normalizeWebhook(phoneQualityFixture());
+
+    await expect(processWebhookEvents(events, harness.dependencies)).resolves.toEqual({
+      processed: 1,
+      duplicates: 0,
+    });
+    await expect(processWebhookEvents(events, harness.dependencies)).resolves.toEqual({
+      processed: 0,
+      duplicates: 1,
+    });
+    expect(harness.operationalApplications).toHaveLength(1);
+    expect(harness.publications).toContainEqual({
+      event: { type: "meta-health.updated" },
+      afterCommit: true,
+    });
+  });
+
+  it("processes a message and an operational update from the same normalized batch", async () => {
+    const harness = createHarness();
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry.push(phoneQualityFixture().entry[0]);
+
+    await expect(
+      processWebhookEvents(normalizeWebhook(payload), harness.dependencies),
+    ).resolves.toEqual({ processed: 2, duplicates: 0 });
+    expect(harness.state.messages.has("wamid.text-1")).toBe(true);
+    expect(harness.operationalApplications).toHaveLength(1);
   });
 });
 

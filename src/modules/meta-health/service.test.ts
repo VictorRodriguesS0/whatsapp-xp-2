@@ -14,6 +14,7 @@ import type {
 } from "./repository";
 import {
   acknowledgeMetaAlert,
+  applyMetaOperationalEvent,
   getMetaHealthSummary,
   syncMetaHealth,
 } from "./service";
@@ -153,6 +154,7 @@ function createMemoryMetaHealthRepository(
       return true;
     },
     async applyOperationalEvent(input) {
+      Object.assign(snapshot, input.snapshotPatch);
       apply(input.transition);
     },
     async listAlerts() {
@@ -298,5 +300,30 @@ describe("Meta health reconciliation service", () => {
       now: () => new Date(start.getTime() + 60_000),
     });
     expect(second.acknowledgedAt).toBe(first.acknowledgedAt);
+  });
+
+  it("applies a deduplicated webhook transition and updates the snapshot", async () => {
+    const repository = createMemoryMetaHealthRepository();
+    const event = {
+      wabaId: "waba-1",
+      field: "account_update" as const,
+      eventCode: "DISABLED_UPDATE",
+      resourceId: "waba-1",
+      occurredAt: start,
+      details: { currentLimit: "TIER_10K" },
+      deduplicationKey: "meta:stable-webhook-key",
+    };
+    await applyMetaOperationalEvent(event, { repository, config });
+    await applyMetaOperationalEvent(event, { repository, config });
+    expect(repository.snapshot).toMatchObject({
+      accountEvent: "DISABLED_UPDATE",
+      messagingLimit: "TIER_10K",
+    });
+    expect(repository.alerts).toHaveLength(1);
+    expect(repository.alerts[0]).toMatchObject({
+      source: "WEBHOOK",
+      eventCode: "ACCOUNT_DISABLED",
+      severity: "CRITICAL",
+    });
   });
 });

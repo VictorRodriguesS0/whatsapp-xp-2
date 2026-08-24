@@ -20,4 +20,13 @@ describe("reaction realtime events", () => {
       emoji: "secret-extra-field",
     })).toThrow();
   });
+
+  it("accepts only the empty Meta health invalidation event", () => {
+    expect(realtimeEventSchema.parse({ type: "meta-health.updated" })).toEqual({
+      type: "meta-health.updated",
+    });
+    expect(() =>
+      realtimeEventSchema.parse({ type: "meta-health.updated", payload: "private" }),
+    ).toThrow();
+  });
 });

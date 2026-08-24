@@ -187,6 +187,9 @@ function transactionDependencies(
       throw new Error("unexpected quarantineEvent");
     },
     publishRealtime: (event) => realtime.push(event),
+    applyMetaOperationalEvent: async () => {
+      throw new Error("unexpected Meta operational event");
+    },
   };
 }
 

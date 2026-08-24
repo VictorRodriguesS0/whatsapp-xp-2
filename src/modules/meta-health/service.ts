@@ -324,3 +324,61 @@ export async function syncMetaHealth(
     return { status: "SYNCED", success: false };
   }
 }
+
+export type MetaOperationalEventInput = {
+  wabaId: string;
+  field: MetaOperationalField;
+  eventCode: string;
+  resourceId: string | null;
+  occurredAt: Date;
+  details: Record<string, string | null> | null;
+  deduplicationKey: string;
+};
+
+export async function applyMetaOperationalEvent(
+  event: MetaOperationalEventInput,
+  dependencies: Pick<BaseDependencies, "repository" | "config"> = {},
+): Promise<void> {
+  const repository = dependencies.repository ?? prismaMetaHealthRepository;
+  const config = dependencies.config ?? defaultConfig();
+  if (event.wabaId !== config.wabaId) {
+    throw new HttpError(422, "Conta da Meta não corresponde à integração configurada");
+  }
+
+  const description = describeMetaTransition(event.field, event.eventCode);
+  const snapshotPatch: Parameters<MetaHealthRepository["applyOperationalEvent"]>[0]["snapshotPatch"] = {};
+  if (event.field === "account_update") {
+    snapshotPatch.accountEvent = event.eventCode;
+    snapshotPatch.messagingLimit = event.details?.currentLimit ?? null;
+  } else if (event.field === "account_review_update") {
+    snapshotPatch.accountReviewStatus = event.eventCode;
+  } else if (event.field === "phone_number_quality_update") {
+    snapshotPatch.displayPhoneNumber = event.details?.displayPhoneNumber ?? null;
+    snapshotPatch.messagingLimit = event.details?.currentLimit ?? null;
+  } else if (event.field === "phone_number_name_update") {
+    snapshotPatch.displayPhoneNumber = event.details?.displayPhoneNumber ?? null;
+    if (event.eventCode === "APPROVED") {
+      snapshotPatch.verifiedName = event.details?.requestedVerifiedName ?? null;
+    }
+  }
+
+  await repository.applyOperationalEvent({
+    phoneNumberId: config.phoneNumberId,
+    wabaId: config.wabaId,
+    snapshotPatch,
+    transition: {
+      deduplicationKey: event.deduplicationKey,
+      category: description.category,
+      severity: description.severity,
+      source: "WEBHOOK",
+      sourceField: event.field,
+      eventCode: description.alertCode,
+      resourceId: event.resourceId,
+      summary: description.summary,
+      details: event.details,
+      occurredAt: event.occurredAt,
+      active: description.active,
+      resolvesCodes: description.resolvesCodes,
+    },
+  });
+}

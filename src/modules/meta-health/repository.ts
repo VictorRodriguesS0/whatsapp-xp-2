@@ -97,6 +97,16 @@ export type MetaHealthRepository = {
     phoneNumberId: string;
     wabaId: string;
     transition: MetaTransitionInput;
+    snapshotPatch?: Partial<
+      Pick<
+        MetaHealthSnapshotRecord,
+        | "displayPhoneNumber"
+        | "verifiedName"
+        | "accountReviewStatus"
+        | "accountEvent"
+        | "messagingLimit"
+      >
+    >;
   }): Promise<void>;
   listAlerts(snapshotId: string, input: MetaAlertListInput): Promise<{
     alerts: MetaAlertRecord[];
@@ -312,9 +322,22 @@ export const prismaMetaHealthRepository: MetaHealthRepository = {
     return updated.count === 1;
   },
 
-  async applyOperationalEvent({ phoneNumberId, wabaId, transition }) {
-    const snapshot = await this.ensureSnapshot(phoneNumberId, wabaId);
-    await serializable((transaction) => applyTransition(transaction, snapshot.id, transition));
+  async applyOperationalEvent({ phoneNumberId, wabaId, transition, snapshotPatch }) {
+    const snapshot = await prisma.metaHealthSnapshot.upsert({
+      where: { phoneNumberId },
+      create: { phoneNumberId, wabaId },
+      update: { wabaId },
+      select: { id: true },
+    });
+    await serializable(async (transaction) => {
+      if (snapshotPatch && Object.keys(snapshotPatch).length > 0) {
+        await transaction.metaHealthSnapshot.update({
+          where: { id: snapshot.id },
+          data: snapshotPatch,
+        });
+      }
+      await applyTransition(transaction, snapshot.id, transition);
+    });
   },
 
   async listAlerts(snapshotId, input) {

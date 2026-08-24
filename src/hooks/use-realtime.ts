@@ -40,6 +40,7 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
   };
   if (typeof event.type !== "string") return false;
   if (event.type === "user.updated") return typeof event.userId === "string";
+  if (event.type === "meta-health.updated") return true;
   if (event.type === "conversation.merged") {
     return (
       typeof event.sourceConversationId === "string" &&
