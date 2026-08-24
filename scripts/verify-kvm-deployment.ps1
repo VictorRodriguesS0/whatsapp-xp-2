@@ -3,6 +3,19 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $composePath = Join-Path $root "deploy/kvm/docker-compose.yml"
 $caddyPath = Join-Path $root "deploy/caddy/whatsapp.xpeletronicos.com.caddy"
+$dockerfilePath = Join-Path $root "Dockerfile"
+$envExamplePath = Join-Path $root ".env.example"
+$metaCredentialPolicy = "Meta credentials must remain server-only"
+$metaServerEnvironment = @(
+    "META_APP_ID",
+    "META_APP_SECRET",
+    "WHATSAPP_PHONE_NUMBER_ID",
+    "WHATSAPP_BUSINESS_ACCOUNT_ID",
+    "WHATSAPP_ACCESS_TOKEN",
+    "WHATSAPP_VERIFY_TOKEN"
+)
+$sensitiveClientNamePattern = "(?i)NEXT_PUBLIC_[A-Z0-9_]*(?:TOKEN|SECRET|BUSINESS_ACCOUNT|PHONE_NUMBER_ID|VERIFY|APP_ID)"
+$sensitiveBuildNamePattern = "(?i)(?:TOKEN|SECRET|BUSINESS_ACCOUNT|PHONE_NUMBER_ID|VERIFY|APP_ID)"
 
 function Assert-True {
     param(
@@ -17,6 +30,20 @@ function Assert-True {
 
 Assert-True (Test-Path -LiteralPath $composePath -PathType Leaf) "Compose isolado da KVM ausente."
 Assert-True (Test-Path -LiteralPath $caddyPath -PathType Leaf) "Site do Caddy para o WhatsApp ausente."
+Assert-True (Test-Path -LiteralPath $dockerfilePath -PathType Leaf) "Dockerfile da release ausente."
+Assert-True (Test-Path -LiteralPath $envExamplePath -PathType Leaf) "Exemplo de ambiente da release ausente."
+
+$composeSource = (Get-Content -Raw -LiteralPath $composePath).Replace("`r`n", "`n")
+$dockerfile = (Get-Content -Raw -LiteralPath $dockerfilePath).Replace("`r`n", "`n")
+$envExample = (Get-Content -Raw -LiteralPath $envExamplePath).Replace("`r`n", "`n")
+Assert-True ($composeSource -notmatch "(?m)^\s+$sensitiveClientNamePattern") "$metaCredentialPolicy; o Compose KVM não pode publicar nomes sensíveis no navegador."
+Assert-True ($dockerfile -notmatch "(?im)^\s*ARG\s+[A-Z0-9_]*$sensitiveBuildNamePattern") "$metaCredentialPolicy; credenciais não podem entrar por ARG do Dockerfile."
+Assert-True ($envExample -notmatch "(?m)^$sensitiveClientNamePattern") "$metaCredentialPolicy; o exemplo não pode declarar credencial NEXT_PUBLIC_."
+foreach ($variable in $metaServerEnvironment) {
+    $mappingPattern = ('(?m)^\s{{6}}{0}:\s*\$\{{{0}:-\}}\s*$' -f [regex]::Escape($variable))
+    Assert-True ($composeSource -match $mappingPattern) "$metaCredentialPolicy; variável server-only ausente do Compose KVM: $variable."
+    Assert-True ($envExample -match ('(?m)^{0}=$' -f [regex]::Escape($variable))) "$metaCredentialPolicy; variável vazia ausente do exemplo: $variable."
+}
 
 $previousEnvironment = @{}
 $testEnvironment = @{
@@ -46,6 +73,14 @@ Assert-True (($serviceNames -join ",") -eq "app,database") "A KVM deve criar som
 
 $app = $config.services.app
 $database = $config.services.database
+foreach ($variable in $metaServerEnvironment) {
+    Assert-True ($null -ne $app.environment.PSObject.Properties[$variable]) "$metaCredentialPolicy; variável server-only ausente do ambiente KVM resolvido: $variable."
+}
+$publicSensitiveVariables = @(
+    $app.environment.PSObject.Properties.Name |
+        Where-Object { $_ -match "^$sensitiveClientNamePattern" }
+)
+Assert-True ($publicSensitiveVariables.Count -eq 0) "$metaCredentialPolicy; o ambiente KVM resolvido contém credencial NEXT_PUBLIC_."
 Assert-True ($app.image -eq "xp-whatsapp:test-immutable") "O app deve usar imagem pré-construída e imutável."
 Assert-True ($null -eq $app.build) "A KVM não pode compilar a aplicação."
 Assert-True ($app.user -eq "1001:1001") "O app deve executar explicitamente sem root."

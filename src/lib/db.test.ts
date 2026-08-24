@@ -95,7 +95,31 @@ describe("database", () => {
       ORDER BY table_name, column_name
     `;
 
-    expect(temporalColumns).toHaveLength(28);
+    expect(temporalColumns).toHaveLength(32);
+    expect(temporalColumns).toEqual(
+      expect.arrayContaining([
+        {
+          tableName: "contacts",
+          columnName: "messaging_opt_out_at",
+          dataType: "timestamp with time zone",
+        },
+        {
+          tableName: "conversations",
+          columnName: "last_customer_message_at",
+          dataType: "timestamp with time zone",
+        },
+        {
+          tableName: "conversations",
+          columnName: "pending_customer_message_at",
+          dataType: "timestamp with time zone",
+        },
+        {
+          tableName: "conversations",
+          columnName: "awaiting_customer_since",
+          dataType: "timestamp with time zone",
+        },
+      ]),
+    );
     expect(temporalColumns).toContainEqual({
       tableName: "conversations",
       columnName: "pinned_at",

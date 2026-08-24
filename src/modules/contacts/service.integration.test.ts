@@ -12,6 +12,7 @@ import {
   UserRole,
   WhatsAppPolicyMode,
   WhatsAppTemplateFunction,
+  WhatsAppTemplateSyncStatus,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
 import { refreshResponseState } from "@/modules/conversations/shared-state";
@@ -122,6 +123,11 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
         where: { id: 1 },
         data: {
           mode: WhatsAppPolicyMode.ACTIVE,
+          lastTemplateSyncAt: new Date("2026-08-23T09:00:00.000Z"),
+          lastTemplateSyncStatus: WhatsAppTemplateSyncStatus.SUCCEEDED,
+          lastTemplateSyncSucceededAt: new Date(
+            "2026-08-23T09:00:00.000Z",
+          ),
           activatedAt: new Date("2026-08-23T09:00:00.000Z"),
           activatedByUserId: actor.id,
           version: { increment: 1 },

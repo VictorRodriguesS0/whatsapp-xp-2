@@ -59,6 +59,18 @@ $Entrypoint = Read-NormalizedText $EntrypointPath
 $Nginx = Read-NormalizedText $NginxPath
 $EnvExample = Read-NormalizedText $EnvExamplePath
 
+$MetaCredentialPolicy = 'Meta credentials must remain server-only'
+$MetaServerEnvironment = @(
+  'META_APP_ID',
+  'META_APP_SECRET',
+  'WHATSAPP_PHONE_NUMBER_ID',
+  'WHATSAPP_BUSINESS_ACCOUNT_ID',
+  'WHATSAPP_ACCESS_TOKEN',
+  'WHATSAPP_VERIFY_TOKEN'
+)
+$SensitiveClientNamePattern = '(?i)NEXT_PUBLIC_[A-Z0-9_]*(?:TOKEN|SECRET|BUSINESS_ACCOUNT|PHONE_NUMBER_ID|VERIFY|APP_ID)'
+$SensitiveBuildNamePattern = '(?i)(?:TOKEN|SECRET|BUSINESS_ACCOUNT|PHONE_NUMBER_ID|VERIFY|APP_ID)'
+
 Assert-Match $Compose '(?m)^\s{2}database:\s*$' 'O serviço database é obrigatório.'
 Assert-Match $Compose '(?m)^\s{2}app:\s*$' 'O serviço app é obrigatório.'
 Assert-Match $Compose 'container_name:\s*xp-whatsapp-database' 'Nome exigido do container database ausente.'
@@ -78,6 +90,7 @@ Assert-Match $Compose 'healthcheck:' 'Healthchecks são obrigatórios.'
 Assert-Match $Compose 'POSTGRES_PASSWORD:\s*\$\{POSTGRES_PASSWORD:\?' 'POSTGRES_PASSWORD deve falhar quando não fornecido.'
 Assert-Match $Compose 'AUTH_SECRET:\s*\$\{AUTH_SECRET:\?' 'AUTH_SECRET deve falhar quando não fornecido.'
 Assert-NotMatch $Compose '(?i)(password|secret|token):\s*(xp|password|secret|changeme)\s*$' 'Não use segredo padrão no Compose.'
+Assert-NotMatch $Compose "(?m)^\s+$SensitiveClientNamePattern" "$MetaCredentialPolicy; o Compose não pode publicar nomes sensíveis no bundle do navegador."
 
 Assert-Match $Dockerfile '(?m)^FROM node:22-bookworm-slim AS base$' 'Dockerfile deve usar Node 22 bookworm-slim multi-stage.'
 Assert-Match $Dockerfile 'apt-get install -y --no-install-recommends openssl' 'Runtime Prisma precisa de OpenSSL instalado explicitamente.'
@@ -90,6 +103,7 @@ Assert-Match $Dockerfile 'COPY --from=builder .*prisma/migrations' 'Runtime deve
 Assert-Match $Dockerfile '(?m)^USER nextjs$' 'Runtime deve executar como usuário não-root.'
 Assert-Match $Dockerfile '(?m)^HEALTHCHECK ' 'A imagem deve ter healthcheck próprio.'
 Assert-Match $Dockerfile 'ENTRYPOINT \["/app/docker-entrypoint\.sh"\]' 'A imagem deve usar o entrypoint versionado.'
+Assert-NotMatch $Dockerfile "(?im)^\s*ARG\s+[A-Z0-9_]*$SensitiveBuildNamePattern" "$MetaCredentialPolicy; credenciais não podem entrar por ARG do Dockerfile."
 
 Assert-Match $Entrypoint 'node_modules/prisma/build/index\.js migrate deploy' 'Migrações devem usar o Prisma local, sem download de rede.'
 Assert-NotMatch $Entrypoint '(?m)\bnpx\b' 'O entrypoint não pode usar npx.'
@@ -107,6 +121,12 @@ Assert-NotMatch $Nginx '(?i)upgrade|connection_upgrade' 'WebSocket não é neces
 Assert-Match $EnvExample '(?m)^POSTGRES_PASSWORD=$' 'O exemplo de ambiente não pode fornecer senha de produção.'
 Assert-Match $EnvExample '(?m)^AUTH_SECRET=$' 'O exemplo de ambiente não pode fornecer AUTH_SECRET.'
 Assert-NotMatch $EnvExample '(?i)(access_token|app_secret|verify_token)=\S+' 'O exemplo não pode conter tokens ou segredos Meta.'
+Assert-NotMatch $EnvExample "(?m)^$SensitiveClientNamePattern" "$MetaCredentialPolicy; o exemplo não pode declarar credencial NEXT_PUBLIC_."
+
+foreach ($Variable in $MetaServerEnvironment) {
+  Assert-Match $Compose ('(?m)^\s{{6}}{0}:\s*\$\{{{0}:-\}}\s*$' -f [regex]::Escape($Variable)) "$MetaCredentialPolicy; variável server-only ausente do Compose: $Variable."
+  Assert-Match $EnvExample ('(?m)^{0}=$' -f [regex]::Escape($Variable)) "$MetaCredentialPolicy; variável vazia ausente do exemplo: $Variable."
+}
 
 Push-Location $ProjectRoot
 try {
@@ -132,6 +152,28 @@ try {
 
   $Database = $Resolved.services.database
   $App = $Resolved.services.app
+
+  foreach ($Variable in $MetaServerEnvironment) {
+    if ($null -eq $App.environment.PSObject.Properties[$Variable]) {
+      throw "$MetaCredentialPolicy; variável server-only ausente do ambiente resolvido: $Variable."
+    }
+  }
+  $PublicSensitiveVariables = @(
+    $App.environment.PSObject.Properties.Name |
+      Where-Object { $_ -match "^$SensitiveClientNamePattern" }
+  )
+  if ($PublicSensitiveVariables.Count -gt 0) {
+    throw "$MetaCredentialPolicy; o ambiente resolvido contém credencial NEXT_PUBLIC_."
+  }
+  if ($null -ne $App.build -and $null -ne $App.build.PSObject.Properties['args']) {
+    $SensitiveBuildArguments = @(
+      $App.build.args.PSObject.Properties.Name |
+        Where-Object { $_ -match $SensitiveBuildNamePattern }
+    )
+    if ($SensitiveBuildArguments.Count -gt 0) {
+      throw "$MetaCredentialPolicy; o build resolvido contém argumento de credencial."
+    }
+  }
 
   if ($null -ne $Database.PSObject.Properties['ports'] -and @($Database.ports).Count -gt 0) {
     throw 'O serviço database resolveu uma porta publicada.'
