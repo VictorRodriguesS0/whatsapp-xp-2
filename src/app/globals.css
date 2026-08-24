@@ -137,7 +137,7 @@ a {
 
 .inbox-grid {
   display: grid;
-  grid-template-columns: 340px minmax(0, 1fr) 280px;
+  grid-template-columns: clamp(320px, 23vw, 370px) minmax(0, 1fr) clamp(280px, 20vw, 330px);
 }
 
 .mobile-back,
@@ -158,9 +158,9 @@ a {
   contain-intrinsic-size: 0 72px;
 }
 
-@media (max-width: 1023px) {
+@media (min-width: 768px) and (max-width: 1199px) {
   .inbox-grid {
-    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-columns: minmax(300px, 36vw) minmax(0, 1fr);
   }
 
   .customer-pane {
@@ -172,34 +172,54 @@ a {
   }
 }
 
-@media (max-width: 719px) {
+@media (max-width: 767px) {
   main[aria-label="Central de atendimento"] {
     padding: 0;
   }
 
   .inbox-frame {
     border: 0;
+    border-radius: 0;
     box-shadow: none;
   }
 
   .inbox-grid {
-    display: block;
-    position: relative;
+    display: grid;
+    grid-template-columns: 1fr;
+    overflow: hidden;
   }
 
   .conversation-pane,
   .thread-pane {
-    height: 100%;
-    width: 100%;
+    grid-area: 1 / 1;
+    min-width: 0;
   }
 
   .inbox-grid[data-mobile-view="list"] .thread-pane,
   .inbox-grid[data-mobile-view="thread"] .conversation-pane {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .customer-pane {
     display: none;
   }
 
   .mobile-back {
     display: inline-flex;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .conversation-pane,
+  .thread-pane {
+    transition: opacity 140ms ease, transform 140ms ease;
+  }
+
+  .inbox-grid[data-mobile-view="list"] .thread-pane,
+  .inbox-grid[data-mobile-view="thread"] .conversation-pane {
+    opacity: 0;
+    transform: translateX(0.5rem);
   }
 }
 

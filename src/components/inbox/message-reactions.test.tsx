@@ -63,4 +63,17 @@ describe("MessageReactions", () => {
     );
     expect(screen.getByRole("alert")).toHaveTextContent("Falha na reação");
   });
+
+  it("uses the approved 767px mobile history boundary", () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 767px)",
+    })));
+    render(<MessageReactions message={message} onReact={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Reagir à mensagem" }));
+
+    expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 767px)");
+    expect(window.history.state).toMatchObject({ __xpReactionPicker: message.id });
+    vi.unstubAllGlobals();
+  });
 });

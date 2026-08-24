@@ -51,7 +51,7 @@ export function MessageReactions({
   }
 
   useEffect(() => {
-    if (!open || typeof window === "undefined" || !window.matchMedia?.("(max-width: 719px)").matches) return;
+    if (!open || typeof window === "undefined" || !window.matchMedia?.("(max-width: 767px)").matches) return;
     const state = window.history.state && typeof window.history.state === "object"
       ? window.history.state as Record<string, unknown>
       : {};

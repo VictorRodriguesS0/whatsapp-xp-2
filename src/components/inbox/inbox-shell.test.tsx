@@ -56,6 +56,7 @@ vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => aud
 vi.mock("@/components/meta-health/meta-health-badge", () => ({
   MetaHealthBadge: () => <a href="/configuracoes/meta">Meta normal</a>,
 }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
 
 const availableType = {
@@ -193,6 +194,7 @@ describe("InboxShell", () => {
   });
 
   beforeEach(() => {
+    vi.unstubAllGlobals();
     vi.clearAllMocks();
     window.history.replaceState(null, "", window.location.href);
     audioRecorder.phase = "idle";
@@ -201,17 +203,22 @@ describe("InboxShell", () => {
     routerReplaceMock.mockReset();
   });
 
-  it("shows both admin settings actions only to administrators", () => {
+  it("shows both admin settings actions only to administrators", async () => {
     const { rerender } = render(<InboxShell initialUser={user} />);
-    expect(screen.getByRole("link", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
-    expect(screen.queryByRole("link", { name: "Configurar classificações" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Configurar usuários" })).not.toBeInTheDocument();
+    const userEventController = userEvent.setup();
+    await userEventController.click(screen.getByRole("button", { name: "Abrir configurações" }));
+    expect(screen.getByRole("menuitem", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
+    expect(screen.queryByRole("menuitem", { name: "Configurar classificações" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Configurar usuários" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Meta normal" })).not.toBeInTheDocument();
 
+    await userEventController.keyboard("{Escape}");
     rerender(<InboxShell initialMetaHealthSummary={metaSummary} initialUser={{ ...user, role: "ADMIN" }} />);
-    expect(screen.getByRole("link", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
-    expect(screen.getByRole("link", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
-    expect(screen.getByRole("link", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
+    await userEventController.click(screen.getByRole("button", { name: "Abrir configurações" }));
+    expect(screen.getByRole("menuitem", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
+    expect(screen.getByRole("menuitem", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
+    expect(screen.getByRole("menuitem", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
+    await userEventController.keyboard("{Escape}");
     expect(screen.getByRole("link", { name: "Meta normal" })).toHaveAttribute("href", "/configuracoes/meta");
   });
 
@@ -229,7 +236,9 @@ describe("InboxShell", () => {
     routerReplaceMock.mockRejectedValue(new Error("navigation cancelled"));
     render(<InboxShell initialUser={user} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Sair" }));
+    const userEventController = userEvent.setup();
+    await userEventController.click(screen.getByRole("button", { name: "Abrir configurações" }));
+    await userEventController.click(screen.getByRole("menuitem", { name: "Sair" }));
 
     await waitFor(() => expect(routerReplaceMock).toHaveBeenCalledWith("/login"));
   });
@@ -255,7 +264,7 @@ describe("InboxShell", () => {
   });
 
   it("moves focus into the mobile thread and restores the selected conversation on back", async () => {
-    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 767px)" })));
     const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
     render(<InboxShell initialUser={user} />);
     const conversationButton = screen.getByRole("button", { name: "Abrir conversa com Carlos" });
@@ -430,7 +439,7 @@ describe("InboxShell", () => {
   });
 
   it("uses two mobile history layers so browser back closes details before the thread", async () => {
-    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 767px)" })));
     useInboxMock.mockReturnValue({
       ...defaultInbox,
       selectedId: "conversation-id",
@@ -463,7 +472,7 @@ describe("InboxShell", () => {
   });
 
   it("does not stack mobile history when switching conversations and leaves list-level back alone", () => {
-    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 719px)" })));
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({ matches: query === "(max-width: 767px)" })));
     const pushState = vi.spyOn(window.history, "pushState");
     const replaceState = vi.spyOn(window.history, "replaceState");
     useInboxMock.mockReturnValue({
@@ -482,10 +491,9 @@ describe("InboxShell", () => {
     fireEvent(window, new PopStateEvent("popstate", { state: null }));
     expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
-    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Beatriz" }));
 
     expect(pushState).toHaveBeenCalledOnce();
-    expect(replaceState).toHaveBeenCalledWith(
+    expect(replaceState).not.toHaveBeenCalledWith(
       { __xpInboxLayer: "thread" },
       "",
       window.location.href,
@@ -517,7 +525,7 @@ describe("InboxShell", () => {
   it("wires contact type changes in desktop and mobile customer panels", async () => {
     const userEventController = userEvent.setup();
     vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(max-width: 719px)",
+      matches: query === "(max-width: 767px)",
     })));
     useInboxMock.mockReturnValue({
       ...defaultInbox,
@@ -540,6 +548,7 @@ describe("InboxShell", () => {
     await userEventController.click(screen.getByRole("option", { name: "Cliente" }));
     expect(defaultInbox.setContactType).toHaveBeenCalledWith("contact-id", "type-id");
 
+    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
     await userEventController.click(screen.getByRole("button", { name: "Abrir dados do cliente" }));
     const dialog = await screen.findByRole("dialog", { name: "Dados do cliente" });
     await userEventController.click(
@@ -601,5 +610,39 @@ describe("InboxShell", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Marcar como não lida" }));
     expect(defaultInbox.markUnread).toHaveBeenCalledWith("conversation-id");
+  });
+
+  it("keeps one inert mobile layer at 767 and does not treat 768 as mobile", () => {
+    let viewport = 767;
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
+      matches: query === "(max-width: 767px)" && viewport <= 767,
+    })));
+    useInboxMock.mockReturnValue(inboxWithOpenConversation());
+    const rendered = render(<InboxShell initialUser={user} />);
+    const shell = screen.getByTestId("inbox-shell");
+    const conversationPane = screen.getByRole("region", { name: "Conversas" });
+    const threadPane = screen.getAllByRole("region", { hidden: true })
+      .find((region) => region.getAttribute("aria-label") === "Conversa ativa");
+    expect(threadPane).toBeDefined();
+
+    expect(conversationPane).not.toHaveAttribute("inert");
+    expect(threadPane).toHaveAttribute("inert");
+    fireEvent.click(screen.getByRole("button", { name: "Abrir conversa com Carlos" }));
+    expect(shell).toHaveAttribute("data-mobile-view", "thread");
+    expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
+    expect(conversationPane).toHaveAttribute("inert");
+    expect(threadPane).not.toHaveAttribute("inert");
+    fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
+    expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
+
+    viewport = 768;
+    rendered.rerender(<InboxShell initialUser={user} />);
+    expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 767px)");
+    expect(conversationPane).not.toHaveAttribute("inert");
+    expect(threadPane).not.toHaveAttribute("inert");
+    expect(screen.getByRole("button", { name: "Abrir conversa com Carlos" })).toHaveAttribute("aria-current", "true");
+    expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
+    expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
+    vi.unstubAllGlobals();
   });
 });

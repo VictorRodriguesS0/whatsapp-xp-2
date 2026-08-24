@@ -142,7 +142,7 @@ export function ConversationList({
               aria-current={selected ? "true" : undefined}
               aria-label={`Abrir conversa com ${item.contact.name}`}
               className={cn(
-                "min-h-11 w-full py-3 pl-4 pr-16 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
+                "min-h-11 w-full py-2.5 pl-4 pr-16 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] motion-reduce:transition-none",
                 selected && "bg-[var(--selected)]",
               )}
               data-conversation-id={item.id}
@@ -172,19 +172,20 @@ export function ConversationList({
                     {item.unreadCount > 0 ? <Badge aria-label={`${item.unreadCount} ${item.unreadCount === 1 ? "mensagem não lida" : "mensagens não lidas"}`}>{item.unreadCount}</Badge> : null}
                     {item.manuallyUnread ? <span aria-label="Conversa marcada como não lida" className="size-2 shrink-0 rounded-full bg-[var(--accent)]" role="img" title="Conversa marcada como não lida" /> : null}
                   </span>
-                  {item.awaitingResponseSince ? <span className="mt-1 block text-xs font-medium text-[var(--text)]">Aguardando resposta</span> : null}
-                  <span className="mt-1 block truncate text-xs text-[var(--muted)]">{item.responsible?.name ?? "Sem responsável"}</span>
-                  {item.contact.type ? (
-                    <span aria-label={`Tipo de contato de ${item.contact.name}`} className="mt-1.5 flex min-w-0">
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-[var(--muted)]">
+                    {item.awaitingResponseSince ? <span className="shrink-0 font-medium text-[var(--text)]">Aguardando resposta</span> : null}
+                    <span className="min-w-0 shrink truncate">{item.responsible?.name ?? "Sem responsável"}</span>
+                    {item.contact.type ? (
+                    <span aria-label={`Tipo de contato de ${item.contact.name}`} className="flex min-w-0 shrink">
                       <ContactTypeChip
                         color={item.contact.type.color}
                         compact
                         name={item.contact.type.name}
                       />
                     </span>
-                  ) : null}
-                  {item.contact.tags.length > 0 ? (
-                    <span aria-label={`Etiquetas de ${item.contact.name}`} className="mt-1.5 flex min-w-0 items-center gap-1">
+                    ) : null}
+                    {item.contact.tags.length > 0 ? (
+                    <span aria-label={`Etiquetas de ${item.contact.name}`} className="flex min-w-0 items-center gap-1 overflow-hidden">
                       {item.contact.tags.slice(0, 2).map((tag) => (
                         <ContactTagChip color={tag.color} compact key={tag.id} name={tag.name} />
                       ))}
@@ -197,7 +198,8 @@ export function ConversationList({
                         </span>
                       ) : null}
                     </span>
-                  ) : null}
+                    ) : null}
+                  </span>
                 </span>
               </span>
             </button>
