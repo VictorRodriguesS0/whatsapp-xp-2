@@ -78,6 +78,10 @@ Assert-True ($caddy -match "header_up\s+X-Real-IP\s+\{remote_host\}") "O Caddy d
 Assert-True ($caddy -match 'Permissions-Policy\s+"[^\"]*microphone=\(self\)') "O microfone deve ser permitido apenas para a própria aplicação."
 Assert-True ($caddy -match 'Cache-Control\s+"no-store"') "Conteúdo autenticado não pode ser armazenado em cache."
 Assert-True ($caddy -match "(?m)^\s*-X-Powered-By\s*$") "O proxy deve ocultar a tecnologia do servidor de aplicacao."
+Assert-True ($caddy -match '(?ms)@pdfPreview\s*\{.*?path\s+/api/media/\*.*?query\s+preview=1.*?\}') "O Caddy deve limitar a exceção de iframe ao preview autenticado de mídia."
+Assert-True ($caddy -match '(?ms)header\s+@pdfPreview\s*\{.*?X-Frame-Options\s+"SAMEORIGIN".*?Content-Security-Policy\s+"[^"]*frame-ancestors ''self''[^"]*".*?\}') "O preview de PDF deve poder ser incorporado somente pela própria origem."
+Assert-True ($caddy -match 'X-Frame-Options\s+"DENY"') "As demais respostas devem continuar protegidas contra incorporação."
+Assert-True ($caddy -match 'Content-Security-Policy\s+"[^"]*frame-ancestors ''none''[^"]*"') "As demais respostas devem manter frame-ancestors none."
 Assert-True ($caddy -notmatch "(?i)(password|secret|access[_-]?token)\s+[=:]\s*\S+") "O site do Caddy não pode conter segredos."
 
 Write-Host "KVM deployment verification passed."

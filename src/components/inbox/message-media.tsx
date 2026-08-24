@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import type { InboxMessage } from "@/hooks/use-inbox";
 import type { MediaStateDto } from "@/modules/conversations/types";
 
+import { PdfMessagePreview } from "./pdf-message-preview";
+
 const MAX_TIMER_DELAY = 2_147_483_647;
 const MAX_RECOVERY_REARM_DELAY = 30_000;
 const recoveryError = "Não foi possível baixar a mídia.";
@@ -300,6 +302,17 @@ export function MessageMedia({
         <video aria-hidden="true" className="max-h-80 max-w-full" muted playsInline preload="metadata" src={source} />
         <span className="absolute inset-0 flex items-center justify-center bg-black/15 transition-colors group-hover/video:bg-black/25"><span className="flex size-12 items-center justify-center rounded-full bg-black/65 text-white"><Play aria-hidden="true" className="ml-0.5 size-6 fill-current" /></span></span>
       </button>
+    );
+  }
+  if ((message.localMimeType ?? message.mediaMimeType) === "application/pdf" && onOpenMedia && mediaId) {
+    const filename = message.localFileName || message.body || "Documento PDF";
+    return (
+      <PdfMessagePreview
+        buttonRef={(element) => { reconciledFocusTarget.current = element; }}
+        filename={filename}
+        mediaId={mediaId}
+        onOpen={() => onOpenMedia(message.id)}
+      />
     );
   }
   if ((message.localMimeType ?? message.mediaMimeType) === "application/pdf" && onOpenMedia) {

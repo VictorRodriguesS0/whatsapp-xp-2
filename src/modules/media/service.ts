@@ -47,6 +47,7 @@ export type MediaDownload = {
   stream: ReadableStream<Uint8Array>;
   mimeType: string;
   sizeBytes: bigint;
+  sha256: string;
   filename: string;
   kind: "image" | "audio" | "video" | "document";
   range?: ByteRange;
@@ -521,7 +522,9 @@ export async function getMediaForDownload(
     await ensureMediaAvailable(id, dependencies, parsedActorId).catch(() => undefined);
     media = await dependencies.repository.findVisibleById(id, parsedActorId);
   }
-  if (!media || media.status !== MediaStatus.AVAILABLE || !media.storageKey) throw new HttpError(424, "Mídia indisponível");
+  if (!media || media.status !== MediaStatus.AVAILABLE || !media.storageKey || !media.sha256) {
+    throw new HttpError(424, "Mídia indisponível");
+  }
   const rule = mediaRuleForMime(media.mimeType);
   let range;
   try {
@@ -534,6 +537,7 @@ export async function getMediaForDownload(
   }
   return {
     stream: await dependencies.storage.open(media.storageKey, range ?? undefined), mimeType: rule.mimeType, sizeBytes: media.sizeBytes,
+    sha256: media.sha256,
     filename: safeOriginalFilename(media.originalFilename), kind: rule.kind,
     range: range ?? undefined,
   };

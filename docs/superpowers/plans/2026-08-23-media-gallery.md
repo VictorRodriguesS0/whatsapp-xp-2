@@ -318,29 +318,29 @@ git commit -m "feat: integrate media gallery with conversations"
 **Files:**
 - Modify: `docs/superpowers/plans/2026-08-23-media-gallery.md` only to mark completed checkboxes and append factual release evidence.
 
-- [ ] **Step 1: Run repository verification**
+- [x] **Step 1: Run repository verification**
 
 Run: `npm run lint`, `npm run typecheck`, `npm test`, `npm run build`.
 
 Expected: all commands exit 0.
 
-- [ ] **Step 2: Run browser verification**
+- [x] **Step 2: Run browser verification**
 
 Start the production build locally and verify authenticated desktop and mobile flows: image zoom/pan, video seek, complete PDF preview, arrows, swipe, Escape, browser back, focus restoration, download and non-PDF fallback. Confirm no console errors.
 
-- [ ] **Step 3: Audit parallel work immediately before deployment**
+- [x] **Step 3: Audit parallel work immediately before deployment**
 
 Run `git worktree list --porcelain`, `git status --short --branch` in every worktree, `git log --all --decorate --oneline --graph`, and ancestry comparisons against the live release. Review diffs for any branch advanced since feature start. Merge only completed/tested work and rerun Step 1 after any integration.
 
-- [ ] **Step 4: Build and validate an immutable release on the KVM**
+- [x] **Step 4: Build and validate an immutable release on the KVM**
 
 Upload the audited Git archive to a new release directory, build a uniquely tagged image under the established CPU/RAM limits, run migrations as a no-op check, execute the complete test suite against an isolated test database, and record the image digest. Do not reuse a mutable tag.
 
-- [ ] **Step 5: Deploy application container only**
+- [x] **Step 5: Deploy application container only**
 
 Take a database backup, snapshot the non-application container set, update only the application image reference, recreate only `xp-whatsapp-app`, then verify container identity, health endpoint, login page, authenticated conversations/media routes and that the non-application snapshot is unchanged. Roll back to the previous digest if any check fails.
 
-- [ ] **Step 6: Record evidence and commit**
+- [x] **Step 6: Record evidence and commit**
 
 Append the audited branch heads, immutable image digest, release directory, backup path, test/build results, HTTP checks and rollback reference without secrets.
 
@@ -348,3 +348,5 @@ Append the audited branch heads, immutable image digest, release directory, back
 git add docs/superpowers/plans/2026-08-23-media-gallery.md
 git commit -m "docs: record media gallery production verification"
 ```
+
+Release evidence is recorded in `docs/verification/2026-08-23-media-gallery.md`.

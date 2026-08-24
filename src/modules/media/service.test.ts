@@ -353,9 +353,26 @@ describe("received media service", () => {
   it("serves only media linked to a visible message and performs the PENDING fallback", async () => {
     const state = await harness();
     const downloadable = await getMediaForDownload(actorId, mediaId, state.dependencies);
+    expect(downloadable.sha256).toBe(
+      createHash("sha256").update(bytes).digest("hex"),
+    );
     expect(new Uint8Array(await new Response(downloadable.stream).arrayBuffer())).toEqual(bytes);
     state.repository.record = { ...state.repository.record, linkedToMessage: false };
     await expect(getMediaForDownload(actorId, mediaId, state.dependencies)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("fails closed when available media has no immutable digest", async () => {
+    const state = await harness();
+
+    await ensureMediaAvailable(mediaId, state.dependencies);
+    state.repository.record = { ...state.repository.record, sha256: null };
+
+    await expect(
+      getMediaForDownload(actorId, mediaId, state.dependencies),
+    ).rejects.toMatchObject({
+      status: 424,
+      message: "Mídia indisponível",
+    });
   });
 
   it("serves only the requested authorized byte range", async () => {
