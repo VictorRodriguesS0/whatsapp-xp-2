@@ -4,6 +4,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   buttonFixture,
+  accountReviewFixture,
+  accountUpdateFixture,
   contactsFixture,
   inboundButtonFixture,
   inboundContactsFixture,
@@ -15,6 +17,9 @@ import {
   inboundSystemFixture,
   inboundTextFixture,
   locationFixture,
+  phoneNameFixture,
+  phoneQualityFixture,
+  metaOperationalTemplateStatusFixture,
   stickerFixture,
   statusFixture,
   templateQualityFixture,
@@ -169,7 +174,7 @@ describe("Meta webhook normalization", () => {
   it("ignores a structurally valid change for an unknown field", () => {
     const payload = structuredClone(inboundTextFixture) as Record<string, any>;
     payload.entry[0].changes = [
-      { field: "account_update", value: null },
+      { field: "future_account_update", value: null },
       payload.entry[0].changes[0],
     ];
 
@@ -1010,6 +1015,58 @@ describe("Meta webhook normalization", () => {
 
     expect(normalizeWebhook(payload)).toEqual([]);
   });
+
+  it.each([
+    [phoneQualityFixture(), "phone_number_quality_update", "FLAGGED", "+5561999990000"],
+    [accountUpdateFixture(), "account_update", "DISABLED_UPDATE", "+5561999990000"],
+    [accountReviewFixture(), "account_review_update", "PENDING", "waba-1"],
+    [phoneNameFixture(), "phone_number_name_update", "REJECTED", "+5561999990000"],
+    [metaOperationalTemplateStatusFixture(), "message_template_status_update", "REJECTED", "987654321"],
+  ] as const)("normalizes bounded operational field %s", (payload, field, eventCode, resourceId) => {
+    const [event] = normalizeWebhook(payload);
+    expect(event).toMatchObject({
+      kind: "metaOperational",
+      wabaId: "waba-1",
+      field,
+      eventCode,
+      resourceId,
+      occurredAt: new Date("2026-08-23T12:00:00.000Z"),
+      deduplicationKey: expect.stringMatching(/^meta:[a-f0-9]{64}$/),
+    });
+    expect(JSON.stringify(event)).not.toContain("provider-only");
+  });
+
+  it("keeps only allowlisted phone-quality details and creates a stable key", () => {
+    const first = normalizeWebhook(phoneQualityFixture())[0];
+    const second = normalizeWebhook(structuredClone(phoneQualityFixture()))[0];
+    expect(first).toEqual(second);
+    expect(first).toMatchObject({
+      details: {
+        displayPhoneNumber: "+5561999990000",
+        currentLimit: "TIER_10K",
+        previousLimit: "TIER_1K",
+      },
+    });
+  });
+
+  it.each([
+    ["id", " bad-waba"],
+    ["time", "yesterday"],
+  ] as const)("rejects malformed operational entry %s", (field, value) => {
+    const payload = phoneQualityFixture() as Record<string, any>;
+    payload.entry[0][field] = value;
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it("rejects malformed known operational fields but continues to ignore unknown fields", () => {
+    const malformed = phoneQualityFixture() as Record<string, any>;
+    delete malformed.entry[0].changes[0].value.event;
+    expect(() => normalizeWebhook(malformed)).toThrow(WebhookPayloadError);
+    expect(normalizeWebhook({
+      object: "whatsapp_business_account",
+      entry: [{ id: "waba-1", changes: [{ field: "future_field", value: null }] }],
+    })).toEqual([]);
+  });
 });
 
 function contactSyncFixture(stateSync: unknown[]) {
@@ -1109,6 +1166,12 @@ describe("WhatsApp Business App contact sync normalization", () => {
 describe("WhatsApp template webhook normalization", () => {
   it("normalizes official status and quality updates without raw provider fields", () => {
     expect(normalizeWebhook(templateStatusFixture())).toEqual([
+      expect.objectContaining({
+        kind: "metaOperational",
+        field: "message_template_status_update",
+        eventCode: "APPROVED",
+        resourceId: "987654321",
+      }),
       {
         kind: "templateStatus",
         metaTemplateId: "987654321",

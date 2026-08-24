@@ -13,6 +13,7 @@ import type {
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
@@ -20,6 +21,7 @@ import type {
   NormalizedTemplateStatusEvent,
   NormalizedWebhookEvent,
 } from "./types";
+import type { MetaOperationalField } from "@/modules/meta-health/types";
 import { isSingleEmoji } from "@/modules/reactions/emoji";
 
 type UnknownRecord = Record<string, unknown>;
@@ -154,6 +156,136 @@ function parseTimestamp(value: unknown): { date: Date; raw: string } | null {
   return Number.isSafeInteger(milliseconds) && !Number.isNaN(date.getTime())
     ? { date, raw: value }
     : null;
+}
+
+const operationalFields = new Set<MetaOperationalField>([
+  "phone_number_quality_update",
+  "account_update",
+  "account_review_update",
+  "phone_number_name_update",
+  "message_template_status_update",
+]);
+
+function isOperationalField(value: string): value is MetaOperationalField {
+  return operationalFields.has(value as MetaOperationalField);
+}
+
+function parseEntryTimestamp(value: unknown): Date | null {
+  const seconds =
+    typeof value === "number" && Number.isSafeInteger(value)
+      ? value
+      : typeof value === "string" && /^\d{1,16}$/u.test(value)
+        ? Number(value)
+        : Number.NaN;
+  const milliseconds = seconds * 1_000;
+  const date = new Date(milliseconds);
+  return Number.isSafeInteger(milliseconds) && !Number.isNaN(date.getTime())
+    ? date
+    : null;
+}
+
+function exactOperationalValue(value: unknown, maximum = 256): string | null {
+  const cleaned =
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+      ? String(value)
+      : exactIdentifier(value, maximum);
+  return cleaned && /^[A-Za-z0-9+._:-]+$/u.test(cleaned) ? cleaned : null;
+}
+
+function exactOperationalEvent(value: unknown): string | null {
+  const event = exactOperationalValue(value, 64);
+  return event && /^[A-Z][A-Z0-9_]*$/u.test(event) ? event : null;
+}
+
+function optionalOperationalDetail(
+  value: UnknownRecord,
+  key: string,
+  maximum = 256,
+): string | null | undefined {
+  if (!hasOwn(value, key) || value[key] === null) return null;
+  const cleaned = strictCleanString(value[key], maximum);
+  return cleaned ?? undefined;
+}
+
+function normalizedOperationalDetails(
+  pairs: Array<[string, string | null]>,
+): Record<string, string | null> | null {
+  const entries = pairs.filter(([, value]) => value !== null);
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+function normalizeMetaOperational(
+  field: MetaOperationalField,
+  value: UnknownRecord,
+  wabaId: string,
+  occurredAt: Date,
+): NormalizedMetaOperationalEvent | null {
+  let eventCode: string | null = null;
+  let resourceId: string | null = null;
+  let details: Record<string, string | null> | null = null;
+
+  if (field === "phone_number_quality_update") {
+    eventCode = exactOperationalEvent(value.event);
+    resourceId = exactOperationalValue(value.display_phone_number, 64);
+    const currentLimit = optionalOperationalDetail(value, "current_limit", 64);
+    const previousLimit = optionalOperationalDetail(value, "previous_limit", 64);
+    if (currentLimit === undefined || previousLimit === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["displayPhoneNumber", resourceId],
+      ["currentLimit", currentLimit],
+      ["previousLimit", previousLimit],
+    ]);
+  } else if (field === "account_update") {
+    eventCode = exactOperationalEvent(value.event);
+    resourceId = exactOperationalValue(value.phone_number, 64) ?? wabaId;
+    const currentLimit = optionalOperationalDetail(value, "current_limit", 64);
+    if (currentLimit === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["phoneNumber", resourceId === wabaId ? null : resourceId],
+      ["currentLimit", currentLimit],
+    ]);
+  } else if (field === "account_review_update") {
+    eventCode = exactOperationalEvent(value.decision);
+    resourceId = wabaId;
+  } else if (field === "phone_number_name_update") {
+    eventCode = exactOperationalEvent(value.decision);
+    resourceId = exactOperationalValue(value.display_phone_number, 64);
+    const requestedName = optionalOperationalDetail(value, "requested_verified_name", 256);
+    if (requestedName === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["displayPhoneNumber", resourceId],
+      ["requestedVerifiedName", requestedName],
+    ]);
+  } else {
+    eventCode = exactOperationalEvent(value.event);
+    resourceId = exactOperationalValue(value.message_template_id, 256);
+    const name = optionalOperationalDetail(value, "message_template_name", 512);
+    const language = optionalOperationalDetail(value, "message_template_language", 32);
+    if (name === undefined || language === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["name", name],
+      ["language", language],
+    ]);
+  }
+
+  if (!eventCode || !resourceId) return null;
+  const technicalIdentity = JSON.stringify([
+    wabaId,
+    field,
+    eventCode,
+    resourceId,
+    occurredAt.toISOString(),
+  ]);
+  return {
+    kind: "metaOperational",
+    wabaId,
+    field,
+    eventCode,
+    resourceId,
+    occurredAt,
+    details,
+    deduplicationKey: `meta:${createHash("sha256").update(technicalIdentity).digest("hex")}`,
+  };
 }
 
 function whatsappUserId(value: unknown): string | null {
@@ -1016,6 +1148,44 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         throw new WebhookPayloadError();
       }
 
+      const value = record(change.value);
+
+      if (field === "message_template_status_update") {
+        const wabaId = exactOperationalValue(entry.id, 256);
+        const occurredAt = parseEntryTimestamp(entry.time);
+        const entryTimeRaw = exactEntryTime(entry.time);
+        if (!wabaId || !occurredAt || !entryTimeRaw || !value) {
+          throw new WebhookPayloadError();
+        }
+        const operational = normalizeMetaOperational(
+          field,
+          value,
+          wabaId,
+          occurredAt,
+        );
+        if (!operational) throw new WebhookPayloadError();
+        events.push(
+          operational,
+          normalizeTemplateStatus(value, entryTimeRaw),
+        );
+        continue;
+      }
+
+      if (isOperationalField(field)) {
+        const wabaId = exactOperationalValue(entry.id, 256);
+        const occurredAt = parseEntryTimestamp(entry.time);
+        if (!wabaId || !occurredAt || !value) throw new WebhookPayloadError();
+        const normalized = normalizeMetaOperational(
+          field,
+          value,
+          wabaId,
+          occurredAt,
+        );
+        if (!normalized) throw new WebhookPayloadError();
+        events.push(normalized);
+        continue;
+      }
+
       if (
         field !== "messages" &&
         field !== "smb_message_echoes" &&
@@ -1026,23 +1196,14 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         continue;
       }
 
-      const value = record(change.value);
-
       if (!value) {
         throw new WebhookPayloadError();
       }
 
-      if (
-        field === "message_template_status_update" ||
-        field === "message_template_quality_update"
-      ) {
+      if (field === "message_template_quality_update") {
         const entryTimeRaw = exactEntryTime(entry.time);
         if (!entryTimeRaw) throw new WebhookPayloadError();
-        events.push(
-          field === "message_template_status_update"
-            ? normalizeTemplateStatus(value, entryTimeRaw)
-            : normalizeTemplateQuality(value, entryTimeRaw),
-        );
+        events.push(normalizeTemplateQuality(value, entryTimeRaw));
         continue;
       }
 

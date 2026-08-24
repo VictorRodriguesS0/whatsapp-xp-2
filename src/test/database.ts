@@ -36,6 +36,8 @@ export async function resetTestDatabase(): Promise<void> {
     prisma.conversationResumption.deleteMany(),
     prisma.whatsAppTemplateAssignment.deleteMany(),
     prisma.whatsAppTemplate.deleteMany(),
+    prisma.metaOperationalAlert.deleteMany(),
+    prisma.metaHealthSnapshot.deleteMany(),
     prisma.conversationRead.deleteMany(),
     prisma.whatsAppReadSync.deleteMany(),
     prisma.message.deleteMany(),

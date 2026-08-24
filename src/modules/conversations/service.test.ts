@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MediaStatus,
   MessageDirection,
   MessageStatus,
   MessageType,
@@ -904,6 +905,38 @@ describe("conversation service", () => {
     expect(result.messages.map((item) => item.id)).toEqual([first.id, latest.id]);
     expect(result).not.toHaveProperty("contactId");
     expect(result.messages[0]).not.toHaveProperty("whatsappMessageId");
+  });
+
+  it("exposes only the validated media MIME alongside the public recovery state", async () => {
+    const conversationId = "10000000-0000-4000-8000-000000000001";
+    const mediaMessage = {
+      ...message("20000000-0000-4000-8000-000000000001", conversationId, new Date(1)),
+      type: MessageType.DOCUMENT,
+      mediaObjectId: "30000000-0000-4000-8000-000000000001",
+      mediaObject: {
+        status: MediaStatus.AVAILABLE,
+        mimeType: "application/pdf",
+        downloadLeaseUntil: null,
+        downloadNextAttemptAt: null,
+        downloadAttempts: 0,
+      },
+    };
+    const record = conversation(conversationId, "Carlos", "5511999990001", new Date(1), null, [mediaMessage]);
+
+    const result = await getConversation(
+      victor.id,
+      conversationId,
+      createRepository([record], [mediaMessage]),
+    );
+
+    expect(result.messages[0]).toMatchObject({
+      mediaMimeType: "application/pdf",
+      mediaState: { status: MediaStatus.AVAILABLE },
+    });
+    expect(result.messages[0]).not.toHaveProperty("mediaObject");
+    expect(result.messages[0]).not.toHaveProperty("storageKey");
+    expect(result.messages[0]).not.toHaveProperty("sha256");
+    expect(result.messages[0]).not.toHaveProperty("metaMediaId");
   });
 
   it("exposes safe reply capability and previews without official IDs", async () => {

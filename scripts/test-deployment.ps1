@@ -25,6 +25,9 @@ if ($EnvExample -notmatch '(?m)^NEXT_PUBLIC_APP_URL=https://whatsapp\.xpeletroni
 if ($Dockerfile -notmatch '(?ms)apt-get install -y --no-install-recommends\s+openssl\s+ffmpeg(?:\s|\\)') {
   throw 'O runtime final deve instalar openssl e o pacote Debian ffmpeg, que fornece ffmpeg e ffprobe.'
 }
+if ($Dockerfile -notmatch '(?ms)apt-get install -y --no-install-recommends\s+openssl\s+ffmpeg\s+poppler-utils(?:\s|\\)') {
+  throw 'O runtime final deve instalar poppler-utils para miniaturas PDF.'
+}
 if (
   $RecordingConverter -notmatch 'spawn\(command, args, \{ shell: false,' -or
   $RecordingConverter -match '(?m)\b(exec|execFile)\s*\('
@@ -188,6 +191,9 @@ foreach ($BackupScript in @($BackupShell, $BackupPowerShell)) {
   if ($BackupScript -notmatch "--exclude='\./\.recordings'") {
     throw 'Backup deve excluir o diretório transitório .recordings do arquivo restaurável.'
   }
+  if ($BackupScript -notmatch "--exclude='\./\.pdf-thumbnails'") {
+    throw 'Backup deve excluir miniaturas PDF regeneráveis.'
+  }
 }
 if (
   $BackupPowerShell -notmatch 'validate-media-archive\.sh' -or
@@ -227,9 +233,9 @@ try {
   }
 
   $Verifier = Join-Path $TemporaryRoot 'scripts/verify-compose.ps1'
-  & pwsh -NoProfile -File $Verifier *> $null
+  $OriginalVerifierOutput = & pwsh -NoProfile -File $Verifier 2>&1
   if ($LASTEXITCODE -ne 0) {
-    throw 'A configuração original deveria passar antes dos mutation tests.'
+    throw "A configuração original deveria passar antes dos mutation tests:`n$($OriginalVerifierOutput -join [Environment]::NewLine)"
   }
 
   $OriginalCompose = Read-NormalizedText (Join-Path $TemporaryRoot 'docker-compose.yml')

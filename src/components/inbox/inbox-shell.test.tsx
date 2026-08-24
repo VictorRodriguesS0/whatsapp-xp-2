@@ -53,6 +53,9 @@ const audioRecorder = vi.hoisted(() => ({
 vi.mock("@/hooks/use-inbox", () => ({ useInbox: useInboxMock }));
 vi.mock("@/hooks/use-message-search", () => ({ useMessageSearch: vi.fn(() => messageSearch) }));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => audioRecorder) }));
+vi.mock("@/components/meta-health/meta-health-badge", () => ({
+  MetaHealthBadge: () => <a href="/configuracoes/meta">Meta normal</a>,
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
 
 const availableType = {
@@ -148,6 +151,16 @@ const defaultInbox = {
 };
 
 const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT" };
+const metaSummary = {
+  label: "NORMAL" as const,
+  unacknowledgedCount: 0,
+  stale: false,
+  phone: { displayPhoneNumber: null, verifiedName: null, qualityRating: "GREEN" },
+  account: { reviewStatus: "APPROVED", event: null, messagingLimit: null },
+  lastSuccessfulSyncAt: "2026-08-23T12:00:00.000Z",
+  lastSyncAttemptAt: "2026-08-23T12:00:00.000Z",
+  lastSyncErrorCode: null,
+};
 
 const replyableMessage = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -208,12 +221,14 @@ describe("InboxShell", () => {
     expect(screen.queryByRole("link", { name: "Configurar classificações" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Configurar WhatsApp" })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Configurar usuários" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Meta normal" })).not.toBeInTheDocument();
 
-    rerender(<InboxShell initialUser={{ ...user, role: "ADMIN" }} />);
+    rerender(<InboxShell initialMetaHealthSummary={metaSummary} initialUser={{ ...user, role: "ADMIN" }} />);
     expect(screen.getByRole("link", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
     expect(screen.getByRole("link", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
     expect(screen.getByRole("link", { name: "Configurar WhatsApp" })).toHaveAttribute("href", "/configuracoes/whatsapp");
     expect(screen.getByRole("link", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
+    expect(screen.getByRole("link", { name: "Meta normal" })).toHaveAttribute("href", "/configuracoes/meta");
   });
 
   it("connects the shared pin action without selecting the conversation", () => {

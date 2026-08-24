@@ -93,6 +93,16 @@ export type WhatsAppReadSync = Prisma.WhatsAppReadSyncModel
  */
 export type WebhookEvent = Prisma.WebhookEventModel
 /**
+ * Model MetaHealthSnapshot
+ * 
+ */
+export type MetaHealthSnapshot = Prisma.MetaHealthSnapshotModel
+/**
+ * Model MetaOperationalAlert
+ * 
+ */
+export type MetaOperationalAlert = Prisma.MetaOperationalAlertModel
+/**
  * Model QuickReply
  * 
  */

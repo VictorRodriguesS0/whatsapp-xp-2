@@ -355,10 +355,62 @@ describe("received media service", () => {
   it("serves only media linked to a visible message and performs the PENDING fallback", async () => {
     const state = await harness();
     const downloadable = await getMediaForDownload(actorId, mediaId, state.dependencies);
+    expect(downloadable.sha256).toBe(
+      createHash("sha256").update(bytes).digest("hex"),
+    );
     expect(new Uint8Array(await new Response(downloadable.stream).arrayBuffer())).toEqual(bytes);
     state.repository.record = { ...state.repository.record, linkedToMessage: false };
     await expect(getMediaForDownload(actorId, mediaId, state.dependencies)).rejects.toMatchObject({ status: 404 });
   });
+
+  it("fails closed when available media has no immutable digest", async () => {
+    const state = await harness();
+
+    await ensureMediaAvailable(mediaId, state.dependencies);
+    state.repository.record = { ...state.repository.record, sha256: null };
+
+    await expect(
+      getMediaForDownload(actorId, mediaId, state.dependencies),
+    ).rejects.toMatchObject({
+      status: 424,
+      message: "Mídia indisponível",
+    });
+  });
+
+  it("serves only the requested authorized byte range", async () => {
+    const state = await harness();
+
+    const downloadable = await getMediaForDownload(
+      actorId,
+      mediaId,
+      state.dependencies,
+      { rangeHeader: "bytes=1-2" },
+    );
+
+    expect(downloadable.range).toEqual({ start: 1n, end: 2n, length: 2n });
+    expect([
+      ...new Uint8Array(await new Response(downloadable.stream).arrayBuffer()),
+    ]).toEqual([0xd8, 0xff]);
+  });
+
+  it.each(["bytes=4-", "bytes=2-1", "bytes=0-1,2-3"])(
+    "rejects invalid byte range %s with a stable 416",
+    async (rangeHeader) => {
+      const state = await harness();
+      await ensureMediaAvailable(mediaId, state.dependencies);
+
+      await expect(getMediaForDownload(
+        actorId,
+        mediaId,
+        state.dependencies,
+        { rangeHeader },
+      )).rejects.toMatchObject({
+        status: 416,
+        message: "Intervalo de mídia inválido",
+        sizeBytes: 4n,
+      });
+    },
+  );
 
   it("returns pending state without retrying before the bounded next-attempt time", async () => {
     const state = await harness();

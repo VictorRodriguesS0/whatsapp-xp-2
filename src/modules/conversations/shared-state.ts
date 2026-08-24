@@ -222,6 +222,60 @@ export async function advanceSharedRead(
   });
 }
 
+export async function advanceTeamReadFromBusinessEcho(
+  client: SharedStateClient,
+  conversationId: string,
+  echoBoundary: MessageBoundary,
+): Promise<MessageBoundary | null> {
+  await lockConversation(client, conversationId);
+  const target = await client.message.findFirst({
+    where: {
+      conversationId,
+      direction: MessageDirection.INBOUND,
+      OR: [
+        { externalTimestamp: { lt: echoBoundary.externalTimestamp } },
+        {
+          externalTimestamp: echoBoundary.externalTimestamp,
+          ...(echoBoundary.id === null ? {} : { id: { lt: echoBoundary.id } }),
+        },
+      ],
+    },
+    orderBy: [{ externalTimestamp: "desc" }, { id: "desc" }],
+    select: { id: true, externalTimestamp: true },
+  });
+
+  if (!target) {
+    return null;
+  }
+
+  const current = await client.conversation.findUniqueOrThrow({
+    where: { id: conversationId },
+    select: {
+      teamLastReadMessage: {
+        select: { id: true, externalTimestamp: true },
+      },
+      teamLastReadAt: true,
+    },
+  });
+  const currentBoundary = current.teamLastReadMessage ??
+    (current.teamLastReadAt
+      ? { id: null, externalTimestamp: current.teamLastReadAt }
+      : null);
+
+  if (currentBoundary && compareBoundary(target, currentBoundary) <= 0) {
+    return null;
+  }
+
+  await client.conversation.update({
+    where: { id: conversationId },
+    data: {
+      teamLastReadMessageId: target.id,
+      teamLastReadAt: target.externalTimestamp,
+    },
+  });
+  return target;
+}
+
 export async function markSharedUnread(
   actorUserId: string,
   conversationId: string,

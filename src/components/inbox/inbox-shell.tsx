@@ -11,6 +11,8 @@ import { useInbox } from "@/hooks/use-inbox";
 import { useMessageSearch } from "@/hooks/use-message-search";
 import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
 import type { SessionUser } from "@/modules/auth/session";
+import type { MetaHealthSummaryDto } from "@/modules/meta-health/types";
+import { MetaHealthBadge } from "@/components/meta-health/meta-health-badge";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
 
 import { ConnectionBanner } from "./connection-banner";
@@ -38,7 +40,13 @@ function hasOpenDismissibleOverlay() {
   ));
 }
 
-export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
+export function InboxShell({
+  initialUser,
+  initialMetaHealthSummary,
+}: {
+  initialUser: SessionUser;
+  initialMetaHealthSummary?: MetaHealthSummaryDto | null;
+}) {
   const router = useRouter();
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
@@ -183,6 +191,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               <div className="flex min-h-11 items-center justify-between gap-3">
                 <div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">XP Eletrônicos</p><h1 className="text-lg font-bold tracking-tight text-[var(--text)]">Atendimento</h1></div>
                 <div className="flex">
+                  {initialUser.role === "ADMIN" && initialMetaHealthSummary ? (
+                    <MetaHealthBadge initialSummary={initialMetaHealthSummary} />
+                  ) : null}
                   <Button asChild aria-label="Configurar respostas rápidas" size="icon" variant="ghost"><a href="/configuracoes/respostas-rapidas"><MessageSquareText aria-hidden="true" className="size-4" /></a></Button>
                   {initialUser.role === "ADMIN" ? (
                     <>

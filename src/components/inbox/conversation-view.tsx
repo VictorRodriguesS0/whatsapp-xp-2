@@ -1,7 +1,7 @@
 "use client";
 
 import { ArrowLeft, CircleDot, Info, LoaderCircle } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,8 @@ import {
 } from "@/modules/messages/reply-context";
 
 import { ConversationMessageSearch } from "./conversation-message-search";
+import { galleryItems } from "./media-gallery";
+import { MediaViewerDialog } from "./media-viewer-dialog";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
 import { ServiceWindowBanner } from "./service-window-banner";
@@ -36,6 +38,25 @@ function prefersReducedMotion() {
 }
 
 const messageUuidPattern = /^[0-9a-f-]{36}$/iu;
+const MEDIA_HISTORY_KEY = "__xpMediaViewer";
+
+function historyState(): Record<string, unknown> {
+  return window.history.state && typeof window.history.state === "object"
+    ? window.history.state as Record<string, unknown>
+    : {};
+}
+
+function removeMediaHistoryMarker(conversationId: string) {
+  const state = historyState();
+  if (state[MEDIA_HISTORY_KEY] !== conversationId) return;
+  const next = { ...state };
+  delete next[MEDIA_HISTORY_KEY];
+  window.history.replaceState(
+    Object.keys(next).length > 0 ? next : null,
+    "",
+    window.location.href,
+  );
+}
 
 function ConversationControls({
   conversationId,
@@ -232,6 +253,13 @@ export function ConversationView({
   const messageElements = useRef(new Map<string, HTMLElement>());
   const highlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
+  const [activeMediaMessageId, setActiveMediaMessageId] = useState<string | null>(null);
+  const activeMediaMessageIdRef = useRef(activeMediaMessageId);
+  const mediaReturnFocus = useRef<HTMLElement | null>(null);
+  const mediaItems = useMemo(
+    () => galleryItems(conversation?.messages ?? []),
+    [conversation?.messages],
+  );
   const replyTarget = conversation?.messages.find(
     (item) => item.id === replyToMessageId && item.canReply,
   ) ?? null;
@@ -248,6 +276,73 @@ export function ConversationView({
 
   visibleMessageCallback.current = onVisibleMessage;
   latestMessageIdRef.current = latestMessageId;
+  activeMediaMessageIdRef.current = activeMediaMessageId;
+
+  const focusMediaTrigger = useCallback(() => {
+    const trigger = mediaReturnFocus.current;
+    queueMicrotask(() => {
+      if (trigger?.isConnected) trigger.focus();
+    });
+  }, []);
+
+  const openMedia = useCallback((messageId: string) => {
+    if (!conversation || !mediaItems.some((item) => item.messageId === messageId)) return;
+    mediaReturnFocus.current = document.activeElement instanceof HTMLElement
+      ? document.activeElement
+      : null;
+    if (
+      activeMediaMessageIdRef.current === null &&
+      window.history.state?.[MEDIA_HISTORY_KEY] !== conversation.id
+    ) {
+      window.history.pushState(
+        { ...historyState(), [MEDIA_HISTORY_KEY]: conversation.id },
+        "",
+        window.location.href,
+      );
+    }
+    setActiveMediaMessageId(messageId);
+  }, [conversation, mediaItems]);
+
+  const closeMedia = useCallback(() => {
+    if (activeMediaMessageIdRef.current === null) return;
+    if (window.history.state?.[MEDIA_HISTORY_KEY] === conversation?.id) {
+      window.history.back();
+      return;
+    }
+    setActiveMediaMessageId(null);
+    focusMediaTrigger();
+  }, [conversation?.id, focusMediaTrigger]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (activeMediaMessageIdRef.current === null) return;
+      setActiveMediaMessageId(null);
+      focusMediaTrigger();
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [focusMediaTrigger]);
+
+  useEffect(() => {
+    const conversationId = conversation?.id;
+    return () => {
+      if (conversationId) removeMediaHistoryMarker(conversationId);
+    };
+  }, [conversation?.id]);
+
+  useEffect(() => {
+    if (
+      activeMediaMessageId !== null &&
+      !mediaItems.some((item) => item.messageId === activeMediaMessageId)
+    ) {
+      if (window.history.state?.[MEDIA_HISTORY_KEY] === conversation?.id) {
+        window.history.back();
+      } else {
+        setActiveMediaMessageId(null);
+        focusMediaTrigger();
+      }
+    }
+  }, [activeMediaMessageId, conversation?.id, focusMediaTrigger, mediaItems]);
 
   const registerMessageElement = useCallback((messageId: string, element: HTMLElement | null) => {
     if (element) messageElements.current.set(messageId, element);
@@ -396,6 +491,7 @@ export function ConversationView({
             key={message.id}
             message={message}
             onNavigateReply={navigateToMessage}
+            onOpenMedia={openMedia}
             onReact={onReactMessage}
             onReply={onReplyToMessage}
             onRetry={onRetryMessage}
@@ -422,6 +518,13 @@ export function ConversationView({
           serviceWindow={conversation.serviceWindow}
         />
       ) : null}
+      <MediaViewerDialog
+        activeMessageId={activeMediaMessageId}
+        items={mediaItems}
+        onActiveMessageChange={setActiveMediaMessageId}
+        onClose={closeMedia}
+        returnFocus={mediaReturnFocus.current}
+      />
     </div>
   );
 }

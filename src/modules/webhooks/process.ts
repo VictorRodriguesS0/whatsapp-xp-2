@@ -12,9 +12,11 @@ import {
   type MessageStatus as MessageStatusValue,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import type { MessageBoundary } from "@/modules/conversations/boundary";
 import type { MessageContent } from "@/modules/messages/content";
 import { messageContentForPrisma } from "@/modules/messages/content.server";
 import {
+  advanceTeamReadFromBusinessEcho,
   compareBoundary,
   refreshResponseState,
 } from "@/modules/conversations/shared-state";
@@ -25,6 +27,7 @@ import {
   reconcileReplyLinks,
 } from "@/modules/messages/reply-linking.server";
 import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
+import { applyMetaOperationalEvent } from "@/modules/meta-health/service";
 
 import type {
   NormalizedMedia,
@@ -32,6 +35,7 @@ import type {
   NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
@@ -92,6 +96,10 @@ export type WebhookRepository = {
     externalTimestamp: Date;
   }): Promise<{ id: string; conversationId: string }>;
   refreshResponseState(conversationId: string): Promise<void>;
+  advanceTeamReadFromBusinessEcho(
+    conversationId: string,
+    echoBoundary: MessageBoundary,
+  ): Promise<void>;
   updateMessageStatus(
     messageId: string,
     status: NormalizedStatusEvent["status"],
@@ -128,6 +136,7 @@ export type WebhookProcessDependencies = {
     errorSummary: string,
   ): Promise<void>;
   publishRealtime(event: RealtimeEvent): void;
+  applyMetaOperationalEvent(event: NormalizedMetaOperationalEvent): Promise<void>;
   now?(): Date;
 };
 
@@ -706,6 +715,13 @@ export function createPrismaWebhookRepository(
     refreshResponseState(conversationId) {
       return refreshResponseState(client, conversationId);
     },
+    async advanceTeamReadFromBusinessEcho(conversationId, echoBoundary) {
+      await advanceTeamReadFromBusinessEcho(
+        client,
+        conversationId,
+        echoBoundary,
+      );
+    },
     updateMessageStatus(messageId, status, failureReason) {
       return client.message.update({
         where: { id: messageId },
@@ -933,6 +949,7 @@ const defaultDependencies: WebhookProcessDependencies = {
       });
     }),
   publishRealtime,
+  applyMetaOperationalEvent,
 };
 
 function deduplicationKey(
@@ -951,6 +968,8 @@ function deduplicationKey(
       return `reaction:${event.whatsappMessageId}`;
     case "reactionEcho":
       return `reaction-echo:${event.whatsappMessageId}`;
+    case "metaOperational":
+      return event.deduplicationKey;
     case "contactSyncBatch":
       return `contact-sync-batch:${event.items[0]?.sourceVersionKey ?? "empty"}`;
     case "templateStatus":
@@ -1065,6 +1084,10 @@ async function processMessageEcho(
     externalTimestamp: event.timestamp,
   });
   await repository.refreshResponseState(conversation.id);
+  await repository.advanceTeamReadFromBusinessEcho(conversation.id, {
+    id: message.id,
+    externalTimestamp: event.timestamp,
+  });
   await repository.completeEvent(key);
 
   return {
@@ -1296,7 +1319,27 @@ export async function processWebhookEvents(
     };
 
     try {
-      outcome = await dependencies.transaction(async (repository) => {
+      if (event.kind === "metaOperational") {
+        const reservation = await dependencies.transaction((repository) =>
+          repository.reserveEvent(key, event.kind),
+        );
+        if (reservation === WebhookStatus.PROCESSED) {
+          outcome = { duplicate: true, realtime: [], pendingMediaId: null };
+        } else {
+          if (reservation === WebhookStatus.PROCESSING) {
+            throw new WebhookProcessingError(true, false);
+          }
+          await dependencies.applyMetaOperationalEvent(event);
+          await dependencies.transaction(async (repository) => {
+            await repository.completeEvent(key);
+          });
+          outcome = {
+            duplicate: false,
+            realtime: [{ type: "meta-health.updated" }],
+            pendingMediaId: null,
+          };
+        }
+      } else outcome = await dependencies.transaction(async (repository) => {
         const reservation = await repository.reserveEvent(key, event.kind);
 
         if (reservation === WebhookStatus.PROCESSED) {

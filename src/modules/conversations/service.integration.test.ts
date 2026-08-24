@@ -206,6 +206,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)("conversation Prisma repository"
       nextAttemptAt: leaseUntil.toISOString(),
       canRetry: false,
     });
+    expect(dto?.mediaMimeType).toBe("image/jpeg");
     const serialized = JSON.stringify(dto);
     expect(serialized).not.toContain("secret-storage-key");
     expect(serialized).not.toContain("private-provider-filename.jpg");

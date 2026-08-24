@@ -90,6 +90,7 @@ const messageSelect = {
   mediaObject: {
     select: {
       status: true,
+      mimeType: true,
       downloadLeaseUntil: true,
       downloadNextAttemptAt: true,
       downloadAttempts: true,
@@ -342,6 +343,7 @@ function toMessageDto(message: MessageRecord): MessageDto {
         ? { available: false }
         : null,
     mediaObjectId: message.mediaObjectId,
+    mediaMimeType: message.mediaObject?.mimeType ?? null,
     mediaState,
     sentBy: message.sentByUser
       ? { id: message.sentByUser.id, name: message.sentByUser.name }

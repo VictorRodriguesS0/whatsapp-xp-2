@@ -67,6 +67,7 @@ export type MediaStateDto = {
 
 export type SafeMessageMediaRecord = {
   status: MediaStatus;
+  mimeType: string;
   downloadLeaseUntil: Date | null;
   downloadNextAttemptAt: Date | null;
   downloadAttempts: number;
@@ -151,6 +152,7 @@ export type MessageDto = {
   canReply: boolean;
   replyTo: QuotedReplyDto | null;
   mediaObjectId: string | null;
+  mediaMimeType?: string | null;
   mediaState: MediaStateDto | null;
   sentBy: ResponsibleUserDto | null;
   status: MessageStatus;

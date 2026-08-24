@@ -218,6 +218,7 @@ export type UserWhereInput = {
   conversationResumptions?: Prisma.ConversationResumptionListRelationFilter
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventListRelationFilter
   messagingRestrictedContacts?: Prisma.ContactListRelationFilter
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -241,6 +242,7 @@ export type UserOrderByWithRelationInput = {
   conversationResumptions?: Prisma.ConversationResumptionOrderByRelationAggregateInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventOrderByRelationAggregateInput
   messagingRestrictedContacts?: Prisma.ContactOrderByRelationAggregateInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -267,6 +269,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   conversationResumptions?: Prisma.ConversationResumptionListRelationFilter
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventListRelationFilter
   messagingRestrictedContacts?: Prisma.ContactListRelationFilter
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -318,6 +321,7 @@ export type UserCreateInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -341,6 +345,7 @@ export type UserUncheckedCreateInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUpdateInput = {
@@ -364,6 +369,7 @@ export type UserUpdateInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -387,6 +393,7 @@ export type UserUncheckedUpdateInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -603,6 +610,22 @@ export type UserUpdateOneRequiredWithoutConversationAuditEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutConversationAuditEventsInput, Prisma.UserUpdateWithoutConversationAuditEventsInput>, Prisma.UserUncheckedUpdateWithoutConversationAuditEventsInput>
 }
 
+export type UserCreateNestedOneWithoutAcknowledgedMetaAlertsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAcknowledgedMetaAlertsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutAcknowledgedMetaAlertsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAcknowledgedMetaAlertsInput
+  upsert?: Prisma.UserUpsertWithoutAcknowledgedMetaAlertsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAcknowledgedMetaAlertsInput, Prisma.UserUpdateWithoutAcknowledgedMetaAlertsInput>, Prisma.UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput>
+}
+
 export type UserCreateNestedOneWithoutWhatsappPolicyActionsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedCreateWithoutWhatsappPolicyActionsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutWhatsappPolicyActionsInput
@@ -681,6 +704,7 @@ export type UserCreateWithoutSessionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutSessionsInput = {
@@ -703,6 +727,7 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutSessionsInput = {
@@ -741,6 +766,7 @@ export type UserUpdateWithoutSessionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -763,6 +789,7 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutMessagingRestrictedContactsInput = {
@@ -785,6 +812,7 @@ export type UserCreateWithoutMessagingRestrictedContactsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutMessagingRestrictedContactsInput = {
@@ -807,6 +835,7 @@ export type UserUncheckedCreateWithoutMessagingRestrictedContactsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutMessagingRestrictedContactsInput = {
@@ -845,6 +874,7 @@ export type UserUpdateWithoutMessagingRestrictedContactsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMessagingRestrictedContactsInput = {
@@ -867,6 +897,7 @@ export type UserUncheckedUpdateWithoutMessagingRestrictedContactsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutAssignedConversationsInput = {
@@ -889,6 +920,7 @@ export type UserCreateWithoutAssignedConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutAssignedConversationsInput = {
@@ -911,6 +943,7 @@ export type UserUncheckedCreateWithoutAssignedConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutAssignedConversationsInput = {
@@ -938,6 +971,7 @@ export type UserCreateWithoutManualUnreadConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutManualUnreadConversationsInput = {
@@ -960,6 +994,7 @@ export type UserUncheckedCreateWithoutManualUnreadConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutManualUnreadConversationsInput = {
@@ -998,6 +1033,7 @@ export type UserUpdateWithoutAssignedConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedConversationsInput = {
@@ -1020,6 +1056,7 @@ export type UserUncheckedUpdateWithoutAssignedConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUpsertWithoutManualUnreadConversationsInput = {
@@ -1053,6 +1090,7 @@ export type UserUpdateWithoutManualUnreadConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutManualUnreadConversationsInput = {
@@ -1075,6 +1113,7 @@ export type UserUncheckedUpdateWithoutManualUnreadConversationsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutSentMessagesInput = {
@@ -1097,6 +1136,7 @@ export type UserCreateWithoutSentMessagesInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutSentMessagesInput = {
@@ -1119,6 +1159,7 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutSentMessagesInput = {
@@ -1157,6 +1198,7 @@ export type UserUpdateWithoutSentMessagesInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentMessagesInput = {
@@ -1179,6 +1221,7 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutSentReactionsInput = {
@@ -1201,6 +1244,7 @@ export type UserCreateWithoutSentReactionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutSentReactionsInput = {
@@ -1223,6 +1267,7 @@ export type UserUncheckedCreateWithoutSentReactionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutSentReactionsInput = {
@@ -1261,6 +1306,7 @@ export type UserUpdateWithoutSentReactionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentReactionsInput = {
@@ -1283,6 +1329,7 @@ export type UserUncheckedUpdateWithoutSentReactionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutConversationReadsInput = {
@@ -1305,6 +1352,7 @@ export type UserCreateWithoutConversationReadsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutConversationReadsInput = {
@@ -1327,6 +1375,7 @@ export type UserUncheckedCreateWithoutConversationReadsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutConversationReadsInput = {
@@ -1365,6 +1414,7 @@ export type UserUpdateWithoutConversationReadsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationReadsInput = {
@@ -1387,6 +1437,7 @@ export type UserUncheckedUpdateWithoutConversationReadsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutConversationAuditEventsInput = {
@@ -1409,6 +1460,7 @@ export type UserCreateWithoutConversationAuditEventsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutConversationAuditEventsInput = {
@@ -1431,6 +1483,7 @@ export type UserUncheckedCreateWithoutConversationAuditEventsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutConversationAuditEventsInput = {
@@ -1469,6 +1522,7 @@ export type UserUpdateWithoutConversationAuditEventsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationAuditEventsInput = {
@@ -1485,6 +1539,115 @@ export type UserUncheckedUpdateWithoutConversationAuditEventsInput = {
   sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
+}
+
+export type UserCreateWithoutAcknowledgedMetaAlertsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserCreateOrConnectWithoutAcknowledgedMetaAlertsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+}
+
+export type UserUpsertWithoutAcknowledgedMetaAlertsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedCreateWithoutAcknowledgedMetaAlertsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAcknowledgedMetaAlertsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAcknowledgedMetaAlertsInput, Prisma.UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput>
+}
+
+export type UserUpdateWithoutAcknowledgedMetaAlertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAcknowledgedMetaAlertsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
   whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
@@ -1513,6 +1676,7 @@ export type UserCreateWithoutWhatsappPolicyActionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutWhatsappPolicyActionsInput = {
@@ -1535,6 +1699,7 @@ export type UserUncheckedCreateWithoutWhatsappPolicyActionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutWhatsappPolicyActionsInput = {
@@ -1573,6 +1738,7 @@ export type UserUpdateWithoutWhatsappPolicyActionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWhatsappPolicyActionsInput = {
@@ -1595,6 +1761,7 @@ export type UserUncheckedUpdateWithoutWhatsappPolicyActionsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutWhatsappTemplateAssignmentsInput = {
@@ -1617,6 +1784,7 @@ export type UserCreateWithoutWhatsappTemplateAssignmentsInput = {
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput = {
@@ -1639,6 +1807,7 @@ export type UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutWhatsappTemplateAssignmentsInput = {
@@ -1677,6 +1846,7 @@ export type UserUpdateWithoutWhatsappTemplateAssignmentsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWhatsappTemplateAssignmentsInput = {
@@ -1699,6 +1869,7 @@ export type UserUncheckedUpdateWithoutWhatsappTemplateAssignmentsInput = {
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutConversationResumptionsInput = {
@@ -1721,6 +1892,7 @@ export type UserCreateWithoutConversationResumptionsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutConversationResumptionsInput = {
@@ -1743,6 +1915,7 @@ export type UserUncheckedCreateWithoutConversationResumptionsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutConversationResumptionsInput = {
@@ -1781,6 +1954,7 @@ export type UserUpdateWithoutConversationResumptionsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationResumptionsInput = {
@@ -1803,6 +1977,7 @@ export type UserUncheckedUpdateWithoutConversationResumptionsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserCreateWithoutMessagingRestrictionEventsInput = {
@@ -1825,6 +2000,7 @@ export type UserCreateWithoutMessagingRestrictionEventsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
   conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
   messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserUncheckedCreateWithoutMessagingRestrictionEventsInput = {
@@ -1847,6 +2023,7 @@ export type UserUncheckedCreateWithoutMessagingRestrictionEventsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
   conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedCreateNestedManyWithoutAcknowledgedByUserInput
 }
 
 export type UserCreateOrConnectWithoutMessagingRestrictionEventsInput = {
@@ -1885,6 +2062,7 @@ export type UserUpdateWithoutMessagingRestrictionEventsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
   conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutMessagingRestrictionEventsInput = {
@@ -1907,6 +2085,7 @@ export type UserUncheckedUpdateWithoutMessagingRestrictionEventsInput = {
   whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
   conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
   messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+  acknowledgedMetaAlerts?: Prisma.MetaOperationalAlertUncheckedUpdateManyWithoutAcknowledgedByUserNestedInput
 }
 
 
@@ -1927,6 +2106,7 @@ export type UserCountOutputType = {
   conversationResumptions: number
   messagingRestrictionEvents: number
   messagingRestrictedContacts: number
+  acknowledgedMetaAlerts: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1942,6 +2122,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   conversationResumptions?: boolean | UserCountOutputTypeCountConversationResumptionsArgs
   messagingRestrictionEvents?: boolean | UserCountOutputTypeCountMessagingRestrictionEventsArgs
   messagingRestrictedContacts?: boolean | UserCountOutputTypeCountMessagingRestrictedContactsArgs
+  acknowledgedMetaAlerts?: boolean | UserCountOutputTypeCountAcknowledgedMetaAlertsArgs
 }
 
 /**
@@ -2038,6 +2219,13 @@ export type UserCountOutputTypeCountMessagingRestrictedContactsArgs<ExtArgs exte
   where?: Prisma.ContactWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAcknowledgedMetaAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.MetaOperationalAlertWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2060,6 +2248,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   conversationResumptions?: boolean | Prisma.User$conversationResumptionsArgs<ExtArgs>
   messagingRestrictionEvents?: boolean | Prisma.User$messagingRestrictionEventsArgs<ExtArgs>
   messagingRestrictedContacts?: boolean | Prisma.User$messagingRestrictedContactsArgs<ExtArgs>
+  acknowledgedMetaAlerts?: boolean | Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -2110,6 +2299,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   conversationResumptions?: boolean | Prisma.User$conversationResumptionsArgs<ExtArgs>
   messagingRestrictionEvents?: boolean | Prisma.User$messagingRestrictionEventsArgs<ExtArgs>
   messagingRestrictedContacts?: boolean | Prisma.User$messagingRestrictedContactsArgs<ExtArgs>
+  acknowledgedMetaAlerts?: boolean | Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -2130,6 +2320,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     conversationResumptions: Prisma.$ConversationResumptionPayload<ExtArgs>[]
     messagingRestrictionEvents: Prisma.$ContactMessagingRestrictionEventPayload<ExtArgs>[]
     messagingRestrictedContacts: Prisma.$ContactPayload<ExtArgs>[]
+    acknowledgedMetaAlerts: Prisma.$MetaOperationalAlertPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2546,6 +2737,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   conversationResumptions<T extends Prisma.User$conversationResumptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$conversationResumptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationResumptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   messagingRestrictionEvents<T extends Prisma.User$messagingRestrictionEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$messagingRestrictionEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactMessagingRestrictionEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   messagingRestrictedContacts<T extends Prisma.User$messagingRestrictedContactsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$messagingRestrictedContactsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  acknowledgedMetaAlerts<T extends Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$acknowledgedMetaAlertsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MetaOperationalAlertPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3261,6 +3453,30 @@ export type User$messagingRestrictedContactsArgs<ExtArgs extends runtime.Types.E
   take?: number
   skip?: number
   distinct?: Prisma.ContactScalarFieldEnum | Prisma.ContactScalarFieldEnum[]
+}
+
+/**
+ * User.acknowledgedMetaAlerts
+ */
+export type User$acknowledgedMetaAlertsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the MetaOperationalAlert
+   */
+  select?: Prisma.MetaOperationalAlertSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the MetaOperationalAlert
+   */
+  omit?: Prisma.MetaOperationalAlertOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MetaOperationalAlertInclude<ExtArgs> | null
+  where?: Prisma.MetaOperationalAlertWhereInput
+  orderBy?: Prisma.MetaOperationalAlertOrderByWithRelationInput | Prisma.MetaOperationalAlertOrderByWithRelationInput[]
+  cursor?: Prisma.MetaOperationalAlertWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.MetaOperationalAlertScalarFieldEnum | Prisma.MetaOperationalAlertScalarFieldEnum[]
 }
 
 /**

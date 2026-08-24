@@ -1,5 +1,6 @@
 import type { MessageStatus, MessageType } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
+import type { MetaOperationalField } from "@/modules/meta-health/types";
 
 export type NormalizedMedia = {
   metaMediaId: string;
@@ -84,6 +85,17 @@ export type NormalizedReactionEchoEvent = {
   origin: "WHATSAPP_BUSINESS_APP";
 };
 
+export type NormalizedMetaOperationalEvent = {
+  kind: "metaOperational";
+  wabaId: string;
+  field: MetaOperationalField;
+  eventCode: string;
+  resourceId: string | null;
+  occurredAt: Date;
+  details: Record<string, string | null> | null;
+  deduplicationKey: string;
+};
+
 export type NormalizedContactSyncItem = {
   action: "ADD" | "REMOVE";
   phone: string;
@@ -124,6 +136,7 @@ export type NormalizedWebhookEvent =
   | NormalizedMessageEchoControlEvent
   | NormalizedReactionEvent
   | NormalizedReactionEchoEvent
+  | NormalizedMetaOperationalEvent
   | NormalizedContactSyncBatchEvent
   | NormalizedTemplateStatusEvent
   | NormalizedTemplateQualityEvent;

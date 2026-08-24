@@ -1,6 +1,11 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.hoisted(() => {
+  process.env.WHATSAPP_PHONE_NUMBER_ID = "test-phone-number-id";
+  process.env.WHATSAPP_BUSINESS_ACCOUNT_ID = "123456789";
+});
 
 import {
   MessageDirection,
@@ -12,6 +17,7 @@ import {
   inboundLocationFixture,
   inboundMediaFixture,
   inboundTextFixture,
+  phoneQualityFixture,
   statusFixture,
   templateQualityFixture,
   templateStatusFixture,
@@ -84,6 +90,11 @@ type State = {
     metaTemplateId: string;
     qualityScore: string;
   }>;
+  businessEchoReadAdvances: Array<{
+    conversationId: string;
+    messageId: string | null;
+    externalTimestamp: Date;
+  }>;
 };
 
 function cloneState(state: State): State {
@@ -96,6 +107,7 @@ function cloneState(state: State): State {
     appContacts: new Map(structuredClone([...state.appContacts])),
     templateStatusUpdates: structuredClone(state.templateStatusUpdates),
     templateQualityUpdates: structuredClone(state.templateQualityUpdates),
+    businessEchoReadAdvances: structuredClone(state.businessEchoReadAdvances),
   };
 }
 
@@ -109,9 +121,11 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
     appContacts: new Map(),
     templateStatusUpdates: [],
     templateQualityUpdates: [],
+    businessEchoReadAdvances: [],
   };
   let committed = false;
   const publications: Array<{ event: unknown; afterCommit: boolean }> = [];
+  const operationalApplications: unknown[] = [];
 
   function repositoryFor(target: State): WebhookRepository {
     return {
@@ -286,6 +300,16 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
             ? (conversation.awaitingResponseSince ?? latest.externalTimestamp)
             : null;
       },
+      advanceTeamReadFromBusinessEcho: async (
+        conversationId,
+        boundary,
+      ) => {
+        target.businessEchoReadAdvances.push({
+          conversationId,
+          messageId: boundary.id,
+          externalTimestamp: boundary.externalTimestamp,
+        });
+      },
       updateMessageStatus: async (messageId, status, failureReason) => {
         const message = [...target.messages.values()].find(({ id }) => id === messageId);
         if (!message) throw new Error("missing message");
@@ -360,6 +384,9 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       });
     },
     publishRealtime: (event) => publications.push({ event, afterCommit: committed }),
+    applyMetaOperationalEvent: async (event) => {
+      operationalApplications.push(event);
+    },
   };
 
   return {
@@ -368,6 +395,7 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
       return state;
     },
     publications,
+    operationalApplications,
   };
 }
 
@@ -419,6 +447,13 @@ describe("webhook event processing", () => {
       body: "synthetic echo",
     });
     expect(harness.state.media).toHaveLength(0);
+    expect(harness.state.businessEchoReadAdvances).toEqual([
+      {
+        conversationId: "conversation-1",
+        messageId: "message-1",
+        externalTimestamp: echo.timestamp,
+      },
+    ]);
     expect(scheduled).toEqual([]);
     expect(harness.publications).toEqual([
       {
@@ -760,6 +795,37 @@ describe("webhook event processing", () => {
     expect(harness.state.events.get(`status:wamid.racing:DELIVERED:${timestamp}`)?.status)
       .toBe(WebhookStatus.PROCESSED);
   });
+
+  it("persists and publishes a new operational event, then counts its duplicate", async () => {
+    const harness = createHarness();
+    const events = normalizeWebhook(phoneQualityFixture());
+
+    await expect(processWebhookEvents(events, harness.dependencies)).resolves.toEqual({
+      processed: 1,
+      duplicates: 0,
+    });
+    await expect(processWebhookEvents(events, harness.dependencies)).resolves.toEqual({
+      processed: 0,
+      duplicates: 1,
+    });
+    expect(harness.operationalApplications).toHaveLength(1);
+    expect(harness.publications).toContainEqual({
+      event: { type: "meta-health.updated" },
+      afterCommit: true,
+    });
+  });
+
+  it("processes a message and an operational update from the same normalized batch", async () => {
+    const harness = createHarness();
+    const payload = structuredClone(inboundTextFixture) as Record<string, any>;
+    payload.entry.push(phoneQualityFixture().entry[0]);
+
+    await expect(
+      processWebhookEvents(normalizeWebhook(payload), harness.dependencies),
+    ).resolves.toEqual({ processed: 2, duplicates: 0 });
+    expect(harness.state.messages.has("wamid.text-1")).toBe(true);
+    expect(harness.operationalApplications).toHaveLength(1);
+  });
 });
 
 describe("WhatsApp app contact batch processing", () => {
@@ -836,7 +902,7 @@ describe("WhatsApp app contact batch processing", () => {
 });
 
 describe("template webhook event processing", () => {
-  it("deduplicates status and quality updates and publishes only safe settings invalidation", async () => {
+  it("deduplicates status, health and quality updates with only safe invalidations", async () => {
     const harness = createHarness();
     const events = [
       ...normalizeWebhook(templateStatusFixture("PAUSED")),
@@ -845,10 +911,10 @@ describe("template webhook event processing", () => {
 
     await expect(
       processWebhookEvents(events, harness.dependencies),
-    ).resolves.toEqual({ processed: 2, duplicates: 0 });
+    ).resolves.toEqual({ processed: 3, duplicates: 0 });
     await expect(
       processWebhookEvents(events, harness.dependencies),
-    ).resolves.toEqual({ processed: 0, duplicates: 2 });
+    ).resolves.toEqual({ processed: 0, duplicates: 3 });
 
     expect(harness.state.templateStatusUpdates).toEqual([
       { metaTemplateId: "987654321", status: "PAUSED" },
@@ -857,6 +923,10 @@ describe("template webhook event processing", () => {
       { metaTemplateId: "987654321", qualityScore: "YELLOW" },
     ]);
     expect(harness.publications).toEqual([
+      {
+        afterCommit: true,
+        event: { type: "meta-health.updated" },
+      },
       {
         afterCommit: true,
         event: { type: "settings.updated", scope: "whatsapp-policy" },
@@ -906,7 +976,8 @@ describe("webhook PostgreSQL integration", () => {
     await expect(prisma.whatsAppTemplate.count()).resolves.toBe(1);
     await expect(
       prisma.webhookEvent.count({ where: { status: WebhookStatus.PROCESSED } }),
-    ).resolves.toBe(2);
+    ).resolves.toBe(3);
+    await expect(prisma.metaOperationalAlert.count()).resolves.toBe(1);
   });
 
   it("commits one inbound message and one deduplication event across retries", async () => {

@@ -97,6 +97,7 @@ const handlers = {
 describe("ConversationView", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.history.replaceState(null, "", window.location.href);
     audioRecorder.phase = "idle";
     audioRecorder.recording = null;
   });
@@ -381,6 +382,73 @@ describe("ConversationView", () => {
       "src",
       `/api/media/${pendingAudio.mediaObjectId}`,
     );
+  });
+
+  it("opens eligible conversation media in the full-screen gallery", () => {
+    const image: InboxMessage = {
+      ...message,
+      id: "40000000-0000-4000-8000-000000000011",
+      type: "IMAGE",
+      body: null,
+      mediaObjectId: "50000000-0000-4000-8000-000000000011",
+      mediaMimeType: "image/jpeg",
+      mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+    };
+
+    render(<ConversationView {...handlers} conversation={{ ...conversation, messages: [image] }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir imagem" }));
+
+    expect(screen.getByRole("dialog", { name: "Imagem" })).toBeVisible();
+    expect(window.history.state).toEqual(expect.objectContaining({
+      __xpMediaViewer: conversation.id,
+    }));
+  });
+
+  it("lets Escape and browser back close media before leaving the conversation and restores focus", async () => {
+    window.history.replaceState({ __xpInboxLayer: "thread" }, "", window.location.href);
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    const image: InboxMessage = {
+      ...message,
+      id: "40000000-0000-4000-8000-000000000011",
+      type: "IMAGE",
+      body: null,
+      mediaObjectId: "50000000-0000-4000-8000-000000000011",
+      mediaMimeType: "image/jpeg",
+      mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+    };
+
+    render(<ConversationView {...handlers} conversation={{ ...conversation, messages: [image] }} />);
+    const trigger = screen.getByRole("button", { name: "Abrir imagem" });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(back).toHaveBeenCalledOnce();
+
+    window.history.replaceState({ __xpInboxLayer: "thread" }, "", window.location.href);
+    fireEvent(window, new PopStateEvent("popstate", { state: { __xpInboxLayer: "thread" } }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(handlers.onBack).not.toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("removes its media history marker if the active conversation disappears", () => {
+    const image: InboxMessage = {
+      ...message,
+      id: "40000000-0000-4000-8000-000000000011",
+      type: "IMAGE",
+      body: null,
+      mediaObjectId: "50000000-0000-4000-8000-000000000011",
+      mediaMimeType: "image/jpeg",
+      mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+    };
+    const view = render(<ConversationView {...handlers} conversation={{ ...conversation, messages: [image] }} />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir imagem" }));
+    expect(window.history.state).toHaveProperty("__xpMediaViewer");
+
+    view.rerender(<ConversationView {...handlers} conversation={null} />);
+
+    expect(window.history.state?.__xpMediaViewer).toBeUndefined();
   });
 
   it("selects a replyable bubble and shows its composer draft", () => {

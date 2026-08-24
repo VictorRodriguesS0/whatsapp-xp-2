@@ -19,9 +19,14 @@ export type StoredMedia = {
   sha256: string;
 };
 
+export type MediaStorageRange = {
+  start: bigint;
+  end: bigint;
+};
+
 export interface MediaStorage {
   put(input: MediaStoragePutInput): Promise<StoredMedia>;
   putStream(input: MediaStorageStreamInput): Promise<StoredMedia>;
-  open(key: string): Promise<ReadableStream<Uint8Array>>;
+  open(key: string, range?: MediaStorageRange): Promise<ReadableStream<Uint8Array>>;
   remove(key: string): Promise<void>;
 }

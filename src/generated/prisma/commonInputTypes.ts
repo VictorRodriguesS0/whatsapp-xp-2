@@ -511,6 +511,57 @@ export type EnumWebhookStatusWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedEnumWebhookStatusFilter<$PrismaModel>
 }
 
+export type EnumMetaAlertCategoryFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertCategory | Prisma.EnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertCategoryFilter<$PrismaModel> | $Enums.MetaAlertCategory
+}
+
+export type EnumMetaAlertSeverityFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSeverity | Prisma.EnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSeverityFilter<$PrismaModel> | $Enums.MetaAlertSeverity
+}
+
+export type EnumMetaAlertSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSource | Prisma.EnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSourceFilter<$PrismaModel> | $Enums.MetaAlertSource
+}
+
+export type EnumMetaAlertCategoryWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertCategory | Prisma.EnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertCategoryWithAggregatesFilter<$PrismaModel> | $Enums.MetaAlertCategory
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMetaAlertCategoryFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMetaAlertCategoryFilter<$PrismaModel>
+}
+
+export type EnumMetaAlertSeverityWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSeverity | Prisma.EnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSeverityWithAggregatesFilter<$PrismaModel> | $Enums.MetaAlertSeverity
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMetaAlertSeverityFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMetaAlertSeverityFilter<$PrismaModel>
+}
+
+export type EnumMetaAlertSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSource | Prisma.EnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSourceWithAggregatesFilter<$PrismaModel> | $Enums.MetaAlertSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMetaAlertSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMetaAlertSourceFilter<$PrismaModel>
+}
+
 export type EnumWhatsAppPolicyModeFilter<$PrismaModel = never> = {
   equals?: $Enums.WhatsAppPolicyMode | Prisma.EnumWhatsAppPolicyModeFieldRefInput<$PrismaModel>
   in?: $Enums.WhatsAppPolicyMode[] | Prisma.ListEnumWhatsAppPolicyModeFieldRefInput<$PrismaModel>
@@ -1124,6 +1175,57 @@ export type NestedEnumWebhookStatusWithAggregatesFilter<$PrismaModel = never> = 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumWebhookStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumWebhookStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumMetaAlertCategoryFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertCategory | Prisma.EnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertCategoryFilter<$PrismaModel> | $Enums.MetaAlertCategory
+}
+
+export type NestedEnumMetaAlertSeverityFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSeverity | Prisma.EnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSeverityFilter<$PrismaModel> | $Enums.MetaAlertSeverity
+}
+
+export type NestedEnumMetaAlertSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSource | Prisma.EnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSourceFilter<$PrismaModel> | $Enums.MetaAlertSource
+}
+
+export type NestedEnumMetaAlertCategoryWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertCategory | Prisma.EnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertCategory[] | Prisma.ListEnumMetaAlertCategoryFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertCategoryWithAggregatesFilter<$PrismaModel> | $Enums.MetaAlertCategory
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMetaAlertCategoryFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMetaAlertCategoryFilter<$PrismaModel>
+}
+
+export type NestedEnumMetaAlertSeverityWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSeverity | Prisma.EnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSeverity[] | Prisma.ListEnumMetaAlertSeverityFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSeverityWithAggregatesFilter<$PrismaModel> | $Enums.MetaAlertSeverity
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMetaAlertSeverityFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMetaAlertSeverityFilter<$PrismaModel>
+}
+
+export type NestedEnumMetaAlertSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.MetaAlertSource | Prisma.EnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.MetaAlertSource[] | Prisma.ListEnumMetaAlertSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumMetaAlertSourceWithAggregatesFilter<$PrismaModel> | $Enums.MetaAlertSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumMetaAlertSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumMetaAlertSourceFilter<$PrismaModel>
 }
 
 export type NestedEnumWhatsAppPolicyModeFilter<$PrismaModel = never> = {

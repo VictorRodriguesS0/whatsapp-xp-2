@@ -15,6 +15,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:db": "vitest run",
+    "backfill:official-echo-reads:test": "vitest run scripts/backfill-official-echo-reads.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
