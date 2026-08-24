@@ -502,11 +502,11 @@ git commit -m "fix: preserve inbox content during refresh"
 - Mobile 320–767: exactly one visible layer, with history/back integration.
 - `ConversationSidebar` owns brand/header, settings menu, search mode, search field and result list, but receives existing callbacks/state.
 
-- [ ] **Step 1: Write failing sidebar and shell contracts**
+- [x] **Step 1: Write failing sidebar and shell contracts**
 
 Assert the sidebar renders `AppBrand`, `ThemeMenu`, accessible `Conversas/Mensagens` controls with `min-h-11`, one settings menu rather than four cramped icons, and current list/search behavior. Update mobile tests to use `(max-width: 767px)` and add boundary cases for 767 mobile and 768 tablet.
 
-- [ ] **Step 2: Run the focused suite and verify RED**
+- [x] **Step 2: Run the focused suite and verify RED**
 
 Run:
 
@@ -516,7 +516,7 @@ npm test -- src/components/inbox/conversation-sidebar.test.tsx src/components/in
 
 Expected: missing component and old 719 px boundary failures.
 
-- [ ] **Step 3: Extract `ConversationSidebar` without moving state ownership**
+- [x] **Step 3: Extract `ConversationSidebar` without moving state ownership**
 
 `InboxShell` continues to own `useInbox`, selected conversation, history and reply/search targets. The new component receives state/callback props; it must not fetch data or create a second hook instance.
 
@@ -536,7 +536,7 @@ type ConversationSidebarProps = {
 };
 ```
 
-- [ ] **Step 4: Implement the approved responsive grid**
+- [x] **Step 4: Implement the approved responsive grid**
 
 ```css
 .inbox-grid {
@@ -565,15 +565,15 @@ type ConversationSidebarProps = {
 
 Add short transform/opacity transitions only when reduced motion is not requested. Keep inactive panes outside pointer and accessibility interaction through `inert` in React, not CSS alone.
 
-- [ ] **Step 5: Make conversation rows denser and legible**
+- [x] **Step 5: Make conversation rows denser and legible**
 
 Keep name, time, preview, unread and pin on the first two visual lines. Place responsible/type/tags into one compact metadata row with horizontal truncation; do not stack every chip. Preserve all accessible labels and the explicit pin action. Long names, phones and tags must use `min-width: 0`, `truncate` or `overflow-wrap` as appropriate.
 
-- [ ] **Step 6: Preserve state through breakpoint changes**
+- [x] **Step 6: Preserve state through breakpoint changes**
 
 Keep `mobileView`, selected ID, reply draft and DOM nodes mounted. Do not reset state in a resize effect. Update all mobile checks in `InboxShell` and `MessageReactions` to 767 px. Add a test that selects a conversation, rerenders after changing `matchMedia`, and keeps selection/draft/history content.
 
-- [ ] **Step 7: Run responsive shell regressions and commit**
+- [x] **Step 7: Run responsive shell regressions and commit**
 
 Run:
 
