@@ -26,6 +26,10 @@ type ThemeContextValue = {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 const systemThemeQuery = "(prefers-color-scheme: dark)";
+const themeColors: Record<ResolvedTheme, string> = {
+  light: "#eef2f6",
+  dark: "#050505",
+};
 
 function readStoredPreference(): ThemePreference {
   try {
@@ -40,6 +44,12 @@ function applyDocumentTheme(theme: ResolvedTheme) {
   const root = document.documentElement;
   root.dataset.theme = theme;
   root.style.colorScheme = theme;
+
+  for (const themeColor of document.querySelectorAll<HTMLMetaElement>(
+    'meta[name="theme-color"]',
+  )) {
+    themeColor.content = themeColors[theme];
+  }
 }
 
 export const themeBootstrapScript = `(()=>{let p="system";try{const s=localStorage.getItem("${THEME_STORAGE_KEY}");p=s==="light"||s==="dark"||s==="system"?s:"system"}catch{}let d=false;try{d=window.matchMedia("${systemThemeQuery}").matches}catch{}const t=p==="system"?(d?"dark":"light"):p;const r=document.documentElement;r.dataset.theme=t;r.style.colorScheme=t})();`;

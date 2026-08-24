@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "icons:generate": "node scripts/generate-pwa-icons.mjs",
     "test:db": "vitest run",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
@@ -56,6 +57,7 @@
     "eslint-config-next": "16.3.1",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
+    "sharp": "^0.35.3",
     "tailwindcss": "4.3.3",
     "typescript": "7.0.2",
     "vitest": "4.1.11"

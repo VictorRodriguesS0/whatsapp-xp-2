@@ -80,6 +80,25 @@ describe("ThemeProvider", () => {
     expect(document.documentElement.style.colorScheme).toBe("dark");
   });
 
+  it("updates the active theme-color meta tag when an explicit preference changes", async () => {
+    const themeColor = document.createElement("meta");
+    themeColor.name = "theme-color";
+    themeColor.content = "#eef2f6";
+    document.head.append(themeColor);
+
+    render(
+      <ThemeProvider>
+        <ThemeProbe />
+      </ThemeProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("system:light")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: "Dark" }));
+
+    expect(themeColor.content).toBe("#050505");
+    themeColor.remove();
+  });
+
   it("reacts to system changes only while the system preference is selected", async () => {
     render(
       <ThemeProvider>
