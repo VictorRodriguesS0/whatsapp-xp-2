@@ -279,6 +279,8 @@ class FakeProvider implements WhatsAppProvider {
   }
 
   async markRead(): Promise<void> {}
+  async listTemplates() { return []; }
+  async sendTemplate(): Promise<never> { throw new Error("unused"); }
 
   async sendText(input: Parameters<WhatsAppProvider["sendText"]>[0]) {
     this.textInputs.push(input);

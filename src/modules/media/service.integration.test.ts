@@ -24,6 +24,8 @@ class Provider implements WhatsAppProvider {
   delayMs = 10;
   failure: Error | null = null;
   async markRead(): Promise<void> {}
+  async listTemplates() { return []; }
+  async sendTemplate(): Promise<never> { throw new Error("unused"); }
   async getMediaMetadata(mediaId: string) {
     this.calls += 1;
     await new Promise((resolve) => setTimeout(resolve, this.delayMs));
