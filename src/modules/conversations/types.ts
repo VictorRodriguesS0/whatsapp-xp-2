@@ -31,6 +31,7 @@ export type ContactDto = {
   preferredName: string | null;
   name: string;
   phone: string;
+  messagingRestricted: boolean;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };
@@ -48,6 +49,7 @@ export type ConversationContactRecord = {
   name: string;
   preferredName: string | null;
   phone: string | null;
+  messagingOptOutAt: Date | null;
   whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactType: ContactClassificationRecord | null;
   tagAssignments: Array<{ tag: ContactClassificationRecord }>;

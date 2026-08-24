@@ -27,6 +27,7 @@ describe("conversation responsible route", () => {
         preferredName: null,
         name: "Carlos",
         phone: "1",
+        messagingRestricted: false,
         type: null,
         tags: [],
       },

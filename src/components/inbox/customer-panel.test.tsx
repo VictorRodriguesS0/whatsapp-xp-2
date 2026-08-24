@@ -14,6 +14,7 @@ const conversation: ConversationListItem = {
     preferredName: null,
     name: "Carlos",
     phone: "5561999999999",
+    messagingRestricted: false,
     type: null,
     tags: [],
   },

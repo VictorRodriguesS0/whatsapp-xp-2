@@ -104,6 +104,7 @@ function conversation(
       name,
       preferredName: null,
       phone,
+      messagingOptOutAt: null,
       contactType: null,
       tagAssignments: [],
       ...contactOverrides,
@@ -423,6 +424,7 @@ describe("conversation service", () => {
       whatsappAppName: null,
       name: "Bia",
       phone: "+55 (11) 99999-1234",
+      messagingRestricted: false,
       type: { id: typeId, name: "Cliente", color: "#112233", active: false },
       tags: [
         { id: firstTagId, name: "Primeiro", color: "#778899", active: true },

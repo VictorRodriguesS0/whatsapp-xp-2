@@ -118,6 +118,7 @@ const conversationSelect = {
       name: true,
       preferredName: true,
       phone: true,
+      messagingOptOutAt: true,
       whatsappAppContact: { select: { fullName: true, active: true } },
       contactType: { select: classificationSelect },
       tagAssignments: {
@@ -298,6 +299,7 @@ function toContactDto(
       phone: contact.phone,
     }),
     phone: formatContactPhone(contact.phone),
+    messagingRestricted: contact.messagingOptOutAt !== null,
     type: contact.contactType
       ? toContactClassificationDto(contact.contactType)
       : null,
