@@ -199,14 +199,24 @@ Realize estes passos no Meta for Developers e no Business Manager com uma conta 
 1. crie um aplicativo do tipo apropriado para negócios e adicione o produto WhatsApp;
 2. associe a WhatsApp Business Account e conclua a verificação/registro do número comercial;
 3. registre `META_APP_ID`, `WHATSAPP_BUSINESS_ACCOUNT_ID` e `WHATSAPP_PHONE_NUMBER_ID` no `.env`;
-4. em Configurações do negócio, crie um System User dedicado, conceda a ele os ativos estritamente necessários e gere token permanente com `whatsapp_business_messaging` e `whatsapp_business_management`;
+4. em Configurações do negócio, crie um System User dedicado, conceda a ele os ativos estritamente necessários e gere token permanente com `whatsapp_business_messaging` e `whatsapp_business_management`; a segunda permissão também é necessária para consultar qualidade do número, revisão da conta e templates;
 5. guarde o token em `WHATSAPP_ACCESS_TOKEN`; nunca o coloque em Git, shell history, ticket ou log;
 6. defina um `WHATSAPP_VERIFY_TOKEN` aleatório e configure a callback como `https://whatsapp.xpeletronicos.com/api/webhooks/meta`;
-7. assine o campo `messages` no webhook e associe/subscreva o aplicativo à WABA; em coexistência com o WhatsApp Business App, preserve todos os campos já assinados e acrescente também `smb_message_echoes`;
+7. assine `messages`, `phone_number_quality_update`, `account_update`, `account_review_update`, `phone_number_name_update` e `message_template_status_update` no webhook e associe/subscreva o aplicativo à WABA; em coexistência com o WhatsApp Business App, preserve todos os campos já assinados e acrescente também `smb_message_echoes`;
 8. preencha `META_APP_SECRET`, altere `WHATSAPP_PROVIDER=meta` e reinicie somente a aplicação;
 9. confirme no painel Meta que a verificação do webhook passou e que eventos chegam com assinatura válida.
 
 Permissões, versões da Graph API, revisão do app e nomenclatura do painel mudam ao longo do tempo. Antes da ativação, confira a documentação oficial vigente da Meta e a data de expiração de todos os ativos. Planeje rotação de token e segredo.
+
+### Saúde e alertas operacionais da Meta
+
+Administradores veem um status discreto no cabeçalho e os detalhes em `/configuracoes/meta`. A tela reúne qualidade do número, nome verificado, revisão da conta, limite informado e o histórico recebido pelos cinco campos operacionais do webhook. Atendentes não consultam nem recebem essa área.
+
+O estado é atualizado pelo webhook e reconciliado pela Graph API quando os dados passam de 15 minutos sem uma consulta bem-sucedida. O navegador verifica o resumo a cada 60 segundos; o servidor limita atualizações manuais e usa uma trava curta para impedir consultas concorrentes. Falhas preservam o último estado conhecido e exibem somente códigos públicos, sem corpo da Meta, token ou identificadores técnicos.
+
+**Marcar como tratado** registra qual administrador conferiu o evento, mas não encerra uma restrição, rejeição ou queda de qualidade. O alerta só deixa de estar ativo após uma transição positiva da Meta. O histórico não é apagado.
+
+Este MVP não envia alertas por e-mail, SMS, Slack ou outro canal externo. A equipe acompanha o label dentro da aplicação. Mantenha a WABA inscrita nos cinco campos operacionais acima; remover uma inscrição interrompe a atualização correspondente mesmo que a reconciliação ainda consiga consultar parte do estado.
 
 ### Coexistência com o WhatsApp Business App
 
