@@ -19,6 +19,14 @@ const LazyFullEmojiPicker = dynamic(
 const QUICK_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"] as const;
 const HISTORY_KEY = "__xpMessageActions";
 
+function serializeHistoryState(state: unknown) {
+  try {
+    return JSON.stringify(state);
+  } catch {
+    return null;
+  }
+}
+
 function canReactTo(message: InboxMessage) {
   return !message.id.startsWith("optimistic:")
     && !message.revokedAt
@@ -50,11 +58,32 @@ export function MessageActions({ message, onReply, onReact }: {
   const canReply = canReplyToMessage(message, onReply);
   const canReact = Boolean(onReact) && canReactTo(message);
   const mobileTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileOpenRef = useRef(false);
+  const ownsHistoryLayerRef = useRef(false);
+  const historyLayerStateRef = useRef<string | null>(null);
+  const historyLayerUrlRef = useRef<string | null>(null);
   const popTriggeredClose = useRef(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobilePicker, setMobilePicker] = useState<"none" | "quick" | "full">("none");
   const [desktopPickerOpen, setDesktopPickerOpen] = useState(false);
   const [showDesktopFullPicker, setShowDesktopFullPicker] = useState(false);
+
+  function hasCurrentHistoryLayer() {
+    return ownsHistoryLayerRef.current
+      && historyLayerStateRef.current !== null
+      && historyLayerUrlRef.current === window.location.href
+      && serializeHistoryState(window.history.state) === historyLayerStateRef.current;
+  }
+
+  useEffect(() => {
+    mobileOpenRef.current = mobileOpen;
+  }, [mobileOpen]);
+
+  useEffect(() => () => {
+    if (!mobileOpenRef.current || !hasCurrentHistoryLayer()) return;
+    ownsHistoryLayerRef.current = false;
+    window.history.back();
+  }, []);
 
   useEffect(() => {
     if (!mobileOpen || !window.matchMedia?.("(max-width: 767px)").matches) return;
@@ -62,23 +91,31 @@ export function MessageActions({ message, onReply, onReact }: {
       ? window.history.state as Record<string, unknown>
       : {};
     if (state[HISTORY_KEY] !== message.id) {
-      window.history.pushState({ ...state, [HISTORY_KEY]: message.id }, "", window.location.href);
+      const historyLayer = { ...state, [HISTORY_KEY]: message.id };
+      window.history.pushState(historyLayer, "", window.location.href);
+      ownsHistoryLayerRef.current = true;
+      historyLayerStateRef.current = serializeHistoryState(historyLayer);
+      historyLayerUrlRef.current = window.location.href;
     }
     const onPopState = () => {
-      popTriggeredClose.current = true;
-      setMobilePicker("none");
-      setMobileOpen(false);
-      queueMicrotask(() => {
-        popTriggeredClose.current = false;
-        mobileTriggerRef.current?.focus();
-      });
+      if (!hasCurrentHistoryLayer() && ownsHistoryLayerRef.current) {
+        ownsHistoryLayerRef.current = false;
+        popTriggeredClose.current = true;
+        setMobilePicker("none");
+        setMobileOpen(false);
+        queueMicrotask(() => {
+          popTriggeredClose.current = false;
+          mobileTriggerRef.current?.focus();
+        });
+      }
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [message.id, mobileOpen]);
 
   function handleMobileOpenChange(open: boolean) {
-    if (!open && !popTriggeredClose.current && window.history.state?.[HISTORY_KEY] === message.id) {
+    if (!open && !popTriggeredClose.current && hasCurrentHistoryLayer()) {
+      ownsHistoryLayerRef.current = false;
       window.history.back();
     }
     setMobileOpen(open);

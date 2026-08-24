@@ -1,6 +1,6 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { InboxMessage } from "@/hooks/use-inbox";
 
@@ -11,8 +11,6 @@ class ResizeObserverMock {
   unobserve() {}
   disconnect() {}
 }
-
-vi.stubGlobal("ResizeObserver", ResizeObserverMock);
 
 const message = {
   id: "20000000-0000-4000-8000-000000000001",
@@ -34,7 +32,20 @@ const message = {
 } as InboxMessage;
 
 describe("MessageActions", () => {
-  beforeEach(() => window.history.replaceState(null, "", window.location.href));
+  let initialHistoryState: unknown;
+  let initialHistoryUrl: string;
+
+  beforeEach(() => {
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    initialHistoryState = window.history.state;
+    initialHistoryUrl = window.location.href;
+    window.history.replaceState({ test: "message-actions-base" }, "", window.location.href);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    window.history.replaceState(initialHistoryState, "", initialHistoryUrl);
+  });
 
   it("exposes the desktop toolbar on keyboard focus", async () => {
     const user = userEvent.setup();
@@ -90,7 +101,7 @@ describe("MessageActions", () => {
     expect(await screen.findByRole("searchbox", { name: "Buscar emoji" })).toBeVisible();
   });
 
-  it("uses a browser history entry for the mobile menu and closes it on back", async () => {
+  it("uses a browser history entry for the mobile menu and consumes it on browser back", async () => {
     vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
     const user = userEvent.setup();
     render(<MessageActions message={message} onReact={vi.fn()} onReply={vi.fn()} />);
@@ -98,9 +109,35 @@ describe("MessageActions", () => {
     await user.click(trigger);
     expect(window.history.state).toMatchObject({ __xpMessageActions: message.id });
 
-    fireEvent(window, new PopStateEvent("popstate"));
-    expect(screen.queryByRole("menuitem", { name: "Responder" })).not.toBeInTheDocument();
+    window.history.back();
+    await waitFor(() => expect(window.history.state).toEqual({ test: "message-actions-base" }));
+    await waitFor(() => expect(screen.queryByRole("menuitem", { name: "Responder" })).not.toBeInTheDocument());
     await waitFor(() => expect(trigger).toHaveFocus());
-    vi.unstubAllGlobals();
+  });
+
+  it("consumes its own history layer when unmounted with the mobile menu open", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    const user = userEvent.setup();
+    const { unmount } = render(<MessageActions message={message} onReact={vi.fn()} onReply={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    expect(window.history.state).toMatchObject({ __xpMessageActions: message.id });
+    unmount();
+
+    await waitFor(() => expect(window.history.state).toEqual({ test: "message-actions-base" }));
+  });
+
+  it("does not consume a newer foreign history layer when unmounted", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: true }));
+    const user = userEvent.setup();
+    const { unmount } = render(<MessageActions message={message} onReact={vi.fn()} onReply={vi.fn()} />);
+
+    await user.click(screen.getByRole("button", { name: "Ações da mensagem" }));
+    const foreignState = { ...window.history.state, __xpForeignOverlay: "details" };
+    window.history.pushState(foreignState, "", window.location.href);
+    unmount();
+
+    await Promise.resolve();
+    expect(window.history.state).toEqual(foreignState);
   });
 });
