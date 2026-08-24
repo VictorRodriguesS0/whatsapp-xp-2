@@ -37,7 +37,6 @@ describe("MessageMedia", () => {
   it.each([
     ["IMAGE", "image/jpeg", "Abrir imagem"],
     ["VIDEO", "video/mp4", "Abrir vídeo"],
-    ["DOCUMENT", "application/pdf", "Abrir PDF"],
   ] as const)("opens an available %s through an accessible trigger", (type, mediaMimeType, label) => {
     const onOpenMedia = vi.fn();
     render(<MessageMedia
@@ -54,6 +53,29 @@ describe("MessageMedia", () => {
     fireEvent.click(trigger);
 
     expect(onOpenMedia).toHaveBeenCalledOnce();
+    expect(onOpenMedia).toHaveBeenCalledWith(baseMessage.id);
+    expect(trigger).toHaveFocus();
+  });
+
+  it.each(["INBOUND", "OUTBOUND"] as const)("previews an available %s PDF in its opening action", (direction) => {
+    const onOpenMedia = vi.fn();
+    render(<MessageMedia
+      message={{
+        ...baseMessage,
+        direction,
+        type: "DOCUMENT",
+        body: "Nota fiscal.pdf",
+        mediaMimeType: "application/pdf",
+        mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+      }}
+      onOpenMedia={onOpenMedia}
+    />);
+
+    const preview = screen.getByRole("img", { name: "Prévia da primeira página de Nota fiscal.pdf" });
+    expect(preview).toHaveAttribute("src", `/api/media/${baseMessage.mediaObjectId}/thumbnail`);
+    const trigger = screen.getByRole("button", { name: "Abrir PDF Nota fiscal.pdf" });
+    fireEvent.click(trigger);
+
     expect(onOpenMedia).toHaveBeenCalledWith(baseMessage.id);
     expect(trigger).toHaveFocus();
   });
