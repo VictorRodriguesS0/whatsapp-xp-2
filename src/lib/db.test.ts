@@ -95,10 +95,20 @@ describe("database", () => {
       ORDER BY table_name, column_name
     `;
 
-    expect(temporalColumns).toHaveLength(28);
+    expect(temporalColumns).toHaveLength(30);
     expect(temporalColumns).toContainEqual({
       tableName: "conversations",
       columnName: "pinned_at",
+      dataType: "timestamp with time zone",
+    });
+    expect(temporalColumns).toContainEqual({
+      tableName: "messages",
+      columnName: "edited_at",
+      dataType: "timestamp with time zone",
+    });
+    expect(temporalColumns).toContainEqual({
+      tableName: "messages",
+      columnName: "last_mutation_at",
       dataType: "timestamp with time zone",
     });
     expect(temporalColumns).toContainEqual({
