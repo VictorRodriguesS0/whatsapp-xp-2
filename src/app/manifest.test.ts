@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import manifest from "./manifest";
 
 const publicPath = (...segments: string[]) => join(process.cwd(), "public", ...segments);
+const layoutIcons = ["icons/xp-16.png", "icons/xp-32.png", "icons/xp-180.png"];
 
 describe("PWA manifest", () => {
   it("declares the XP Atendimento install contract with local icons only", () => {
@@ -31,6 +32,11 @@ describe("PWA manifest", () => {
       const localPath = publicPath(icon.src.replace(/^\//, ""));
       expect(existsSync(localPath), `${icon.src} exists`).toBe(true);
       expect(statSync(localPath).size, `${icon.src} is non-empty`).toBeGreaterThan(0);
+    }
+    for (const icon of layoutIcons) {
+      const localPath = publicPath(icon);
+      expect(existsSync(localPath), `/${icon} exists`).toBe(true);
+      expect(statSync(localPath).size, `/${icon} is non-empty`).toBeGreaterThan(0);
     }
     expect(existsSync(publicPath("sw.js"))).toBe(false);
   });
