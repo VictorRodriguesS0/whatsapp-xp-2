@@ -25,6 +25,9 @@ if ($EnvExample -notmatch '(?m)^NEXT_PUBLIC_APP_URL=https://whatsapp\.xpeletroni
 if ($Dockerfile -notmatch '(?ms)apt-get install -y --no-install-recommends\s+openssl\s+ffmpeg(?:\s|\\)') {
   throw 'O runtime final deve instalar openssl e o pacote Debian ffmpeg, que fornece ffmpeg e ffprobe.'
 }
+if ($Dockerfile -notmatch '(?ms)apt-get install -y --no-install-recommends\s+openssl\s+ffmpeg\s+poppler-utils(?:\s|\\)') {
+  throw 'O runtime final deve instalar poppler-utils para miniaturas PDF.'
+}
 if (
   $RecordingConverter -notmatch 'spawn\(command, args, \{ shell: false,' -or
   $RecordingConverter -match '(?m)\b(exec|execFile)\s*\('
@@ -156,6 +159,9 @@ foreach ($BackupScript in @($BackupShell, $BackupPowerShell)) {
   }
   if ($BackupScript -notmatch "--exclude='\./\.recordings'") {
     throw 'Backup deve excluir o diretório transitório .recordings do arquivo restaurável.'
+  }
+  if ($BackupScript -notmatch "--exclude='\./\.pdf-thumbnails'") {
+    throw 'Backup deve excluir miniaturas PDF regeneráveis.'
   }
 }
 if (
