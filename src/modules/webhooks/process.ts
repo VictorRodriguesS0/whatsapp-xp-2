@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
 import {
+  ConversationResumptionStatus,
   MediaStatus,
   MessageDirection,
   MessageStatus,
@@ -96,6 +97,10 @@ export type WebhookRepository = {
     status: NormalizedStatusEvent["status"],
     failureReason: string | null,
   ): Promise<MessageRecord>;
+  reconcileFailedOutbound(
+    messageId: string,
+    conversationId: string,
+  ): Promise<void>;
   findReactionTarget(whatsappMessageId: string): Promise<ReactionTargetRecord | null>;
   applyReaction(input: {
     messageId: string;
@@ -708,6 +713,32 @@ export function createPrismaWebhookRepository(
         select: { id: true, conversationId: true, status: true },
       });
     },
+    async reconcileFailedOutbound(messageId, conversationId) {
+      const resumptions = await client.conversationResumption.updateMany({
+        where: {
+          messageId,
+          status: {
+            in: [
+              ConversationResumptionStatus.RESERVED,
+              ConversationResumptionStatus.SEND_IN_FLIGHT,
+              ConversationResumptionStatus.SENT,
+            ],
+          },
+        },
+        data: {
+          status: ConversationResumptionStatus.FAILED,
+          reservationUntil: null,
+          failureReason: "Falha de entrega confirmada pela Meta",
+        },
+      });
+      if (resumptions.count > 0) {
+        await client.conversation.update({
+          where: { id: conversationId },
+          data: { awaitingCustomerSince: null },
+        });
+      }
+      await refreshResponseState(client, conversationId);
+    },
     findReactionTarget(whatsappMessageId) {
       return client.message.findUnique({
         where: { whatsappMessageId },
@@ -1161,6 +1192,12 @@ async function processStatus(
       event.status,
       event.failureReason,
     );
+    if (event.status === MessageStatus.FAILED) {
+      await repository.reconcileFailedOutbound(
+        updated.id,
+        updated.conversationId,
+      );
+    }
     realtime = [{
       type: "message.status",
       conversationId: updated.conversationId,

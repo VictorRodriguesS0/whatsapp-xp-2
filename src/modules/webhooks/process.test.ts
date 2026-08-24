@@ -292,6 +292,28 @@ function createHarness(options: { failCreateMessage?: boolean } = {}) {
         message.status = status;
         return { ...message, failureReason };
       },
+      reconcileFailedOutbound: async (messageId, conversationId) => {
+        const message = [...target.messages.values()].find(
+          ({ id }) => id === messageId,
+        );
+        if (!message || message.conversationId !== conversationId) {
+          throw new Error("missing failed outbound");
+        }
+        const conversation = target.conversations.get(conversationId);
+        if (!conversation) throw new Error("missing conversation");
+        conversation.awaitingResponseSince = [...target.messages.values()]
+          .filter(
+            (candidate) =>
+              candidate.conversationId === conversationId &&
+              candidate.direction === MessageDirection.INBOUND,
+          )
+          .sort(
+            (left, right) =>
+              right.externalTimestamp.getTime() -
+                left.externalTimestamp.getTime() ||
+              right.id.localeCompare(left.id),
+          )[0]?.externalTimestamp ?? null;
+      },
       findReactionTarget: async () => { throw new Error("unused"); },
       applyReaction: async () => { throw new Error("unused"); },
       revokeMessage: async () => { throw new Error("unused"); },
