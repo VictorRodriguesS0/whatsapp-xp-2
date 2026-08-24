@@ -213,6 +213,11 @@ export type UserWhereInput = {
   manualUnreadConversations?: Prisma.ConversationListRelationFilter
   conversationAuditEvents?: Prisma.ConversationAuditEventListRelationFilter
   sentReactions?: Prisma.MessageReactionListRelationFilter
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationListRelationFilter
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentListRelationFilter
+  conversationResumptions?: Prisma.ConversationResumptionListRelationFilter
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventListRelationFilter
+  messagingRestrictedContacts?: Prisma.ContactListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -231,6 +236,11 @@ export type UserOrderByWithRelationInput = {
   manualUnreadConversations?: Prisma.ConversationOrderByRelationAggregateInput
   conversationAuditEvents?: Prisma.ConversationAuditEventOrderByRelationAggregateInput
   sentReactions?: Prisma.MessageReactionOrderByRelationAggregateInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationOrderByRelationAggregateInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentOrderByRelationAggregateInput
+  conversationResumptions?: Prisma.ConversationResumptionOrderByRelationAggregateInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventOrderByRelationAggregateInput
+  messagingRestrictedContacts?: Prisma.ContactOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -252,6 +262,11 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   manualUnreadConversations?: Prisma.ConversationListRelationFilter
   conversationAuditEvents?: Prisma.ConversationAuditEventListRelationFilter
   sentReactions?: Prisma.MessageReactionListRelationFilter
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationListRelationFilter
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentListRelationFilter
+  conversationResumptions?: Prisma.ConversationResumptionListRelationFilter
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventListRelationFilter
+  messagingRestrictedContacts?: Prisma.ContactListRelationFilter
 }, "id" | "email">
 
 export type UserOrderByWithAggregationInput = {
@@ -298,6 +313,11 @@ export type UserCreateInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -316,6 +336,11 @@ export type UserUncheckedCreateInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUpdateInput = {
@@ -334,6 +359,11 @@ export type UserUpdateInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -352,6 +382,11 @@ export type UserUncheckedUpdateInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -460,6 +495,22 @@ export type UserUpdateOneRequiredWithoutSessionsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutSessionsInput, Prisma.UserUpdateWithoutSessionsInput>, Prisma.UserUncheckedUpdateWithoutSessionsInput>
 }
 
+export type UserCreateNestedOneWithoutMessagingRestrictedContactsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictedContactsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictedContactsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutMessagingRestrictedContactsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutMessagingRestrictedContactsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictedContactsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictedContactsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutMessagingRestrictedContactsInput
+  upsert?: Prisma.UserUpsertWithoutMessagingRestrictedContactsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutMessagingRestrictedContactsInput, Prisma.UserUpdateWithoutMessagingRestrictedContactsInput>, Prisma.UserUncheckedUpdateWithoutMessagingRestrictedContactsInput>
+}
+
 export type UserCreateNestedOneWithoutAssignedConversationsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutAssignedConversationsInput, Prisma.UserUncheckedCreateWithoutAssignedConversationsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssignedConversationsInput
@@ -552,6 +603,64 @@ export type UserUpdateOneRequiredWithoutConversationAuditEventsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutConversationAuditEventsInput, Prisma.UserUpdateWithoutConversationAuditEventsInput>, Prisma.UserUncheckedUpdateWithoutConversationAuditEventsInput>
 }
 
+export type UserCreateNestedOneWithoutWhatsappPolicyActionsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedCreateWithoutWhatsappPolicyActionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWhatsappPolicyActionsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneWithoutWhatsappPolicyActionsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedCreateWithoutWhatsappPolicyActionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWhatsappPolicyActionsInput
+  upsert?: Prisma.UserUpsertWithoutWhatsappPolicyActionsInput
+  disconnect?: Prisma.UserWhereInput | boolean
+  delete?: Prisma.UserWhereInput | boolean
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutWhatsappPolicyActionsInput, Prisma.UserUpdateWithoutWhatsappPolicyActionsInput>, Prisma.UserUncheckedUpdateWithoutWhatsappPolicyActionsInput>
+}
+
+export type UserCreateNestedOneWithoutWhatsappTemplateAssignmentsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWhatsappTemplateAssignmentsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutWhatsappTemplateAssignmentsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutWhatsappTemplateAssignmentsInput
+  upsert?: Prisma.UserUpsertWithoutWhatsappTemplateAssignmentsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUpdateWithoutWhatsappTemplateAssignmentsInput>, Prisma.UserUncheckedUpdateWithoutWhatsappTemplateAssignmentsInput>
+}
+
+export type UserCreateNestedOneWithoutConversationResumptionsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutConversationResumptionsInput, Prisma.UserUncheckedCreateWithoutConversationResumptionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutConversationResumptionsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutConversationResumptionsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutConversationResumptionsInput, Prisma.UserUncheckedCreateWithoutConversationResumptionsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutConversationResumptionsInput
+  upsert?: Prisma.UserUpsertWithoutConversationResumptionsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutConversationResumptionsInput, Prisma.UserUpdateWithoutConversationResumptionsInput>, Prisma.UserUncheckedUpdateWithoutConversationResumptionsInput>
+}
+
+export type UserCreateNestedOneWithoutMessagingRestrictionEventsInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictionEventsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictionEventsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutMessagingRestrictionEventsInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutMessagingRestrictionEventsNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictionEventsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictionEventsInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutMessagingRestrictionEventsInput
+  upsert?: Prisma.UserUpsertWithoutMessagingRestrictionEventsInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutMessagingRestrictionEventsInput, Prisma.UserUpdateWithoutMessagingRestrictionEventsInput>, Prisma.UserUncheckedUpdateWithoutMessagingRestrictionEventsInput>
+}
+
 export type UserCreateWithoutSessionsInput = {
   id?: string
   name: string
@@ -567,6 +676,11 @@ export type UserCreateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutSessionsInput = {
@@ -584,6 +698,11 @@ export type UserUncheckedCreateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutSessionsInput = {
@@ -617,6 +736,11 @@ export type UserUpdateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSessionsInput = {
@@ -634,6 +758,115 @@ export type UserUncheckedUpdateWithoutSessionsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserCreateWithoutMessagingRestrictedContactsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+}
+
+export type UserUncheckedCreateWithoutMessagingRestrictedContactsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+}
+
+export type UserCreateOrConnectWithoutMessagingRestrictedContactsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictedContactsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictedContactsInput>
+}
+
+export type UserUpsertWithoutMessagingRestrictedContactsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutMessagingRestrictedContactsInput, Prisma.UserUncheckedUpdateWithoutMessagingRestrictedContactsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictedContactsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictedContactsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutMessagingRestrictedContactsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutMessagingRestrictedContactsInput, Prisma.UserUncheckedUpdateWithoutMessagingRestrictedContactsInput>
+}
+
+export type UserUpdateWithoutMessagingRestrictedContactsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutMessagingRestrictedContactsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
 }
 
 export type UserCreateWithoutAssignedConversationsInput = {
@@ -651,6 +884,11 @@ export type UserCreateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutAssignedConversationsInput = {
@@ -668,6 +906,11 @@ export type UserUncheckedCreateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutAssignedConversationsInput = {
@@ -690,6 +933,11 @@ export type UserCreateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutManualUnreadConversationsInput = {
@@ -707,6 +955,11 @@ export type UserUncheckedCreateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutManualUnreadConversationsInput = {
@@ -740,6 +993,11 @@ export type UserUpdateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssignedConversationsInput = {
@@ -757,6 +1015,11 @@ export type UserUncheckedUpdateWithoutAssignedConversationsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUpsertWithoutManualUnreadConversationsInput = {
@@ -785,6 +1048,11 @@ export type UserUpdateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutManualUnreadConversationsInput = {
@@ -802,6 +1070,11 @@ export type UserUncheckedUpdateWithoutManualUnreadConversationsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserCreateWithoutSentMessagesInput = {
@@ -819,6 +1092,11 @@ export type UserCreateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutSentMessagesInput = {
@@ -836,6 +1114,11 @@ export type UserUncheckedCreateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutSentMessagesInput = {
@@ -869,6 +1152,11 @@ export type UserUpdateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentMessagesInput = {
@@ -886,6 +1174,11 @@ export type UserUncheckedUpdateWithoutSentMessagesInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserCreateWithoutSentReactionsInput = {
@@ -903,6 +1196,11 @@ export type UserCreateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutSentReactionsInput = {
@@ -920,6 +1218,11 @@ export type UserUncheckedCreateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutSentReactionsInput = {
@@ -953,6 +1256,11 @@ export type UserUpdateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutSentReactionsInput = {
@@ -970,6 +1278,11 @@ export type UserUncheckedUpdateWithoutSentReactionsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserCreateWithoutConversationReadsInput = {
@@ -987,6 +1300,11 @@ export type UserCreateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutConversationReadsInput = {
@@ -1004,6 +1322,11 @@ export type UserUncheckedCreateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutConversationReadsInput = {
@@ -1037,6 +1360,11 @@ export type UserUpdateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationReadsInput = {
@@ -1054,6 +1382,11 @@ export type UserUncheckedUpdateWithoutConversationReadsInput = {
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserCreateWithoutConversationAuditEventsInput = {
@@ -1071,6 +1404,11 @@ export type UserCreateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
   sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserUncheckedCreateWithoutConversationAuditEventsInput = {
@@ -1088,6 +1426,11 @@ export type UserUncheckedCreateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
   manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
   sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
 }
 
 export type UserCreateOrConnectWithoutConversationAuditEventsInput = {
@@ -1121,6 +1464,11 @@ export type UserUpdateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
   sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 export type UserUncheckedUpdateWithoutConversationAuditEventsInput = {
@@ -1138,6 +1486,427 @@ export type UserUncheckedUpdateWithoutConversationAuditEventsInput = {
   conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
   manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
   sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserCreateWithoutWhatsappPolicyActionsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserUncheckedCreateWithoutWhatsappPolicyActionsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserCreateOrConnectWithoutWhatsappPolicyActionsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedCreateWithoutWhatsappPolicyActionsInput>
+}
+
+export type UserUpsertWithoutWhatsappPolicyActionsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedUpdateWithoutWhatsappPolicyActionsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedCreateWithoutWhatsappPolicyActionsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutWhatsappPolicyActionsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutWhatsappPolicyActionsInput, Prisma.UserUncheckedUpdateWithoutWhatsappPolicyActionsInput>
+}
+
+export type UserUpdateWithoutWhatsappPolicyActionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutWhatsappPolicyActionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserCreateWithoutWhatsappTemplateAssignmentsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserCreateOrConnectWithoutWhatsappTemplateAssignmentsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput>
+}
+
+export type UserUpsertWithoutWhatsappTemplateAssignmentsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUncheckedUpdateWithoutWhatsappTemplateAssignmentsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUncheckedCreateWithoutWhatsappTemplateAssignmentsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutWhatsappTemplateAssignmentsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutWhatsappTemplateAssignmentsInput, Prisma.UserUncheckedUpdateWithoutWhatsappTemplateAssignmentsInput>
+}
+
+export type UserUpdateWithoutWhatsappTemplateAssignmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutWhatsappTemplateAssignmentsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserCreateWithoutConversationResumptionsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserUncheckedCreateWithoutConversationResumptionsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutActorUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserCreateOrConnectWithoutConversationResumptionsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutConversationResumptionsInput, Prisma.UserUncheckedCreateWithoutConversationResumptionsInput>
+}
+
+export type UserUpsertWithoutConversationResumptionsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutConversationResumptionsInput, Prisma.UserUncheckedUpdateWithoutConversationResumptionsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutConversationResumptionsInput, Prisma.UserUncheckedCreateWithoutConversationResumptionsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutConversationResumptionsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutConversationResumptionsInput, Prisma.UserUncheckedUpdateWithoutConversationResumptionsInput>
+}
+
+export type UserUpdateWithoutConversationResumptionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutConversationResumptionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutActorUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserCreateWithoutMessagingRestrictionEventsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionCreateNestedManyWithoutSentByUserInput
+  messagingRestrictedContacts?: Prisma.ContactCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserUncheckedCreateWithoutMessagingRestrictionEventsInput = {
+  id?: string
+  name: string
+  email: string
+  passwordHash: string
+  role: $Enums.UserRole
+  active?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  sessions?: Prisma.SessionUncheckedCreateNestedManyWithoutUserInput
+  assignedConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutResponsibleUserInput
+  sentMessages?: Prisma.MessageUncheckedCreateNestedManyWithoutSentByUserInput
+  conversationReads?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutUserInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedCreateNestedManyWithoutManualUnreadByUserInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedCreateNestedManyWithoutActorUserInput
+  sentReactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutSentByUserInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedCreateNestedManyWithoutActivatedByUserInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedCreateNestedManyWithoutAssignedByUserInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSentByUserInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput
+}
+
+export type UserCreateOrConnectWithoutMessagingRestrictionEventsInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictionEventsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictionEventsInput>
+}
+
+export type UserUpsertWithoutMessagingRestrictionEventsInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutMessagingRestrictionEventsInput, Prisma.UserUncheckedUpdateWithoutMessagingRestrictionEventsInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutMessagingRestrictionEventsInput, Prisma.UserUncheckedCreateWithoutMessagingRestrictionEventsInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutMessagingRestrictionEventsInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutMessagingRestrictionEventsInput, Prisma.UserUncheckedUpdateWithoutMessagingRestrictionEventsInput>
+}
+
+export type UserUpdateWithoutMessagingRestrictionEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUpdateManyWithoutMessagingRestrictedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutMessagingRestrictionEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  passwordHash?: Prisma.StringFieldUpdateOperationsInput | string
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sessions?: Prisma.SessionUncheckedUpdateManyWithoutUserNestedInput
+  assignedConversations?: Prisma.ConversationUncheckedUpdateManyWithoutResponsibleUserNestedInput
+  sentMessages?: Prisma.MessageUncheckedUpdateManyWithoutSentByUserNestedInput
+  conversationReads?: Prisma.ConversationReadUncheckedUpdateManyWithoutUserNestedInput
+  manualUnreadConversations?: Prisma.ConversationUncheckedUpdateManyWithoutManualUnreadByUserNestedInput
+  conversationAuditEvents?: Prisma.ConversationAuditEventUncheckedUpdateManyWithoutActorUserNestedInput
+  sentReactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutSentByUserNestedInput
+  whatsappPolicyActions?: Prisma.WhatsAppPolicyConfigurationUncheckedUpdateManyWithoutActivatedByUserNestedInput
+  whatsappTemplateAssignments?: Prisma.WhatsAppTemplateAssignmentUncheckedUpdateManyWithoutAssignedByUserNestedInput
+  conversationResumptions?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSentByUserNestedInput
+  messagingRestrictedContacts?: Prisma.ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput
 }
 
 
@@ -1153,6 +1922,11 @@ export type UserCountOutputType = {
   manualUnreadConversations: number
   conversationAuditEvents: number
   sentReactions: number
+  whatsappPolicyActions: number
+  whatsappTemplateAssignments: number
+  conversationResumptions: number
+  messagingRestrictionEvents: number
+  messagingRestrictedContacts: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1163,6 +1937,11 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   manualUnreadConversations?: boolean | UserCountOutputTypeCountManualUnreadConversationsArgs
   conversationAuditEvents?: boolean | UserCountOutputTypeCountConversationAuditEventsArgs
   sentReactions?: boolean | UserCountOutputTypeCountSentReactionsArgs
+  whatsappPolicyActions?: boolean | UserCountOutputTypeCountWhatsappPolicyActionsArgs
+  whatsappTemplateAssignments?: boolean | UserCountOutputTypeCountWhatsappTemplateAssignmentsArgs
+  conversationResumptions?: boolean | UserCountOutputTypeCountConversationResumptionsArgs
+  messagingRestrictionEvents?: boolean | UserCountOutputTypeCountMessagingRestrictionEventsArgs
+  messagingRestrictedContacts?: boolean | UserCountOutputTypeCountMessagingRestrictedContactsArgs
 }
 
 /**
@@ -1224,6 +2003,41 @@ export type UserCountOutputTypeCountSentReactionsArgs<ExtArgs extends runtime.Ty
   where?: Prisma.MessageReactionWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountWhatsappPolicyActionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppPolicyConfigurationWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountWhatsappTemplateAssignmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.WhatsAppTemplateAssignmentWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountConversationResumptionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ConversationResumptionWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountMessagingRestrictionEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ContactMessagingRestrictionEventWhereInput
+}
+
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountMessagingRestrictedContactsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ContactWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1241,6 +2055,11 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   manualUnreadConversations?: boolean | Prisma.User$manualUnreadConversationsArgs<ExtArgs>
   conversationAuditEvents?: boolean | Prisma.User$conversationAuditEventsArgs<ExtArgs>
   sentReactions?: boolean | Prisma.User$sentReactionsArgs<ExtArgs>
+  whatsappPolicyActions?: boolean | Prisma.User$whatsappPolicyActionsArgs<ExtArgs>
+  whatsappTemplateAssignments?: boolean | Prisma.User$whatsappTemplateAssignmentsArgs<ExtArgs>
+  conversationResumptions?: boolean | Prisma.User$conversationResumptionsArgs<ExtArgs>
+  messagingRestrictionEvents?: boolean | Prisma.User$messagingRestrictionEventsArgs<ExtArgs>
+  messagingRestrictedContacts?: boolean | Prisma.User$messagingRestrictedContactsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1286,6 +2105,11 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   manualUnreadConversations?: boolean | Prisma.User$manualUnreadConversationsArgs<ExtArgs>
   conversationAuditEvents?: boolean | Prisma.User$conversationAuditEventsArgs<ExtArgs>
   sentReactions?: boolean | Prisma.User$sentReactionsArgs<ExtArgs>
+  whatsappPolicyActions?: boolean | Prisma.User$whatsappPolicyActionsArgs<ExtArgs>
+  whatsappTemplateAssignments?: boolean | Prisma.User$whatsappTemplateAssignmentsArgs<ExtArgs>
+  conversationResumptions?: boolean | Prisma.User$conversationResumptionsArgs<ExtArgs>
+  messagingRestrictionEvents?: boolean | Prisma.User$messagingRestrictionEventsArgs<ExtArgs>
+  messagingRestrictedContacts?: boolean | Prisma.User$messagingRestrictedContactsArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1301,6 +2125,11 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     manualUnreadConversations: Prisma.$ConversationPayload<ExtArgs>[]
     conversationAuditEvents: Prisma.$ConversationAuditEventPayload<ExtArgs>[]
     sentReactions: Prisma.$MessageReactionPayload<ExtArgs>[]
+    whatsappPolicyActions: Prisma.$WhatsAppPolicyConfigurationPayload<ExtArgs>[]
+    whatsappTemplateAssignments: Prisma.$WhatsAppTemplateAssignmentPayload<ExtArgs>[]
+    conversationResumptions: Prisma.$ConversationResumptionPayload<ExtArgs>[]
+    messagingRestrictionEvents: Prisma.$ContactMessagingRestrictionEventPayload<ExtArgs>[]
+    messagingRestrictedContacts: Prisma.$ContactPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1712,6 +2541,11 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   manualUnreadConversations<T extends Prisma.User$manualUnreadConversationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$manualUnreadConversationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   conversationAuditEvents<T extends Prisma.User$conversationAuditEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$conversationAuditEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationAuditEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   sentReactions<T extends Prisma.User$sentReactionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$sentReactionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageReactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  whatsappPolicyActions<T extends Prisma.User$whatsappPolicyActionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$whatsappPolicyActionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppPolicyConfigurationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  whatsappTemplateAssignments<T extends Prisma.User$whatsappTemplateAssignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$whatsappTemplateAssignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppTemplateAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  conversationResumptions<T extends Prisma.User$conversationResumptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$conversationResumptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationResumptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  messagingRestrictionEvents<T extends Prisma.User$messagingRestrictionEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$messagingRestrictionEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactMessagingRestrictionEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  messagingRestrictedContacts<T extends Prisma.User$messagingRestrictedContactsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$messagingRestrictedContactsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2307,6 +3141,126 @@ export type User$sentReactionsArgs<ExtArgs extends runtime.Types.Extensions.Inte
   take?: number
   skip?: number
   distinct?: Prisma.MessageReactionScalarFieldEnum | Prisma.MessageReactionScalarFieldEnum[]
+}
+
+/**
+ * User.whatsappPolicyActions
+ */
+export type User$whatsappPolicyActionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppPolicyConfiguration
+   */
+  select?: Prisma.WhatsAppPolicyConfigurationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppPolicyConfiguration
+   */
+  omit?: Prisma.WhatsAppPolicyConfigurationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppPolicyConfigurationInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppPolicyConfigurationWhereInput
+  orderBy?: Prisma.WhatsAppPolicyConfigurationOrderByWithRelationInput | Prisma.WhatsAppPolicyConfigurationOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppPolicyConfigurationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppPolicyConfigurationScalarFieldEnum | Prisma.WhatsAppPolicyConfigurationScalarFieldEnum[]
+}
+
+/**
+ * User.whatsappTemplateAssignments
+ */
+export type User$whatsappTemplateAssignmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the WhatsAppTemplateAssignment
+   */
+  select?: Prisma.WhatsAppTemplateAssignmentSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the WhatsAppTemplateAssignment
+   */
+  omit?: Prisma.WhatsAppTemplateAssignmentOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.WhatsAppTemplateAssignmentInclude<ExtArgs> | null
+  where?: Prisma.WhatsAppTemplateAssignmentWhereInput
+  orderBy?: Prisma.WhatsAppTemplateAssignmentOrderByWithRelationInput | Prisma.WhatsAppTemplateAssignmentOrderByWithRelationInput[]
+  cursor?: Prisma.WhatsAppTemplateAssignmentWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.WhatsAppTemplateAssignmentScalarFieldEnum | Prisma.WhatsAppTemplateAssignmentScalarFieldEnum[]
+}
+
+/**
+ * User.conversationResumptions
+ */
+export type User$conversationResumptionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ConversationResumption
+   */
+  select?: Prisma.ConversationResumptionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ConversationResumption
+   */
+  omit?: Prisma.ConversationResumptionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationResumptionInclude<ExtArgs> | null
+  where?: Prisma.ConversationResumptionWhereInput
+  orderBy?: Prisma.ConversationResumptionOrderByWithRelationInput | Prisma.ConversationResumptionOrderByWithRelationInput[]
+  cursor?: Prisma.ConversationResumptionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ConversationResumptionScalarFieldEnum | Prisma.ConversationResumptionScalarFieldEnum[]
+}
+
+/**
+ * User.messagingRestrictionEvents
+ */
+export type User$messagingRestrictionEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ContactMessagingRestrictionEvent
+   */
+  select?: Prisma.ContactMessagingRestrictionEventSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ContactMessagingRestrictionEvent
+   */
+  omit?: Prisma.ContactMessagingRestrictionEventOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ContactMessagingRestrictionEventInclude<ExtArgs> | null
+  where?: Prisma.ContactMessagingRestrictionEventWhereInput
+  orderBy?: Prisma.ContactMessagingRestrictionEventOrderByWithRelationInput | Prisma.ContactMessagingRestrictionEventOrderByWithRelationInput[]
+  cursor?: Prisma.ContactMessagingRestrictionEventWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ContactMessagingRestrictionEventScalarFieldEnum | Prisma.ContactMessagingRestrictionEventScalarFieldEnum[]
+}
+
+/**
+ * User.messagingRestrictedContacts
+ */
+export type User$messagingRestrictedContactsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Contact
+   */
+  select?: Prisma.ContactSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Contact
+   */
+  omit?: Prisma.ContactOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ContactInclude<ExtArgs> | null
+  where?: Prisma.ContactWhereInput
+  orderBy?: Prisma.ContactOrderByWithRelationInput | Prisma.ContactOrderByWithRelationInput[]
+  cursor?: Prisma.ContactWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ContactScalarFieldEnum | Prisma.ContactScalarFieldEnum[]
 }
 
 /**

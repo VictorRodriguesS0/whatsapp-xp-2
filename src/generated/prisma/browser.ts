@@ -97,3 +97,28 @@ export type WebhookEvent = Prisma.WebhookEventModel
  * 
  */
 export type QuickReply = Prisma.QuickReplyModel
+/**
+ * Model WhatsAppPolicyConfiguration
+ * 
+ */
+export type WhatsAppPolicyConfiguration = Prisma.WhatsAppPolicyConfigurationModel
+/**
+ * Model WhatsAppTemplate
+ * 
+ */
+export type WhatsAppTemplate = Prisma.WhatsAppTemplateModel
+/**
+ * Model WhatsAppTemplateAssignment
+ * 
+ */
+export type WhatsAppTemplateAssignment = Prisma.WhatsAppTemplateAssignmentModel
+/**
+ * Model ConversationResumption
+ * 
+ */
+export type ConversationResumption = Prisma.ConversationResumptionModel
+/**
+ * Model ContactMessagingRestrictionEvent
+ * 
+ */
+export type ContactMessagingRestrictionEvent = Prisma.ContactMessagingRestrictionEventModel

@@ -39,6 +39,10 @@ export type MessageMinAggregateOutputType = {
   sentByUserId: string | null
   status: $Enums.MessageStatus | null
   failureReason: string | null
+  outboundPayloadKind: $Enums.OutboundPayloadKind | null
+  templateName: string | null
+  templateLanguage: string | null
+  templateDefinitionHash: string | null
   revokedAt: Date | null
   operationalState: $Enums.MessageOperationalState | null
   providerAttemptedAt: Date | null
@@ -64,6 +68,10 @@ export type MessageMaxAggregateOutputType = {
   sentByUserId: string | null
   status: $Enums.MessageStatus | null
   failureReason: string | null
+  outboundPayloadKind: $Enums.OutboundPayloadKind | null
+  templateName: string | null
+  templateLanguage: string | null
+  templateDefinitionHash: string | null
   revokedAt: Date | null
   operationalState: $Enums.MessageOperationalState | null
   providerAttemptedAt: Date | null
@@ -90,6 +98,11 @@ export type MessageCountAggregateOutputType = {
   sentByUserId: number
   status: number
   failureReason: number
+  outboundPayloadKind: number
+  templateName: number
+  templateLanguage: number
+  templateComponents: number
+  templateDefinitionHash: number
   revokedAt: number
   operationalState: number
   providerAttemptedAt: number
@@ -117,6 +130,10 @@ export type MessageMinAggregateInputType = {
   sentByUserId?: true
   status?: true
   failureReason?: true
+  outboundPayloadKind?: true
+  templateName?: true
+  templateLanguage?: true
+  templateDefinitionHash?: true
   revokedAt?: true
   operationalState?: true
   providerAttemptedAt?: true
@@ -142,6 +159,10 @@ export type MessageMaxAggregateInputType = {
   sentByUserId?: true
   status?: true
   failureReason?: true
+  outboundPayloadKind?: true
+  templateName?: true
+  templateLanguage?: true
+  templateDefinitionHash?: true
   revokedAt?: true
   operationalState?: true
   providerAttemptedAt?: true
@@ -168,6 +189,11 @@ export type MessageCountAggregateInputType = {
   sentByUserId?: true
   status?: true
   failureReason?: true
+  outboundPayloadKind?: true
+  templateName?: true
+  templateLanguage?: true
+  templateComponents?: true
+  templateDefinitionHash?: true
   revokedAt?: true
   operationalState?: true
   providerAttemptedAt?: true
@@ -267,6 +293,11 @@ export type MessageGroupByOutputType = {
   sentByUserId: string | null
   status: $Enums.MessageStatus
   failureReason: string | null
+  outboundPayloadKind: $Enums.OutboundPayloadKind
+  templateName: string | null
+  templateLanguage: string | null
+  templateComponents: runtime.JsonValue | null
+  templateDefinitionHash: string | null
   revokedAt: Date | null
   operationalState: $Enums.MessageOperationalState
   providerAttemptedAt: Date | null
@@ -314,6 +345,11 @@ export type MessageWhereInput = {
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFilter<"Message"> | $Enums.OutboundPayloadKind
+  templateName?: Prisma.StringNullableFilter<"Message"> | string | null
+  templateLanguage?: Prisma.StringNullableFilter<"Message"> | string | null
+  templateComponents?: Prisma.JsonNullableFilter<"Message">
+  templateDefinitionHash?: Prisma.StringNullableFilter<"Message"> | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
@@ -333,6 +369,10 @@ export type MessageWhereInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncConfirmations?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncFailures?: Prisma.WhatsAppReadSyncListRelationFilter
+  lastCustomerFor?: Prisma.ConversationListRelationFilter
+  pendingCustomerFor?: Prisma.ConversationListRelationFilter
+  resumptionSources?: Prisma.ConversationResumptionListRelationFilter
+  resumptionMessage?: Prisma.XOR<Prisma.ConversationResumptionNullableScalarRelationFilter, Prisma.ConversationResumptionWhereInput> | null
 }
 
 export type MessageOrderByWithRelationInput = {
@@ -351,6 +391,11 @@ export type MessageOrderByWithRelationInput = {
   sentByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  outboundPayloadKind?: Prisma.SortOrder
+  templateName?: Prisma.SortOrderInput | Prisma.SortOrder
+  templateLanguage?: Prisma.SortOrderInput | Prisma.SortOrder
+  templateComponents?: Prisma.SortOrderInput | Prisma.SortOrder
+  templateDefinitionHash?: Prisma.SortOrderInput | Prisma.SortOrder
   revokedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -370,6 +415,10 @@ export type MessageOrderByWithRelationInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
   readSyncFailures?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
+  lastCustomerFor?: Prisma.ConversationOrderByRelationAggregateInput
+  pendingCustomerFor?: Prisma.ConversationOrderByRelationAggregateInput
+  resumptionSources?: Prisma.ConversationResumptionOrderByRelationAggregateInput
+  resumptionMessage?: Prisma.ConversationResumptionOrderByWithRelationInput
 }
 
 export type MessageWhereUniqueInput = Prisma.AtLeast<{
@@ -391,6 +440,11 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFilter<"Message"> | $Enums.OutboundPayloadKind
+  templateName?: Prisma.StringNullableFilter<"Message"> | string | null
+  templateLanguage?: Prisma.StringNullableFilter<"Message"> | string | null
+  templateComponents?: Prisma.JsonNullableFilter<"Message">
+  templateDefinitionHash?: Prisma.StringNullableFilter<"Message"> | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
@@ -410,6 +464,10 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   readSyncTargets?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncConfirmations?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncFailures?: Prisma.WhatsAppReadSyncListRelationFilter
+  lastCustomerFor?: Prisma.ConversationListRelationFilter
+  pendingCustomerFor?: Prisma.ConversationListRelationFilter
+  resumptionSources?: Prisma.ConversationResumptionListRelationFilter
+  resumptionMessage?: Prisma.XOR<Prisma.ConversationResumptionNullableScalarRelationFilter, Prisma.ConversationResumptionWhereInput> | null
 }, "id" | "whatsappMessageId" | "clientRequestId" | "mediaObjectId">
 
 export type MessageOrderByWithAggregationInput = {
@@ -428,6 +486,11 @@ export type MessageOrderByWithAggregationInput = {
   sentByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  outboundPayloadKind?: Prisma.SortOrder
+  templateName?: Prisma.SortOrderInput | Prisma.SortOrder
+  templateLanguage?: Prisma.SortOrderInput | Prisma.SortOrder
+  templateComponents?: Prisma.SortOrderInput | Prisma.SortOrder
+  templateDefinitionHash?: Prisma.SortOrderInput | Prisma.SortOrder
   revokedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -460,6 +523,11 @@ export type MessageScalarWhereWithAggregatesInput = {
   sentByUserId?: Prisma.UuidNullableWithAggregatesFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusWithAggregatesFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindWithAggregatesFilter<"Message"> | $Enums.OutboundPayloadKind
+  templateName?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  templateLanguage?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  templateComponents?: Prisma.JsonNullableWithAggregatesFilter<"Message">
+  templateDefinitionHash?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   revokedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateWithAggregatesFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
@@ -482,6 +550,11 @@ export type MessageCreateInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -501,6 +574,10 @@ export type MessageCreateInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateInput = {
@@ -519,6 +596,11 @@ export type MessageUncheckedCreateInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -534,6 +616,10 @@ export type MessageUncheckedCreateInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUpdateInput = {
@@ -548,6 +634,11 @@ export type MessageUpdateInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -567,6 +658,10 @@ export type MessageUpdateInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateInput = {
@@ -585,6 +680,11 @@ export type MessageUncheckedUpdateInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -600,6 +700,10 @@ export type MessageUncheckedUpdateInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageCreateManyInput = {
@@ -618,6 +722,11 @@ export type MessageCreateManyInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -640,6 +749,11 @@ export type MessageUpdateManyMutationInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -666,6 +780,11 @@ export type MessageUncheckedUpdateManyInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -707,6 +826,11 @@ export type MessageCountOrderByAggregateInput = {
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  outboundPayloadKind?: Prisma.SortOrder
+  templateName?: Prisma.SortOrder
+  templateLanguage?: Prisma.SortOrder
+  templateComponents?: Prisma.SortOrder
+  templateDefinitionHash?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrder
@@ -732,6 +856,10 @@ export type MessageMaxOrderByAggregateInput = {
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  outboundPayloadKind?: Prisma.SortOrder
+  templateName?: Prisma.SortOrder
+  templateLanguage?: Prisma.SortOrder
+  templateDefinitionHash?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrder
@@ -757,6 +885,10 @@ export type MessageMinOrderByAggregateInput = {
   sentByUserId?: Prisma.SortOrder
   status?: Prisma.SortOrder
   failureReason?: Prisma.SortOrder
+  outboundPayloadKind?: Prisma.SortOrder
+  templateName?: Prisma.SortOrder
+  templateLanguage?: Prisma.SortOrder
+  templateDefinitionHash?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrder
@@ -820,6 +952,18 @@ export type MessageCreateNestedOneWithoutTeamLastReadForInput = {
   connect?: Prisma.MessageWhereUniqueInput
 }
 
+export type MessageCreateNestedOneWithoutLastCustomerForInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutLastCustomerForInput, Prisma.MessageUncheckedCreateWithoutLastCustomerForInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutLastCustomerForInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageCreateNestedOneWithoutPendingCustomerForInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutPendingCustomerForInput, Prisma.MessageUncheckedCreateWithoutPendingCustomerForInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutPendingCustomerForInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
 export type MessageCreateNestedManyWithoutConversationInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutConversationInput, Prisma.MessageUncheckedCreateWithoutConversationInput> | Prisma.MessageCreateWithoutConversationInput[] | Prisma.MessageUncheckedCreateWithoutConversationInput[]
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutConversationInput | Prisma.MessageCreateOrConnectWithoutConversationInput[]
@@ -842,6 +986,26 @@ export type MessageUpdateOneWithoutTeamLastReadForNestedInput = {
   delete?: Prisma.MessageWhereInput | boolean
   connect?: Prisma.MessageWhereUniqueInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutTeamLastReadForInput, Prisma.MessageUpdateWithoutTeamLastReadForInput>, Prisma.MessageUncheckedUpdateWithoutTeamLastReadForInput>
+}
+
+export type MessageUpdateOneWithoutLastCustomerForNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutLastCustomerForInput, Prisma.MessageUncheckedCreateWithoutLastCustomerForInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutLastCustomerForInput
+  upsert?: Prisma.MessageUpsertWithoutLastCustomerForInput
+  disconnect?: Prisma.MessageWhereInput | boolean
+  delete?: Prisma.MessageWhereInput | boolean
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutLastCustomerForInput, Prisma.MessageUpdateWithoutLastCustomerForInput>, Prisma.MessageUncheckedUpdateWithoutLastCustomerForInput>
+}
+
+export type MessageUpdateOneWithoutPendingCustomerForNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutPendingCustomerForInput, Prisma.MessageUncheckedCreateWithoutPendingCustomerForInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutPendingCustomerForInput
+  upsert?: Prisma.MessageUpsertWithoutPendingCustomerForInput
+  disconnect?: Prisma.MessageWhereInput | boolean
+  delete?: Prisma.MessageWhereInput | boolean
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutPendingCustomerForInput, Prisma.MessageUpdateWithoutPendingCustomerForInput>, Prisma.MessageUncheckedUpdateWithoutPendingCustomerForInput>
 }
 
 export type MessageUpdateManyWithoutConversationNestedInput = {
@@ -902,6 +1066,10 @@ export type EnumMessageTypeFieldUpdateOperationsInput = {
 
 export type EnumMessageStatusFieldUpdateOperationsInput = {
   set?: $Enums.MessageStatus
+}
+
+export type EnumOutboundPayloadKindFieldUpdateOperationsInput = {
+  set?: $Enums.OutboundPayloadKind
 }
 
 export type EnumMessageOperationalStateFieldUpdateOperationsInput = {
@@ -1054,6 +1222,36 @@ export type MessageUpdateOneWithoutReadSyncFailuresNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutReadSyncFailuresInput, Prisma.MessageUpdateWithoutReadSyncFailuresInput>, Prisma.MessageUncheckedUpdateWithoutReadSyncFailuresInput>
 }
 
+export type MessageCreateNestedOneWithoutResumptionSourcesInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutResumptionSourcesInput, Prisma.MessageUncheckedCreateWithoutResumptionSourcesInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutResumptionSourcesInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageCreateNestedOneWithoutResumptionMessageInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutResumptionMessageInput, Prisma.MessageUncheckedCreateWithoutResumptionMessageInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutResumptionMessageInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageUpdateOneRequiredWithoutResumptionSourcesNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutResumptionSourcesInput, Prisma.MessageUncheckedCreateWithoutResumptionSourcesInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutResumptionSourcesInput
+  upsert?: Prisma.MessageUpsertWithoutResumptionSourcesInput
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutResumptionSourcesInput, Prisma.MessageUpdateWithoutResumptionSourcesInput>, Prisma.MessageUncheckedUpdateWithoutResumptionSourcesInput>
+}
+
+export type MessageUpdateOneWithoutResumptionMessageNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutResumptionMessageInput, Prisma.MessageUncheckedCreateWithoutResumptionMessageInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutResumptionMessageInput
+  upsert?: Prisma.MessageUpsertWithoutResumptionMessageInput
+  disconnect?: Prisma.MessageWhereInput | boolean
+  delete?: Prisma.MessageWhereInput | boolean
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutResumptionMessageInput, Prisma.MessageUpdateWithoutResumptionMessageInput>, Prisma.MessageUncheckedUpdateWithoutResumptionMessageInput>
+}
+
 export type MessageCreateWithoutSentByUserInput = {
   id?: string
   whatsappMessageId?: string | null
@@ -1066,6 +1264,11 @@ export type MessageCreateWithoutSentByUserInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1084,6 +1287,10 @@ export type MessageCreateWithoutSentByUserInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutSentByUserInput = {
@@ -1101,6 +1308,11 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   mediaObjectId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1116,6 +1328,10 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutSentByUserInput = {
@@ -1163,6 +1379,11 @@ export type MessageScalarWhereInput = {
   sentByUserId?: Prisma.UuidNullableFilter<"Message"> | string | null
   status?: Prisma.EnumMessageStatusFilter<"Message"> | $Enums.MessageStatus
   failureReason?: Prisma.StringNullableFilter<"Message"> | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFilter<"Message"> | $Enums.OutboundPayloadKind
+  templateName?: Prisma.StringNullableFilter<"Message"> | string | null
+  templateLanguage?: Prisma.StringNullableFilter<"Message"> | string | null
+  templateComponents?: Prisma.JsonNullableFilter<"Message">
+  templateDefinitionHash?: Prisma.StringNullableFilter<"Message"> | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
@@ -1185,6 +1406,11 @@ export type MessageCreateWithoutTeamLastReadForInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1203,6 +1429,10 @@ export type MessageCreateWithoutTeamLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
@@ -1221,6 +1451,11 @@ export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1235,11 +1470,189 @@ export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutTeamLastReadForInput = {
   where: Prisma.MessageWhereUniqueInput
   create: Prisma.XOR<Prisma.MessageCreateWithoutTeamLastReadForInput, Prisma.MessageUncheckedCreateWithoutTeamLastReadForInput>
+}
+
+export type MessageCreateWithoutLastCustomerForInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
+}
+
+export type MessageUncheckedCreateWithoutLastCustomerForInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
+}
+
+export type MessageCreateOrConnectWithoutLastCustomerForInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutLastCustomerForInput, Prisma.MessageUncheckedCreateWithoutLastCustomerForInput>
+}
+
+export type MessageCreateWithoutPendingCustomerForInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
+}
+
+export type MessageUncheckedCreateWithoutPendingCustomerForInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
+}
+
+export type MessageCreateOrConnectWithoutPendingCustomerForInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutPendingCustomerForInput, Prisma.MessageUncheckedCreateWithoutPendingCustomerForInput>
 }
 
 export type MessageCreateWithoutConversationInput = {
@@ -1254,6 +1667,11 @@ export type MessageCreateWithoutConversationInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1272,6 +1690,10 @@ export type MessageCreateWithoutConversationInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutConversationInput = {
@@ -1289,6 +1711,11 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1304,6 +1731,10 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutConversationInput = {
@@ -1339,6 +1770,11 @@ export type MessageUpdateWithoutTeamLastReadForInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1357,6 +1793,10 @@ export type MessageUpdateWithoutTeamLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
@@ -1375,6 +1815,11 @@ export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1389,6 +1834,196 @@ export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUpsertWithoutLastCustomerForInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutLastCustomerForInput, Prisma.MessageUncheckedUpdateWithoutLastCustomerForInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutLastCustomerForInput, Prisma.MessageUncheckedCreateWithoutLastCustomerForInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutLastCustomerForInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutLastCustomerForInput, Prisma.MessageUncheckedUpdateWithoutLastCustomerForInput>
+}
+
+export type MessageUpdateWithoutLastCustomerForInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutLastCustomerForInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUpsertWithoutPendingCustomerForInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutPendingCustomerForInput, Prisma.MessageUncheckedUpdateWithoutPendingCustomerForInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutPendingCustomerForInput, Prisma.MessageUncheckedCreateWithoutPendingCustomerForInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutPendingCustomerForInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutPendingCustomerForInput, Prisma.MessageUncheckedUpdateWithoutPendingCustomerForInput>
+}
+
+export type MessageUpdateWithoutPendingCustomerForInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutPendingCustomerForInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUpsertWithWhereUniqueWithoutConversationInput = {
@@ -1419,6 +2054,11 @@ export type MessageCreateWithoutRepliesInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1437,6 +2077,10 @@ export type MessageCreateWithoutRepliesInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutRepliesInput = {
@@ -1455,6 +2099,11 @@ export type MessageUncheckedCreateWithoutRepliesInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1469,6 +2118,10 @@ export type MessageUncheckedCreateWithoutRepliesInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutRepliesInput = {
@@ -1488,6 +2141,11 @@ export type MessageCreateWithoutReplyToMessageInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1506,6 +2164,10 @@ export type MessageCreateWithoutReplyToMessageInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReplyToMessageInput = {
@@ -1523,6 +2185,11 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1538,6 +2205,10 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReplyToMessageInput = {
@@ -1573,6 +2244,11 @@ export type MessageUpdateWithoutRepliesInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1591,6 +2267,10 @@ export type MessageUpdateWithoutRepliesInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutRepliesInput = {
@@ -1609,6 +2289,11 @@ export type MessageUncheckedUpdateWithoutRepliesInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1623,6 +2308,10 @@ export type MessageUncheckedUpdateWithoutRepliesInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUpsertWithWhereUniqueWithoutReplyToMessageInput = {
@@ -1653,6 +2342,11 @@ export type MessageCreateWithoutReactionsInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1671,6 +2365,10 @@ export type MessageCreateWithoutReactionsInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReactionsInput = {
@@ -1689,6 +2387,11 @@ export type MessageUncheckedCreateWithoutReactionsInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1703,6 +2406,10 @@ export type MessageUncheckedCreateWithoutReactionsInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReactionsInput = {
@@ -1733,6 +2440,11 @@ export type MessageUpdateWithoutReactionsInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1751,6 +2463,10 @@ export type MessageUpdateWithoutReactionsInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReactionsInput = {
@@ -1769,6 +2485,11 @@ export type MessageUncheckedUpdateWithoutReactionsInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1783,6 +2504,10 @@ export type MessageUncheckedUpdateWithoutReactionsInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageCreateWithoutMediaObjectInput = {
@@ -1797,6 +2522,11 @@ export type MessageCreateWithoutMediaObjectInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1815,6 +2545,10 @@ export type MessageCreateWithoutMediaObjectInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutMediaObjectInput = {
@@ -1832,6 +2566,11 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1847,6 +2586,10 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutMediaObjectInput = {
@@ -1877,6 +2620,11 @@ export type MessageUpdateWithoutMediaObjectInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1895,6 +2643,10 @@ export type MessageUpdateWithoutMediaObjectInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutMediaObjectInput = {
@@ -1912,6 +2664,11 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -1927,6 +2684,10 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageCreateWithoutLastReadForInput = {
@@ -1941,6 +2702,11 @@ export type MessageCreateWithoutLastReadForInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1959,6 +2725,10 @@ export type MessageCreateWithoutLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutLastReadForInput = {
@@ -1977,6 +2747,11 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -1991,6 +2766,10 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutLastReadForInput = {
@@ -2021,6 +2800,11 @@ export type MessageUpdateWithoutLastReadForInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2039,6 +2823,10 @@ export type MessageUpdateWithoutLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutLastReadForInput = {
@@ -2057,6 +2845,11 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2071,6 +2864,10 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageCreateWithoutReadSyncTargetsInput = {
@@ -2085,6 +2882,11 @@ export type MessageCreateWithoutReadSyncTargetsInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2103,6 +2905,10 @@ export type MessageCreateWithoutReadSyncTargetsInput = {
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReadSyncTargetsInput = {
@@ -2121,6 +2927,11 @@ export type MessageUncheckedCreateWithoutReadSyncTargetsInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2135,6 +2946,10 @@ export type MessageUncheckedCreateWithoutReadSyncTargetsInput = {
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReadSyncTargetsInput = {
@@ -2154,6 +2969,11 @@ export type MessageCreateWithoutReadSyncConfirmationsInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2172,6 +2992,10 @@ export type MessageCreateWithoutReadSyncConfirmationsInput = {
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReadSyncConfirmationsInput = {
@@ -2190,6 +3014,11 @@ export type MessageUncheckedCreateWithoutReadSyncConfirmationsInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2204,6 +3033,10 @@ export type MessageUncheckedCreateWithoutReadSyncConfirmationsInput = {
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReadSyncConfirmationsInput = {
@@ -2223,6 +3056,11 @@ export type MessageCreateWithoutReadSyncFailuresInput = {
   replyToWhatsappMessageId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2241,6 +3079,10 @@ export type MessageCreateWithoutReadSyncFailuresInput = {
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
 }
 
 export type MessageUncheckedCreateWithoutReadSyncFailuresInput = {
@@ -2259,6 +3101,11 @@ export type MessageUncheckedCreateWithoutReadSyncFailuresInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2273,6 +3120,10 @@ export type MessageUncheckedCreateWithoutReadSyncFailuresInput = {
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
 }
 
 export type MessageCreateOrConnectWithoutReadSyncFailuresInput = {
@@ -2303,6 +3154,11 @@ export type MessageUpdateWithoutReadSyncTargetsInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2321,6 +3177,10 @@ export type MessageUpdateWithoutReadSyncTargetsInput = {
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReadSyncTargetsInput = {
@@ -2339,6 +3199,11 @@ export type MessageUncheckedUpdateWithoutReadSyncTargetsInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2353,6 +3218,10 @@ export type MessageUncheckedUpdateWithoutReadSyncTargetsInput = {
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUpsertWithoutReadSyncConfirmationsInput = {
@@ -2378,6 +3247,11 @@ export type MessageUpdateWithoutReadSyncConfirmationsInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2396,6 +3270,10 @@ export type MessageUpdateWithoutReadSyncConfirmationsInput = {
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReadSyncConfirmationsInput = {
@@ -2414,6 +3292,11 @@ export type MessageUncheckedUpdateWithoutReadSyncConfirmationsInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2428,6 +3311,10 @@ export type MessageUncheckedUpdateWithoutReadSyncConfirmationsInput = {
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUpsertWithoutReadSyncFailuresInput = {
@@ -2453,6 +3340,11 @@ export type MessageUpdateWithoutReadSyncFailuresInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2471,6 +3363,10 @@ export type MessageUpdateWithoutReadSyncFailuresInput = {
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReadSyncFailuresInput = {
@@ -2489,6 +3385,11 @@ export type MessageUncheckedUpdateWithoutReadSyncFailuresInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2503,6 +3404,370 @@ export type MessageUncheckedUpdateWithoutReadSyncFailuresInput = {
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageCreateWithoutResumptionSourcesInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
+}
+
+export type MessageUncheckedCreateWithoutResumptionSourcesInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
+}
+
+export type MessageCreateOrConnectWithoutResumptionSourcesInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutResumptionSourcesInput, Prisma.MessageUncheckedCreateWithoutResumptionSourcesInput>
+}
+
+export type MessageCreateWithoutResumptionMessageInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+}
+
+export type MessageUncheckedCreateWithoutResumptionMessageInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  revokedAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+}
+
+export type MessageCreateOrConnectWithoutResumptionMessageInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutResumptionMessageInput, Prisma.MessageUncheckedCreateWithoutResumptionMessageInput>
+}
+
+export type MessageUpsertWithoutResumptionSourcesInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutResumptionSourcesInput, Prisma.MessageUncheckedUpdateWithoutResumptionSourcesInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutResumptionSourcesInput, Prisma.MessageUncheckedCreateWithoutResumptionSourcesInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutResumptionSourcesInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutResumptionSourcesInput, Prisma.MessageUncheckedUpdateWithoutResumptionSourcesInput>
+}
+
+export type MessageUpdateWithoutResumptionSourcesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutResumptionSourcesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUpsertWithoutResumptionMessageInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutResumptionMessageInput, Prisma.MessageUncheckedUpdateWithoutResumptionMessageInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutResumptionMessageInput, Prisma.MessageUncheckedCreateWithoutResumptionMessageInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutResumptionMessageInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutResumptionMessageInput, Prisma.MessageUncheckedUpdateWithoutResumptionMessageInput>
+}
+
+export type MessageUpdateWithoutResumptionMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutResumptionMessageInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
 }
 
 export type MessageCreateManySentByUserInput = {
@@ -2520,6 +3785,11 @@ export type MessageCreateManySentByUserInput = {
   mediaObjectId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2542,6 +3812,11 @@ export type MessageUpdateWithoutSentByUserInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2560,6 +3835,10 @@ export type MessageUpdateWithoutSentByUserInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutSentByUserInput = {
@@ -2577,6 +3856,11 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2592,6 +3876,10 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
@@ -2609,6 +3897,11 @@ export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
   mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2634,6 +3927,11 @@ export type MessageCreateManyConversationInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2656,6 +3954,11 @@ export type MessageUpdateWithoutConversationInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2674,6 +3977,10 @@ export type MessageUpdateWithoutConversationInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutConversationInput = {
@@ -2691,6 +3998,11 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2706,6 +4018,10 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutConversationInput = {
@@ -2723,6 +4039,11 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2748,6 +4069,11 @@ export type MessageCreateManyReplyToMessageInput = {
   sentByUserId?: string | null
   status: $Enums.MessageStatus
   failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
   revokedAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
@@ -2770,6 +4096,11 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2788,6 +4119,10 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
@@ -2805,6 +4140,11 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2820,6 +4160,10 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
 }
 
 export type MessageUncheckedUpdateManyWithoutReplyToMessageInput = {
@@ -2837,6 +4181,11 @@ export type MessageUncheckedUpdateManyWithoutReplyToMessageInput = {
   sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
   failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
@@ -2860,6 +4209,9 @@ export type MessageCountOutputType = {
   readSyncTargets: number
   readSyncConfirmations: number
   readSyncFailures: number
+  lastCustomerFor: number
+  pendingCustomerFor: number
+  resumptionSources: number
 }
 
 export type MessageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2870,6 +4222,9 @@ export type MessageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   readSyncTargets?: boolean | MessageCountOutputTypeCountReadSyncTargetsArgs
   readSyncConfirmations?: boolean | MessageCountOutputTypeCountReadSyncConfirmationsArgs
   readSyncFailures?: boolean | MessageCountOutputTypeCountReadSyncFailuresArgs
+  lastCustomerFor?: boolean | MessageCountOutputTypeCountLastCustomerForArgs
+  pendingCustomerFor?: boolean | MessageCountOutputTypeCountPendingCustomerForArgs
+  resumptionSources?: boolean | MessageCountOutputTypeCountResumptionSourcesArgs
 }
 
 /**
@@ -2931,6 +4286,27 @@ export type MessageCountOutputTypeCountReadSyncFailuresArgs<ExtArgs extends runt
   where?: Prisma.WhatsAppReadSyncWhereInput
 }
 
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountLastCustomerForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ConversationWhereInput
+}
+
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountPendingCustomerForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ConversationWhereInput
+}
+
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountResumptionSourcesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ConversationResumptionWhereInput
+}
+
 
 export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2948,6 +4324,11 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  outboundPayloadKind?: boolean
+  templateName?: boolean
+  templateLanguage?: boolean
+  templateComponents?: boolean
+  templateDefinitionHash?: boolean
   revokedAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
@@ -2967,6 +4348,10 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   readSyncTargets?: boolean | Prisma.Message$readSyncTargetsArgs<ExtArgs>
   readSyncConfirmations?: boolean | Prisma.Message$readSyncConfirmationsArgs<ExtArgs>
   readSyncFailures?: boolean | Prisma.Message$readSyncFailuresArgs<ExtArgs>
+  lastCustomerFor?: boolean | Prisma.Message$lastCustomerForArgs<ExtArgs>
+  pendingCustomerFor?: boolean | Prisma.Message$pendingCustomerForArgs<ExtArgs>
+  resumptionSources?: boolean | Prisma.Message$resumptionSourcesArgs<ExtArgs>
+  resumptionMessage?: boolean | Prisma.Message$resumptionMessageArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["message"]>
 
@@ -2986,6 +4371,11 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  outboundPayloadKind?: boolean
+  templateName?: boolean
+  templateLanguage?: boolean
+  templateComponents?: boolean
+  templateDefinitionHash?: boolean
   revokedAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
@@ -3016,6 +4406,11 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  outboundPayloadKind?: boolean
+  templateName?: boolean
+  templateLanguage?: boolean
+  templateComponents?: boolean
+  templateDefinitionHash?: boolean
   revokedAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
@@ -3046,6 +4441,11 @@ export type MessageSelectScalar = {
   sentByUserId?: boolean
   status?: boolean
   failureReason?: boolean
+  outboundPayloadKind?: boolean
+  templateName?: boolean
+  templateLanguage?: boolean
+  templateComponents?: boolean
+  templateDefinitionHash?: boolean
   revokedAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
@@ -3056,7 +4456,7 @@ export type MessageSelectScalar = {
   updatedAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "content" | "searchText" | "replyToMessageId" | "replyToWhatsappMessageId" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "revokedAt" | "operationalState" | "providerAttemptedAt" | "deliveryLeaseId" | "deliveryLeaseUntil" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "content" | "searchText" | "replyToMessageId" | "replyToWhatsappMessageId" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "outboundPayloadKind" | "templateName" | "templateLanguage" | "templateComponents" | "templateDefinitionHash" | "revokedAt" | "operationalState" | "providerAttemptedAt" | "deliveryLeaseId" | "deliveryLeaseUntil" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   mediaObject?: boolean | Prisma.Message$mediaObjectArgs<ExtArgs>
@@ -3069,6 +4469,10 @@ export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   readSyncTargets?: boolean | Prisma.Message$readSyncTargetsArgs<ExtArgs>
   readSyncConfirmations?: boolean | Prisma.Message$readSyncConfirmationsArgs<ExtArgs>
   readSyncFailures?: boolean | Prisma.Message$readSyncFailuresArgs<ExtArgs>
+  lastCustomerFor?: boolean | Prisma.Message$lastCustomerForArgs<ExtArgs>
+  pendingCustomerFor?: boolean | Prisma.Message$pendingCustomerForArgs<ExtArgs>
+  resumptionSources?: boolean | Prisma.Message$resumptionSourcesArgs<ExtArgs>
+  resumptionMessage?: boolean | Prisma.Message$resumptionMessageArgs<ExtArgs>
   _count?: boolean | Prisma.MessageCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type MessageIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -3098,6 +4502,10 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     readSyncTargets: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
     readSyncConfirmations: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
     readSyncFailures: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
+    lastCustomerFor: Prisma.$ConversationPayload<ExtArgs>[]
+    pendingCustomerFor: Prisma.$ConversationPayload<ExtArgs>[]
+    resumptionSources: Prisma.$ConversationResumptionPayload<ExtArgs>[]
+    resumptionMessage: Prisma.$ConversationResumptionPayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -3115,6 +4523,11 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     sentByUserId: string | null
     status: $Enums.MessageStatus
     failureReason: string | null
+    outboundPayloadKind: $Enums.OutboundPayloadKind
+    templateName: string | null
+    templateLanguage: string | null
+    templateComponents: runtime.JsonValue | null
+    templateDefinitionHash: string | null
     revokedAt: Date | null
     operationalState: $Enums.MessageOperationalState
     providerAttemptedAt: Date | null
@@ -3528,6 +4941,10 @@ export interface Prisma__MessageClient<T, Null = never, ExtArgs extends runtime.
   readSyncTargets<T extends Prisma.Message$readSyncTargetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncTargetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   readSyncConfirmations<T extends Prisma.Message$readSyncConfirmationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncConfirmationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   readSyncFailures<T extends Prisma.Message$readSyncFailuresArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncFailuresArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  lastCustomerFor<T extends Prisma.Message$lastCustomerForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$lastCustomerForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  pendingCustomerFor<T extends Prisma.Message$pendingCustomerForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$pendingCustomerForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  resumptionSources<T extends Prisma.Message$resumptionSourcesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$resumptionSourcesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationResumptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  resumptionMessage<T extends Prisma.Message$resumptionMessageArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$resumptionMessageArgs<ExtArgs>>): Prisma.Prisma__ConversationResumptionClient<runtime.Types.Result.GetResult<Prisma.$ConversationResumptionPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3572,6 +4989,11 @@ export interface MessageFieldRefs {
   readonly sentByUserId: Prisma.FieldRef<"Message", 'String'>
   readonly status: Prisma.FieldRef<"Message", 'MessageStatus'>
   readonly failureReason: Prisma.FieldRef<"Message", 'String'>
+  readonly outboundPayloadKind: Prisma.FieldRef<"Message", 'OutboundPayloadKind'>
+  readonly templateName: Prisma.FieldRef<"Message", 'String'>
+  readonly templateLanguage: Prisma.FieldRef<"Message", 'String'>
+  readonly templateComponents: Prisma.FieldRef<"Message", 'Json'>
+  readonly templateDefinitionHash: Prisma.FieldRef<"Message", 'String'>
   readonly revokedAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly operationalState: Prisma.FieldRef<"Message", 'MessageOperationalState'>
   readonly providerAttemptedAt: Prisma.FieldRef<"Message", 'DateTime'>
@@ -4203,6 +5625,97 @@ export type Message$readSyncFailuresArgs<ExtArgs extends runtime.Types.Extension
   take?: number
   skip?: number
   distinct?: Prisma.WhatsAppReadSyncScalarFieldEnum | Prisma.WhatsAppReadSyncScalarFieldEnum[]
+}
+
+/**
+ * Message.lastCustomerFor
+ */
+export type Message$lastCustomerForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Conversation
+   */
+  select?: Prisma.ConversationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Conversation
+   */
+  omit?: Prisma.ConversationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationInclude<ExtArgs> | null
+  where?: Prisma.ConversationWhereInput
+  orderBy?: Prisma.ConversationOrderByWithRelationInput | Prisma.ConversationOrderByWithRelationInput[]
+  cursor?: Prisma.ConversationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ConversationScalarFieldEnum | Prisma.ConversationScalarFieldEnum[]
+}
+
+/**
+ * Message.pendingCustomerFor
+ */
+export type Message$pendingCustomerForArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Conversation
+   */
+  select?: Prisma.ConversationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Conversation
+   */
+  omit?: Prisma.ConversationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationInclude<ExtArgs> | null
+  where?: Prisma.ConversationWhereInput
+  orderBy?: Prisma.ConversationOrderByWithRelationInput | Prisma.ConversationOrderByWithRelationInput[]
+  cursor?: Prisma.ConversationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ConversationScalarFieldEnum | Prisma.ConversationScalarFieldEnum[]
+}
+
+/**
+ * Message.resumptionSources
+ */
+export type Message$resumptionSourcesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ConversationResumption
+   */
+  select?: Prisma.ConversationResumptionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ConversationResumption
+   */
+  omit?: Prisma.ConversationResumptionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationResumptionInclude<ExtArgs> | null
+  where?: Prisma.ConversationResumptionWhereInput
+  orderBy?: Prisma.ConversationResumptionOrderByWithRelationInput | Prisma.ConversationResumptionOrderByWithRelationInput[]
+  cursor?: Prisma.ConversationResumptionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ConversationResumptionScalarFieldEnum | Prisma.ConversationResumptionScalarFieldEnum[]
+}
+
+/**
+ * Message.resumptionMessage
+ */
+export type Message$resumptionMessageArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ConversationResumption
+   */
+  select?: Prisma.ConversationResumptionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ConversationResumption
+   */
+  omit?: Prisma.ConversationResumptionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ConversationResumptionInclude<ExtArgs> | null
+  where?: Prisma.ConversationResumptionWhereInput
 }
 
 /**

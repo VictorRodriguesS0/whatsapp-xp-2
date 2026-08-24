@@ -32,6 +32,10 @@ export async function resetTestDatabase(): Promise<void> {
   assertDedicatedTestDatabase();
 
   await prisma.$transaction([
+    prisma.contactMessagingRestrictionEvent.deleteMany(),
+    prisma.conversationResumption.deleteMany(),
+    prisma.whatsAppTemplateAssignment.deleteMany(),
+    prisma.whatsAppTemplate.deleteMany(),
     prisma.conversationRead.deleteMany(),
     prisma.whatsAppReadSync.deleteMany(),
     prisma.message.deleteMany(),
@@ -42,6 +46,10 @@ export async function resetTestDatabase(): Promise<void> {
     prisma.session.deleteMany(),
     prisma.webhookEvent.deleteMany(),
     prisma.user.deleteMany(),
+    prisma.whatsAppPolicyConfiguration.deleteMany(),
+    prisma.whatsAppPolicyConfiguration.create({
+      data: { id: 1 },
+    }),
   ]);
 }
 

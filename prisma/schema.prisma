@@ -85,22 +85,60 @@ enum ConversationAuditAction {
   MARKED_UNREAD
 }
 
+enum WhatsAppPolicyMode {
+  INACTIVE
+  ACTIVE
+}
+
+enum WhatsAppTemplateFunction {
+  SERVICE_RESUMPTION
+}
+
+enum WhatsAppTemplateSyncStatus {
+  NEVER
+  SUCCEEDED
+  FAILED
+}
+
+enum OutboundPayloadKind {
+  FREE_FORM
+  TEMPLATE
+}
+
+enum ConversationResumptionStatus {
+  RESERVED
+  SEND_IN_FLIGHT
+  SENT
+  FAILED
+  OUTCOME_UNKNOWN
+}
+
+enum ContactMessagingRestrictionAction {
+  OPT_OUT
+  OPT_IN
+}
+
 model User {
-  id                        String                   @id @default(uuid()) @db.Uuid
-  name                      String
-  email                     String                   @unique
-  passwordHash              String                   @map("password_hash")
-  role                      UserRole
-  active                    Boolean                  @default(true)
-  createdAt                 DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                 DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
-  sessions                  Session[]
-  assignedConversations     Conversation[]           @relation("ResponsibleUser")
-  sentMessages              Message[]                @relation("SentByUser")
-  conversationReads         ConversationRead[]
-  manualUnreadConversations Conversation[]           @relation("ManualUnreadByUser")
-  conversationAuditEvents   ConversationAuditEvent[]
-  sentReactions             MessageReaction[]        @relation("ReactionSentByUser")
+  id                          String                             @id @default(uuid()) @db.Uuid
+  name                        String
+  email                       String                             @unique
+  passwordHash                String                             @map("password_hash")
+  role                        UserRole
+  active                      Boolean                            @default(true)
+  createdAt                   DateTime                           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                   DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  sessions                    Session[]
+  assignedConversations       Conversation[]                     @relation("ResponsibleUser")
+  sentMessages                Message[]                          @relation("SentByUser")
+  conversationReads           ConversationRead[]
+  manualUnreadConversations   Conversation[]                     @relation("ManualUnreadByUser")
+  conversationAuditEvents     ConversationAuditEvent[]
+  sentReactions               MessageReaction[]                  @relation("ReactionSentByUser")
+  whatsappPolicyActions       WhatsAppPolicyConfiguration[]      @relation("WhatsAppPolicyActor")
+  whatsappTemplateAssignments WhatsAppTemplateAssignment[]       @relation("WhatsAppTemplateAssigner")
+  conversationResumptions     ConversationResumption[]           @relation("ConversationResumptionSender")
+  messagingRestrictionEvents  ContactMessagingRestrictionEvent[] @relation("ContactMessagingRestrictionActor")
+  messagingRestrictedContacts Contact[]                          @relation("ContactMessagingRestrictedBy")
 
   @@map("users")
 }
@@ -119,34 +157,39 @@ model Session {
 }
 
 model Contact {
-  id                String                 @id @default(uuid()) @db.Uuid
-  whatsappId        String?                @unique @map("whatsapp_id")
-  whatsappUserId    String?                @unique @map("whatsapp_user_id")
-  phone             String?                @unique
-  name              String
-  preferredName     String?                @map("preferred_name")
-  profilePictureUrl String?                @map("profile_picture_url")
-  contactTypeId     String?                @map("contact_type_id") @db.Uuid
-  whatsappAppContactId String?             @unique @map("whatsapp_app_contact_id") @db.Uuid
-  createdAt         DateTime               @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt         DateTime               @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conversation      Conversation?
-  contactType       ContactType?           @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
-  whatsappAppContact WhatsAppAppContact?    @relation(fields: [whatsappAppContactId], references: [id], onDelete: SetNull)
-  tagAssignments    ContactTagAssignment[]
+  id                          String                             @id @default(uuid()) @db.Uuid
+  whatsappId                  String?                            @unique @map("whatsapp_id")
+  whatsappUserId              String?                            @unique @map("whatsapp_user_id")
+  phone                       String?                            @unique
+  name                        String
+  preferredName               String?                            @map("preferred_name")
+  profilePictureUrl           String?                            @map("profile_picture_url")
+  contactTypeId               String?                            @map("contact_type_id") @db.Uuid
+  whatsappAppContactId        String?                            @unique @map("whatsapp_app_contact_id") @db.Uuid
+  messagingOptOutAt           DateTime?                          @map("messaging_opt_out_at") @db.Timestamptz(3)
+  messagingRestrictionReason  String?                            @map("messaging_restriction_reason")
+  messagingRestrictedByUserId String?                            @map("messaging_restricted_by_user_id") @db.Uuid
+  createdAt                   DateTime                           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                   DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation                Conversation?
+  contactType                 ContactType?                       @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
+  whatsappAppContact          WhatsAppAppContact?                @relation(fields: [whatsappAppContactId], references: [id], onDelete: SetNull)
+  messagingRestrictedBy       User?                              @relation("ContactMessagingRestrictedBy", fields: [messagingRestrictedByUserId], references: [id], onDelete: Restrict)
+  messagingRestrictionEvents  ContactMessagingRestrictionEvent[]
+  tagAssignments              ContactTagAssignment[]
 
   @@map("contacts")
 }
 
 model WhatsAppAppContact {
-  id               String    @id @default(uuid()) @db.Uuid
-  phone            String    @unique
-  fullName         String?   @map("full_name")
-  active           Boolean   @default(true)
-  sourceTimestamp  DateTime  @map("source_timestamp") @db.Timestamptz(3)
-  sourceVersionKey String    @map("source_version_key")
-  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt        DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  id               String   @id @default(uuid()) @db.Uuid
+  phone            String   @unique
+  fullName         String?  @map("full_name")
+  active           Boolean  @default(true)
+  sourceTimestamp  DateTime @map("source_timestamp") @db.Timestamptz(3)
+  sourceVersionKey String   @map("source_version_key")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
   contact          Contact?
 
   @@index([active, phone])
@@ -198,67 +241,87 @@ model ContactTagAssignment {
 }
 
 model Conversation {
-  id                    String                   @id @default(uuid()) @db.Uuid
-  contactId             String                   @unique @map("contact_id") @db.Uuid
-  responsibleUserId     String?                  @map("responsible_user_id") @db.Uuid
-  lastMessageAt         DateTime                 @map("last_message_at") @db.Timestamptz(3)
-  pinnedAt              DateTime?                @map("pinned_at") @db.Timestamptz(3)
-  createdAt             DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt             DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
-  teamLastReadMessageId String?                  @map("team_last_read_message_id") @db.Uuid
-  teamLastReadAt        DateTime?                @map("team_last_read_at") @db.Timestamptz(3)
-  manualUnreadAt        DateTime?                @map("manual_unread_at") @db.Timestamptz(3)
-  manualUnreadByUserId  String?                  @map("manual_unread_by_user_id") @db.Uuid
-  awaitingResponseSince DateTime?                @map("awaiting_response_since") @db.Timestamptz(3)
-  contact               Contact                  @relation(fields: [contactId], references: [id], onDelete: Restrict)
-  responsibleUser       User?                    @relation("ResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
-  teamLastReadMessage   Message?                 @relation("TeamLastReadMessage", fields: [teamLastReadMessageId], references: [id], onDelete: SetNull)
-  manualUnreadByUser    User?                    @relation("ManualUnreadByUser", fields: [manualUnreadByUserId], references: [id], onDelete: SetNull)
-  messages              Message[]
-  reads                 ConversationRead[]
-  auditEvents           ConversationAuditEvent[]
-  whatsappReadSync      WhatsAppReadSync?
+  id                        String                   @id @default(uuid()) @db.Uuid
+  contactId                 String                   @unique @map("contact_id") @db.Uuid
+  responsibleUserId         String?                  @map("responsible_user_id") @db.Uuid
+  lastMessageAt             DateTime                 @map("last_message_at") @db.Timestamptz(3)
+  pinnedAt                  DateTime?                @map("pinned_at") @db.Timestamptz(3)
+  createdAt                 DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                 DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  teamLastReadMessageId     String?                  @map("team_last_read_message_id") @db.Uuid
+  teamLastReadAt            DateTime?                @map("team_last_read_at") @db.Timestamptz(3)
+  manualUnreadAt            DateTime?                @map("manual_unread_at") @db.Timestamptz(3)
+  manualUnreadByUserId      String?                  @map("manual_unread_by_user_id") @db.Uuid
+  awaitingResponseSince     DateTime?                @map("awaiting_response_since") @db.Timestamptz(3)
+  lastCustomerMessageAt     DateTime?                @map("last_customer_message_at") @db.Timestamptz(3)
+  lastCustomerMessageId     String?                  @map("last_customer_message_id") @db.Uuid
+  pendingCustomerMessageAt  DateTime?                @map("pending_customer_message_at") @db.Timestamptz(3)
+  pendingCustomerMessageId  String?                  @map("pending_customer_message_id") @db.Uuid
+  awaitingCustomerSince     DateTime?                @map("awaiting_customer_since") @db.Timestamptz(3)
+  serviceWindowStateVersion Int                      @default(0) @map("service_window_state_version")
+  contact                   Contact                  @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  responsibleUser           User?                    @relation("ResponsibleUser", fields: [responsibleUserId], references: [id], onDelete: SetNull)
+  teamLastReadMessage       Message?                 @relation("TeamLastReadMessage", fields: [teamLastReadMessageId], references: [id], onDelete: SetNull)
+  manualUnreadByUser        User?                    @relation("ManualUnreadByUser", fields: [manualUnreadByUserId], references: [id], onDelete: SetNull)
+  lastCustomerMessage       Message?                 @relation("ConversationLastCustomerMessage", fields: [lastCustomerMessageId], references: [id], onDelete: SetNull)
+  pendingCustomerMessage    Message?                 @relation("ConversationPendingCustomerMessage", fields: [pendingCustomerMessageId], references: [id], onDelete: SetNull)
+  messages                  Message[]
+  reads                     ConversationRead[]
+  auditEvents               ConversationAuditEvent[]
+  whatsappReadSync          WhatsAppReadSync?
+  resumptions               ConversationResumption[]
 
   @@index([lastMessageAt])
   @@index([pinnedAt(sort: Desc), lastMessageAt(sort: Desc), id(sort: Desc)], map: "conversations_pinned_queue_idx")
+  @@index([lastCustomerMessageAt], map: "conversations_last_customer_message_at_idx")
+  @@index([pendingCustomerMessageAt], map: "conversations_pending_customer_message_at_idx")
   @@map("conversations")
 }
 
 model Message {
-  id                       String                  @id @default(uuid()) @db.Uuid
-  conversationId           String                  @map("conversation_id") @db.Uuid
-  whatsappMessageId        String?                 @unique @map("whatsapp_message_id")
-  clientRequestId          String?                 @unique @map("client_request_id") @db.Uuid
+  id                       String                   @id @default(uuid()) @db.Uuid
+  conversationId           String                   @map("conversation_id") @db.Uuid
+  whatsappMessageId        String?                  @unique @map("whatsapp_message_id")
+  clientRequestId          String?                  @unique @map("client_request_id") @db.Uuid
   direction                MessageDirection
   type                     MessageType
   body                     String?
   content                  Json?
-  searchText               String                  @default("") @map("search_text")
-  replyToMessageId         String?                 @map("reply_to_message_id") @db.Uuid
-  replyToWhatsappMessageId String?                 @map("reply_to_whatsapp_message_id")
-  mediaObjectId            String?                 @unique @map("media_object_id") @db.Uuid
-  sentByUserId             String?                 @map("sent_by_user_id") @db.Uuid
+  searchText               String                   @default("") @map("search_text")
+  replyToMessageId         String?                  @map("reply_to_message_id") @db.Uuid
+  replyToWhatsappMessageId String?                  @map("reply_to_whatsapp_message_id")
+  mediaObjectId            String?                  @unique @map("media_object_id") @db.Uuid
+  sentByUserId             String?                  @map("sent_by_user_id") @db.Uuid
   status                   MessageStatus
-  failureReason            String?                 @map("failure_reason")
-  revokedAt                DateTime?               @map("revoked_at") @db.Timestamptz(3)
-  operationalState         MessageOperationalState @default(READY) @map("operational_state")
-  providerAttemptedAt      DateTime?               @map("provider_attempted_at") @db.Timestamptz(3)
-  deliveryLeaseId          String?                 @map("delivery_lease_id") @db.Uuid
-  deliveryLeaseUntil       DateTime?               @map("delivery_lease_until") @db.Timestamptz(3)
-  externalTimestamp        DateTime                @map("external_timestamp") @db.Timestamptz(3)
-  createdAt                DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conversation             Conversation            @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  mediaObject              MediaObject?            @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
-  sentByUser               User?                   @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
-  replyToMessage           Message?                @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
-  replies                  Message[]               @relation("MessageReplies")
-  lastReadFor              ConversationRead[]      @relation("LastReadMessage")
-  teamLastReadFor          Conversation[]          @relation("TeamLastReadMessage")
+  failureReason            String?                  @map("failure_reason")
+  outboundPayloadKind      OutboundPayloadKind      @default(FREE_FORM) @map("outbound_payload_kind")
+  templateName             String?                  @map("template_name")
+  templateLanguage         String?                  @map("template_language")
+  templateComponents       Json?                    @map("template_components")
+  templateDefinitionHash   String?                  @map("template_definition_hash")
+  revokedAt                DateTime?                @map("revoked_at") @db.Timestamptz(3)
+  operationalState         MessageOperationalState  @default(READY) @map("operational_state")
+  providerAttemptedAt      DateTime?                @map("provider_attempted_at") @db.Timestamptz(3)
+  deliveryLeaseId          String?                  @map("delivery_lease_id") @db.Uuid
+  deliveryLeaseUntil       DateTime?                @map("delivery_lease_until") @db.Timestamptz(3)
+  externalTimestamp        DateTime                 @map("external_timestamp") @db.Timestamptz(3)
+  createdAt                DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation             Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  mediaObject              MediaObject?             @relation(fields: [mediaObjectId], references: [id], onDelete: SetNull)
+  sentByUser               User?                    @relation("SentByUser", fields: [sentByUserId], references: [id], onDelete: Restrict)
+  replyToMessage           Message?                 @relation("MessageReplies", fields: [replyToMessageId], references: [id], onDelete: SetNull)
+  replies                  Message[]                @relation("MessageReplies")
+  lastReadFor              ConversationRead[]       @relation("LastReadMessage")
+  teamLastReadFor          Conversation[]           @relation("TeamLastReadMessage")
   reactions                MessageReaction[]
   readSyncTargets          WhatsAppReadSync[]       @relation("ReadSyncTarget")
   readSyncConfirmations    WhatsAppReadSync[]       @relation("ReadSyncConfirmed")
   readSyncFailures         WhatsAppReadSync[]       @relation("ReadSyncFailed")
+  lastCustomerFor          Conversation[]           @relation("ConversationLastCustomerMessage")
+  pendingCustomerFor       Conversation[]           @relation("ConversationPendingCustomerMessage")
+  resumptionSources        ConversationResumption[] @relation("ResumptionSourceMessage")
+  resumptionMessage        ConversationResumption?  @relation("ResumptionMessage")
 
   @@index([conversationId, externalTimestamp])
   @@index([conversationId, direction, externalTimestamp, id], map: "messages_response_state_idx")
@@ -387,4 +450,100 @@ model QuickReply {
 
   @@index([active, position, shortcut])
   @@map("quick_replies")
+}
+
+model WhatsAppPolicyConfiguration {
+  id                          Int                        @id
+  mode                        WhatsAppPolicyMode         @default(INACTIVE)
+  version                     Int                        @default(0)
+  lastTemplateSyncStatus      WhatsAppTemplateSyncStatus @default(NEVER) @map("last_template_sync_status")
+  lastTemplateSyncAt          DateTime?                  @map("last_template_sync_at") @db.Timestamptz(3)
+  lastTemplateSyncSucceededAt DateTime?                  @map("last_template_sync_succeeded_at") @db.Timestamptz(3)
+  lastTemplateSyncFailureCode String?                    @map("last_template_sync_failure_code")
+  activatedAt                 DateTime?                  @map("activated_at") @db.Timestamptz(3)
+  activatedByUserId           String?                    @map("activated_by_user_id") @db.Uuid
+  updatedAt                   DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  activatedByUser             User?                      @relation("WhatsAppPolicyActor", fields: [activatedByUserId], references: [id], onDelete: SetNull)
+
+  @@map("whatsapp_policy_configuration")
+}
+
+model WhatsAppTemplate {
+  id             String                       @id @default(uuid()) @db.Uuid
+  metaId         String?                      @unique @map("meta_id")
+  name           String
+  language       String
+  category       String
+  status         String
+  qualityScore   String?                      @map("quality_score")
+  components     Json
+  bodyText       String                       @map("body_text")
+  parameterCount Int                          @map("parameter_count")
+  supported      Boolean
+  definitionHash String                       @map("definition_hash")
+  syncedAt       DateTime                     @map("synced_at") @db.Timestamptz(3)
+  createdAt      DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  assignments    WhatsAppTemplateAssignment[]
+  resumptions    ConversationResumption[]
+
+  @@unique([name, language])
+  @@index([status, supported, language])
+  @@map("whatsapp_templates")
+}
+
+model WhatsAppTemplateAssignment {
+  function         WhatsAppTemplateFunction @id
+  templateId       String                   @unique @map("template_id") @db.Uuid
+  assignedByUserId String                   @map("assigned_by_user_id") @db.Uuid
+  createdAt        DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  template         WhatsAppTemplate         @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  assignedByUser   User                     @relation("WhatsAppTemplateAssigner", fields: [assignedByUserId], references: [id], onDelete: Restrict)
+
+  @@map("whatsapp_template_assignments")
+}
+
+model ConversationResumption {
+  id                  String                       @id @default(uuid()) @db.Uuid
+  conversationId      String                       @map("conversation_id") @db.Uuid
+  sourceMessageId     String                       @map("source_message_id") @db.Uuid
+  templateId          String                       @map("template_id") @db.Uuid
+  messageId           String?                      @unique @map("message_id") @db.Uuid
+  sentByUserId        String                       @map("sent_by_user_id") @db.Uuid
+  clientRequestId     String                       @unique @map("client_request_id") @db.Uuid
+  status              ConversationResumptionStatus
+  renderedBody        String                       @map("rendered_body")
+  templateName        String                       @map("template_name")
+  templateLanguage    String                       @map("template_language")
+  definitionHash      String                       @map("definition_hash")
+  parameters          Json
+  providerMessageId   String?                      @map("provider_message_id")
+  providerAttemptedAt DateTime?                    @map("provider_attempted_at") @db.Timestamptz(3)
+  reservationUntil    DateTime?                    @map("reservation_until") @db.Timestamptz(3)
+  failureReason       String?                      @map("failure_reason")
+  createdAt           DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation        Conversation                 @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sourceMessage       Message                      @relation("ResumptionSourceMessage", fields: [sourceMessageId], references: [id], onDelete: Restrict)
+  template            WhatsAppTemplate             @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  message             Message?                     @relation("ResumptionMessage", fields: [messageId], references: [id], onDelete: SetNull)
+  sentByUser          User                         @relation("ConversationResumptionSender", fields: [sentByUserId], references: [id], onDelete: Restrict)
+
+  @@index([conversationId, sourceMessageId, status])
+  @@map("conversation_resumptions")
+}
+
+model ContactMessagingRestrictionEvent {
+  id          String                            @id @default(uuid()) @db.Uuid
+  contactId   String                            @map("contact_id") @db.Uuid
+  actorUserId String                            @map("actor_user_id") @db.Uuid
+  action      ContactMessagingRestrictionAction
+  reason      String
+  createdAt   DateTime                          @default(now()) @map("created_at") @db.Timestamptz(3)
+  contact     Contact                           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actorUser   User                              @relation("ContactMessagingRestrictionActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([contactId, createdAt])
+  @@map("contact_messaging_restriction_events")
 }

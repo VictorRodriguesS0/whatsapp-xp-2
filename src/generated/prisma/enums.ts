@@ -118,3 +118,54 @@ export const ConversationAuditAction = {
 } as const
 
 export type ConversationAuditAction = (typeof ConversationAuditAction)[keyof typeof ConversationAuditAction]
+
+
+export const WhatsAppPolicyMode = {
+  INACTIVE: 'INACTIVE',
+  ACTIVE: 'ACTIVE'
+} as const
+
+export type WhatsAppPolicyMode = (typeof WhatsAppPolicyMode)[keyof typeof WhatsAppPolicyMode]
+
+
+export const WhatsAppTemplateFunction = {
+  SERVICE_RESUMPTION: 'SERVICE_RESUMPTION'
+} as const
+
+export type WhatsAppTemplateFunction = (typeof WhatsAppTemplateFunction)[keyof typeof WhatsAppTemplateFunction]
+
+
+export const WhatsAppTemplateSyncStatus = {
+  NEVER: 'NEVER',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED'
+} as const
+
+export type WhatsAppTemplateSyncStatus = (typeof WhatsAppTemplateSyncStatus)[keyof typeof WhatsAppTemplateSyncStatus]
+
+
+export const OutboundPayloadKind = {
+  FREE_FORM: 'FREE_FORM',
+  TEMPLATE: 'TEMPLATE'
+} as const
+
+export type OutboundPayloadKind = (typeof OutboundPayloadKind)[keyof typeof OutboundPayloadKind]
+
+
+export const ConversationResumptionStatus = {
+  RESERVED: 'RESERVED',
+  SEND_IN_FLIGHT: 'SEND_IN_FLIGHT',
+  SENT: 'SENT',
+  FAILED: 'FAILED',
+  OUTCOME_UNKNOWN: 'OUTCOME_UNKNOWN'
+} as const
+
+export type ConversationResumptionStatus = (typeof ConversationResumptionStatus)[keyof typeof ConversationResumptionStatus]
+
+
+export const ContactMessagingRestrictionAction = {
+  OPT_OUT: 'OPT_OUT',
+  OPT_IN: 'OPT_IN'
+} as const
+
+export type ContactMessagingRestrictionAction = (typeof ContactMessagingRestrictionAction)[keyof typeof ContactMessagingRestrictionAction]
