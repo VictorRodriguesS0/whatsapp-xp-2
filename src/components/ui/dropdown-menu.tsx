@@ -36,3 +36,14 @@ export function DropdownMenuRadioItem({ className, children, ...props }: Compone
     </DropdownMenuPrimitive.RadioItem>
   );
 }
+
+export function DropdownMenuItem({ className, children, ...props }: ComponentProps<typeof DropdownMenuPrimitive.Item>) {
+  return (
+    <DropdownMenuPrimitive.Item
+      className={cn("flex min-h-11 cursor-default select-none items-center gap-2 rounded-lg px-3 text-sm font-medium text-[var(--text)] outline-none data-[highlighted]:bg-[var(--surface)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50", className)}
+      {...props}
+    >
+      {children}
+    </DropdownMenuPrimitive.Item>
+  );
+}

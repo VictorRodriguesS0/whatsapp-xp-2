@@ -205,6 +205,10 @@ a {
     display: none;
   }
 
+  .details-trigger {
+    display: inline-flex;
+  }
+
   .mobile-back {
     display: inline-flex;
   }

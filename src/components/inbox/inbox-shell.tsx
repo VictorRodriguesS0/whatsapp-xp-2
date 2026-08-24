@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 import { useInbox } from "@/hooks/use-inbox";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useMessageSearch } from "@/hooks/use-message-search";
 import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
 import type { SessionUser } from "@/modules/auth/session";
@@ -67,7 +68,7 @@ export function InboxShell({
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
   const selectedId = inbox.selectedId;
   const closeConversation = inbox.closeConversation;
-  const isMobile = isMobileViewport();
+  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const closeThreadLocally = useCallback(() => {
     const idToRestore = lastSelectedId.current ?? selectedId;

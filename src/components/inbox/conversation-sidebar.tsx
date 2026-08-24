@@ -7,7 +7,7 @@ import { AppBrand } from "@/components/brand/app-brand";
 import { MetaHealthBadge } from "@/components/meta-health/meta-health-badge";
 import { ThemeMenu } from "@/components/theme/theme-menu";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import type { SessionUser } from "@/modules/auth/session";
 import type { MetaHealthSummaryDto } from "@/modules/meta-health/types";
@@ -60,12 +60,12 @@ export function ConversationSidebar({
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" aria-label="Configurações">
                 <div className="grid gap-1">
-                  <a className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-[var(--text)] outline-none hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--focus)]" href="/configuracoes/respostas-rapidas" role="menuitem"><MessageSquareText aria-hidden="true" className="size-4" />Configurar respostas rápidas</a>
+                  <DropdownMenuItem asChild><a href="/configuracoes/respostas-rapidas"><MessageSquareText aria-hidden="true" className="size-4" />Configurar respostas rápidas</a></DropdownMenuItem>
                   {user.role === "ADMIN" ? <>
-                    <a className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-[var(--text)] outline-none hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--focus)]" href="/configuracoes/atendimento" role="menuitem"><Tags aria-hidden="true" className="size-4" />Configurar classificações</a>
-                    <a className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-sm font-medium text-[var(--text)] outline-none hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--focus)]" href="/configuracoes/usuarios" role="menuitem"><Settings aria-hidden="true" className="size-4" />Configurar usuários</a>
+                    <DropdownMenuItem asChild><a href="/configuracoes/atendimento"><Tags aria-hidden="true" className="size-4" />Configurar classificações</a></DropdownMenuItem>
+                    <DropdownMenuItem asChild><a href="/configuracoes/usuarios"><Settings aria-hidden="true" className="size-4" />Configurar usuários</a></DropdownMenuItem>
                   </> : null}
-                  <button className="flex min-h-11 items-center gap-2 rounded-lg px-3 text-left text-sm font-medium text-[var(--text)] outline-none hover:bg-[var(--surface)] focus-visible:ring-2 focus-visible:ring-[var(--focus)]" onClick={onLogout} role="menuitem" type="button"><LogOut aria-hidden="true" className="size-4" />Sair</button>
+                  <DropdownMenuItem onSelect={onLogout}><LogOut aria-hidden="true" className="size-4" />Sair</DropdownMenuItem>
                 </div>
               </DropdownMenuContent>
             </DropdownMenu>

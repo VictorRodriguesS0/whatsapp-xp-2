@@ -68,4 +68,20 @@ describe("ConversationSidebar", () => {
     expect(screen.getByRole("menuitem", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
     expect(screen.getByRole("menuitem", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
   });
+
+  it("moves focus between real menu items and activates logout from the keyboard", async () => {
+    const { props } = renderSidebar();
+    const user = userEvent.setup();
+
+    const trigger = screen.getByRole("button", { name: "Abrir configurações" });
+    trigger.focus();
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Configurar respostas rápidas" })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(screen.getByRole("menuitem", { name: "Sair" })).toHaveFocus();
+
+    await user.keyboard("{Enter}");
+    expect(props.onLogout).toHaveBeenCalledOnce();
+  });
 });

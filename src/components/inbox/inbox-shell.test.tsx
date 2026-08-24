@@ -612,13 +612,20 @@ describe("InboxShell", () => {
     expect(defaultInbox.markUnread).toHaveBeenCalledWith("conversation-id");
   });
 
-  it("keeps one inert mobile layer at 767 and does not treat 768 as mobile", () => {
-    let viewport = 767;
-    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => ({
-      matches: query === "(max-width: 767px)" && viewport <= 767,
-    })));
+  it("updates mobile layers from the real media-query change event without resetting inbox state", async () => {
+    const mobileQuery = Object.assign(new EventTarget(), {
+      matches: true,
+      media: "(max-width: 767px)",
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+    }) as MediaQueryList & { matches: boolean };
+    vi.stubGlobal("matchMedia", vi.fn().mockImplementation((query: string) => {
+      if (query === "(max-width: 767px)") return mobileQuery;
+      return { matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() };
+    }));
     useInboxMock.mockReturnValue(inboxWithOpenConversation());
-    const rendered = render(<InboxShell initialUser={user} />);
+    render(<InboxShell initialUser={user} />);
     const shell = screen.getByTestId("inbox-shell");
     const conversationPane = screen.getByRole("region", { name: "Conversas" });
     const threadPane = screen.getAllByRole("region", { hidden: true })
@@ -635,11 +642,12 @@ describe("InboxShell", () => {
     fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
     expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
 
-    viewport = 768;
-    rendered.rerender(<InboxShell initialUser={user} />);
+    mobileQuery.matches = false;
+    mobileQuery.dispatchEvent(new Event("change"));
+
+    await waitFor(() => expect(threadPane).not.toHaveAttribute("inert"));
     expect(window.matchMedia).toHaveBeenCalledWith("(max-width: 767px)");
     expect(conversationPane).not.toHaveAttribute("inert");
-    expect(threadPane).not.toHaveAttribute("inert");
     expect(screen.getByRole("button", { name: "Abrir conversa com Carlos" })).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
     expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
