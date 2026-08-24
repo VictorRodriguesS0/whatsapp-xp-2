@@ -7,12 +7,18 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
+import { useServiceWindow } from "@/hooks/use-service-window";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
-import { quotedReplyPreview } from "@/modules/messages/reply-context";
+import type { ServiceWindowDto } from "@/modules/messaging-policy/types";
+import {
+  quotedReplyPreview,
+  type AvailableQuotedReplyDto,
+} from "@/modules/messages/reply-context";
 
 import { ConversationMessageSearch } from "./conversation-message-search";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
+import { ServiceWindowBanner } from "./service-window-banner";
 
 function initials(name: string) {
   return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
@@ -30,6 +36,64 @@ function prefersReducedMotion() {
 }
 
 const messageUuidPattern = /^[0-9a-f-]{36}$/iu;
+
+function ConversationControls({
+  conversationId,
+  disabled,
+  serviceWindow: authoritativeServiceWindow,
+  replyTo,
+  replyToMessageId,
+  onCancelReply,
+  onResumeConversation,
+  resumePending,
+  resumeError,
+  onSendMedia,
+  onSendRecording,
+  onSendText,
+}: {
+  conversationId: string;
+  disabled: boolean;
+  serviceWindow: ServiceWindowDto;
+  replyTo: AvailableQuotedReplyDto | null;
+  replyToMessageId: string | null;
+  onCancelReply?: () => void;
+  onResumeConversation: () => Promise<boolean>;
+  resumePending: boolean;
+  resumeError: string | null;
+  onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
+}) {
+  const serviceWindow = useServiceWindow(authoritativeServiceWindow);
+
+  useEffect(() => {
+    if (serviceWindow.sendMode !== "FREE_FORM" && replyToMessageId) {
+      onCancelReply?.();
+    }
+  }, [onCancelReply, replyToMessageId, serviceWindow.sendMode]);
+
+  return (
+    <>
+      <ServiceWindowBanner
+        error={resumeError}
+        onResume={onResumeConversation}
+        pending={resumePending}
+        serviceWindow={serviceWindow}
+      />
+      {serviceWindow.sendMode === "FREE_FORM" ? (
+        <MessageComposer
+          conversationId={conversationId}
+          disabled={disabled}
+          onCancelReply={onCancelReply}
+          onSendMedia={onSendMedia}
+          onSendRecording={onSendRecording}
+          onSendText={onSendText}
+          replyTo={replyTo}
+        />
+      ) : null}
+    </>
+  );
+}
 
 function ConversationHeader({
   conversation,
@@ -115,6 +179,9 @@ export function ConversationView({
   onSendText,
   onSendMedia,
   onSendRecording,
+  onResumeConversation,
+  resumePending = false,
+  resumeError = null,
   onRetryMessage,
   onReactMessage,
   onRetryReaction,
@@ -140,6 +207,9 @@ export function ConversationView({
   onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onResumeConversation: () => Promise<boolean>;
+  resumePending?: boolean;
+  resumeError?: string | null;
   onRetryMessage: (id: string) => void;
   onReactMessage?: (messageId: string, emoji: string) => unknown;
   onRetryReaction?: (messageId: string, reactionId: string) => unknown;
@@ -336,14 +406,20 @@ export function ConversationView({
         ))}
       </div> : null}
       {conversation ? (
-        <MessageComposer
+        <ConversationControls
           conversationId={conversation.id}
           disabled={loading}
+          key={conversation.id}
           onCancelReply={onCancelReply}
+          onResumeConversation={onResumeConversation}
           onSendMedia={onSendMedia}
           onSendRecording={onSendRecording}
           onSendText={onSendText}
           replyTo={replyPreview}
+          replyToMessageId={replyToMessageId}
+          resumeError={resumeError}
+          resumePending={resumePending}
+          serviceWindow={conversation.serviceWindow}
         />
       ) : null}
     </div>

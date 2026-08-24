@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/modules/conversations/types";
+import { formatServiceWindowStatus } from "@/hooks/use-service-window";
 
 import { ContactTagChip } from "./contact-tag-chip";
 import { ContactTypeChip } from "./contact-type-chip";
@@ -132,6 +133,11 @@ export function ConversationList({
       <ul aria-label="Conversas recentes" className="divide-y divide-[var(--border)]">
       {items.map((item) => {
         const selected = item.id === selectedId;
+        const serviceWindowStatus =
+          item.serviceWindow.enforcement === "ACTIVE" &&
+          item.serviceWindow.sendMode !== "FREE_FORM"
+            ? formatServiceWindowStatus(item.serviceWindow)
+            : null;
         const profilePictureUrl = (
           item.contact as typeof item.contact & { profilePictureUrl?: string | null }
         ).profilePictureUrl;
@@ -172,6 +178,14 @@ export function ConversationList({
                     {item.manuallyUnread ? <span aria-label="Conversa marcada como não lida" className="size-2 shrink-0 rounded-full bg-[var(--accent)]" role="img" title="Conversa marcada como não lida" /> : null}
                   </span>
                   <span className="mt-1 block truncate text-xs text-[var(--muted)]">{item.responsible?.name ?? "Sem responsável"}</span>
+                  {serviceWindowStatus ? (
+                    <span
+                      aria-label={`Estado do atendimento de ${item.contact.name}`}
+                      className="mt-1 block truncate text-xs font-semibold text-[var(--accent)]"
+                    >
+                      {serviceWindowStatus}
+                    </span>
+                  ) : null}
                   {item.contact.type ? (
                     <span aria-label={`Tipo de contato de ${item.contact.name}`} className="mt-1.5 flex min-w-0">
                       <ContactTypeChip

@@ -38,7 +38,6 @@ describe("conversation responsible route", () => {
       unreadCount: 0,
       manuallyUnread: false,
       manualUnreadRevision: null,
-      awaitingResponseSince: null,
       revision: new Date(0).toISOString(),
       serviceWindow: {
         enforcement: "INACTIVE",

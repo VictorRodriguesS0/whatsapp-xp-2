@@ -15,12 +15,16 @@ import type {
   SharedConversationStateDto,
 } from "@/modules/conversations/types";
 import type { MessageContextDto } from "@/modules/message-search/types";
-import type { ContactDto as UpdatedContactDto } from "@/modules/contacts/types";
+import type {
+  ContactDto as UpdatedContactDto,
+  ContactMessagingRestrictionDto,
+} from "@/modules/contacts/types";
 import {
   quotedReplyPreview,
   type QuotedReplyDto,
 } from "@/modules/messages/reply-context";
 import type { RealtimeEvent } from "@/modules/realtime/events";
+import type { ResumptionResultDto } from "@/modules/resumptions/types";
 
 import { useRealtime } from "./use-realtime";
 import { useMessageReactions } from "./use-message-reactions";
@@ -84,7 +88,10 @@ type RefreshListOptions = {
 };
 
 class ApiRequestError extends Error {
-  constructor(public status: number) {
+  constructor(
+    public status: number,
+    public code?: string,
+  ) {
     super("API request failed");
   }
 }
@@ -101,7 +108,7 @@ async function readEnvelope<T>(response: Response): Promise<T> {
   const payload = (await response.json()) as ApiEnvelope<T>;
   if (!response.ok || payload.data === null) {
     handleUnauthorized(response.status);
-    throw new ApiRequestError(response.status);
+    throw new ApiRequestError(response.status, payload.error?.code);
   }
   return payload.data;
 }
@@ -349,6 +356,17 @@ export function useInbox(initialUser: SessionUser) {
   const [markUnreadErrors, setMarkUnreadErrors] = useState<Map<string, string>>(() => new Map());
   const [pinPendingIds, setPinPendingIds] = useState<Set<string>>(() => new Set());
   const [pinError, setPinError] = useState<string | null>(null);
+  const [resumePendingIds, setResumePendingIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [resumeErrors, setResumeErrors] = useState<Map<string, string>>(
+    () => new Map(),
+  );
+  const [messagingRestrictionPendingId, setMessagingRestrictionPendingId] =
+    useState<string | null>(null);
+  const [messagingRestrictionErrors, setMessagingRestrictionErrors] = useState<
+    Map<string, string>
+  >(() => new Map());
   const searchRef = useRef(search);
   const selectedIdRef = useRef(selectedId);
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
@@ -369,6 +387,13 @@ export function useInbox(initialUser: SessionUser) {
   const responsibleRequestPending = useRef(false);
   const markUnreadRequests = useRef(new Map<string, Promise<void>>());
   const pinRequests = useRef(new Map<string, Promise<void>>());
+  const resumptionRequests = useRef(new Map<
+    string,
+    { clientRequestId: string; promise: Promise<boolean> }
+  >());
+  const messagingRestrictionRequests = useRef(
+    new Map<string, Promise<boolean>>(),
+  );
   const mergedConversationIds = useRef(new Set<string>());
   const handledMerges = useRef(new Set<string>());
 
@@ -992,6 +1017,40 @@ export function useInbox(initialUser: SessionUser) {
         if (!mounted.current) return null;
         const confirmed = confirmedResult(pending);
         if (confirmed) return confirmed;
+        const requestError = error instanceof ApiRequestError ? error : null;
+        if (
+          requestError?.status === 409 &&
+          requestError.code === "WHATSAPP_SERVICE_WINDOW_CLOSED"
+        ) {
+          releasePending(pendingSends.current, pending);
+          setConversation((current) => current?.id === pending.conversationId
+            ? {
+                ...current,
+                messages: current.messages.filter((message) => (
+                  message.id !== rowId &&
+                  message.clientRequestId !== pending.clientRequestId
+                )),
+              }
+            : current);
+          const refreshes: Array<Promise<void>> = [refreshList()];
+          if (selectedIdRef.current === pending.conversationId) {
+            refreshes.push(fetchConversation(pending.conversationId, false));
+          }
+          await Promise.all(refreshes);
+          if (mounted.current && selectedIdRef.current === pending.conversationId) {
+            setConversationErrorState({
+              conversationId: pending.conversationId,
+              operation: "conversation",
+              message: publicErrorMessage(
+                "send",
+                requestError.status,
+                false,
+                requestError.code,
+              ),
+            });
+          }
+          return null;
+        }
         const retained = pendingEntryByClientRequestId(pendingSends.current, pending.clientRequestId);
         if (!retained) return null;
         const failureRowId = retained[0];
@@ -1018,7 +1077,7 @@ export function useInbox(initialUser: SessionUser) {
     };
     void operation.then(clear, clear);
     return operation;
-  }, [confirmedResult, refreshList]);
+  }, [confirmedResult, fetchConversation, refreshList]);
 
   const sendText = useCallback(async (
     conversationId: string,
@@ -1152,6 +1211,177 @@ export function useInbox(initialUser: SessionUser) {
       }
     })();
   }, [performSend, refreshList]);
+
+  const resumeConversation = useCallback((
+    conversationId: string,
+  ): Promise<boolean> => {
+    const existing = resumptionRequests.current.get(conversationId);
+    if (existing) return existing.promise;
+    const clientRequestId = crypto.randomUUID();
+    setResumePendingIds((current) => new Set(current).add(conversationId));
+    setResumeErrors((current) => {
+      const next = new Map(current);
+      next.delete(conversationId);
+      return next;
+    });
+
+    const operation = (async () => {
+      try {
+        const response = await fetch(
+          `/api/conversations/${conversationId}/resumptions`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ clientRequestId }),
+          },
+        );
+        await readEnvelope<ResumptionResultDto>(response);
+        const refreshes: Array<Promise<void>> = [refreshList()];
+        if (selectedIdRef.current === conversationId) {
+          refreshes.push(fetchConversation(conversationId, false));
+        }
+        await Promise.all(refreshes);
+        return true;
+      } catch (error) {
+        const requestError = error instanceof ApiRequestError ? error : null;
+        if (requestError?.status === 409) {
+          const refreshes: Array<Promise<void>> = [refreshList()];
+          if (selectedIdRef.current === conversationId) {
+            refreshes.push(fetchConversation(conversationId, false));
+          }
+          await Promise.all(refreshes);
+        }
+        if (mounted.current) {
+          const messages: Record<string, string> = {
+            WHATSAPP_CONTACT_OPTED_OUT:
+              "Este contato está marcado como não contatar.",
+            WHATSAPP_RESUMPTION_ALREADY_STARTED:
+              "A conversa já foi retomada. O estado foi atualizado.",
+            WHATSAPP_RESUMPTION_OUTCOME_UNKNOWN:
+              "O envio pode ter sido aceito. Aguarde a confirmação antes de tentar novamente.",
+            WHATSAPP_TEMPLATE_NOT_READY:
+              "O template de retomada não está disponível no momento.",
+          };
+          setResumeErrors((current) => {
+            const next = new Map(current);
+            next.set(
+              conversationId,
+              (requestError?.code && messages[requestError.code]) ||
+                "Não foi possível retomar o atendimento. Tente novamente.",
+            );
+            return next;
+          });
+        }
+        return false;
+      } finally {
+        if (
+          resumptionRequests.current.get(conversationId)?.clientRequestId ===
+          clientRequestId
+        ) {
+          resumptionRequests.current.delete(conversationId);
+        }
+        if (mounted.current) {
+          setResumePendingIds((current) => {
+            const next = new Set(current);
+            next.delete(conversationId);
+            return next;
+          });
+        }
+      }
+    })();
+    resumptionRequests.current.set(conversationId, {
+      clientRequestId,
+      promise: operation,
+    });
+    return operation;
+  }, [fetchConversation, refreshList]);
+
+  const setMessagingRestriction = useCallback((
+    contactId: string,
+    restricted: boolean,
+    reason: string,
+  ): Promise<boolean> => {
+    const existing = messagingRestrictionRequests.current.get(contactId);
+    if (existing) return existing;
+    const operation = (async () => {
+      setMessagingRestrictionPendingId(contactId);
+      setMessagingRestrictionErrors((current) => {
+        const next = new Map(current);
+        next.delete(contactId);
+        return next;
+      });
+      try {
+        const response = await fetch(
+          `/api/contacts/${contactId}/messaging-restriction`,
+          {
+            method: "PUT",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ restricted, reason: reason.trim() }),
+          },
+        );
+        const result = await readEnvelope<ContactMessagingRestrictionDto>(
+          response,
+        );
+        if (!mounted.current) return false;
+        setConversations((current) => current.map((item) =>
+          item.contact.id === contactId
+            ? {
+                ...item,
+                contact: {
+                  ...item.contact,
+                  messagingRestricted: result.messagingRestricted,
+                },
+              }
+            : item,
+        ));
+        setConversation((current) => current?.contact.id === contactId
+          ? {
+              ...current,
+              contact: {
+                ...current.contact,
+                messagingRestricted: result.messagingRestricted,
+              },
+            }
+          : current);
+        const activeConversationId = selectedIdRef.current;
+        const refreshes: Array<Promise<void>> = [refreshList()];
+        if (
+          activeConversationId &&
+          selectedContactIdRef.current === contactId
+        ) {
+          refreshes.push(fetchConversation(activeConversationId, false));
+        }
+        await Promise.all(refreshes);
+        return mounted.current;
+      } catch {
+        if (!mounted.current) return false;
+        setMessagingRestrictionErrors((current) => {
+          const next = new Map(current);
+          next.set(
+            contactId,
+            "Não foi possível salvar a preferência de contato.",
+          );
+          return next;
+        });
+        return false;
+      } finally {
+        messagingRestrictionRequests.current.delete(contactId);
+        if (mounted.current) {
+          setMessagingRestrictionPendingId((current) =>
+            current === contactId ? null : current,
+          );
+        }
+      }
+    })();
+    messagingRestrictionRequests.current.set(contactId, operation);
+    return operation;
+  }, [fetchConversation, refreshList]);
 
   const getActiveConversationId = useCallback(() => selectedIdRef.current, []);
   const getReactionMessage = useCallback((messageId: string) => (
@@ -1290,6 +1520,10 @@ export function useInbox(initialUser: SessionUser) {
     }
     if (event.type === "settings.updated" && event.scope === "contact-tags") {
       void Promise.all([loadContactTags(), refreshList(), refreshConversation()]);
+      return;
+    }
+    if (event.type === "settings.updated" && event.scope === "whatsapp-policy") {
+      void Promise.all([refreshList({ reset: true }), refreshConversation()]);
     }
   }, [
     fetchConversation,
@@ -1336,6 +1570,8 @@ export function useInbox(initialUser: SessionUser) {
       confirmedSends.current.clear();
       markUnreadRequests.current.clear();
       pinRequests.current.clear();
+      resumptionRequests.current.clear();
+      messagingRestrictionRequests.current.clear();
       contactTypeSaveRequests.current.clear();
       contactTagSaveRequests.current.clear();
       for (const previewUrl of previewUrls) {
@@ -1380,6 +1616,16 @@ export function useInbox(initialUser: SessionUser) {
     markUnreadError: selectedId === null ? null : markUnreadErrors.get(selectedId) ?? null,
     pinPendingIds,
     pinError,
+    resumePending: selectedId !== null && resumePendingIds.has(selectedId),
+    resumeError:
+      selectedId === null ? null : resumeErrors.get(selectedId) ?? null,
+    messagingRestrictionPending:
+      selectedContactIdRef.current !== null &&
+      messagingRestrictionPendingId === selectedContactIdRef.current,
+    messagingRestrictionError:
+      selectedContactIdRef.current === null
+        ? null
+        : messagingRestrictionErrors.get(selectedContactIdRef.current) ?? null,
     connected: realtime.connected,
     setSearch: changeSearch,
     openConversation,
@@ -1392,10 +1638,12 @@ export function useInbox(initialUser: SessionUser) {
     loadContactTags,
     setContactType,
     replaceContactTags,
+    setMessagingRestriction,
     sendText,
     sendMedia,
     sendRecording,
     retryMessage,
+    resumeConversation,
     reactToMessage: messageReactions.react,
     retryReaction: messageReactions.retry,
     reactionStateFor: messageReactions.stateFor,

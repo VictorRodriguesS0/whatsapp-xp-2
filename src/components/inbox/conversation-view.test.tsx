@@ -88,6 +88,7 @@ const handlers = {
   onSendText: vi.fn().mockResolvedValue(null),
   onSendMedia: vi.fn().mockResolvedValue(null),
   onSendRecording: vi.fn().mockResolvedValue(null),
+  onResumeConversation: vi.fn().mockResolvedValue(true),
   onRetryMessage: vi.fn(),
   onCancelReply: vi.fn(),
   onReplyToMessage: vi.fn(),
@@ -98,6 +99,81 @@ describe("ConversationView", () => {
     vi.clearAllMocks();
     audioRecorder.phase = "idle";
     audioRecorder.recording = null;
+  });
+
+  it("replaces every free-form control with the resumption flow when the active window is closed", async () => {
+    render(
+      <ConversationView
+        {...handlers}
+        conversation={{
+          ...conversation,
+          serviceWindow: {
+            enforcement: "ACTIVE",
+            status: "CLOSED",
+            closesAt: "2026-08-23T12:00:00.000Z",
+            sendMode: "RESUMPTION",
+            reason: "WINDOW_EXPIRED",
+            resumption: {
+              templateName: "retomar_atendimento",
+              language: "pt_BR",
+              previewBody: "Olá, Carlos! Podemos continuar?",
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("textbox", { name: "Mensagem" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Anexar arquivo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Gravar áudio" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Retomar atendimento" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar template" }));
+    await waitFor(() => expect(handlers.onResumeConversation).toHaveBeenCalledOnce());
+    expect(handlers.onSendText).not.toHaveBeenCalled();
+  });
+
+  it("discards an open resumption confirmation when the active conversation changes", () => {
+    const resumableConversation = {
+      ...conversation,
+      serviceWindow: {
+        enforcement: "ACTIVE" as const,
+        status: "CLOSED" as const,
+        closesAt: "2026-08-23T12:00:00.000Z",
+        sendMode: "RESUMPTION" as const,
+        reason: "WINDOW_EXPIRED" as const,
+        resumption: {
+          templateName: "retomar_atendimento",
+          language: "pt_BR",
+          previewBody: "Olá, Carlos! Podemos continuar?",
+        },
+      },
+    };
+    const view = render(
+      <ConversationView {...handlers} conversation={resumableConversation} />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Retomar atendimento" }));
+    expect(screen.getByRole("alertdialog", { name: "Enviar template de retomada?" })).toBeVisible();
+
+    view.rerender(
+      <ConversationView
+        {...handlers}
+        conversation={{
+          ...resumableConversation,
+          id: "conversation-b",
+          contact: { ...resumableConversation.contact, id: "contact-b", name: "Bia" },
+          serviceWindow: {
+            ...resumableConversation.serviceWindow,
+            resumption: {
+              ...resumableConversation.serviceWindow.resumption,
+              previewBody: "Olá, Bia! Podemos continuar?",
+            },
+          },
+        }}
+      />,
+    );
+
+    expect(screen.queryByRole("alertdialog", { name: "Enviar template de retomada?" })).not.toBeInTheDocument();
   });
 
   it("scrolls new conversations to the end without pulling a reader away from older messages", () => {

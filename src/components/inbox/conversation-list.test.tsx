@@ -66,6 +66,29 @@ const richPreviewCases: Array<[
 ];
 
 describe("ConversationList", () => {
+  it("shows the shared awaiting-customer state without restoring the generic marker", () => {
+    render(
+      <ConversationList
+        items={[{
+          ...fixture,
+          serviceWindow: {
+            enforcement: "ACTIVE",
+            status: "CLOSED",
+            closesAt: "2026-08-23T12:00:00.000Z",
+            sendMode: "AWAITING_CUSTOMER",
+            reason: null,
+            resumption: null,
+          },
+        }]}
+        onSelect={vi.fn()}
+        selectedId={null}
+      />,
+    );
+
+    expect(screen.getByText("Aguardando cliente")).toBeVisible();
+    expect(screen.queryByText("Aguardando resposta")).not.toBeInTheDocument();
+  });
+
   it("shows one distinct contact type without disturbing queue indicators", () => {
     const { rerender } = render(
       <ConversationList

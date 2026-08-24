@@ -72,6 +72,7 @@ const defaultInbox = {
         preferredName: null,
         name: "Carlos",
         phone: "5561999999999",
+        messagingRestricted: false,
         type: null,
         tags: [],
       },
@@ -83,6 +84,14 @@ const defaultInbox = {
       manuallyUnread: false,
       manualUnreadRevision: null,
       revision: "2026-08-20T14:30:00.000Z",
+      serviceWindow: {
+        enforcement: "INACTIVE",
+        status: "CLOSED",
+        closesAt: null,
+        sendMode: "FREE_FORM",
+        reason: null,
+        resumption: null,
+      },
   }],
   conversation: null,
   users: [],
@@ -120,6 +129,9 @@ const defaultInbox = {
   sendMedia: vi.fn(),
   sendRecording: vi.fn(),
   retryMessage: vi.fn(),
+  resumeConversation: vi.fn().mockResolvedValue(true),
+  resumePending: false,
+  resumeError: null,
   markRead: vi.fn(),
   markUnread: vi.fn().mockResolvedValue(undefined),
   markUnreadPending: false,
@@ -130,6 +142,9 @@ const defaultInbox = {
   setResponsible: vi.fn(),
   setContactType: vi.fn().mockResolvedValue(true),
   replaceContactTags: vi.fn().mockResolvedValue(true),
+  setMessagingRestriction: vi.fn().mockResolvedValue(true),
+  messagingRestrictionPending: false,
+  messagingRestrictionError: null,
 };
 
 const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT" };

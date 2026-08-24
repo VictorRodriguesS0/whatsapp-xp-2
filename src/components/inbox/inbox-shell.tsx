@@ -271,6 +271,13 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onReactMessage={(messageId, emoji) => inbox.reactToMessage(messageId, emoji)}
               onRetryReaction={(messageId, reactionId) => inbox.retryReaction(messageId, reactionId)}
               reactionStateFor={inbox.reactionStateFor}
+              onResumeConversation={() => (
+                inbox.selectedId && inbox.conversation?.id === inbox.selectedId
+                  ? inbox.resumeConversation(inbox.selectedId)
+                  : Promise.resolve(false)
+              )}
+              resumeError={inbox.resumeError}
+              resumePending={inbox.resumePending}
               onSearchTarget={selectMessageInOpenConversation}
               onSearchTargetHandled={() => setSearchTargetMessageId(null)}
               onSendMedia={(file, caption, targetMessageId) => {
@@ -313,9 +320,12 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onRetryTags={() => void inbox.loadContactTags()}
               onRetryTypes={() => void inbox.loadContactTypes()}
               onSaveTags={inbox.replaceContactTags}
+              onSetMessagingRestriction={inbox.setMessagingRestriction}
               onSetContactType={inbox.setContactType}
               onSetResponsible={(id) => void inbox.setResponsible(id)}
               pending={inbox.responsiblePending}
+              messagingRestrictionError={inbox.messagingRestrictionError}
+              messagingRestrictionPending={inbox.messagingRestrictionPending}
               tagSaveError={inbox.contactTagSaveError}
               tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
               tagsError={inbox.contactTagsError}
@@ -354,9 +364,12 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
             onRetryTags={() => void inbox.loadContactTags()}
             onRetryTypes={() => void inbox.loadContactTypes()}
             onSaveTags={inbox.replaceContactTags}
+            onSetMessagingRestriction={inbox.setMessagingRestriction}
             onSetContactType={inbox.setContactType}
             onSetResponsible={(id) => void inbox.setResponsible(id)}
             pending={inbox.responsiblePending}
+            messagingRestrictionError={inbox.messagingRestrictionError}
+            messagingRestrictionPending={inbox.messagingRestrictionPending}
             tagSaveError={inbox.contactTagSaveError}
             tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
             tagsError={inbox.contactTagsError}

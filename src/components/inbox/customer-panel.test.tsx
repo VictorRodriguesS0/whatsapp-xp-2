@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
@@ -79,6 +79,90 @@ beforeAll(() => {
 });
 
 describe("CustomerPanel", () => {
+  it("requires an explicit reason before marking a contact as do not contact", async () => {
+    const user = userEvent.setup();
+    const onSetMessagingRestriction = vi.fn().mockResolvedValue(true);
+    render(
+      <CustomerPanel
+        {...tagProps}
+        conversation={conversation}
+        currentUserId="user-id"
+        onSetMessagingRestriction={onSetMessagingRestriction}
+        onSetResponsible={vi.fn()}
+        users={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Não contatar" }));
+    const dialog = screen.getByRole("alertdialog", { name: "Marcar como não contatar?" });
+    expect(screen.getByRole("button", { name: "Confirmar restrição" })).toBeDisabled();
+    await user.type(screen.getByRole("textbox", { name: "Motivo" }), "Cliente solicitou");
+    await user.click(screen.getByRole("button", { name: "Confirmar restrição" }));
+
+    expect(onSetMessagingRestriction).toHaveBeenCalledWith(
+      conversation.contact.id,
+      true,
+      "Cliente solicitou",
+    );
+    expect(dialog).not.toBeInTheDocument();
+  });
+
+  it("keeps the restriction visible and requires a reason to allow contact again", async () => {
+    const user = userEvent.setup();
+    const onSetMessagingRestriction = vi.fn().mockResolvedValue(true);
+    render(
+      <CustomerPanel
+        {...tagProps}
+        conversation={{
+          ...conversation,
+          contact: { ...conversation.contact, messagingRestricted: true },
+        }}
+        currentUserId="user-id"
+        onSetMessagingRestriction={onSetMessagingRestriction}
+        onSetResponsible={vi.fn()}
+        users={[]}
+      />,
+    );
+
+    expect(screen.getByText("Este contato está marcado como não contatar.")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Permitir contato novamente" }));
+    await user.type(screen.getByRole("textbox", { name: "Motivo" }), "Cliente autorizou");
+    await user.click(screen.getByRole("button", { name: "Confirmar permissão" }));
+    expect(onSetMessagingRestriction).toHaveBeenCalledWith(
+      conversation.contact.id,
+      false,
+      "Cliente autorizou",
+    );
+  });
+
+  it("keeps the confirmation reason available when saving the restriction fails", async () => {
+    const user = userEvent.setup();
+    const onSetMessagingRestriction = vi.fn().mockResolvedValue(false);
+    render(
+      <CustomerPanel
+        {...tagProps}
+        conversation={conversation}
+        currentUserId="user-id"
+        messagingRestrictionError="Não foi possível salvar a preferência de contato."
+        onSetMessagingRestriction={onSetMessagingRestriction}
+        onSetResponsible={vi.fn()}
+        users={[]}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Não contatar" }));
+    await user.type(screen.getByRole("textbox", { name: "Motivo" }), "Cliente solicitou");
+    await user.click(screen.getByRole("button", { name: "Confirmar restrição" }));
+
+    const dialog = screen.getByRole("alertdialog", { name: "Marcar como não contatar?" });
+    expect(dialog).toBeVisible();
+    expect(within(dialog).getByRole("textbox", { name: "Motivo" })).toHaveValue("Cliente solicitou");
+    expect(within(dialog).getByRole("alert")).toHaveTextContent(
+      "Não foi possível salvar a preferência de contato.",
+    );
+    expect(document.querySelectorAll('[role="alert"]')).toHaveLength(1);
+  });
+
   it("shows and changes the contact type above labels", async () => {
     const user = userEvent.setup();
     const onSetContactType = vi.fn().mockResolvedValue(true);

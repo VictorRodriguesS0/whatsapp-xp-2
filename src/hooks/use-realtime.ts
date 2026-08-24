@@ -64,7 +64,11 @@ function isRealtimeEvent(value: unknown): value is RealtimeEvent {
     );
   }
   if (event.type === "settings.updated") {
-    return event.scope === "contact-types" || event.scope === "contact-tags";
+    return (
+      event.scope === "contact-types" ||
+      event.scope === "contact-tags" ||
+      event.scope === "whatsapp-policy"
+    );
   }
   return ["conversation.updated", "message.created", "message.status", "read.updated", "responsible.updated"].includes(event.type)
     && typeof event.conversationId === "string";

@@ -64,7 +64,16 @@ function response(data: unknown, ok = true, status = 200) {
 function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.000Z") {
   return {
     id,
-    contact: { id: `contact-${id}`, name, phone: "5561999999999", profilePictureUrl: null },
+    contact: {
+      id: `contact-${id}`,
+      profileName: name,
+      preferredName: null,
+      name,
+      phone: "5561999999999",
+      messagingRestricted: false,
+      type: null,
+      tags: [],
+    },
     responsible: null,
     pinnedAt: null,
     lastMessageAt,
@@ -72,8 +81,15 @@ function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.00
     unreadCount: 0,
     manuallyUnread: false,
     manualUnreadRevision: null,
-    awaitingResponseSince: null,
     revision: lastMessageAt,
+    serviceWindow: {
+      enforcement: "INACTIVE",
+      status: "CLOSED",
+      closesAt: null,
+      sendMode: "FREE_FORM",
+      reason: null,
+      resumption: null,
+    },
   };
 }
 
@@ -150,6 +166,266 @@ describe("useInbox", () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     FakeEventSource.instances = [];
+  });
+
+  it("shares one resumption request and keeps its completion scoped after switching conversations", async () => {
+    const first = listItem("conversation-a", "Ana");
+    const second = listItem("conversation-b", "Bia");
+    let resolveResumption!: (value: Response) => void;
+    let resumptionCalls = 0;
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [first, second], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages") {
+        return response({ data: conversationDetail("conversation-a"), error: null });
+      }
+      if (url === "/api/conversations/conversation-b/messages") {
+        return response({ data: conversationDetail("conversation-b"), error: null });
+      }
+      if (
+        url === "/api/conversations/conversation-a/resumptions" &&
+        init?.method === "POST"
+      ) {
+        resumptionCalls += 1;
+        return new Promise<Response>((resolve) => {
+          resolveResumption = resolve;
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    let firstRequest!: Promise<boolean>;
+    let repeatedRequest!: Promise<boolean>;
+    act(() => {
+      firstRequest = hook.result.current.resumeConversation("conversation-a");
+      repeatedRequest = hook.result.current.resumeConversation("conversation-a");
+    });
+    expect(repeatedRequest).toBe(firstRequest);
+    expect(resumptionCalls).toBe(1);
+    expect(hook.result.current.resumePending).toBe(true);
+    const mutation = fetchMock.mock.calls.find(([url, init]) =>
+      String(url).endsWith("/resumptions") && init?.method === "POST",
+    );
+    expect(Object.keys(JSON.parse(String(mutation?.[1]?.body)))).toEqual([
+      "clientRequestId",
+    ]);
+
+    await act(() => hook.result.current.openConversation("conversation-b"));
+    resolveResumption(await response({
+      data: {
+        id: "resumption-id",
+        clientRequestId: JSON.parse(String(mutation?.[1]?.body)).clientRequestId,
+        status: "SENT",
+        messageId: "message-id",
+      },
+      error: null,
+    }));
+    await act(() => Promise.all([firstRequest, repeatedRequest]));
+
+    expect(hook.result.current.selectedId).toBe("conversation-b");
+    expect(hook.result.current.conversation?.id).toBe("conversation-b");
+    expect(hook.result.current.resumeError).toBeNull();
+  });
+
+  it("keeps the previous contact permission after failure and allows an explicit retry", async () => {
+    const item = listItem("conversation-id", "Carlos");
+    let attempts = 0;
+    let serverRestricted = false;
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({
+          data: {
+            items: [{
+              ...item,
+              contact: { ...item.contact, messagingRestricted: serverRestricted },
+              serviceWindow: serverRestricted
+                ? {
+                    enforcement: "ACTIVE",
+                    status: "OPEN",
+                    closesAt: "2026-08-21T14:30:00.000Z",
+                    sendMode: "BLOCKED",
+                    reason: "CONTACT_OPTED_OUT",
+                    resumption: null,
+                  }
+                : item.serviceWindow,
+            }],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        const detail = conversationDetail();
+        return response({
+          data: {
+            ...detail,
+            contact: {
+              ...detail.contact,
+              messagingRestricted: serverRestricted,
+            },
+            serviceWindow: serverRestricted
+              ? {
+                  enforcement: "ACTIVE",
+                  status: "OPEN",
+                  closesAt: "2026-08-21T14:30:00.000Z",
+                  sendMode: "BLOCKED",
+                  reason: "CONTACT_OPTED_OUT",
+                  resumption: null,
+                }
+              : detail.serviceWindow,
+          },
+          error: null,
+        });
+      }
+      if (
+        url === `/api/contacts/${item.contact.id}/messaging-restriction` &&
+        init?.method === "PUT"
+      ) {
+        attempts += 1;
+        expect(JSON.parse(String(init.body))).toEqual({
+          restricted: true,
+          reason: "Cliente solicitou",
+        });
+        if (attempts === 1) {
+          return response({ data: null, error: { message: "private database error" } }, false, 503);
+        }
+        serverRestricted = true;
+        return response({ data: { messagingRestricted: true }, error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.setMessagingRestriction(
+      item.contact.id,
+      true,
+      "Cliente solicitou",
+    ));
+    expect(hook.result.current.conversation?.contact.messagingRestricted).toBe(false);
+    expect(hook.result.current.messagingRestrictionError).toBe(
+      "Não foi possível salvar a preferência de contato.",
+    );
+
+    await act(() => hook.result.current.setMessagingRestriction(
+      item.contact.id,
+      true,
+      "Cliente solicitou",
+    ));
+    expect(hook.result.current.conversation?.contact.messagingRestricted).toBe(true);
+    expect(hook.result.current.conversation?.serviceWindow).toMatchObject({
+      sendMode: "BLOCKED",
+      reason: "CONTACT_OPTED_OUT",
+    });
+    expect(hook.result.current.messagingRestrictionError).toBeNull();
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
+  });
+
+  it("reconciles a resumption 409 and exposes only the stable domain copy", async () => {
+    const item = listItem("conversation-id", "Carlos");
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [item], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail(), error: null });
+      }
+      if (url.endsWith("/resumptions") && init?.method === "POST") {
+        return response({
+          data: null,
+          error: {
+            code: "WHATSAPP_RESUMPTION_OUTCOME_UNKNOWN",
+            message: "Graph provider internal detail",
+          },
+        }, false, 409);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.resumeConversation("conversation-id"));
+
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
+    expect(hook.result.current.resumeError).toBe(
+      "O envio pode ter sido aceito. Aguarde a confirmação antes de tentar novamente.",
+    );
+    expect(hook.result.current.resumeError).not.toMatch(/Graph|provider|internal/i);
+  });
+
+  it("reloads list and active detail when WhatsApp policy settings change", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    const item = listItem("conversation-id", "Carlos");
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({ data: { items: [item], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        return response({ data: conversationDetail(), error: null });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+    await waitFor(() => expect(FakeEventSource.instances).toHaveLength(1));
+
+    act(() => FakeEventSource.instances[0].emit("update", {
+      type: "settings.updated",
+      scope: "whatsapp-policy",
+    }));
+
+    await waitFor(() => expect(listFetches).toBe(2));
+    await waitFor(() => expect(detailFetches).toBe(2));
+    hook.unmount();
   });
 
   it("loads the active contact type catalog and exposes retryable safe state", async () => {
@@ -763,6 +1039,79 @@ describe("useInbox", () => {
     expect(body.body).toBe("Sem assinatura no corpo");
     expect(body.body).not.toContain("Marcos");
     expect(body.clientRequestId).toMatch(/^[0-9a-f-]{36}$/i);
+  });
+
+  it("removes a free-form optimistic row and reconciles the authoritative window on a boundary 409", async () => {
+    const item = listItem("conversation-id", "Carlos");
+    const closedWindow = {
+      enforcement: "ACTIVE" as const,
+      status: "CLOSED" as const,
+      closesAt: "2026-08-20T14:30:00.000Z",
+      sendMode: "RESUMPTION" as const,
+      reason: "WINDOW_EXPIRED" as const,
+      resumption: {
+        templateName: "retomar_atendimento",
+        language: "pt_BR",
+        previewBody: "Olá, Carlos! Podemos continuar?",
+      },
+    };
+    let rejected = false;
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({
+          data: {
+            items: [{ ...item, serviceWindow: rejected ? closedWindow : item.serviceWindow }],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages" && !init?.method) {
+        detailFetches += 1;
+        return response({
+          data: {
+            ...conversationDetail(),
+            serviceWindow: rejected ? closedWindow : item.serviceWindow,
+          },
+          error: null,
+        });
+      }
+      if (url === "/api/conversations/conversation-id/messages" && init?.method === "POST") {
+        rejected = true;
+        return response({
+          data: null,
+          error: {
+            code: "WHATSAPP_SERVICE_WINDOW_CLOSED",
+            message: "private provider detail",
+          },
+        }, false, 409);
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    await act(() => hook.result.current.sendText("conversation-id", "Chegou no limite"));
+
+    expect(hook.result.current.conversation?.messages).toEqual([]);
+    expect(hook.result.current.conversation?.serviceWindow).toEqual(closedWindow);
+    expect(hook.result.current.conversationError).toBe(
+      "A janela de 24 horas terminou. Use a retomada aprovada.",
+    );
+    expect(hook.result.current.conversationError).not.toMatch(/provider|private/i);
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
   });
 
   it("sends a quoted text and mirrors its preview before and after confirmation", async () => {
@@ -1567,7 +1916,6 @@ describe("useInbox", () => {
             unreadCount: 0,
             manuallyUnread: true,
             manualUnreadRevision: "2026-08-21T12:00:00.000Z",
-            awaitingResponseSince: null,
             revision: "2026-08-21T12:00:00.000Z",
           },
           error: null,
