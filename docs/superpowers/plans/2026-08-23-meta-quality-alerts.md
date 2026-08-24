@@ -26,7 +26,7 @@
 ## File Structure
 
 - `prisma/schema.prisma`: persisted snapshot, alerts, enums, and acknowledgement relation.
-- `prisma/migrations/202608230001_meta_health/migration.sql`: additive production migration.
+- `prisma/migrations/202608230003_meta_health/migration.sql`: additive production migration, sequenced after the parallel `202608230001` and `202608230002` migrations.
 - `prisma/meta-health-contract.test.ts`: migration invariants and indexes.
 - `src/modules/meta-health/types.ts`: server/client DTOs and provider-neutral remote state.
 - `src/modules/meta-health/severity.ts`: pure severity, copy, resolution, and staleness rules.
@@ -50,7 +50,7 @@
 
 **Files:**
 - Modify: `prisma/schema.prisma`
-- Create: `prisma/migrations/202608230001_meta_health/migration.sql`
+- Create: `prisma/migrations/202608230003_meta_health/migration.sql`
 - Create: `prisma/meta-health-contract.test.ts`
 
 **Interfaces:**
@@ -65,7 +65,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const sql = readFileSync(
-  new URL("./migrations/202608230001_meta_health/migration.sql", import.meta.url),
+  new URL("./migrations/202608230003_meta_health/migration.sql", import.meta.url),
   "utf8",
 );
 
@@ -85,7 +85,7 @@ describe("meta health migration", () => {
 
 Run: `npx vitest run prisma/meta-health-contract.test.ts`
 
-Expected: FAIL because `202608230001_meta_health/migration.sql` does not exist.
+Expected: FAIL because `202608230003_meta_health/migration.sql` does not exist.
 
 - [ ] **Step 3: Add the Prisma enums, relations, and models**
 
@@ -179,7 +179,7 @@ Expected: PASS.
 - [ ] **Step 6: Commit the persistence layer**
 
 ```bash
-git add prisma/schema.prisma prisma/migrations/202608230001_meta_health/migration.sql prisma/meta-health-contract.test.ts src/generated
+git add prisma/schema.prisma prisma/migrations/202608230003_meta_health/migration.sql prisma/meta-health-contract.test.ts src/generated
 git commit -m "feat: persist Meta health alerts"
 ```
 
