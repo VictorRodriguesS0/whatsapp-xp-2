@@ -231,7 +231,7 @@ git commit -m "feat: add accessible XP color themes"
 - Produces: local raster icons with `any` and `maskable` purposes.
 - Produces no service worker and no offline cache.
 
-- [ ] **Step 1: Write the failing manifest contract**
+- [x] **Step 1: Write the failing manifest contract**
 
 ```ts
 import manifest from "./manifest";
@@ -254,13 +254,13 @@ expect(manifest().icons).toEqual(expect.arrayContaining([
 
 The test must also assert every declared local file exists and is non-empty, and assert `public/sw.js` does not exist.
 
-- [ ] **Step 2: Run the contract and verify RED**
+- [x] **Step 2: Run the contract and verify RED**
 
 Run: `npm test -- src/app/manifest.test.ts`
 
 Expected: FAIL because the manifest and icon files do not exist.
 
-- [ ] **Step 3: Import and inspect the approved official symbol**
+- [x] **Step 3: Import and inspect the approved official symbol**
 
 Create the directories, download only the already-approved public brand asset, inspect it visually, and keep it local:
 
@@ -271,7 +271,7 @@ Invoke-WebRequest -Uri "https://www.xpeletronicos.com/xp-symbol.png" -OutFile "p
 
 Expected: a non-empty XP controller symbol matching the audited store identity. If the response is HTML, a different logo, or transparent/illegible, stop this task and compare it with the approved reference before generating derivatives.
 
-- [ ] **Step 4: Add deterministic icon tooling**
+- [x] **Step 4: Add deterministic icon tooling**
 
 Run: `npm install --save-dev sharp@0.35.3`
 
@@ -304,7 +304,7 @@ await sharp({ create: { width: 512, height: 512, channels: 4, background } })
 
 Add script: `"icons:generate": "node scripts/generate-pwa-icons.mjs"`, run `npm run icons:generate`, inspect 32, 180, 192, 512 and circular-cropped maskable previews on light/dark backgrounds.
 
-- [ ] **Step 5: Implement the Next manifest**
+- [x] **Step 5: Implement the Next manifest**
 
 ```ts
 import type { MetadataRoute } from "next";
@@ -328,11 +328,11 @@ export default function manifest(): MetadataRoute.Manifest {
 }
 ```
 
-- [ ] **Step 6: Complete layout metadata**
+- [x] **Step 6: Complete layout metadata**
 
 Add `icons`, `manifest`, `appleWebApp` and `applicationName` to `metadata`; export `Viewport` with `viewportFit: "cover"` and light/dark media-aware theme colors. The theme provider must update the active `meta[name="theme-color"]` after a manual preference change.
 
-- [ ] **Step 7: Verify metadata and commit**
+- [x] **Step 7: Verify metadata and commit**
 
 Run:
 
