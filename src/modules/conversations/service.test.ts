@@ -1226,7 +1226,7 @@ describe("conversation service", () => {
     expect(result.responsible).toBeNull();
   });
 
-  it("maps current reactions and revocation into message DTOs", async () => {
+  it("maps edits and sanitizes revoked message DTOs", async () => {
     const conversationId = "10000000-0000-4000-8000-000000000001";
     const timestamp = new Date("2026-08-22T12:00:00.000Z");
     const target = message(
@@ -1244,6 +1244,7 @@ describe("conversation service", () => {
       }>;
     };
     target.revokedAt = new Date("2026-08-22T12:05:00.000Z");
+    target.editedAt = new Date("2026-08-22T12:04:00.000Z");
     target.reactions = [
       {
         id: "30000000-0000-4000-8000-000000000002",
@@ -1268,11 +1269,15 @@ describe("conversation service", () => {
     const result = await getConversation(victor.id, conversationId, repository);
 
     expect(result.messages[0]).toMatchObject({
+      body: null,
+      content: null,
+      canReply: false,
+      replyTo: null,
+      mediaObjectId: null,
+      mediaState: null,
+      editedAt: "2026-08-22T12:04:00.000Z",
       revokedAt: "2026-08-22T12:05:00.000Z",
-      reactions: [
-        { reactor: "CONTACT", emoji: "👍", status: "SENT", sentBy: null },
-        { reactor: "BUSINESS", emoji: "❤️", status: "SENT", sentBy: { id: victor.id, name: victor.name } },
-      ],
+      reactions: [],
     });
   });
 });

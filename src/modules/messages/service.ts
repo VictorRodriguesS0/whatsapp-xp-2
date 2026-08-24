@@ -261,6 +261,7 @@ const replyPreviewSelect = {
   content: true,
   sentByUser: { select: { id: true, name: true } },
   mediaObject: { select: { originalFilename: true } },
+  revokedAt: true,
 } as const;
 
 const prismaMessageScalarSelect = {
@@ -810,6 +811,7 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
+          revokedAt: message.replyToMessage.revokedAt,
         })
       : message.replyToWhatsappMessageId
         ? { available: false }
@@ -821,6 +823,7 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     sentBy: { id: message.sentByUser.id, name: message.sentByUser.name },
     status: message.status,
     failureReason: message.failureReason,
+    editedAt: null,
     revokedAt: null,
     reactions: [],
     externalTimestamp: message.externalTimestamp.toISOString(),

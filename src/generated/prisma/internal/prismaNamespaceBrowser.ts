@@ -60,6 +60,7 @@ export const ModelName = {
   ContactTagAssignment: 'ContactTagAssignment',
   Conversation: 'Conversation',
   Message: 'Message',
+  MessageRevision: 'MessageRevision',
   MessageReaction: 'MessageReaction',
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
@@ -234,7 +235,9 @@ export const MessageScalarFieldEnum = {
   templateLanguage: 'templateLanguage',
   templateComponents: 'templateComponents',
   templateDefinitionHash: 'templateDefinitionHash',
+  editedAt: 'editedAt',
   revokedAt: 'revokedAt',
+  lastMutationAt: 'lastMutationAt',
   operationalState: 'operationalState',
   providerAttemptedAt: 'providerAttemptedAt',
   deliveryLeaseId: 'deliveryLeaseId',
@@ -245,6 +248,20 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const MessageRevisionScalarFieldEnum = {
+  id: 'id',
+  messageId: 'messageId',
+  providerEventId: 'providerEventId',
+  action: 'action',
+  providerTimestamp: 'providerTimestamp',
+  previousBody: 'previousBody',
+  previousContent: 'previousContent',
+  createdAt: 'createdAt'
+} as const
+
+export type MessageRevisionScalarFieldEnum = (typeof MessageRevisionScalarFieldEnum)[keyof typeof MessageRevisionScalarFieldEnum]
 
 
 export const MessageReactionScalarFieldEnum = {

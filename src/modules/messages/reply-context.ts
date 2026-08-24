@@ -35,6 +35,7 @@ export type QuotedReplySource = {
   body: string | null;
   content: unknown;
   sentBy: { name: string } | null;
+  revokedAt?: Date | string | null;
 };
 
 const quotedReplyTypeLabels = {
@@ -57,8 +58,18 @@ export function quotedReplyTypeLabel(type: MessageType): string {
 }
 
 export function quotedReplyPreview(
+  source: QuotedReplySource & { revokedAt: Date | string },
+): { available: false };
+export function quotedReplyPreview(
+  source: QuotedReplySource & { revokedAt?: null | undefined },
+): AvailableQuotedReplyDto;
+export function quotedReplyPreview(
   source: QuotedReplySource,
-): AvailableQuotedReplyDto {
+): QuotedReplyDto;
+export function quotedReplyPreview(
+  source: QuotedReplySource,
+): QuotedReplyDto {
+  if (source.revokedAt) return { available: false };
   const content = parseMessageContent(source.content);
   const author = source.direction === "INBOUND"
     ? "Cliente"

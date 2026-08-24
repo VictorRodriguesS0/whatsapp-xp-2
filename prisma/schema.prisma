@@ -69,6 +69,11 @@ enum ReactionStatus {
   OUTCOME_UNKNOWN
 }
 
+enum MessageRevisionAction {
+  EDIT
+  REVOKE
+}
+
 enum WebhookStatus {
   PROCESSING
   PROCESSED
@@ -319,7 +324,9 @@ model Message {
   templateLanguage         String?                  @map("template_language")
   templateComponents       Json?                    @map("template_components")
   templateDefinitionHash   String?                  @map("template_definition_hash")
+  editedAt                 DateTime?                @map("edited_at") @db.Timestamptz(3)
   revokedAt                DateTime?                @map("revoked_at") @db.Timestamptz(3)
+  lastMutationAt           DateTime?                @map("last_mutation_at") @db.Timestamptz(3)
   operationalState         MessageOperationalState  @default(READY) @map("operational_state")
   providerAttemptedAt      DateTime?                @map("provider_attempted_at") @db.Timestamptz(3)
   deliveryLeaseId          String?                  @map("delivery_lease_id") @db.Uuid
@@ -335,6 +342,7 @@ model Message {
   lastReadFor              ConversationRead[]       @relation("LastReadMessage")
   teamLastReadFor          Conversation[]           @relation("TeamLastReadMessage")
   reactions                MessageReaction[]
+  revisions                MessageRevision[]
   readSyncTargets          WhatsAppReadSync[]       @relation("ReadSyncTarget")
   readSyncConfirmations    WhatsAppReadSync[]       @relation("ReadSyncConfirmed")
   readSyncFailures         WhatsAppReadSync[]       @relation("ReadSyncFailed")
@@ -349,6 +357,21 @@ model Message {
   @@index([replyToMessageId], map: "messages_reply_to_message_id_idx")
   @@index([conversationId, replyToWhatsappMessageId], map: "messages_reply_external_lookup_idx")
   @@map("messages")
+}
+
+model MessageRevision {
+  id                String                @id @default(uuid()) @db.Uuid
+  messageId         String                @map("message_id") @db.Uuid
+  providerEventId   String                @unique @map("provider_event_id")
+  action            MessageRevisionAction
+  providerTimestamp DateTime              @map("provider_timestamp") @db.Timestamptz(3)
+  previousBody      String?               @map("previous_body")
+  previousContent   Json?                 @map("previous_content")
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(3)
+  message           Message               @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([messageId, providerTimestamp, providerEventId])
+  @@map("message_revisions")
 }
 
 model MessageReaction {

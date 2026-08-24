@@ -95,6 +95,14 @@ export const ReactionStatus = {
 export type ReactionStatus = (typeof ReactionStatus)[keyof typeof ReactionStatus]
 
 
+export const MessageRevisionAction = {
+  EDIT: 'EDIT',
+  REVOKE: 'REVOKE'
+} as const
+
+export type MessageRevisionAction = (typeof MessageRevisionAction)[keyof typeof MessageRevisionAction]
+
+
 export const WebhookStatus = {
   PROCESSING: 'PROCESSING',
   PROCESSED: 'PROCESSED',

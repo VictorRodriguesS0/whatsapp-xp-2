@@ -60,6 +60,7 @@ function conversationTime(value: string) {
 
 function preview(item: ConversationListItem) {
   if (!item.latestMessage) return "Conversa iniciada";
+  if (item.latestMessage.revokedAt) return "Mensagem apagada";
   const mediaName = previewMediaNames[item.latestMessage.type];
   if (mediaName && item.latestMessage.mediaState?.status === "PENDING") return `Baixando ${mediaName}`;
   if (mediaName && item.latestMessage.mediaState?.status === "FAILED") return `${mediaName[0].toUpperCase()}${mediaName.slice(1)} indisponível`;

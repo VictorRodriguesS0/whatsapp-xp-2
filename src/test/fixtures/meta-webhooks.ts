@@ -34,6 +34,116 @@ export const inboundTextFixture = {
   ],
 } as const;
 
+type MutationAction = "edit" | "revoke";
+type MutationContent = "text" | "image";
+
+function mutationControl(
+  action: MutationAction,
+  content: MutationContent,
+  originalMessageId: string,
+) {
+  if (action === "revoke") {
+    return { original_message_id: originalMessageId };
+  }
+
+  return {
+    original_message_id: originalMessageId,
+    message: content === "text"
+      ? { type: "text", text: { body: "Texto corrigido" } }
+      : {
+          type: "image",
+          image: {
+            caption: "Legenda corrigida",
+            mime_type: "image/jpeg",
+            sha256: "provider-field-not-persisted",
+            id: "provider-media-id-not-replaced",
+          },
+        },
+  };
+}
+
+export function inboundMutationFixture(
+  action: MutationAction,
+  content: MutationContent = "text",
+) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "synthetic-waba",
+        changes: [
+          {
+            field: "messages",
+            value: {
+              messaging_product: "whatsapp",
+              contacts: [
+                {
+                  profile: { name: "Ana Cliente" },
+                  wa_id: "5511999990001",
+                },
+              ],
+              messages: [
+                {
+                  from: "5511999990001",
+                  id: `wamid.inbound-${action}-${content}`,
+                  timestamp: "1787133660",
+                  type: action,
+                  [action]: mutationControl(
+                    action,
+                    content,
+                    `wamid.inbound-original-${content}`,
+                  ),
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export function messageEchoMutationFixture(
+  action: MutationAction,
+  content: MutationContent = "text",
+) {
+  return {
+    object: "whatsapp_business_account",
+    entry: [
+      {
+        id: "synthetic-waba",
+        changes: [
+          {
+            field: "smb_message_echoes",
+            value: {
+              messaging_product: "whatsapp",
+              metadata: {
+                display_phone_number: "business-display-number",
+                phone_number_id: "synthetic-phone-number-id",
+              },
+              message_echoes: [
+                {
+                  from: "business-sender-number",
+                  to: "+55 (11) 99999-0001",
+                  to_user_id: "BR.Customer123",
+                  id: `wamid.echo-${action}-${content}`,
+                  timestamp: "1787133661",
+                  type: action,
+                  [action]: mutationControl(
+                    action,
+                    content,
+                    `wamid.echo-original-${content}`,
+                  ),
+                },
+              ],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 const operationalTime = 1787486400;
 
 function operationalFixture(field: string, value: Record<string, unknown>) {

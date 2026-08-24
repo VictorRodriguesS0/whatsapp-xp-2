@@ -87,6 +87,11 @@ export type Conversation = Prisma.ConversationModel
  */
 export type Message = Prisma.MessageModel
 /**
+ * Model MessageRevision
+ * 
+ */
+export type MessageRevision = Prisma.MessageRevisionModel
+/**
  * Model MessageReaction
  * 
  */

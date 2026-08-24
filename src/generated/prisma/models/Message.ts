@@ -43,7 +43,9 @@ export type MessageMinAggregateOutputType = {
   templateName: string | null
   templateLanguage: string | null
   templateDefinitionHash: string | null
+  editedAt: Date | null
   revokedAt: Date | null
+  lastMutationAt: Date | null
   operationalState: $Enums.MessageOperationalState | null
   providerAttemptedAt: Date | null
   deliveryLeaseId: string | null
@@ -72,7 +74,9 @@ export type MessageMaxAggregateOutputType = {
   templateName: string | null
   templateLanguage: string | null
   templateDefinitionHash: string | null
+  editedAt: Date | null
   revokedAt: Date | null
+  lastMutationAt: Date | null
   operationalState: $Enums.MessageOperationalState | null
   providerAttemptedAt: Date | null
   deliveryLeaseId: string | null
@@ -103,7 +107,9 @@ export type MessageCountAggregateOutputType = {
   templateLanguage: number
   templateComponents: number
   templateDefinitionHash: number
+  editedAt: number
   revokedAt: number
+  lastMutationAt: number
   operationalState: number
   providerAttemptedAt: number
   deliveryLeaseId: number
@@ -134,7 +140,9 @@ export type MessageMinAggregateInputType = {
   templateName?: true
   templateLanguage?: true
   templateDefinitionHash?: true
+  editedAt?: true
   revokedAt?: true
+  lastMutationAt?: true
   operationalState?: true
   providerAttemptedAt?: true
   deliveryLeaseId?: true
@@ -163,7 +171,9 @@ export type MessageMaxAggregateInputType = {
   templateName?: true
   templateLanguage?: true
   templateDefinitionHash?: true
+  editedAt?: true
   revokedAt?: true
+  lastMutationAt?: true
   operationalState?: true
   providerAttemptedAt?: true
   deliveryLeaseId?: true
@@ -194,7 +204,9 @@ export type MessageCountAggregateInputType = {
   templateLanguage?: true
   templateComponents?: true
   templateDefinitionHash?: true
+  editedAt?: true
   revokedAt?: true
+  lastMutationAt?: true
   operationalState?: true
   providerAttemptedAt?: true
   deliveryLeaseId?: true
@@ -298,7 +310,9 @@ export type MessageGroupByOutputType = {
   templateLanguage: string | null
   templateComponents: runtime.JsonValue | null
   templateDefinitionHash: string | null
+  editedAt: Date | null
   revokedAt: Date | null
+  lastMutationAt: Date | null
   operationalState: $Enums.MessageOperationalState
   providerAttemptedAt: Date | null
   deliveryLeaseId: string | null
@@ -350,7 +364,9 @@ export type MessageWhereInput = {
   templateLanguage?: Prisma.StringNullableFilter<"Message"> | string | null
   templateComponents?: Prisma.JsonNullableFilter<"Message">
   templateDefinitionHash?: Prisma.StringNullableFilter<"Message"> | string | null
+  editedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
+  lastMutationAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   deliveryLeaseId?: Prisma.UuidNullableFilter<"Message"> | string | null
@@ -366,6 +382,7 @@ export type MessageWhereInput = {
   lastReadFor?: Prisma.ConversationReadListRelationFilter
   teamLastReadFor?: Prisma.ConversationListRelationFilter
   reactions?: Prisma.MessageReactionListRelationFilter
+  revisions?: Prisma.MessageRevisionListRelationFilter
   readSyncTargets?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncConfirmations?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncFailures?: Prisma.WhatsAppReadSyncListRelationFilter
@@ -396,7 +413,9 @@ export type MessageOrderByWithRelationInput = {
   templateLanguage?: Prisma.SortOrderInput | Prisma.SortOrder
   templateComponents?: Prisma.SortOrderInput | Prisma.SortOrder
   templateDefinitionHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  editedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   revokedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastMutationAt?: Prisma.SortOrderInput | Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   deliveryLeaseId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -412,6 +431,7 @@ export type MessageOrderByWithRelationInput = {
   lastReadFor?: Prisma.ConversationReadOrderByRelationAggregateInput
   teamLastReadFor?: Prisma.ConversationOrderByRelationAggregateInput
   reactions?: Prisma.MessageReactionOrderByRelationAggregateInput
+  revisions?: Prisma.MessageRevisionOrderByRelationAggregateInput
   readSyncTargets?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
   readSyncFailures?: Prisma.WhatsAppReadSyncOrderByRelationAggregateInput
@@ -445,7 +465,9 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   templateLanguage?: Prisma.StringNullableFilter<"Message"> | string | null
   templateComponents?: Prisma.JsonNullableFilter<"Message">
   templateDefinitionHash?: Prisma.StringNullableFilter<"Message"> | string | null
+  editedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
+  lastMutationAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   deliveryLeaseId?: Prisma.UuidNullableFilter<"Message"> | string | null
@@ -461,6 +483,7 @@ export type MessageWhereUniqueInput = Prisma.AtLeast<{
   lastReadFor?: Prisma.ConversationReadListRelationFilter
   teamLastReadFor?: Prisma.ConversationListRelationFilter
   reactions?: Prisma.MessageReactionListRelationFilter
+  revisions?: Prisma.MessageRevisionListRelationFilter
   readSyncTargets?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncConfirmations?: Prisma.WhatsAppReadSyncListRelationFilter
   readSyncFailures?: Prisma.WhatsAppReadSyncListRelationFilter
@@ -491,7 +514,9 @@ export type MessageOrderByWithAggregationInput = {
   templateLanguage?: Prisma.SortOrderInput | Prisma.SortOrder
   templateComponents?: Prisma.SortOrderInput | Prisma.SortOrder
   templateDefinitionHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  editedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   revokedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  lastMutationAt?: Prisma.SortOrderInput | Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   deliveryLeaseId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -528,7 +553,9 @@ export type MessageScalarWhereWithAggregatesInput = {
   templateLanguage?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
   templateComponents?: Prisma.JsonNullableWithAggregatesFilter<"Message">
   templateDefinitionHash?: Prisma.StringNullableWithAggregatesFilter<"Message"> | string | null
+  editedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
+  lastMutationAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateWithAggregatesFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Message"> | Date | string | null
   deliveryLeaseId?: Prisma.UuidNullableWithAggregatesFilter<"Message"> | string | null
@@ -555,7 +582,9 @@ export type MessageCreateInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -571,6 +600,7 @@ export type MessageCreateInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -601,7 +631,9 @@ export type MessageUncheckedCreateInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -613,6 +645,7 @@ export type MessageUncheckedCreateInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -639,7 +672,9 @@ export type MessageUpdateInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -655,6 +690,7 @@ export type MessageUpdateInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -685,7 +721,9 @@ export type MessageUncheckedUpdateInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -697,6 +735,7 @@ export type MessageUncheckedUpdateInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -727,7 +766,9 @@ export type MessageCreateManyInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -754,7 +795,9 @@ export type MessageUpdateManyMutationInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -785,7 +828,9 @@ export type MessageUncheckedUpdateManyInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -831,7 +876,9 @@ export type MessageCountOrderByAggregateInput = {
   templateLanguage?: Prisma.SortOrder
   templateComponents?: Prisma.SortOrder
   templateDefinitionHash?: Prisma.SortOrder
+  editedAt?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
+  lastMutationAt?: Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrder
   deliveryLeaseId?: Prisma.SortOrder
@@ -860,7 +907,9 @@ export type MessageMaxOrderByAggregateInput = {
   templateName?: Prisma.SortOrder
   templateLanguage?: Prisma.SortOrder
   templateDefinitionHash?: Prisma.SortOrder
+  editedAt?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
+  lastMutationAt?: Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrder
   deliveryLeaseId?: Prisma.SortOrder
@@ -889,7 +938,9 @@ export type MessageMinOrderByAggregateInput = {
   templateName?: Prisma.SortOrder
   templateLanguage?: Prisma.SortOrder
   templateDefinitionHash?: Prisma.SortOrder
+  editedAt?: Prisma.SortOrder
   revokedAt?: Prisma.SortOrder
+  lastMutationAt?: Prisma.SortOrder
   operationalState?: Prisma.SortOrder
   providerAttemptedAt?: Prisma.SortOrder
   deliveryLeaseId?: Prisma.SortOrder
@@ -1114,6 +1165,20 @@ export type MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput = {
   deleteMany?: Prisma.MessageScalarWhereInput | Prisma.MessageScalarWhereInput[]
 }
 
+export type MessageCreateNestedOneWithoutRevisionsInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutRevisionsInput, Prisma.MessageUncheckedCreateWithoutRevisionsInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutRevisionsInput
+  connect?: Prisma.MessageWhereUniqueInput
+}
+
+export type MessageUpdateOneRequiredWithoutRevisionsNestedInput = {
+  create?: Prisma.XOR<Prisma.MessageCreateWithoutRevisionsInput, Prisma.MessageUncheckedCreateWithoutRevisionsInput>
+  connectOrCreate?: Prisma.MessageCreateOrConnectWithoutRevisionsInput
+  upsert?: Prisma.MessageUpsertWithoutRevisionsInput
+  connect?: Prisma.MessageWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.MessageUpdateToOneWithWhereWithoutRevisionsInput, Prisma.MessageUpdateWithoutRevisionsInput>, Prisma.MessageUncheckedUpdateWithoutRevisionsInput>
+}
+
 export type MessageCreateNestedOneWithoutReactionsInput = {
   create?: Prisma.XOR<Prisma.MessageCreateWithoutReactionsInput, Prisma.MessageUncheckedCreateWithoutReactionsInput>
   connectOrCreate?: Prisma.MessageCreateOrConnectWithoutReactionsInput
@@ -1269,7 +1334,9 @@ export type MessageCreateWithoutSentByUserInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1284,6 +1351,7 @@ export type MessageCreateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -1313,7 +1381,9 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1325,6 +1395,7 @@ export type MessageUncheckedCreateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -1384,7 +1455,9 @@ export type MessageScalarWhereInput = {
   templateLanguage?: Prisma.StringNullableFilter<"Message"> | string | null
   templateComponents?: Prisma.JsonNullableFilter<"Message">
   templateDefinitionHash?: Prisma.StringNullableFilter<"Message"> | string | null
+  editedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   revokedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
+  lastMutationAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFilter<"Message"> | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.DateTimeNullableFilter<"Message"> | Date | string | null
   deliveryLeaseId?: Prisma.UuidNullableFilter<"Message"> | string | null
@@ -1411,7 +1484,9 @@ export type MessageCreateWithoutTeamLastReadForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1426,6 +1501,7 @@ export type MessageCreateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -1456,7 +1532,9 @@ export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1467,6 +1545,7 @@ export type MessageUncheckedCreateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -1498,7 +1577,9 @@ export type MessageCreateWithoutLastCustomerForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1514,6 +1595,7 @@ export type MessageCreateWithoutLastCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -1543,7 +1625,9 @@ export type MessageUncheckedCreateWithoutLastCustomerForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1555,6 +1639,7 @@ export type MessageUncheckedCreateWithoutLastCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -1585,7 +1670,9 @@ export type MessageCreateWithoutPendingCustomerForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1601,6 +1688,7 @@ export type MessageCreateWithoutPendingCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -1630,7 +1718,9 @@ export type MessageUncheckedCreateWithoutPendingCustomerForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1642,6 +1732,7 @@ export type MessageUncheckedCreateWithoutPendingCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -1672,7 +1763,9 @@ export type MessageCreateWithoutConversationInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1687,6 +1780,7 @@ export type MessageCreateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -1716,7 +1810,9 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -1728,6 +1824,7 @@ export type MessageUncheckedCreateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -1775,7 +1872,9 @@ export type MessageUpdateWithoutTeamLastReadForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1790,6 +1889,7 @@ export type MessageUpdateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -1820,7 +1920,9 @@ export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1831,6 +1933,7 @@ export type MessageUncheckedUpdateWithoutTeamLastReadForInput = {
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -1868,7 +1971,9 @@ export type MessageUpdateWithoutLastCustomerForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1884,6 +1989,7 @@ export type MessageUpdateWithoutLastCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -1913,7 +2019,9 @@ export type MessageUncheckedUpdateWithoutLastCustomerForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1925,6 +2033,7 @@ export type MessageUncheckedUpdateWithoutLastCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -1961,7 +2070,9 @@ export type MessageUpdateWithoutPendingCustomerForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -1977,6 +2088,7 @@ export type MessageUpdateWithoutPendingCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2006,7 +2118,9 @@ export type MessageUncheckedUpdateWithoutPendingCustomerForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2018,6 +2132,7 @@ export type MessageUncheckedUpdateWithoutPendingCustomerForInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2059,7 +2174,9 @@ export type MessageCreateWithoutRepliesInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2074,6 +2191,7 @@ export type MessageCreateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -2104,7 +2222,9 @@ export type MessageUncheckedCreateWithoutRepliesInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2115,6 +2235,7 @@ export type MessageUncheckedCreateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -2146,7 +2267,9 @@ export type MessageCreateWithoutReplyToMessageInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2161,6 +2284,7 @@ export type MessageCreateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -2190,7 +2314,9 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2202,6 +2328,7 @@ export type MessageUncheckedCreateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -2249,7 +2376,9 @@ export type MessageUpdateWithoutRepliesInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2264,6 +2393,7 @@ export type MessageUpdateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2294,7 +2424,9 @@ export type MessageUncheckedUpdateWithoutRepliesInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2305,6 +2437,7 @@ export type MessageUncheckedUpdateWithoutRepliesInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2330,6 +2463,198 @@ export type MessageUpdateManyWithWhereWithoutReplyToMessageInput = {
   data: Prisma.XOR<Prisma.MessageUpdateManyMutationInput, Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageInput>
 }
 
+export type MessageCreateWithoutRevisionsInput = {
+  id?: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToWhatsappMessageId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
+  revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation: Prisma.ConversationCreateNestedOneWithoutMessagesInput
+  mediaObject?: Prisma.MediaObjectCreateNestedOneWithoutMessageInput
+  sentByUser?: Prisma.UserCreateNestedOneWithoutSentMessagesInput
+  replyToMessage?: Prisma.MessageCreateNestedOneWithoutRepliesInput
+  replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionCreateNestedOneWithoutMessageInput
+}
+
+export type MessageUncheckedCreateWithoutRevisionsInput = {
+  id?: string
+  conversationId: string
+  whatsappMessageId?: string | null
+  clientRequestId?: string | null
+  direction: $Enums.MessageDirection
+  type: $Enums.MessageType
+  body?: string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: string
+  replyToMessageId?: string | null
+  replyToWhatsappMessageId?: string | null
+  mediaObjectId?: string | null
+  sentByUserId?: string | null
+  status: $Enums.MessageStatus
+  failureReason?: string | null
+  outboundPayloadKind?: $Enums.OutboundPayloadKind
+  templateName?: string | null
+  templateLanguage?: string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
+  revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
+  operationalState?: $Enums.MessageOperationalState
+  providerAttemptedAt?: Date | string | null
+  deliveryLeaseId?: string | null
+  deliveryLeaseUntil?: Date | string | null
+  externalTimestamp: Date | string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
+  lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
+  teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
+  lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutPendingCustomerMessageInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedCreateNestedManyWithoutSourceMessageInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedCreateNestedOneWithoutMessageInput
+}
+
+export type MessageCreateOrConnectWithoutRevisionsInput = {
+  where: Prisma.MessageWhereUniqueInput
+  create: Prisma.XOR<Prisma.MessageCreateWithoutRevisionsInput, Prisma.MessageUncheckedCreateWithoutRevisionsInput>
+}
+
+export type MessageUpsertWithoutRevisionsInput = {
+  update: Prisma.XOR<Prisma.MessageUpdateWithoutRevisionsInput, Prisma.MessageUncheckedUpdateWithoutRevisionsInput>
+  create: Prisma.XOR<Prisma.MessageCreateWithoutRevisionsInput, Prisma.MessageUncheckedCreateWithoutRevisionsInput>
+  where?: Prisma.MessageWhereInput
+}
+
+export type MessageUpdateToOneWithWhereWithoutRevisionsInput = {
+  where?: Prisma.MessageWhereInput
+  data: Prisma.XOR<Prisma.MessageUpdateWithoutRevisionsInput, Prisma.MessageUncheckedUpdateWithoutRevisionsInput>
+}
+
+export type MessageUpdateWithoutRevisionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneRequiredWithoutMessagesNestedInput
+  mediaObject?: Prisma.MediaObjectUpdateOneWithoutMessageNestedInput
+  sentByUser?: Prisma.UserUpdateOneWithoutSentMessagesNestedInput
+  replyToMessage?: Prisma.MessageUpdateOneWithoutRepliesNestedInput
+  replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUpdateOneWithoutMessageNestedInput
+}
+
+export type MessageUncheckedUpdateWithoutRevisionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  conversationId?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  clientRequestId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  direction?: Prisma.EnumMessageDirectionFieldUpdateOperationsInput | $Enums.MessageDirection
+  type?: Prisma.EnumMessageTypeFieldUpdateOperationsInput | $Enums.MessageType
+  body?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  content?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  searchText?: Prisma.StringFieldUpdateOperationsInput | string
+  replyToMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  replyToWhatsappMessageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  mediaObjectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sentByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  status?: Prisma.EnumMessageStatusFieldUpdateOperationsInput | $Enums.MessageStatus
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  outboundPayloadKind?: Prisma.EnumOutboundPayloadKindFieldUpdateOperationsInput | $Enums.OutboundPayloadKind
+  templateName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
+  providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  deliveryLeaseUntil?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  externalTimestamp?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
+  lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
+  teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
+  readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
+  readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
+  lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
+  pendingCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutPendingCustomerMessageNestedInput
+  resumptionSources?: Prisma.ConversationResumptionUncheckedUpdateManyWithoutSourceMessageNestedInput
+  resumptionMessage?: Prisma.ConversationResumptionUncheckedUpdateOneWithoutMessageNestedInput
+}
+
 export type MessageCreateWithoutReactionsInput = {
   id?: string
   whatsappMessageId?: string | null
@@ -2347,7 +2672,9 @@ export type MessageCreateWithoutReactionsInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2362,6 +2689,7 @@ export type MessageCreateWithoutReactionsInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -2392,7 +2720,9 @@ export type MessageUncheckedCreateWithoutReactionsInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2403,6 +2733,7 @@ export type MessageUncheckedCreateWithoutReactionsInput = {
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -2445,7 +2776,9 @@ export type MessageUpdateWithoutReactionsInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2460,6 +2793,7 @@ export type MessageUpdateWithoutReactionsInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2490,7 +2824,9 @@ export type MessageUncheckedUpdateWithoutReactionsInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2501,6 +2837,7 @@ export type MessageUncheckedUpdateWithoutReactionsInput = {
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2527,7 +2864,9 @@ export type MessageCreateWithoutMediaObjectInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2542,6 +2881,7 @@ export type MessageCreateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -2571,7 +2911,9 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2583,6 +2925,7 @@ export type MessageUncheckedCreateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -2625,7 +2968,9 @@ export type MessageUpdateWithoutMediaObjectInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2640,6 +2985,7 @@ export type MessageUpdateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2669,7 +3015,9 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2681,6 +3029,7 @@ export type MessageUncheckedUpdateWithoutMediaObjectInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2707,7 +3056,9 @@ export type MessageCreateWithoutLastReadForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2722,6 +3073,7 @@ export type MessageCreateWithoutLastReadForInput = {
   replies?: Prisma.MessageCreateNestedManyWithoutReplyToMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -2752,7 +3104,9 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2763,6 +3117,7 @@ export type MessageUncheckedCreateWithoutLastReadForInput = {
   replies?: Prisma.MessageUncheckedCreateNestedManyWithoutReplyToMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -2805,7 +3160,9 @@ export type MessageUpdateWithoutLastReadForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2820,6 +3177,7 @@ export type MessageUpdateWithoutLastReadForInput = {
   replies?: Prisma.MessageUpdateManyWithoutReplyToMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2850,7 +3208,9 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -2861,6 +3221,7 @@ export type MessageUncheckedUpdateWithoutLastReadForInput = {
   replies?: Prisma.MessageUncheckedUpdateManyWithoutReplyToMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -2887,7 +3248,9 @@ export type MessageCreateWithoutReadSyncTargetsInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2903,6 +3266,7 @@ export type MessageCreateWithoutReadSyncTargetsInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
   lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
@@ -2932,7 +3296,9 @@ export type MessageUncheckedCreateWithoutReadSyncTargetsInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2944,6 +3310,7 @@ export type MessageUncheckedCreateWithoutReadSyncTargetsInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
   lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
@@ -2974,7 +3341,9 @@ export type MessageCreateWithoutReadSyncConfirmationsInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -2990,6 +3359,7 @@ export type MessageCreateWithoutReadSyncConfirmationsInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
   lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
@@ -3019,7 +3389,9 @@ export type MessageUncheckedCreateWithoutReadSyncConfirmationsInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3031,6 +3403,7 @@ export type MessageUncheckedCreateWithoutReadSyncConfirmationsInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
   lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
@@ -3061,7 +3434,9 @@ export type MessageCreateWithoutReadSyncFailuresInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3077,6 +3452,7 @@ export type MessageCreateWithoutReadSyncFailuresInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   lastCustomerFor?: Prisma.ConversationCreateNestedManyWithoutLastCustomerMessageInput
@@ -3106,7 +3482,9 @@ export type MessageUncheckedCreateWithoutReadSyncFailuresInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3118,6 +3496,7 @@ export type MessageUncheckedCreateWithoutReadSyncFailuresInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   lastCustomerFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutLastCustomerMessageInput
@@ -3159,7 +3538,9 @@ export type MessageUpdateWithoutReadSyncTargetsInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3175,6 +3556,7 @@ export type MessageUpdateWithoutReadSyncTargetsInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
   lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
@@ -3204,7 +3586,9 @@ export type MessageUncheckedUpdateWithoutReadSyncTargetsInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3216,6 +3600,7 @@ export type MessageUncheckedUpdateWithoutReadSyncTargetsInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
   lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
@@ -3252,7 +3637,9 @@ export type MessageUpdateWithoutReadSyncConfirmationsInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3268,6 +3655,7 @@ export type MessageUpdateWithoutReadSyncConfirmationsInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
   lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
@@ -3297,7 +3685,9 @@ export type MessageUncheckedUpdateWithoutReadSyncConfirmationsInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3309,6 +3699,7 @@ export type MessageUncheckedUpdateWithoutReadSyncConfirmationsInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
   lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
@@ -3345,7 +3736,9 @@ export type MessageUpdateWithoutReadSyncFailuresInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3361,6 +3754,7 @@ export type MessageUpdateWithoutReadSyncFailuresInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   lastCustomerFor?: Prisma.ConversationUpdateManyWithoutLastCustomerMessageNestedInput
@@ -3390,7 +3784,9 @@ export type MessageUncheckedUpdateWithoutReadSyncFailuresInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3402,6 +3798,7 @@ export type MessageUncheckedUpdateWithoutReadSyncFailuresInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   lastCustomerFor?: Prisma.ConversationUncheckedUpdateManyWithoutLastCustomerMessageNestedInput
@@ -3427,7 +3824,9 @@ export type MessageCreateWithoutResumptionSourcesInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3443,6 +3842,7 @@ export type MessageCreateWithoutResumptionSourcesInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -3472,7 +3872,9 @@ export type MessageUncheckedCreateWithoutResumptionSourcesInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3484,6 +3886,7 @@ export type MessageUncheckedCreateWithoutResumptionSourcesInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -3514,7 +3917,9 @@ export type MessageCreateWithoutResumptionMessageInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3530,6 +3935,7 @@ export type MessageCreateWithoutResumptionMessageInput = {
   lastReadFor?: Prisma.ConversationReadCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncCreateNestedManyWithoutFailedTargetMessageInput
@@ -3559,7 +3965,9 @@ export type MessageUncheckedCreateWithoutResumptionMessageInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3571,6 +3979,7 @@ export type MessageUncheckedCreateWithoutResumptionMessageInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedCreateNestedManyWithoutLastReadMessageInput
   teamLastReadFor?: Prisma.ConversationUncheckedCreateNestedManyWithoutTeamLastReadMessageInput
   reactions?: Prisma.MessageReactionUncheckedCreateNestedManyWithoutMessageInput
+  revisions?: Prisma.MessageRevisionUncheckedCreateNestedManyWithoutMessageInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutTargetMessageInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutConfirmedMessageInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedCreateNestedManyWithoutFailedTargetMessageInput
@@ -3612,7 +4021,9 @@ export type MessageUpdateWithoutResumptionSourcesInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3628,6 +4039,7 @@ export type MessageUpdateWithoutResumptionSourcesInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -3657,7 +4069,9 @@ export type MessageUncheckedUpdateWithoutResumptionSourcesInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3669,6 +4083,7 @@ export type MessageUncheckedUpdateWithoutResumptionSourcesInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -3705,7 +4120,9 @@ export type MessageUpdateWithoutResumptionMessageInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3721,6 +4138,7 @@ export type MessageUpdateWithoutResumptionMessageInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -3750,7 +4168,9 @@ export type MessageUncheckedUpdateWithoutResumptionMessageInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3762,6 +4182,7 @@ export type MessageUncheckedUpdateWithoutResumptionMessageInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -3790,7 +4211,9 @@ export type MessageCreateManySentByUserInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3817,7 +4240,9 @@ export type MessageUpdateWithoutSentByUserInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3832,6 +4257,7 @@ export type MessageUpdateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -3861,7 +4287,9 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3873,6 +4301,7 @@ export type MessageUncheckedUpdateWithoutSentByUserInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -3902,7 +4331,9 @@ export type MessageUncheckedUpdateManyWithoutSentByUserInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3932,7 +4363,9 @@ export type MessageCreateManyConversationInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -3959,7 +4392,9 @@ export type MessageUpdateWithoutConversationInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -3974,6 +4409,7 @@ export type MessageUpdateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -4003,7 +4439,9 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4015,6 +4453,7 @@ export type MessageUncheckedUpdateWithoutConversationInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -4044,7 +4483,9 @@ export type MessageUncheckedUpdateManyWithoutConversationInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4074,7 +4515,9 @@ export type MessageCreateManyReplyToMessageInput = {
   templateLanguage?: string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: string | null
+  editedAt?: Date | string | null
   revokedAt?: Date | string | null
+  lastMutationAt?: Date | string | null
   operationalState?: $Enums.MessageOperationalState
   providerAttemptedAt?: Date | string | null
   deliveryLeaseId?: string | null
@@ -4101,7 +4544,9 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4116,6 +4561,7 @@ export type MessageUpdateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUpdateManyWithoutFailedTargetMessageNestedInput
@@ -4145,7 +4591,9 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4157,6 +4605,7 @@ export type MessageUncheckedUpdateWithoutReplyToMessageInput = {
   lastReadFor?: Prisma.ConversationReadUncheckedUpdateManyWithoutLastReadMessageNestedInput
   teamLastReadFor?: Prisma.ConversationUncheckedUpdateManyWithoutTeamLastReadMessageNestedInput
   reactions?: Prisma.MessageReactionUncheckedUpdateManyWithoutMessageNestedInput
+  revisions?: Prisma.MessageRevisionUncheckedUpdateManyWithoutMessageNestedInput
   readSyncTargets?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutTargetMessageNestedInput
   readSyncConfirmations?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutConfirmedMessageNestedInput
   readSyncFailures?: Prisma.WhatsAppReadSyncUncheckedUpdateManyWithoutFailedTargetMessageNestedInput
@@ -4186,7 +4635,9 @@ export type MessageUncheckedUpdateManyWithoutReplyToMessageInput = {
   templateLanguage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   templateComponents?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   templateDefinitionHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  editedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   revokedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  lastMutationAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   operationalState?: Prisma.EnumMessageOperationalStateFieldUpdateOperationsInput | $Enums.MessageOperationalState
   providerAttemptedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   deliveryLeaseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -4206,6 +4657,7 @@ export type MessageCountOutputType = {
   lastReadFor: number
   teamLastReadFor: number
   reactions: number
+  revisions: number
   readSyncTargets: number
   readSyncConfirmations: number
   readSyncFailures: number
@@ -4219,6 +4671,7 @@ export type MessageCountOutputTypeSelect<ExtArgs extends runtime.Types.Extension
   lastReadFor?: boolean | MessageCountOutputTypeCountLastReadForArgs
   teamLastReadFor?: boolean | MessageCountOutputTypeCountTeamLastReadForArgs
   reactions?: boolean | MessageCountOutputTypeCountReactionsArgs
+  revisions?: boolean | MessageCountOutputTypeCountRevisionsArgs
   readSyncTargets?: boolean | MessageCountOutputTypeCountReadSyncTargetsArgs
   readSyncConfirmations?: boolean | MessageCountOutputTypeCountReadSyncConfirmationsArgs
   readSyncFailures?: boolean | MessageCountOutputTypeCountReadSyncFailuresArgs
@@ -4263,6 +4716,13 @@ export type MessageCountOutputTypeCountTeamLastReadForArgs<ExtArgs extends runti
  */
 export type MessageCountOutputTypeCountReactionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.MessageReactionWhereInput
+}
+
+/**
+ * MessageCountOutputType without action
+ */
+export type MessageCountOutputTypeCountRevisionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.MessageRevisionWhereInput
 }
 
 /**
@@ -4329,7 +4789,9 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   templateLanguage?: boolean
   templateComponents?: boolean
   templateDefinitionHash?: boolean
+  editedAt?: boolean
   revokedAt?: boolean
+  lastMutationAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
   deliveryLeaseId?: boolean
@@ -4345,6 +4807,7 @@ export type MessageSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   lastReadFor?: boolean | Prisma.Message$lastReadForArgs<ExtArgs>
   teamLastReadFor?: boolean | Prisma.Message$teamLastReadForArgs<ExtArgs>
   reactions?: boolean | Prisma.Message$reactionsArgs<ExtArgs>
+  revisions?: boolean | Prisma.Message$revisionsArgs<ExtArgs>
   readSyncTargets?: boolean | Prisma.Message$readSyncTargetsArgs<ExtArgs>
   readSyncConfirmations?: boolean | Prisma.Message$readSyncConfirmationsArgs<ExtArgs>
   readSyncFailures?: boolean | Prisma.Message$readSyncFailuresArgs<ExtArgs>
@@ -4376,7 +4839,9 @@ export type MessageSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   templateLanguage?: boolean
   templateComponents?: boolean
   templateDefinitionHash?: boolean
+  editedAt?: boolean
   revokedAt?: boolean
+  lastMutationAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
   deliveryLeaseId?: boolean
@@ -4411,7 +4876,9 @@ export type MessageSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   templateLanguage?: boolean
   templateComponents?: boolean
   templateDefinitionHash?: boolean
+  editedAt?: boolean
   revokedAt?: boolean
+  lastMutationAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
   deliveryLeaseId?: boolean
@@ -4446,7 +4913,9 @@ export type MessageSelectScalar = {
   templateLanguage?: boolean
   templateComponents?: boolean
   templateDefinitionHash?: boolean
+  editedAt?: boolean
   revokedAt?: boolean
+  lastMutationAt?: boolean
   operationalState?: boolean
   providerAttemptedAt?: boolean
   deliveryLeaseId?: boolean
@@ -4456,7 +4925,7 @@ export type MessageSelectScalar = {
   updatedAt?: boolean
 }
 
-export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "content" | "searchText" | "replyToMessageId" | "replyToWhatsappMessageId" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "outboundPayloadKind" | "templateName" | "templateLanguage" | "templateComponents" | "templateDefinitionHash" | "revokedAt" | "operationalState" | "providerAttemptedAt" | "deliveryLeaseId" | "deliveryLeaseUntil" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
+export type MessageOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "conversationId" | "whatsappMessageId" | "clientRequestId" | "direction" | "type" | "body" | "content" | "searchText" | "replyToMessageId" | "replyToWhatsappMessageId" | "mediaObjectId" | "sentByUserId" | "status" | "failureReason" | "outboundPayloadKind" | "templateName" | "templateLanguage" | "templateComponents" | "templateDefinitionHash" | "editedAt" | "revokedAt" | "lastMutationAt" | "operationalState" | "providerAttemptedAt" | "deliveryLeaseId" | "deliveryLeaseUntil" | "externalTimestamp" | "createdAt" | "updatedAt", ExtArgs["result"]["message"]>
 export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.ConversationDefaultArgs<ExtArgs>
   mediaObject?: boolean | Prisma.Message$mediaObjectArgs<ExtArgs>
@@ -4466,6 +4935,7 @@ export type MessageInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs
   lastReadFor?: boolean | Prisma.Message$lastReadForArgs<ExtArgs>
   teamLastReadFor?: boolean | Prisma.Message$teamLastReadForArgs<ExtArgs>
   reactions?: boolean | Prisma.Message$reactionsArgs<ExtArgs>
+  revisions?: boolean | Prisma.Message$revisionsArgs<ExtArgs>
   readSyncTargets?: boolean | Prisma.Message$readSyncTargetsArgs<ExtArgs>
   readSyncConfirmations?: boolean | Prisma.Message$readSyncConfirmationsArgs<ExtArgs>
   readSyncFailures?: boolean | Prisma.Message$readSyncFailuresArgs<ExtArgs>
@@ -4499,6 +4969,7 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     lastReadFor: Prisma.$ConversationReadPayload<ExtArgs>[]
     teamLastReadFor: Prisma.$ConversationPayload<ExtArgs>[]
     reactions: Prisma.$MessageReactionPayload<ExtArgs>[]
+    revisions: Prisma.$MessageRevisionPayload<ExtArgs>[]
     readSyncTargets: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
     readSyncConfirmations: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
     readSyncFailures: Prisma.$WhatsAppReadSyncPayload<ExtArgs>[]
@@ -4528,7 +4999,9 @@ export type $MessagePayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     templateLanguage: string | null
     templateComponents: runtime.JsonValue | null
     templateDefinitionHash: string | null
+    editedAt: Date | null
     revokedAt: Date | null
+    lastMutationAt: Date | null
     operationalState: $Enums.MessageOperationalState
     providerAttemptedAt: Date | null
     deliveryLeaseId: string | null
@@ -4938,6 +5411,7 @@ export interface Prisma__MessageClient<T, Null = never, ExtArgs extends runtime.
   lastReadFor<T extends Prisma.Message$lastReadForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$lastReadForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationReadPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   teamLastReadFor<T extends Prisma.Message$teamLastReadForArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$teamLastReadForArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ConversationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reactions<T extends Prisma.Message$reactionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$reactionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageReactionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  revisions<T extends Prisma.Message$revisionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$revisionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$MessageRevisionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   readSyncTargets<T extends Prisma.Message$readSyncTargetsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncTargetsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   readSyncConfirmations<T extends Prisma.Message$readSyncConfirmationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncConfirmationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   readSyncFailures<T extends Prisma.Message$readSyncFailuresArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Message$readSyncFailuresArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WhatsAppReadSyncPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -4994,7 +5468,9 @@ export interface MessageFieldRefs {
   readonly templateLanguage: Prisma.FieldRef<"Message", 'String'>
   readonly templateComponents: Prisma.FieldRef<"Message", 'Json'>
   readonly templateDefinitionHash: Prisma.FieldRef<"Message", 'String'>
+  readonly editedAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly revokedAt: Prisma.FieldRef<"Message", 'DateTime'>
+  readonly lastMutationAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly operationalState: Prisma.FieldRef<"Message", 'MessageOperationalState'>
   readonly providerAttemptedAt: Prisma.FieldRef<"Message", 'DateTime'>
   readonly deliveryLeaseId: Prisma.FieldRef<"Message", 'String'>
@@ -5553,6 +6029,30 @@ export type Message$reactionsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.MessageReactionScalarFieldEnum | Prisma.MessageReactionScalarFieldEnum[]
+}
+
+/**
+ * Message.revisions
+ */
+export type Message$revisionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the MessageRevision
+   */
+  select?: Prisma.MessageRevisionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the MessageRevision
+   */
+  omit?: Prisma.MessageRevisionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.MessageRevisionInclude<ExtArgs> | null
+  where?: Prisma.MessageRevisionWhereInput
+  orderBy?: Prisma.MessageRevisionOrderByWithRelationInput | Prisma.MessageRevisionOrderByWithRelationInput[]
+  cursor?: Prisma.MessageRevisionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.MessageRevisionScalarFieldEnum | Prisma.MessageRevisionScalarFieldEnum[]
 }
 
 /**

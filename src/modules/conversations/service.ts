@@ -68,6 +68,7 @@ const replyPreviewSelect = {
   content: true,
   sentByUser: { select: userSelect },
   mediaObject: { select: { originalFilename: true } },
+  revokedAt: true,
 } as const;
 const messageSelect = {
   id: true,
@@ -83,6 +84,7 @@ const messageSelect = {
   mediaObjectId: true,
   status: true,
   failureReason: true,
+  editedAt: true,
   revokedAt: true,
   externalTimestamp: true,
   createdAt: true,
@@ -318,7 +320,8 @@ function messageOrder(left: MessageRecord, right: MessageRecord): number {
 }
 
 function toMessageDto(message: MessageRecord): MessageDto {
-  const mediaState = message.mediaObject
+  const revoked = Boolean(message.revokedAt);
+  const mediaState = !revoked && message.mediaObject
     ? toMediaStateDto(message.mediaObject, new Date())
     : null;
 
@@ -327,10 +330,10 @@ function toMessageDto(message: MessageRecord): MessageDto {
     clientRequestId: message.clientRequestId ?? null,
     direction: message.direction,
     type: message.type,
-    body: message.body,
-    content: parseMessageContent(message.content),
-    canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
-    replyTo: message.replyToMessage
+    body: revoked ? null : message.body,
+    content: revoked ? null : parseMessageContent(message.content),
+    canReply: !revoked && whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
+    replyTo: !revoked && message.replyToMessage
       ? quotedReplyPreview({
           id: message.replyToMessage.id,
           direction: message.replyToMessage.direction,
@@ -338,20 +341,22 @@ function toMessageDto(message: MessageRecord): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
+          revokedAt: message.replyToMessage.revokedAt,
         })
-      : message.replyToWhatsappMessageId
+      : !revoked && message.replyToWhatsappMessageId
         ? { available: false }
         : null,
-    mediaObjectId: message.mediaObjectId,
-    mediaMimeType: message.mediaObject?.mimeType ?? null,
+    mediaObjectId: revoked ? null : message.mediaObjectId,
+    mediaMimeType: revoked ? null : message.mediaObject?.mimeType ?? null,
     mediaState,
     sentBy: message.sentByUser
       ? { id: message.sentByUser.id, name: message.sentByUser.name }
       : null,
     status: message.status,
     failureReason: message.failureReason,
+    editedAt: message.editedAt?.toISOString() ?? null,
     revokedAt: message.revokedAt?.toISOString() ?? null,
-    reactions: [...message.reactions]
+    reactions: (revoked ? [] : [...message.reactions])
       .sort((left, right) => (
         (left.reactor === "CONTACT" ? 0 : 1) -
         (right.reactor === "CONTACT" ? 0 : 1)
