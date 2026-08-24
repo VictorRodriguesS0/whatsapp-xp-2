@@ -1,10 +1,20 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 import DataDeletionPage, { metadata as deletionMetadata } from "./exclusao-de-dados/page";
 import PrivacyPage, { metadata as privacyMetadata } from "./privacidade/page";
 
 describe("public legal pages", () => {
+  it("uses the local brand and public theme control", () => {
+    render(<PrivacyPage />);
+
+    expect(screen.getByLabelText("XP Eletrônicos")).toHaveAttribute("href", "/login");
+    expect(screen.getByRole("img", { name: "Símbolo XP" })).toHaveAttribute("src", "/brand/xp-symbol.png");
+    expect(screen.getByRole("button", { name: "Tema" })).toBeVisible();
+  });
+
   it("publishes a complete privacy policy without authentication or forms", () => {
     render(<PrivacyPage />);
 

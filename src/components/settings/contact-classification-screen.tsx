@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, LogOut, Pencil, Plus, PowerOff, Users, X } from "lucide-react";
+import { LogOut, Pencil, Plus, PowerOff, Users, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type FormEvent, type RefObject } from "react";
 
@@ -12,6 +12,7 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SettingsPageShell } from "@/components/layout/settings-page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
@@ -248,7 +249,7 @@ function DefinitionSection({
           <h2 className="text-base font-bold" id={headingId}>{copy.collection}</h2>
           <p className="mt-1 text-sm text-[var(--muted)]">{items.length} {items.length === 1 ? "item" : "itens"}</p>
         </div>
-        <Button disabled={busy} onClick={onCreate} variant="secondary"><Plus aria-hidden="true" className="size-4" />{copy.create}</Button>
+        <Button data-definition-create={kind} disabled={busy} onClick={onCreate} variant="secondary"><Plus aria-hidden="true" className="size-4" />{copy.create}</Button>
       </div>
       {items.length === 0 ? (
         <p className="mt-4 border-y border-[var(--border)] bg-[var(--panel)] px-4 py-6 text-sm text-[var(--muted)]">{copy.empty}</p>
@@ -300,6 +301,7 @@ export function ContactClassificationScreen({
   const requestSequence = useRef(0);
   const dialogTrigger = useRef<HTMLButtonElement | null>(null);
   const deactivateTrigger = useRef<HTMLButtonElement | null>(null);
+  const deactivateKind = useRef<DefinitionKind | null>(null);
 
   useEffect(() => {
     mounted.current = true;
@@ -310,11 +312,12 @@ export function ContactClassificationScreen({
     setToast({ id: Date.now(), message });
   }
 
-  function restoreFocus(trigger: RefObject<HTMLButtonElement | null>, event: { preventDefault(): void }) {
+  function restoreFocus(trigger: RefObject<HTMLButtonElement | null>, event: { preventDefault(): void }, fallback?: HTMLButtonElement | null) {
     event.preventDefault();
     const element = trigger.current;
     trigger.current = null;
-    if (element?.isConnected) element.focus();
+    const target = element?.isConnected ? element : fallback;
+    if (target?.isConnected) target.focus();
   }
 
   async function readJson(response: Response): Promise<unknown | null> {
@@ -440,6 +443,7 @@ export function ContactClassificationScreen({
   function openDeactivation(target: DefinitionTarget, trigger: HTMLButtonElement) {
     setToast(null);
     deactivateTrigger.current = trigger;
+    deactivateKind.current = target.kind;
     setDeactivateTarget(target);
   }
 
@@ -455,25 +459,19 @@ export function ContactClassificationScreen({
     setDeactivateTarget(null);
   }
 
-  const dialogClasses = "inset-auto bottom-auto right-auto left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border shadow-[0_16px_48px_rgba(32,37,34,0.14)]";
-
   return (
     <>
-    <main aria-labelledby="classification-heading" className="min-h-dvh overflow-x-hidden bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <a className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold text-[var(--muted)] outline-none hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]" href="/conversas"><ArrowLeft aria-hidden="true" className="size-4" />Conversas</a>
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Configurações</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight" id="classification-heading">Classificação do atendimento</h1>
-            <p className="mt-1 max-w-2xl text-sm text-[var(--muted)]">Organize os tipos e as etiquetas usados nos contatos.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+      <SettingsPageShell
+        actions={(
+          <>
             <Button asChild variant="secondary"><a href="/configuracoes/usuarios"><Users aria-hidden="true" className="size-4" />Usuários</a></Button>
             <Button disabled={busy} onClick={() => void logout()} variant="secondary"><LogOut aria-hidden="true" className="size-4" />Sair</Button>
-          </div>
-        </header>
-
+          </>
+        )}
+        description="Organize os tipos e as etiquetas usados nos contatos."
+        eyebrow="Configurações"
+        title="Classificação do atendimento"
+      >
         <div className="mt-6 space-y-8">
           <DefinitionSection
             busy={busy}
@@ -492,11 +490,10 @@ export function ContactClassificationScreen({
             onEdit={(item, event) => openDialog({ item, kind: "tag", mode: "edit" }, event.currentTarget)}
           />
         </div>
-      </div>
-    </main>
+      </SettingsPageShell>
 
       <Dialog onOpenChange={(open) => { if (!open) closeDialog(); }} open={Boolean(dialog)}>
-        <DialogContent className={dialogClasses} onCloseAutoFocus={(event) => restoreFocus(dialogTrigger, event)}>
+        <DialogContent className="modal-dialog" onCloseAutoFocus={(event) => restoreFocus(dialogTrigger, event)}>
           <DialogTitle className="pr-12 text-xl font-bold">{dialog?.mode === "create" ? kindCopy[dialog.kind].createDialog : `Editar ${dialog ? kindCopy[dialog.kind].singular : "classificação"}`}</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--muted)]">Defina nome, cor e ordem de exibição.</DialogDescription>
           {toast ? (
@@ -510,7 +507,16 @@ export function ContactClassificationScreen({
       </Dialog>
 
       <AlertDialog onOpenChange={(open) => { if (!open) closeDeactivation(); }} open={Boolean(deactivateTarget)}>
-        <AlertDialogContent onCloseAutoFocus={(event) => restoreFocus(deactivateTrigger, event)}>
+        <AlertDialogContent
+          className="modal-dialog"
+          onCloseAutoFocus={(event) => {
+            const fallback = deactivateKind.current
+              ? document.querySelector<HTMLButtonElement>(`[data-definition-create="${deactivateKind.current}"]`)
+              : null;
+            restoreFocus(deactivateTrigger, event, fallback);
+            deactivateKind.current = null;
+          }}
+        >
           <AlertDialogTitle className="text-xl font-bold">Desativar {deactivateTarget ? kindCopy[deactivateTarget.kind].singular : "classificação"}?</AlertDialogTitle>
           <AlertDialogDescription className="mt-2 text-sm leading-6 text-[var(--muted)]">{deactivateTarget?.item.displayName ?? "O item"} deixará de aparecer em novas classificações. O histórico será preservado.</AlertDialogDescription>
           {toast ? (

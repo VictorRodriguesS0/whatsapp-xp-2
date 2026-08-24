@@ -9,6 +9,7 @@ const listUsersMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ redirect: redirectMock, useRouter: () => ({ replace: routerReplaceMock }) }));
 vi.mock("@/modules/auth/session", () => ({ getCurrentUser: getCurrentUserMock }));
 vi.mock("@/modules/users/service", () => ({ listUsers: listUsersMock }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 import UsersPage from "./page";
 

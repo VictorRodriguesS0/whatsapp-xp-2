@@ -12,6 +12,7 @@ vi.mock("@/modules/contacts/service", () => ({
   listContactTags: listContactTagsMock,
   listContactTypes: listContactTypesMock,
 }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 import ClassificationError from "./error";
 import ClassificationLoading from "./loading";

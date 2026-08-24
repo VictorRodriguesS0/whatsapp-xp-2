@@ -30,7 +30,7 @@ export function SettingsPageShell({ actions, children, description, eyebrow, tit
               <h1 className="mt-1 text-2xl font-bold tracking-tight" id="settings-page-heading">{title}</h1>
               <p className="mt-1 text-sm text-[var(--muted)]">{description}</p>
             </div>
-            {actions ? <div className="flex flex-wrap gap-2">{actions}</div> : null}
+            {actions ? <div className="settings-page-actions flex flex-wrap gap-2">{actions}</div> : null}
           </div>
         </header>
         <div className="py-6">{children}</div>

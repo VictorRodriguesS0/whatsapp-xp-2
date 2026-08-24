@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, KeyRound, LogOut, Pencil, Plus, Power, PowerOff, X } from "lucide-react";
+import { LogOut, Plus, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
@@ -12,22 +12,18 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
+import { SettingsPageShell } from "@/components/layout/settings-page-shell";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import type { SessionUser } from "@/modules/auth/session";
-import type { PublicUser } from "@/modules/users/types";
 
 import { ResetPasswordForm } from "./reset-password-form";
+import { ResponsiveSettingsList, type ManagedUser } from "./responsive-settings-list";
 import { UserForm, type UserFormPatch, type UserFormValues } from "./user-form";
 
 type MutationKind = "create" | "edit" | "password" | "activate" | "deactivate";
 type BusyKind = MutationKind | "logout";
-export type ManagedUser = Pick<PublicUser, "id" | "name" | "email" | "role" | "active">;
-
-function roleLabel(role: ManagedUser["role"]) {
-  return role === "ADMIN" ? "Administrador" : "Atendente";
-}
+export type { ManagedUser } from "./responsive-settings-list";
 
 function mutationError(kind: MutationKind, status?: number, failure?: "network" | "unexpected") {
   if (failure === "network") return "Sem conexão. Confira sua rede e tente novamente.";
@@ -95,7 +91,17 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
     event.preventDefault();
     const element = trigger.current;
     trigger.current = null;
-    if (element?.isConnected) element.focus();
+    const focusKey = element?.dataset.userFocusKey;
+    const preferredLayout = typeof window.matchMedia === "function"
+      ? (window.matchMedia("(min-width: 768px)").matches ? "desktop" : "mobile")
+      : null;
+    const equivalent = focusKey && preferredLayout
+      ? Array.from(document.querySelectorAll<HTMLButtonElement>("[data-user-focus-key]"))
+        .find((candidate) => candidate.dataset.userFocusKey === focusKey
+          && candidate.closest("[data-user-layout]")?.getAttribute("data-user-layout") === preferredLayout)
+      : null;
+    const target = equivalent ?? element;
+    if (target?.isConnected) target.focus();
   }
 
   async function mutate(url: string, method: "POST" | "PATCH", body: object, kind: MutationKind): Promise<ManagedUser | null> {
@@ -211,90 +217,46 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
     }
   }
 
-  const dialogClasses = "inset-auto bottom-auto right-auto left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border shadow-[0_16px_48px_rgba(32,37,34,0.14)]";
-
   return (
-    <main aria-labelledby="users-heading" className="min-h-dvh bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-6xl">
-        <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <a className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold text-[var(--muted)] outline-none hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]" href="/conversas">
-              <ArrowLeft aria-hidden="true" className="size-4" /> Conversas
-            </a>
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Configurações</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight" id="users-heading">Usuários</h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">Acesso dos funcionários à central de atendimento.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <>
+      <SettingsPageShell
+        actions={(
+          <>
             <Dialog onOpenChange={(open) => { if (!busy) setCreateOpen(open); }} open={createOpen}>
               <DialogTrigger asChild>
                 <Button disabled={Boolean(busy)}><Plus aria-hidden="true" className="size-4" />Novo usuário</Button>
               </DialogTrigger>
-              <DialogContent className={dialogClasses}>
+              <DialogContent className="modal-dialog">
                 <DialogTitle className="pr-12 text-xl font-bold">Novo usuário</DialogTitle>
                 <DialogDescription className="mt-1 text-sm text-[var(--muted)]">Defina o acesso inicial do funcionário.</DialogDescription>
                 <UserForm busy={busy === "create"} mode="create" onSubmit={(values) => void createUser(values)} />
               </DialogContent>
             </Dialog>
             <Button disabled={Boolean(busy)} onClick={() => void logout()} variant="secondary"><LogOut aria-hidden="true" className="size-4" />Sair</Button>
-          </div>
-        </header>
-
+          </>
+        )}
+        description="Acesso dos funcionários à central de atendimento."
+        eyebrow="Configurações"
+        title="Usuários"
+      >
         <section aria-labelledby="directory-heading" className="mt-6">
           <div className="flex items-baseline justify-between gap-4">
             <h2 className="text-base font-bold" id="directory-heading">Funcionários</h2>
             <p className="text-sm text-[var(--muted)]">{users.length} {users.length === 1 ? "usuário" : "usuários"}</p>
           </div>
-          <div className="mt-3 overflow-x-auto border-y border-[var(--border)] bg-[var(--panel)]">
-            <table className="w-full min-w-[760px] border-collapse text-left text-sm">
-              <thead className="text-xs uppercase tracking-[0.08em] text-[var(--muted)]">
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3 font-semibold" scope="col">Nome</th>
-                  <th className="px-4 py-3 font-semibold" scope="col">E-mail</th>
-                  <th className="px-4 py-3 font-semibold" scope="col">Perfil</th>
-                  <th className="px-4 py-3 font-semibold" scope="col">Status</th>
-                  <th className="px-4 py-3 text-right font-semibold" scope="col">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => {
-                  const isCurrent = user.id === currentUser.id;
-                  return (
-                    <tr className="border-b border-[var(--border)] last:border-b-0" key={user.id}>
-                      <th className="px-4 py-3 font-semibold" scope="row">{user.name}</th>
-                      <td className="px-4 py-3 text-[var(--muted)]">{user.email}</td>
-                      <td className="px-4 py-3">{roleLabel(user.role)}</td>
-                      <td className="px-4 py-3">
-                        <Badge className={user.active ? "bg-[var(--selected)] text-[var(--accent)]" : "bg-[var(--canvas)] text-[var(--muted)]"}>{user.active ? "Ativo" : "Inativo"}</Badge>
-                      </td>
-                      <td className="px-4 py-2">
-                        <div className="flex justify-end gap-1">
-                          <Button aria-label={`Editar ${user.name}`} disabled={Boolean(busy)} onClick={(event) => { editTrigger.current = event.currentTarget; setEditUser(user); }} size="icon" variant="ghost"><Pencil aria-hidden="true" className="size-4" /></Button>
-                          <Button aria-label={`Redefinir senha de ${user.name}`} disabled={Boolean(busy)} onClick={(event) => { resetTrigger.current = event.currentTarget; setResetUser(user); }} size="icon" variant="ghost"><KeyRound aria-hidden="true" className="size-4" /></Button>
-                          {isCurrent ? <span className="inline-flex min-h-11 items-center px-3 text-xs font-semibold text-[var(--muted)]">Sua conta atual</span> : (
-                            <Button
-                              aria-label={`${user.active ? "Desativar" : "Ativar"} ${user.name}`}
-                              disabled={Boolean(busy)}
-                              onClick={(event) => { accessTrigger.current = event.currentTarget; setAccessUser(user); }}
-                              size="icon"
-                              variant={user.active ? "ghost" : "secondary"}
-                            >
-                              {user.active ? <PowerOff aria-hidden="true" className="size-4" /> : <Power aria-hidden="true" className="size-4" />}
-                            </Button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <ResponsiveSettingsList
+            busy={Boolean(busy)}
+            currentUserId={currentUser.id}
+            onChangeAccess={(user, event) => { accessTrigger.current = event.currentTarget; setAccessUser(user); }}
+            onEdit={(user, event) => { editTrigger.current = event.currentTarget; setEditUser(user); }}
+            onResetPassword={(user, event) => { resetTrigger.current = event.currentTarget; setResetUser(user); }}
+            users={users}
+          />
         </section>
-      </div>
+      </SettingsPageShell>
 
       <Dialog onOpenChange={(open) => { if (!open && !busy) setEditUser(null); }} open={Boolean(editUser)}>
-        <DialogContent className={dialogClasses} onCloseAutoFocus={(event) => restoreFocus(editTrigger, event)}>
+        <DialogContent className="modal-dialog" onCloseAutoFocus={(event) => restoreFocus(editTrigger, event)}>
           <DialogTitle className="pr-12 text-xl font-bold">Editar usuário</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--muted)]">Altere nome, e-mail ou perfil.</DialogDescription>
           {editUser ? <UserForm busy={busy === "edit"} initialUser={editUser} key={editUser.id} mode="edit" onSubmit={(values) => void updateUser(values)} /> : null}
@@ -302,7 +264,7 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
       </Dialog>
 
       <Dialog onOpenChange={(open) => { if (!open && !busy) setResetUser(null); }} open={Boolean(resetUser)}>
-        <DialogContent className={dialogClasses} onCloseAutoFocus={(event) => restoreFocus(resetTrigger, event)}>
+        <DialogContent className="modal-dialog" onCloseAutoFocus={(event) => restoreFocus(resetTrigger, event)}>
           <DialogTitle className="pr-12 text-xl font-bold">Redefinir senha</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--muted)]">{resetUser ? `Crie uma nova senha para ${resetUser.name}. As sessões atuais serão encerradas.` : ""}</DialogDescription>
           {resetUser ? <ResetPasswordForm busy={busy === "password"} key={resetUser.id} onSubmit={(password) => void resetPassword(password)} /> : null}
@@ -310,7 +272,7 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
       </Dialog>
 
       <AlertDialog onOpenChange={(open) => { if (!open && !busy) setAccessUser(null); }} open={Boolean(accessUser)}>
-        <AlertDialogContent onCloseAutoFocus={(event) => restoreFocus(accessTrigger, event)}>
+        <AlertDialogContent className="modal-dialog" onCloseAutoFocus={(event) => restoreFocus(accessTrigger, event)}>
           <AlertDialogTitle className="text-xl font-bold">{accessUser?.active ? "Desativar usuário?" : "Ativar usuário?"}</AlertDialogTitle>
           <AlertDialogDescription className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {accessUser?.active
@@ -334,6 +296,6 @@ export function UsersScreen({ currentUser, initialUsers }: { currentUser: Sessio
           <Button aria-label="Fechar aviso" onClick={() => setToast(null)} size="icon" variant="ghost"><X aria-hidden="true" className="size-4" /></Button>
         </div>
       ) : null}
-    </main>
+    </>
   );
 }

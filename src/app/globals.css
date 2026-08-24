@@ -16,8 +16,8 @@
   --text: #101114;
   --muted: #5d6673;
   --border: #dce2e9;
-  --accent: #087dff;
-  --accent-hover: #066bdc;
+  --accent: #005fbd;
+  --accent-hover: #004d99;
   --focus: #087dff;
   --selected: #e8f2ff;
   --inbound: #ffffff;
@@ -114,6 +114,47 @@ a {
 ::selection {
   background: var(--selected);
   color: var(--text);
+}
+
+.login-layout {
+  display: grid;
+  max-width: 28rem;
+}
+
+.login-signature {
+  background: var(--xp-gradient);
+}
+
+.login-brand-panel {
+  display: none;
+}
+
+.login-card-brand,
+.login-card-value {
+  display: block;
+}
+
+@media (min-width: 900px) {
+  .login-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(22rem, 0.85fr);
+    max-width: 64rem;
+  }
+
+  .login-brand-panel {
+    display: flex;
+    min-height: 36rem;
+    flex-direction: column;
+  }
+
+  .login-card {
+    align-self: stretch;
+    padding: 4.5rem 3rem;
+  }
+
+  .login-card-brand,
+  .login-card-value {
+    display: none;
+  }
 }
 
 .modal-dialog {
@@ -266,6 +307,8 @@ a {
 }
 
 @media (max-width: 389px) {
+  .settings-page-actions { flex-direction: column; align-items: stretch; }
+  .settings-page-actions > * { width: 100%; }
   .message-composer__row { gap: 0.25rem; flex-wrap: wrap; }
   .message-composer__field { min-width: 0; }
   .message-composer__state { min-width: 0; flex-wrap: wrap; }

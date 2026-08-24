@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,11 @@ import { publicErrorMessage } from "@/lib/public-error";
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const errorRef = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    if (error) errorRef.current?.focus();
+  }, [error]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -44,7 +49,7 @@ export function LoginForm() {
         <label className="mb-1.5 block text-sm font-semibold text-[var(--text)]" htmlFor="password">Senha</label>
         <Input autoComplete="current-password" disabled={loading} id="password" name="password" required type="password" />
       </div>
-      {error ? <p className="border-l-2 border-[var(--danger)] py-1 pl-3 text-sm text-[var(--danger)]" role="alert">{error}</p> : null}
+      {error ? <p className="rounded-xl bg-[color-mix(in_srgb,var(--danger)_10%,transparent)] px-3 py-2 text-sm text-[var(--danger)]" ref={errorRef} role="alert" tabIndex={-1}>{error}</p> : null}
       <Button className="w-full" disabled={loading} type="submit">{loading ? <Spinner className="text-white" label="Entrando" /> : "Entrar"}</Button>
     </form>
   );
