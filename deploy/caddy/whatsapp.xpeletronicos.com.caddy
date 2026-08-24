@@ -5,24 +5,39 @@ whatsapp.xpeletronicos.com {
 
 	encode zstd gzip
 
-	header {
-		-Server
-		-X-Powered-By
-		Cache-Control "no-store"
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		X-Content-Type-Options "nosniff"
-		X-Frame-Options "DENY"
-		Referrer-Policy "strict-origin-when-cross-origin"
-		Permissions-Policy "camera=(), microphone=(self), geolocation=()"
-		Content-Security-Policy "base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
+	@pdfPreview {
+		path /api/media/*
+		query preview=1
 	}
 
-	reverse_proxy xp-whatsapp-app:3000 {
-		flush_interval -1
-		header_up -X-Forwarded-For
-		header_up -X-Real-IP
-		header_up X-Real-IP {remote_host}
-		header_up -Forwarded
-		header_up X-Caddy-Client-IP {remote_host}
+	route {
+		header {
+			Cache-Control "no-store"
+			Strict-Transport-Security "max-age=31536000; includeSubDomains"
+			X-Content-Type-Options "nosniff"
+			X-Frame-Options "DENY"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), microphone=(self), geolocation=()"
+			Content-Security-Policy "base-uri 'self'; frame-ancestors 'none'; object-src 'none'"
+		}
+
+		header @pdfPreview {
+			X-Frame-Options "SAMEORIGIN"
+			Content-Security-Policy "base-uri 'self'; frame-ancestors 'self'; object-src 'none'"
+		}
+
+		header {
+			-Server
+			-X-Powered-By
+		}
+
+		reverse_proxy xp-whatsapp-app:3000 {
+			flush_interval -1
+			header_up -X-Forwarded-For
+			header_up -X-Real-IP
+			header_up X-Real-IP {remote_host}
+			header_up -Forwarded
+			header_up X-Caddy-Client-IP {remote_host}
+		}
 	}
 }
