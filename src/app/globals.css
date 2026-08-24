@@ -266,9 +266,26 @@ a {
 }
 
 @media (max-width: 389px) {
-  .message-composer__row { gap: 0.25rem; }
+  .message-composer__row { gap: 0.25rem; flex-wrap: wrap; }
   .message-composer__field { min-width: 0; }
-  .message-composer__state { min-width: 0; }
+  .message-composer__state { min-width: 0; flex-wrap: wrap; }
+  .message-composer__file-name,
+  .message-composer__quick-reply-message,
+  .message-composer__quoted-reply .quoted-reply-preview__author,
+  .message-composer__quoted-reply .quoted-reply-preview__summary,
+  .message-composer__recording-label,
+  .message-composer__requesting-label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .message-composer__quoted-reply .quoted-reply-preview__summary { -webkit-line-clamp: unset; }
+  .message-composer__quoted-reply,
+  .message-composer__recording-details,
+  .message-composer__audio-preview,
+  .message-composer__audio-controls { flex-wrap: wrap; }
 }
 
 @media (prefers-reduced-motion: no-preference) {

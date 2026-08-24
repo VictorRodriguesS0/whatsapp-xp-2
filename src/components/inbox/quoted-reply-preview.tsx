@@ -14,6 +14,7 @@ export type QuotedReplyPreviewProps = {
   onNavigate?: (messageId: string) => void;
   onCancel?: () => void;
   compact?: boolean;
+  className?: string;
 };
 
 export function QuotedReplyPreview({
@@ -21,15 +22,16 @@ export function QuotedReplyPreview({
   onNavigate,
   onCancel,
   compact = false,
+  className,
 }: QuotedReplyPreviewProps) {
   const typeLabel = reply.available ? quotedReplyTypeLabel(reply.type) : null;
   const content = reply.available ? (
     <>
-      <span className="block truncate text-xs font-bold text-[var(--accent)]">
+      <span className="quoted-reply-preview__author block break-words text-xs font-bold text-[var(--accent)]">
         {reply.author}
         <span className="font-medium text-[var(--muted)]"> · {typeLabel}</span>
       </span>
-      <span className="mt-0.5 block line-clamp-2 break-words text-xs leading-4 text-[var(--muted)]">
+      <span className="quoted-reply-preview__summary mt-0.5 block line-clamp-2 break-words text-xs leading-4 text-[var(--muted)]">
         {reply.summary}
       </span>
     </>
@@ -44,7 +46,7 @@ export function QuotedReplyPreview({
   );
 
   return (
-    <div className={cn("flex min-w-0 items-stretch", compact ? "gap-1" : "gap-2")}>
+    <div className={cn("quoted-reply-preview flex min-w-0 items-stretch", compact ? "gap-1" : "gap-2", className)}>
       {reply.available && onNavigate ? (
         <button
           aria-label={`Ir para mensagem original — ${reply.author} · ${typeLabel}: ${reply.summary}`}

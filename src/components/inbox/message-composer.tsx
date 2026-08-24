@@ -233,12 +233,12 @@ export function MessageComposer({
     >
       {replyTo ? (
         <div className="mb-2">
-          <QuotedReplyPreview onCancel={onCancelReply} reply={replyTo} />
+          <QuotedReplyPreview className="message-composer__quoted-reply" onCancel={onCancelReply} reply={replyTo} />
         </div>
       ) : null}
       {recorder.phase === "requesting" ? (
         <div className="message-composer__state flex min-h-11 flex-wrap items-center gap-3" role="status" aria-live="polite">
-          <span className="min-w-0 flex-1 truncate text-sm text-[var(--muted)]">Aguardando permissão do microfone</span>
+          <span className="message-composer__requesting-label min-w-0 flex-1 break-words text-sm text-[var(--muted)]">Aguardando permissão do microfone</span>
           <Button aria-label="Solicitando acesso ao microfone" disabled className="min-h-11 min-w-11" size="icon" variant="ghost">
             <Mic aria-hidden="true" className="size-5" />
           </Button>
@@ -247,9 +247,9 @@ export function MessageComposer({
 
       {recorder.phase === "recording" ? (
         <div className="message-composer__state flex min-h-11 flex-wrap items-center gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 text-sm text-[var(--text)]">
+          <div className="message-composer__recording-details flex min-w-0 flex-1 items-center gap-2 text-sm text-[var(--text)]">
             <span aria-hidden="true" className="size-2 shrink-0 rounded-full bg-[var(--danger)]" data-testid="recording-status-dot" />
-            <span aria-label="Gravando áudio" className="truncate" role="status" aria-live="polite">Gravando áudio</span>
+            <span aria-label="Gravando áudio" className="message-composer__recording-label break-words" role="status" aria-live="polite">Gravando áudio</span>
             <span aria-hidden="true" className="font-mono tabular-nums">{duration}</span>
           </div>
           <Button aria-label="Cancelar gravação" className="min-h-11 min-w-11" disabled={unavailable} onClick={cancelRecording} size="icon" variant="ghost">
@@ -263,7 +263,7 @@ export function MessageComposer({
 
       {recorder.phase === "preview" && recorder.recording ? (
         <div className="message-composer__state flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
+          <div className="message-composer__audio-preview flex min-w-0 flex-1 items-center gap-2">
             <audio
               aria-label="Prévia da gravação"
               className="h-11 min-w-0 flex-1"
@@ -275,7 +275,7 @@ export function MessageComposer({
             />
             <span className="shrink-0 font-mono text-xs tabular-nums text-[var(--muted)]">{duration}</span>
           </div>
-          <div className="flex shrink-0 justify-end gap-2">
+          <div className="message-composer__audio-controls flex shrink-0 justify-end gap-2">
             <Button aria-label="Apagar gravação" className="min-h-11 min-w-11" disabled={unavailable || sendingRecording} onClick={discardRecording} size="icon" variant="ghost">
               <Trash2 aria-hidden="true" className="size-4" />
             </Button>
@@ -298,8 +298,8 @@ export function MessageComposer({
       {recorder.phase !== "requesting" && recorder.phase !== "recording" && recorder.phase !== "preview" ? (
         <>
           {file ? (
-            <div className="message-composer__state mb-2 flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--canvas)] px-3">
-              <span className="min-w-0 truncate text-sm text-[var(--text)]">{file.name}</span>
+            <div className="message-composer__file message-composer__state mb-2 flex min-h-11 flex-wrap items-center justify-between gap-3 rounded-md bg-[var(--canvas)] px-3">
+              <span className="message-composer__file-name min-w-0 break-words text-sm text-[var(--text)]">{file.name}</span>
               <Button aria-label="Remover anexo" className="min-h-11 min-w-11" onClick={() => { setFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} size="icon" variant="ghost"><X aria-hidden="true" className="size-4" /></Button>
             </div>
           ) : null}
