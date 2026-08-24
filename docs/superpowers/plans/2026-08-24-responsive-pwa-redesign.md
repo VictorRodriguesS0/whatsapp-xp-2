@@ -371,11 +371,11 @@ git commit -m "feat: make XP Atendimento installable"
 - Produces: `SettingsPageShell({ eyebrow, title, description, actions, children })`.
 - Keeps: 44 px controls and existing `Button` API.
 
-- [ ] **Step 1: Write failing component contracts**
+- [x] **Step 1: Write failing component contracts**
 
 Assert that `AppBrand` references `/brand/xp-symbol.png`; compact and full variants keep an accessible `XP Eletrônicos` name; `ThemeMenu` exposes the current preference as checked and changes it; `SettingsPageShell` renders a back link, brand, theme control, heading and action slot.
 
-- [ ] **Step 2: Run the contracts and verify RED**
+- [x] **Step 2: Run the contracts and verify RED**
 
 Run:
 
@@ -385,7 +385,7 @@ npm test -- src/components/brand/app-brand.test.tsx src/components/theme/theme-m
 
 Expected: module import failures.
 
-- [ ] **Step 3: Implement the primitives**
+- [x] **Step 3: Implement the primitives**
 
 Use Radix dropdown radio items and tooltip primitives. Keep the theme labels exactly `Claro`, `Escuro`, `Seguir o sistema`. `AppBrand` must use a plain local `<img>` with explicit dimensions to avoid layout shift and no remote image configuration.
 
@@ -397,11 +397,11 @@ Use Radix dropdown radio items and tooltip primitives. Keep the theme labels exa
 </DropdownMenuRadioGroup>
 ```
 
-- [ ] **Step 4: Refine base controls without changing behavior**
+- [x] **Step 4: Refine base controls without changing behavior**
 
 Use `--focus`, `--surface`, `--surface-elevated`, 10–12 px corner radii and dark-safe backgrounds. `DialogContent` becomes a right drawer by default, but a `.modal-dialog` override centers it; under 768 px, modal dialogs use `inset: max(0.5rem, env(safe-area-inset-*)))`, near-full width/height, internal scrolling and a 44 px close button.
 
-- [ ] **Step 5: Run component regressions and commit**
+- [x] **Step 5: Run component regressions and commit**
 
 Run:
 
