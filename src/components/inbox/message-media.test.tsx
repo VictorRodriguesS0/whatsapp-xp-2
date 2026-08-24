@@ -50,10 +50,12 @@ describe("MessageMedia", () => {
       onOpenMedia={onOpenMedia}
     />);
 
-    fireEvent.click(screen.getByRole("button", { name: label }));
+    const trigger = screen.getByRole("button", { name: label });
+    fireEvent.click(trigger);
 
     expect(onOpenMedia).toHaveBeenCalledOnce();
     expect(onOpenMedia).toHaveBeenCalledWith(baseMessage.id);
+    expect(trigger).toHaveFocus();
   });
 
   it("keeps a non-PDF document as a direct download", () => {
