@@ -14,6 +14,7 @@ export type PublicErrorOperation =
   | "contact-type-save"
   | "contact-tags"
   | "contact-tag-save"
+  | "contact-consent-save"
   | "whatsapp-policy"
   | "whatsapp-policy-save"
   | "resumption";
@@ -34,6 +35,8 @@ const fallback: Record<PublicErrorOperation, string> = {
   "contact-type-save": "Não foi possível atualizar o tipo de contato.",
   "contact-tags": "Não foi possível carregar as etiquetas.",
   "contact-tag-save": "Não foi possível salvar as etiquetas.",
+  "contact-consent-save":
+    "Não foi possível salvar o consentimento. Confira os dados e tente novamente.",
   "whatsapp-policy": "Não foi possível carregar a configuração do WhatsApp.",
   "whatsapp-policy-save": "Não foi possível atualizar a configuração do WhatsApp.",
   resumption: "Não foi possível retomar esta conversa.",

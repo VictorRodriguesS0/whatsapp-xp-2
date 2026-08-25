@@ -29,6 +29,12 @@ describe("public error messages", () => {
     );
   });
 
+  it("provides safe contact consent save copy", () => {
+    expect(publicErrorMessage("contact-consent-save")).toBe(
+      "Não foi possível salvar o consentimento. Confira os dados e tente novamente.",
+    );
+  });
+
   it.each([
     ["WHATSAPP_SERVICE_WINDOW_CLOSED", "A janela de 24 horas terminou. Use a retomada aprovada."],
     ["WHATSAPP_TEMPLATE_NOT_READY", "O modelo aprovado ainda não está pronto para uso."],
