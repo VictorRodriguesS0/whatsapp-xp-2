@@ -904,7 +904,7 @@ git commit -m "test: verify responsive XP PWA redesign"
 - Consumes: the exact verified Git revision and existing `/opt/apps/example-app/.env.production`.
 - Produces: healthy `https://whatsapp.xpeletronicos.com` with app-only rollback to the previous immutable image.
 
-- [ ] **Step 1: Audit all concurrent work immediately before release**
+- [x] **Step 1: Audit all concurrent work immediately before release**
 
 Run:
 
@@ -917,15 +917,15 @@ git diff --check
 
 Inspect every worktree status and compare its head with the live release. Merge only completed/tested work that must be in production; after any integration, rerun all commands from Task 9 Step 2 and the affected browser matrix.
 
-- [ ] **Step 2: Build and validate an immutable Linux image**
+- [x] **Step 2: Build and validate an immutable Linux image**
 
 Create a release directory from the exact Git archive on the KVM. Build `xp-whatsapp:$REVISION`, label it with the full revision, and run the complete test suite against an isolated PostgreSQL 18 database under the established CPU/RAM constraints. Verify `public/icons`, `manifest.webmanifest` build output, FFmpeg/FFprobe/Poppler, non-root UID 1001 and absence of runtime `.env` or test source.
 
-- [ ] **Step 3: Back up production and snapshot invariants**
+- [x] **Step 3: Back up production and snapshot invariants**
 
 Run the existing validated backup script to a new `/srv/backups/example-app/...` directory. Record the database container ID/StartedAt, deterministic non-app container snapshot, networks, volumes, current symlink, current immutable image and rollback revision. Abort before deployment if backup validation or invariants fail.
 
-- [ ] **Step 4: Deploy only the application container**
+- [x] **Step 4: Deploy only the application container**
 
 Update only `XP_WHATSAPP_IMAGE` to the new immutable tag, atomically point `current` to the new release and run:
 
@@ -945,7 +945,7 @@ Check local and public health, login, authenticated inbox, SSE, settings authori
 
 Do not capture or commit live chat content. Use DOM/layout assertions and redacted notes only.
 
-- [ ] **Step 6: Soak, rollback if necessary, and record the release**
+- [x] **Step 6: Soak, rollback if necessary, and record the release**
 
 Take at least three health/log samples separated by 20 seconds. Roll back app-only to the previous immutable digest on any health, migration, manifest, authentication, SSE or critical UI failure. Preserve additive assets and do not revert database/volumes.
 
