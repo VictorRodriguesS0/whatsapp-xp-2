@@ -2,7 +2,7 @@
 
 **Data:** 2026-08-24
 
-**Status:** aprovado em conversa; aguardando revisão da especificação escrita
+**Status:** aprovado pelo usuário em 2026-08-24
 
 **Escopo:** permitir que atendentes iniciem uma conversa fora da janela de 24 horas com qualquer contato que tenha consentimento explícito e auditável, usando um template aprovado adequado ao motivo do contato, e corrigir o alerta que permanece ativo depois da exclusão confirmada de um template
 
