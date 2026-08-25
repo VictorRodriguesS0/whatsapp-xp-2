@@ -48,6 +48,9 @@ describe("AudioMessagePlayer", () => {
     expect(audio).toHaveAttribute("src", "/api/media/audio-1");
     expect(screen.getByText("0:00 / 0:37")).toBeVisible();
     expect(screen.getByRole("button", { name: "Reproduzir áudio" })).toHaveClass("min-h-11", "min-w-11");
+    expect(screen.getByRole("button", { name: "Reproduzir áudio" })).toHaveAttribute("data-audio-control", "playback");
+    expect(view.container.querySelector("[data-audio-track='rail']")).toBeInTheDocument();
+    expect(view.container.querySelector("[data-audio-track='progress']")).toBeInTheDocument();
     expect(screen.getByRole("slider", { name: "Posição do áudio" })).toHaveAttribute("max", "37");
     expect(screen.getByRole("button", { name: "Velocidade 1×; alterar para 1,5×" })).toHaveClass("min-h-11");
     expect(buttonRef).toHaveBeenCalledWith(screen.getByRole("button", { name: "Reproduzir áudio" }));
