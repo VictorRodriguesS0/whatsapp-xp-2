@@ -115,7 +115,7 @@ Expected: PASS.
 - Create: `src/modules/catalog/graph-client.test.ts`
 - Modify: `src/modules/catalog/types.ts`
 
-- [ ] **Step 1: Write HTTP contract tests**
+- [x] **Step 1: Write HTTP contract tests**
 
 Use injected `fetch`, fake timers and sanitized fixtures. Require:
 
@@ -132,7 +132,7 @@ Run:
 
 Expected: FAIL because the client does not exist.
 
-- [ ] **Step 2: Implement the client**
+- [x] **Step 2: Implement the client**
 
 Model `MetaCatalogClient` with:
 
@@ -143,17 +143,17 @@ Model `MetaCatalogClient` with:
 
 Reuse the bounded-response and sanitized-error principles from `src/modules/meta-health/graph-client.ts\), not its health-specific types. Deduplicate retailer IDs and keep at most 30 per exact lookup.
 
-- [ ] **Step 3: Prove search behavior against the pinned Graph version**
+- [x] **Step 3: Prove search behavior against the pinned Graph version**
 
 Create tests for the exact documented filtering supported by v23. If the endpoint cannot search name/description/code reliably, fetch only a bounded number of pages, filter normalized cached pages locally and return a continuation cursor. Never implement an unbounded full-catalog scan.
 
-- [ ] **Step 4: Run focused tests**
+- [x] **Step 4: Run focused tests**
 
     npx vitest run src/modules/catalog/graph-client.test.ts src/modules/meta-health/graph-client.test.ts
 
 Expected: PASS with no regression in Meta health.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
     git add src/modules/catalog
     git commit -m "feat: read products from Meta catalog"
@@ -412,4 +412,3 @@ Verify health, login, conversations, text/audio/media regression, admin catalog 
 - [ ] All current message flows remain healthy.
 - [ ] Candidate is a reviewed superset of live production and completed parallel work.
 - [ ] Only `xp-whatsapp-app` was replaced.
-

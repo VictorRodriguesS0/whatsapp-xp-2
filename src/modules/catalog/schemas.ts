@@ -11,6 +11,8 @@ import {
 const unsafeControlPattern = /[\u0000-\u001f\u007f-\u009f]/u;
 const retailerIdPattern = /^[A-Za-z0-9._:-]{1,128}$/u;
 
+export const catalogRetailerIdSchema = z.string().regex(retailerIdPattern);
+
 function normalizedText(
   value: unknown,
   maximumLength: number,
@@ -55,7 +57,7 @@ export type CatalogProduct = Omit<CatalogProductDto, "imagePath"> & {
 
 const catalogProductSchema = z
   .object({
-    retailerId: z.string().regex(retailerIdPattern),
+    retailerId: catalogRetailerIdSchema,
     name: z.string().min(1).max(512),
     description: z.string().max(2_000).nullable(),
     priceText: z.string().max(128).nullable(),
@@ -116,10 +118,15 @@ export function normalizeCatalogProduct(value: unknown): CatalogProduct | null {
     : normalizedText(raw.description, 2_000);
   if (raw.description != null && description === null) return null;
 
-  const priceText = raw.price == null
+  let priceText = raw.price == null
     ? null
     : normalizedText(raw.price, 128);
   if (raw.price != null && priceText === null) return null;
+  if (priceText !== null && raw.currency != null) {
+    const currency = normalizedText(raw.currency, 3)?.toUpperCase();
+    if (!currency || !/^[A-Z]{3}$/u.test(currency)) return null;
+    priceText = `${currency} ${priceText}`;
+  }
 
   const imageUrl = raw.image_url == null
     ? null
