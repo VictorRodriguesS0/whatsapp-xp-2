@@ -179,6 +179,46 @@ describe("semantic message and attention contrast", () => {
   });
 });
 
+describe("semantic media action contrast", () => {
+  it.each([
+    ["light", ':root[data-theme="light"]'],
+    ["dark", ':root[data-theme="dark"]'],
+  ])("keeps primary, text, muted and accent copy readable on normal and hover media surfaces in the %s theme", (_theme, selector) => {
+    const root = postcss.parse(stylesheet);
+    const theme = root.nodes?.find(
+      (node): node is Rule => node.type === "rule" && node.selector.includes(selector),
+    );
+
+    expect(theme).toBeDefined();
+    if (!theme) return;
+
+    for (const foregroundToken of ["--primary", "--text", "--muted", "--accent"]) {
+      const foreground = declarationValue(theme, foregroundToken) ?? "";
+      expect(foreground, foregroundToken).toMatch(/^#[0-9a-f]{6}$/i);
+
+      for (const backgroundToken of ["--media-surface", "--media-surface-hover"]) {
+        const background = declarationValue(theme, backgroundToken) ?? "";
+        expect(background, backgroundToken).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(
+          contrastRatio(foreground, background),
+          `${foregroundToken} over ${backgroundToken}`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it("keeps PDF and document actions on theme-owned media surfaces", () => {
+    const pdf = source("src/components/inbox/pdf-message-preview.tsx");
+    const media = source("src/components/inbox/message-media.tsx");
+
+    for (const component of [pdf, media]) {
+      expect(component).toContain("var(--media-surface)");
+      expect(component).toContain("var(--media-surface-hover)");
+      expect(component).not.toMatch(/bg-white|hover:bg-white|white\//i);
+    }
+  });
+});
+
 describe("mobile visual viewport contract", () => {
   it("requests content resize and applies a mobile-only frame height without a 34rem floor", () => {
     const layout = source("src/app/layout.tsx");

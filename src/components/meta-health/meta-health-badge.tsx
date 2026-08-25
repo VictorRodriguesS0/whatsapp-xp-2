@@ -22,7 +22,7 @@ export function MetaHealthBadge({ initialSummary }: { initialSummary: MetaHealth
   return (
     <a
       aria-label={accessibleName}
-      className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-[11px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-[11px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
       href="/configuracoes/meta"
     >
       <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", current.dot)} />
