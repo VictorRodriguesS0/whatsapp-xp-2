@@ -939,7 +939,7 @@ docker compose \
 
 Expected: only `xp-whatsapp-app` receives a new container ID; it becomes healthy with zero restarts. Database, media, proxy, site, networks and volumes remain byte-for-byte/invariant-identical.
 
-- [ ] **Step 5: Verify public production behavior**
+- [x] **Step 5: Verify public production behavior**
 
 Check local and public health, login, authenticated inbox, SSE, settings authorization, `/manifest.webmanifest`, every icon, light/dark theme, 320/390/900/1440 layouts and browser console. In a fresh browser profile, confirm native installation and launch the installed app; verify it opens `/conversas` in standalone chrome and still requires a valid online session.
 
@@ -975,9 +975,9 @@ git commit -m "docs: record responsive PWA production release"
 
 ## Completion Checklist
 
-- [ ] Every task checkbox is updated with factual results.
-- [ ] No unresolved implementation marker, temporary brand asset, remote logo URL or hard-coded light-only surface remains.
-- [ ] Theme types are consistent from pure contract through menu, bootstrap and metadata.
-- [ ] All 12 acceptance criteria from the approved spec have direct automated or recorded evidence.
-- [ ] No private production content is present in Git history or screenshots.
-- [ ] Production has a verified immutable rollback image and validated backup.
+- [x] Every task checkbox is updated with factual results.
+- [x] No unresolved implementation marker, temporary brand asset, remote logo URL or hard-coded light-only surface remains.
+- [x] Theme types are consistent from pure contract through menu, bootstrap and metadata.
+- [x] All 12 acceptance criteria from the approved spec have direct automated or recorded evidence.
+- [x] No private production content is present in Git history or screenshots.
+- [x] Production has a verified immutable rollback image and validated backup.
