@@ -420,7 +420,8 @@ export const ModelName = {
   WhatsAppTemplate: 'WhatsAppTemplate',
   WhatsAppTemplateAssignment: 'WhatsAppTemplateAssignment',
   ConversationResumption: 'ConversationResumption',
-  ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent'
+  ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent',
+  ContactMessagingConsentEvent: 'ContactMessagingConsentEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -436,7 +437,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "whatsAppAppContact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageRevision" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "whatsAppReadSync" | "webhookEvent" | "metaHealthSnapshot" | "metaOperationalAlert" | "quickReply" | "whatsAppPolicyConfiguration" | "whatsAppTemplate" | "whatsAppTemplateAssignment" | "conversationResumption" | "contactMessagingRestrictionEvent"
+    modelProps: "user" | "session" | "contact" | "whatsAppAppContact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageRevision" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "whatsAppReadSync" | "webhookEvent" | "metaHealthSnapshot" | "metaOperationalAlert" | "quickReply" | "whatsAppPolicyConfiguration" | "whatsAppTemplate" | "whatsAppTemplateAssignment" | "conversationResumption" | "contactMessagingRestrictionEvent" | "contactMessagingConsentEvent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2216,6 +2217,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ContactMessagingConsentEvent: {
+      payload: Prisma.$ContactMessagingConsentEventPayload<ExtArgs>
+      fields: Prisma.ContactMessagingConsentEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ContactMessagingConsentEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ContactMessagingConsentEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>
+        }
+        findFirst: {
+          args: Prisma.ContactMessagingConsentEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ContactMessagingConsentEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>
+        }
+        findMany: {
+          args: Prisma.ContactMessagingConsentEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>[]
+        }
+        create: {
+          args: Prisma.ContactMessagingConsentEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>
+        }
+        createMany: {
+          args: Prisma.ContactMessagingConsentEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ContactMessagingConsentEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>[]
+        }
+        delete: {
+          args: Prisma.ContactMessagingConsentEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>
+        }
+        update: {
+          args: Prisma.ContactMessagingConsentEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.ContactMessagingConsentEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ContactMessagingConsentEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ContactMessagingConsentEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.ContactMessagingConsentEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ContactMessagingConsentEventPayload>
+        }
+        aggregate: {
+          args: Prisma.ContactMessagingConsentEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateContactMessagingConsentEvent>
+        }
+        groupBy: {
+          args: Prisma.ContactMessagingConsentEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactMessagingConsentEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ContactMessagingConsentEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ContactMessagingConsentEventCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2294,6 +2369,10 @@ export const ContactScalarFieldEnum = {
   messagingOptOutAt: 'messagingOptOutAt',
   messagingRestrictionReason: 'messagingRestrictionReason',
   messagingRestrictedByUserId: 'messagingRestrictedByUserId',
+  messagingConsentGrantedAt: 'messagingConsentGrantedAt',
+  messagingConsentSource: 'messagingConsentSource',
+  messagingConsentGrantedByUserId: 'messagingConsentGrantedByUserId',
+  messagingConsentNote: 'messagingConsentNote',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -2666,6 +2745,19 @@ export const ContactMessagingRestrictionEventScalarFieldEnum = {
 export type ContactMessagingRestrictionEventScalarFieldEnum = (typeof ContactMessagingRestrictionEventScalarFieldEnum)[keyof typeof ContactMessagingRestrictionEventScalarFieldEnum]
 
 
+export const ContactMessagingConsentEventScalarFieldEnum = {
+  id: 'id',
+  contactId: 'contactId',
+  actorUserId: 'actorUserId',
+  action: 'action',
+  source: 'source',
+  note: 'note',
+  createdAt: 'createdAt'
+} as const
+
+export type ContactMessagingConsentEventScalarFieldEnum = (typeof ContactMessagingConsentEventScalarFieldEnum)[keyof typeof ContactMessagingConsentEventScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -2766,6 +2858,20 @@ export type DateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel
  * Reference to a field of type 'DateTime[]'
  */
 export type ListDateTimeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'DateTime[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ContactMessagingConsentSource'
+ */
+export type EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContactMessagingConsentSource'>
+    
+
+
+/**
+ * Reference to a field of type 'ContactMessagingConsentSource[]'
+ */
+export type ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContactMessagingConsentSource[]'>
     
 
 
@@ -3092,6 +3198,20 @@ export type ListEnumContactMessagingRestrictionActionFieldRefInput<$PrismaModel>
 
 
 /**
+ * Reference to a field of type 'ContactMessagingConsentAction'
+ */
+export type EnumContactMessagingConsentActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContactMessagingConsentAction'>
+    
+
+
+/**
+ * Reference to a field of type 'ContactMessagingConsentAction[]'
+ */
+export type ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContactMessagingConsentAction[]'>
+    
+
+
+/**
  * Reference to a field of type 'Float'
  */
 export type FloatFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Float'>
@@ -3279,6 +3399,7 @@ export type GlobalOmitConfig = {
   whatsAppTemplateAssignment?: Prisma.WhatsAppTemplateAssignmentOmit
   conversationResumption?: Prisma.ConversationResumptionOmit
   contactMessagingRestrictionEvent?: Prisma.ContactMessagingRestrictionEventOmit
+  contactMessagingConsentEvent?: Prisma.ContactMessagingConsentEventOmit
 }
 
 /* Types for Logging */

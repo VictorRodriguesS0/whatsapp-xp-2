@@ -179,6 +179,24 @@ export const ContactMessagingRestrictionAction = {
 export type ContactMessagingRestrictionAction = (typeof ContactMessagingRestrictionAction)[keyof typeof ContactMessagingRestrictionAction]
 
 
+export const ContactMessagingConsentSource = {
+  WHATSAPP: 'WHATSAPP',
+  LOJA_FISICA: 'LOJA_FISICA',
+  TELEFONE: 'TELEFONE',
+  OUTRO: 'OUTRO'
+} as const
+
+export type ContactMessagingConsentSource = (typeof ContactMessagingConsentSource)[keyof typeof ContactMessagingConsentSource]
+
+
+export const ContactMessagingConsentAction = {
+  GRANTED: 'GRANTED',
+  REVOKED: 'REVOKED'
+} as const
+
+export type ContactMessagingConsentAction = (typeof ContactMessagingConsentAction)[keyof typeof ContactMessagingConsentAction]
+
+
 export const MetaAlertCategory = {
   PHONE_QUALITY: 'PHONE_QUALITY',
   ACCOUNT: 'ACCOUNT',
