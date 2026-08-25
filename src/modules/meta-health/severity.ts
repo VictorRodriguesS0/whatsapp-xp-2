@@ -255,16 +255,18 @@ for (const [eventCode, summary] of [
   );
 }
 
-for (const [eventCode, summary] of [
-  ["PENDING", "Template enviado para análise"],
-  ["DELETED", "Template excluído na Meta"],
-] as const) {
-  transition(
-    "message_template_status_update",
-    eventCode,
-    info("TEMPLATE", summary, `TEMPLATE_${eventCode}`),
-  );
-}
+transition(
+  "message_template_status_update",
+  "PENDING",
+  info("TEMPLATE", "Template enviado para análise", "TEMPLATE_PENDING"),
+);
+transition(
+  "message_template_status_update",
+  "DELETED",
+  info("TEMPLATE", "Template excluído na Meta", "TEMPLATE_DELETED", [
+    "TEMPLATE_PENDING_DELETION",
+  ]),
+);
 
 const fallbackByField: Record<
   MetaOperationalField,

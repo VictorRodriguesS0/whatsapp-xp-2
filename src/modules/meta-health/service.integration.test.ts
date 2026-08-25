@@ -4,10 +4,45 @@ import { resetTestDatabase } from "@/test/database";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import type { MetaHealthGraphClient } from "./graph-client";
-import { acknowledgeMetaAlert, getMetaHealthSummary, listMetaHealthAlerts, syncMetaHealth } from "./service";
+import {
+  acknowledgeMetaAlert,
+  applyMetaOperationalEvent,
+  getMetaHealthSummary,
+  listMetaHealthAlerts,
+  syncMetaHealth,
+} from "./service";
 
 const config = { phoneNumberId: "phone-integration", wabaId: "waba-integration" };
 const now = new Date("2026-08-23T12:00:00.000Z");
+
+function templateEvent(eventCode: string, resourceId: string) {
+  return {
+    wabaId: config.wabaId,
+    field: "message_template_status_update" as const,
+    eventCode,
+    resourceId,
+    occurredAt: now,
+    details: { name: resourceId, language: "pt_BR" },
+    deduplicationKey: `template:${resourceId}:${eventCode}`,
+  };
+}
+
+function clientWithTemplates(
+  templates: Array<{ id: string; name: string; language: string; status: string }>,
+): MetaHealthGraphClient {
+  return {
+    async fetchState() {
+      return {
+        ...config,
+        displayPhoneNumber: null,
+        verifiedName: "XP Eletrônicos",
+        qualityRating: "GREEN",
+        accountReviewStatus: "APPROVED",
+        templates,
+      };
+    },
+  };
+}
 
 describe("Meta health Prisma reconciliation", () => {
   beforeEach(resetTestDatabase);
@@ -57,6 +92,47 @@ describe("Meta health Prisma reconciliation", () => {
     expect(recoveredPage.alerts.find((alert) => alert.eventCode === "QUALITY_RED")).toMatchObject({
       active: false,
       acknowledgedAt: now.toISOString(),
+    });
+  });
+
+  it("resolves only pending deletions absent from a complete template snapshot", async () => {
+    const actor = await prisma.user.create({
+      data: {
+        name: "Victor",
+        email: "victor.template-delete@example.test",
+        passwordHash: "not-used",
+        role: UserRole.ADMIN,
+      },
+    });
+    await applyMetaOperationalEvent(templateEvent("PENDING_DELETION", "old-1"), {
+      config,
+    });
+    await applyMetaOperationalEvent(templateEvent("PENDING_DELETION", "keep-2"), {
+      config,
+    });
+
+    await syncMetaHealth(actor, {
+      config,
+      force: true,
+      now: () => new Date(now.getTime() + 61_000),
+      client: clientWithTemplates([
+        {
+          id: "keep-2",
+          name: "keep",
+          language: "pt_BR",
+          status: "PENDING_DELETION",
+        },
+      ]),
+    });
+
+    const page = await listMetaHealthAlerts(actor, { limit: 20 }, { config });
+    expect(page.alerts.find((alert) => alert.resourceId === "old-1")).toMatchObject({
+      eventCode: "TEMPLATE_PENDING_DELETION",
+      active: false,
+    });
+    expect(page.alerts.find((alert) => alert.resourceId === "keep-2")).toMatchObject({
+      eventCode: "TEMPLATE_PENDING_DELETION",
+      active: true,
     });
   });
 });
