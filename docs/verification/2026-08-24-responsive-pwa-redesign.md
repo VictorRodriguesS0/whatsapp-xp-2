@@ -1,10 +1,12 @@
-# Responsive PWA redesign — local release verification
+# Responsive PWA redesign — release verification
 
 Date: 2026-08-24
 
 Immutable starting revision: `19206cd69a5ad288a5739600ed6a880ac803d503`
 
-Scope: Task 9 local regression, accessibility, responsive and online-only PWA verification. No production system, credential, customer record or production database was accessed.
+Scope: Task 9 local regression, accessibility, responsive and online-only PWA verification, followed by the explicitly authorized Task 10 production release. Production checks used a disposable synthetic administrator and did not disclose or capture customer content, credentials or secrets.
+
+Production candidate revision: `bdb6d758b8dc4439a2d3688d4b484a9488107a03`
 
 ## Test environment
 
@@ -97,6 +99,59 @@ Expected/controlled failures are separated from clean families. A synthetic What
 ## Limitations
 
 - No playable video fixture existed. Automated media suites cover video semantics, but no live decoded video is claimed.
-- Native install UI and standalone launch on the final HTTPS origin remain Task 10 checks. Task 9 proves localhost installability through zero CDP errors without adding a service worker.
+- Task 9 proved localhost installability through zero CDP errors without adding a service worker. The final HTTPS-origin result, including the browser automation limitation, is recorded below.
 - The Browser smoke opened but did not submit the user-creation dialog. User mutations remain covered by the passing automated suite.
-- The local test database remains available for reproducibility. The production server, Browser tab, viewport override and temporary audit profiles/reports were stopped or removed after collection.
+- The local Task 9 test database remains available for reproducibility. The local server, production Browser tab, viewport override and temporary audit profiles/reports were stopped or removed after collection; the released production app remains online.
+
+## Production release — Task 10
+
+### Candidate provenance and immutable artifact
+
+- The initial responsive candidate `7573545` was not a descendant of the then-live revision `6d67be6fc674450c35cb5756a0609f387a47cf12`. The release branch incorporated that exact live revision before promotion, preserving the live PDF/full-sync, service-window and Meta behavior. The resulting validated source candidate is `bdb6d758b8dc4439a2d3688d4b484a9488107a03`.
+- The exact `git archive` is `source-bdb6d758b8dc4439a2d3688d4b484a9488107a03.tar.gz`, 7,867,364 bytes, SHA-256 `cc80e3b19791cb4b17cf3aaaf95ef8f347307a44efd9d611a4ed71146993290d`. Its release directory is `/opt/apps/example-app/releases/bdb6d758b8dc4439a2d3688d4b484a9488107a03`; the transport archive was removed after hash verification.
+- The immutable Linux image is `xp-whatsapp:bdb6d758b8dc4439a2d3688d4b484a9488107a03`, image ID/digest `sha256:6bac3e2b26d2bf920e88ee684ace065bd503d40fbf7e91efa21a918755215bfd`. OCI revision and version labels are respectively the full candidate revision and `responsive-pwa-2026-08-24`. The superseded pre-fix image was not promoted.
+- Runtime inspection proved UID/GID `1001:1001`, available `ffmpeg`, `ffprobe` and `pdftoppm`, six valid PNG application icons with their named dimensions, and absence of application `.env` files and application test source outside dependencies.
+
+### Linux release gates
+
+- The complete suite ran inside the candidate Linux image against an isolated, unpublished `postgres:18-alpine` database under the release resource limits: 199/199 files and 1712/1712 tests passed in 686.92 seconds, including the ffmpeg integration path. All isolated runner, database and network resources were removed afterward.
+- The exact archive also passed lint, typecheck, Prisma schema validation and optimized build. An archive-only CRLF portability failure in the dialog source contract was reproduced locally, fixed by accepting `\r?\n`, and rerun through the complete gates before the final image was built.
+- Isolated runtime smoke returned HTTP 200 for health and validated the emitted manifest and all icon bytes before production mutation.
+
+### Backup, deploy and rollback anchor
+
+- A new backup was created at `/srv/backups/example-app/example-backup`: `database.dump` is 507,619 bytes and `media.tar.gz` is 24,089,644 bytes. The five-file bundle has mode `0600`; sidecars and manifest passed the canonical bundle verifier, PostgreSQL 18 `pg_restore --list`, and the media archive validator.
+- The rollback anchor is live revision `6d67be6fc674450c35cb5756a0609f387a47cf12`, image ID `sha256:51bdcbe68d4d2c0d8200a64fe22e0bb80ba7a8923b5f2ca0e70cd9cc3bedc962`, with the pre-release environment copy at `/opt/apps/example-app/.env.production.backup`.
+- The deploy recreated only `app` with Compose `--no-deps --force-recreate`. Its container changed from `36ffe74e8f10b97ff3f501a2bd8983efe2ef567ea14fd95d1767636e99a3a02a` to `45cc32d044db4a1a263b4d18aa5a24a64f20de2ea0cafd623ab08e537a6889d8`, started at `2026-08-24T23:49:42.954108408Z`, became healthy and remained at zero restarts.
+- Before, immediately after and after soak, the database container remained `4804d7dee6031cd657b94ebca9a4bd6c945e364e02b4d974f848d399124ee585`, started at `2026-08-22T23:57:15.699997655Z`. Normalized snapshots remained byte-identical for all 29 non-app containers, 12 networks and 47 volumes. App networks and mounts were unchanged; the current symlink and image variable point to the candidate; every non-image environment line is identical to the protected pre-release copy.
+
+### HTTPS, authentication and responsive browser smoke
+
+| Check | Local reverse-proxy path | Public HTTPS path |
+| --- | --- | --- |
+| health and login | 200 | 200 |
+| unauthenticated `/conversas` | 307 to login | 307 to login |
+| unauthenticated inbox/settings/realtime APIs | 401 | 401 |
+| authenticated login, inbox page/API and settings page/API | 200 | 200 |
+| authenticated SSE connection | 200 stream opened | 200 stream opened |
+| manifest and six icon assets | 200, exact contract/PNG bytes | 200, exact contract/PNG bytes |
+
+- A disposable synthetic administrator exercised the authenticated flow without outputting inbox rows or customer data. Cleanup removed exactly one synthetic user and its two sessions, then verified zero matching users and sessions. Reopening `/conversas` in that browser session redirected to `/login`.
+- A fresh in-app Browser profile verified the inbox shell, authenticated settings authorization, light/dark theme switching and zero console errors or warnings. Widths 320 and 390 rendered the one-pane mobile list with the hidden thread inert and excluded from accessibility; width 900 rendered two panes; width 1440 rendered three panes. All four widths had no horizontal document overflow.
+- No screenshot or authenticated DOM dump containing conversation data was retained. Browser probes were limited to structural counts, route, accessibility state, theme and overflow.
+
+### HTTPS manifest and installation evidence
+
+- CDP `Page.getAppManifest` recognized the public HTTPS manifest, returned its data and reported no manifest errors. The contract retained `display: standalone`, `start_url: /conversas`, scope `/`, the required `any` icons and the maskable icon.
+- This browser-client target exposed neither `Page.getInstallabilityErrors`/`Page.getManifestIcons` nor a native install affordance or installation API. Therefore native installation and a standalone launch were not automated and are not claimed. The ordinary controlled tab correctly reported both standalone and minimal-ui display modes as false. This is the available HTTPS fallback evidence, not evidence of an installed application.
+- The no-service-worker and no-runtime-cache contract remained covered by the passing release suite; an unsupported Service Worker CDP method was not treated as positive runtime evidence.
+
+### Soak and final state
+
+| UTC sample | Local health | Public health | Container | Restarts | Image | Log lines since start | Critical matches |
+| --- | ---: | ---: | --- | ---: | --- | ---: | ---: |
+| 2026-08-25 00:04:29 | 200 | 200 | healthy | 0 | exact | 51 | 0 |
+| 2026-08-25 00:04:49 | 200 | 200 | healthy | 0 | exact | 51 | 0 |
+| 2026-08-25 00:05:09 | 200 | 200 | healthy | 0 | exact | 51 | 0 |
+
+The three samples were separated by 20 seconds. The critical scan covered uncaught/unhandled errors, fatal/panic events, migration failures, Prisma client errors and address conflicts without emitting log bodies. No rollback criterion occurred, so the prepared app-only rollback was not invoked and remains available at the recorded anchor.
