@@ -1,9 +1,12 @@
 # Janela de atendimento do WhatsApp — registro da etapa 1
 
-Data do preparo local: 24 de agosto de 2026
-Estado deste documento: **pré-deploy; evidências de produção pendentes**
+Data do preparo e implantação: 24 de agosto de 2026
+Estado deste documento: **Etapa 1 implantada e verificada com política INACTIVE**
 
-Este registro acompanha a publicação da infraestrutura de janela de 24 horas, templates e consentimento restrito. Ele não declara que a etapa 1 já foi implantada. Os campos de produção só podem ser preenchidos com saídas sanitizadas obtidas na KVM durante a janela de publicação.
+Este registro acompanha a publicação da infraestrutura de janela de 24 horas,
+templates e consentimento restrito. As evidências abaixo foram obtidas de forma
+sanitizada na KVM durante a implantação; nenhuma mensagem real foi enviada para
+produzir evidência artificial.
 
 ## Contrato funcional
 
@@ -72,20 +75,45 @@ correspondente também foi incorporado por equivalência de patch.
 
 ## Aceite de produção da etapa 1
 
-Preencher somente após observação direta na KVM:
-
-- revisão anterior: **pendente**
-- revisão candidata: **pendente**
-- digest candidato: **pendente**
-- backup e teste de integridade: **pendente**
-- migration aplicada uma vez e limpa: **pendente**
-- health local e público: **pendente**
-- modo confirmado como `INACTIVE`: **pendente**
-- autenticação e permissões administrativas: **pendente**
-- sincronização sem exposição de segredo: **pendente**
-- mensagens, mídia, áudio recebido e enviado: **pendente**
-- webhooks, `smb_message_echoes` e leitura compartilhada: **pendente**
-- snapshot non-app antes/depois sem mudança: **pendente**
+- revisão anterior: `2c5d7504d3cdb31e3657fa0f357939a7f82ec92a`;
+- revisão implantada: `6d67be6fc674450c35cb5756a0609f387a47cf12`;
+- imagem imutável:
+  `xp-whatsapp:6d67be6fc674450c35cb5756a0609f387a47cf12`;
+- ID da imagem:
+  `sha256:51bdcbe68d4d2c0d8200a64fe22e0bb80ba7a8923b5f2ca0e70cd9cc3bedc962`;
+- novo app:
+  `36ffe74e8f10b97ff3f501a2bd8983efe2ef567ea14fd95d1767636e99a3a02a`,
+  saudável e com zero reinícios;
+- banco preservado:
+  `4804d7dee6031cd657b94ebca9a4bd6c945e364e02b4d974f848d399124ee585`,
+  iniciado em `2026-08-22T23:57:15.699997655Z`, saudável e sem reinício;
+- backup preventivo validado:
+  `/srv/backups/example-app/example-backup`;
+- cópia do ambiente anterior:
+  `/opt/apps/example-app/.env.production.backup`;
+- 20 migrations concluídas, zero incompletas e zero revertidas; a migration da
+  Etapa 1 foi aplicada uma única vez;
+- `WhatsAppPolicyConfiguration`: `INACTIVE`, versão `0`, sincronização `NEVER`;
+- health local, health público e login: HTTP 200;
+- conversa anônima: redirecionada; API administrativa anônima e webhook com
+  assinatura inválida: HTTP 401;
+- rota e página administrativas autenticadas: HTTP 200, `canActivate=false`;
+  a sessão temporária de verificação foi apagada e deixou zero registro;
+- três amostras separadas por 20 segundos: HTTP 200, app `running/healthy`,
+  zero reinícios e zero marcadores fatais;
+- assinatura Meta somente leitura preservada em Graph `v23.0`, com os mesmos 12
+  campos e hash sanitizado
+  `9244942a020917c2efc5706692179a35ed32a9e3edc8d557104ce817bec898e7`;
+- os 29 containers não-app produziram snapshot canônico idêntico antes/depois,
+  SHA-256
+  `7d14b56d325169e35b442e4df19efe3d41634b7219a91211d2ad1e9ccc91d365`;
+- a imagem anterior foi preservada como rollback imediato;
+- teste funcional real de mensagem, mídia e áudio: **não executado neste
+  rollout**, para não gerar comunicação artificial; permanece disponível para
+  teste manual controlado;
+- webhooks, `smb_message_echoes` e leitura compartilhada: assinatura preservada
+  e regressões automatizadas aprovadas; nenhum evento real foi provocado neste
+  rollout.
 
 Não ative a etapa 2 apenas porque o código está saudável. Ela exige um template realmente aprovado, sincronizado e selecionado, além de validação manual com contato controlado.
 
