@@ -27,6 +27,7 @@ import type {
   ContactClassificationDto,
   ContactDto,
   ContactMessagingConsentDto,
+  ContactMessagingConsentRecord,
   ContactMessagingConsentServiceDependencies,
   ContactMessagingRestrictionDto,
   ContactRecord,
@@ -263,6 +264,7 @@ function toContactDto(contact: ContactRecord): ContactDto {
     }),
     phone: formatContactPhone(contact.phone),
     messagingRestricted: contact.messagingOptOutAt !== null,
+    messagingConsent: toContactMessagingConsentDto(contact),
     type: contact.contactType
       ? toContactClassificationDto(contact.contactType)
       : null,
@@ -363,11 +365,18 @@ export async function updateContact(
   return toContactDto(await repository.updateContact(parsedId, parsed));
 }
 
-function toContactMessagingConsentDto(
-  contact: ContactRecord,
+export function toContactMessagingConsentDto(
+  contact: ContactMessagingConsentRecord,
 ): ContactMessagingConsentDto {
-  const active = contact.messagingConsentGrantedAt !== null;
-  if (!active) {
+  const grantedAt = contact.messagingConsentGrantedAt;
+  const source = contact.messagingConsentSource;
+  const grantedBy = contact.messagingConsentGrantedByUser;
+  const isInactive =
+    contact.messagingOptOutAt !== null ||
+    grantedAt === null ||
+    source === null ||
+    grantedBy === null;
+  if (isInactive) {
     return {
       active: false,
       source: null,
@@ -379,9 +388,9 @@ function toContactMessagingConsentDto(
 
   return {
     active: true,
-    source: contact.messagingConsentSource,
-    grantedAt: contact.messagingConsentGrantedAt?.toISOString() ?? null,
-    grantedBy: contact.messagingConsentGrantedByUser,
+    source,
+    grantedAt: grantedAt.toISOString(),
+    grantedBy,
     note: contact.messagingConsentNote,
   };
 }

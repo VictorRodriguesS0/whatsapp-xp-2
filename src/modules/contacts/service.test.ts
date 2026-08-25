@@ -798,10 +798,18 @@ describe("contact classification service", () => {
     expect(result).toMatchObject({
       name: "Bia",
       phone: "+55 (11) 99999-1234",
+      messagingConsent: {
+        active: false,
+        source: null,
+        grantedAt: null,
+        grantedBy: null,
+        note: null,
+      },
       type: { id: typeId, name: "Cliente" },
     });
     expect(Object.keys(result).sort()).toEqual([
       "id",
+      "messagingConsent",
       "messagingRestricted",
       "name",
       "phone",

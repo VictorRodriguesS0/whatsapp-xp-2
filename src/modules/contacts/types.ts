@@ -30,18 +30,21 @@ export type ContactTagAssignmentRecord = {
   tagId: string;
 };
 
-export type ContactRecord = {
-  id: string;
-  name: string;
-  preferredName: string | null;
-  phone: string | null;
-  whatsappAppContact?: { fullName: string | null; active: boolean } | null;
+export type ContactMessagingConsentRecord = {
   messagingOptOutAt: Date | null;
   messagingConsentGrantedAt: Date | null;
   messagingConsentSource: ContactMessagingConsentSource | null;
   messagingConsentGrantedByUserId: string | null;
   messagingConsentGrantedByUser: { id: string; name: string } | null;
   messagingConsentNote: string | null;
+};
+
+export type ContactRecord = ContactMessagingConsentRecord & {
+  id: string;
+  name: string;
+  preferredName: string | null;
+  phone: string | null;
+  whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactTypeId: string | null;
   contactType: DefinitionRecord | null;
   tagAssignments: Array<{ tag: DefinitionRecord }>;
@@ -54,6 +57,7 @@ export type ContactDto = {
   name: string;
   phone: string;
   messagingRestricted: boolean;
+  messagingConsent: ContactMessagingConsentDto;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };

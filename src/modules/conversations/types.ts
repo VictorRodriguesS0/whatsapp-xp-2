@@ -8,6 +8,10 @@ import type {
   ReactionStatus,
 } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
+import type {
+  ContactMessagingConsentDto,
+  ContactMessagingConsentRecord,
+} from "@/modules/contacts/types";
 import type { ServiceWindowDto } from "@/modules/messaging-policy/types";
 import type { QuotedReplyDto } from "@/modules/messages/reply-context";
 
@@ -34,6 +38,7 @@ export type ContactDto = {
   name: string;
   phone: string;
   messagingRestricted: boolean;
+  messagingConsent: ContactMessagingConsentDto;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };
@@ -46,12 +51,11 @@ export type ContactClassificationRecord = {
   active: boolean;
 };
 
-export type ConversationContactRecord = {
+export type ConversationContactRecord = ContactMessagingConsentRecord & {
   id: string;
   name: string;
   preferredName: string | null;
   phone: string | null;
-  messagingOptOutAt: Date | null;
   whatsappAppContact?: { fullName: string | null; active: boolean } | null;
   contactType: ContactClassificationRecord | null;
   tagAssignments: Array<{ tag: ContactClassificationRecord }>;

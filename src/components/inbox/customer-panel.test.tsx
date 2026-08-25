@@ -15,6 +15,13 @@ const conversation: ConversationListItem = {
     name: "Carlos",
     phone: "5561999999999",
     messagingRestricted: false,
+    messagingConsent: {
+      active: false,
+      source: null,
+      grantedAt: null,
+      grantedBy: null,
+      note: null,
+    },
     type: null,
     tags: [],
   },
