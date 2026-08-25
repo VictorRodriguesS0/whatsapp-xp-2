@@ -5,6 +5,8 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import {
+  ContactMessagingConsentAction,
+  ContactMessagingConsentSource,
   ContactMessagingRestrictionAction,
   MessageDirection,
   MessageStatus,
@@ -24,6 +26,7 @@ import {
   createContactType,
   createPrismaContactRepository,
   replaceContactTags,
+  setContactMessagingConsent,
   setContactMessagingRestriction,
   updateContact,
 } from "./service";
@@ -72,6 +75,122 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
 
     afterAll(async () => {
       await prisma.$disconnect();
+    });
+
+    it("persists idempotent consent audit and lets opt-out revoke it atomically", async () => {
+      const actor = await prisma.user.create({
+        data: { ...admin, passwordHash: "not-used" },
+      });
+      const contact = await prisma.contact.create({
+        data: { name: "Contato Meta", phone: `+55${Date.now()}` },
+      });
+      const repository = createPrismaContactRepository(prisma);
+      const firstAt = new Date("2026-08-25T10:00:00.000Z");
+      const changedAt = new Date("2026-08-25T10:05:00.000Z");
+
+      await setContactMessagingConsent(
+        actor,
+        contact.id,
+        { action: "GRANT", source: ContactMessagingConsentSource.WHATSAPP },
+        { repository, now: () => firstAt },
+      );
+      await setContactMessagingConsent(
+        actor,
+        contact.id,
+        { action: "GRANT", source: ContactMessagingConsentSource.WHATSAPP },
+        { repository, now: () => changedAt },
+      );
+      await setContactMessagingConsent(
+        actor,
+        contact.id,
+        {
+          action: "GRANT",
+          source: ContactMessagingConsentSource.OUTRO,
+          note: "Autorização em feira",
+        },
+        { repository, now: () => changedAt },
+      );
+      await setContactMessagingRestriction(
+        actor,
+        contact.id,
+        { restricted: true, reason: "Cliente pediu bloqueio" },
+        repository,
+      );
+
+      await expect(
+        prisma.contact.findUniqueOrThrow({
+          where: { id: contact.id },
+          select: {
+            messagingOptOutAt: true,
+            messagingConsentGrantedAt: true,
+            messagingConsentSource: true,
+            messagingConsentGrantedByUserId: true,
+            messagingConsentNote: true,
+          },
+        }),
+      ).resolves.toMatchObject({
+        messagingOptOutAt: expect.any(Date),
+        messagingConsentGrantedAt: null,
+        messagingConsentSource: null,
+        messagingConsentGrantedByUserId: null,
+        messagingConsentNote: null,
+      });
+      await expect(
+        prisma.contactMessagingConsentEvent.findMany({
+          where: { contactId: contact.id },
+          orderBy: { createdAt: "asc" },
+          select: { action: true, source: true, note: true },
+        }),
+      ).resolves.toEqual([
+        {
+          action: ContactMessagingConsentAction.GRANTED,
+          source: ContactMessagingConsentSource.WHATSAPP,
+          note: null,
+        },
+        {
+          action: ContactMessagingConsentAction.GRANTED,
+          source: ContactMessagingConsentSource.OUTRO,
+          note: "Autorização em feira",
+        },
+        {
+          action: ContactMessagingConsentAction.REVOKED,
+          source: ContactMessagingConsentSource.OUTRO,
+          note: "Autorização em feira",
+        },
+      ]);
+    });
+
+    it("serializes simultaneous identical grants into one immutable event", async () => {
+      const actor = await prisma.user.create({
+        data: { ...admin, passwordHash: "not-used" },
+      });
+      const contact = await prisma.contact.create({
+        data: { name: "Contato Meta", phone: `+55${Date.now()}` },
+      });
+      const repository = createPrismaContactRepository(prisma);
+      const now = new Date("2026-08-25T10:00:00.000Z");
+      const grant = () =>
+        setContactMessagingConsent(
+          actor,
+          contact.id,
+          {
+            action: "GRANT",
+            source: ContactMessagingConsentSource.LOJA_FISICA,
+          },
+          { repository, now: () => now },
+        );
+
+      const results = await Promise.all([grant(), grant()]);
+
+      expect(results).toEqual([
+        expect.objectContaining({ active: true, grantedAt: now.toISOString() }),
+        expect.objectContaining({ active: true, grantedAt: now.toISOString() }),
+      ]);
+      await expect(
+        prisma.contactMessagingConsentEvent.count({
+          where: { contactId: contact.id },
+        }),
+      ).resolves.toBe(1);
     });
 
     it("shares audited opt-out and opt-in with the service-window policy immediately", async () => {

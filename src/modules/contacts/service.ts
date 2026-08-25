@@ -1,7 +1,10 @@
 import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
-import { ContactMessagingRestrictionAction } from "@/generated/prisma/enums";
+import {
+  ContactMessagingConsentAction,
+  ContactMessagingRestrictionAction,
+} from "@/generated/prisma/enums";
 import { formatContactPhone, resolveContactName } from "@/lib/contact-display";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
@@ -11,6 +14,7 @@ import type { SessionUser } from "@/modules/auth/session";
 import {
   contactDefinitionIdSchema,
   contactIdSchema,
+  contactMessagingConsentSchema,
   contactMessagingRestrictionSchema,
   contactTagIdsSchema,
   createContactDefinitionSchema,
@@ -22,6 +26,8 @@ import {
 import type {
   ContactClassificationDto,
   ContactDto,
+  ContactMessagingConsentDto,
+  ContactMessagingConsentServiceDependencies,
   ContactMessagingRestrictionDto,
   ContactRecord,
   ContactRepository,
@@ -39,6 +45,7 @@ type PrismaContactRepositoryClient = Pick<
   | "contactType"
   | "contactTagDefinition"
   | "contactTagAssignment"
+  | "contactMessagingConsentEvent"
   | "contactMessagingRestrictionEvent"
   | "$queryRaw"
 >;
@@ -61,6 +68,11 @@ const contactSelect = {
   phone: true,
   whatsappAppContact: { select: { fullName: true, active: true } },
   messagingOptOutAt: true,
+  messagingConsentGrantedAt: true,
+  messagingConsentSource: true,
+  messagingConsentGrantedByUserId: true,
+  messagingConsentGrantedByUser: { select: { id: true, name: true } },
+  messagingConsentNote: true,
   contactTypeId: true,
   contactType: { select: definitionSelect },
   tagAssignments: { select: { tag: { select: definitionSelect } } },
@@ -69,6 +81,21 @@ const contactSelect = {
 function isPrismaError(error: unknown, code: string): boolean {
   return (
     error instanceof Prisma.PrismaClientKnownRequestError && error.code === code
+  );
+}
+
+function isSerializationFailure(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) return false;
+  if (error.code === "P2034") return true;
+  if (error.code !== "P2010") return false;
+
+  const driverAdapterError = error.meta?.driverAdapterError;
+  if (!driverAdapterError || typeof driverAdapterError !== "object") return false;
+  const cause = Reflect.get(driverAdapterError, "cause");
+  return (
+    cause !== null &&
+    typeof cause === "object" &&
+    Reflect.get(cause, "originalCode") === "40001"
   );
 }
 
@@ -93,6 +120,18 @@ function createRepositoryForClient(
       client.contact.update({ where: { id }, data, select: contactSelect }),
     createContactMessagingRestrictionEvent: async (data) => {
       await client.contactMessagingRestrictionEvent.create({ data });
+    },
+    lockContactForMessagingConsent: async (id) => {
+      const locked = await client.$queryRaw<Array<{ id: string }>>(
+        Prisma.sql`SELECT id FROM contacts WHERE id = ${id}::uuid FOR UPDATE`,
+      );
+      if (locked.length === 0) return null;
+      return client.contact.findUnique({ where: { id }, select: contactSelect });
+    },
+    updateContactMessagingConsent: (id, data) =>
+      client.contact.update({ where: { id }, data, select: contactSelect }),
+    createContactMessagingConsentEvent: async (data) => {
+      await client.contactMessagingConsentEvent.create({ data });
     },
 
     listContactTypes: () =>
@@ -170,6 +209,10 @@ export function createPrismaContactRepository(
 }
 
 const contactRepository = createPrismaContactRepository(prisma);
+const contactMessagingConsentDependencies: ContactMessagingConsentServiceDependencies = {
+  repository: contactRepository,
+  now: () => new Date(),
+};
 
 export function normalizeContactDefinitionName(value: string): string {
   return value
@@ -269,7 +312,7 @@ async function runContactRepositoryTransaction<T>(
     try {
       return await repository.transaction(operation);
     } catch (error) {
-      if (!isPrismaError(error, "P2034") || attempt === 2) throw error;
+      if (!isSerializationFailure(error) || attempt === 2) throw error;
     }
   }
 
@@ -320,6 +363,29 @@ export async function updateContact(
   return toContactDto(await repository.updateContact(parsedId, parsed));
 }
 
+function toContactMessagingConsentDto(
+  contact: ContactRecord,
+): ContactMessagingConsentDto {
+  const active = contact.messagingConsentGrantedAt !== null;
+  if (!active) {
+    return {
+      active: false,
+      source: null,
+      grantedAt: null,
+      grantedBy: null,
+      note: null,
+    };
+  }
+
+  return {
+    active: true,
+    source: contact.messagingConsentSource,
+    grantedAt: contact.messagingConsentGrantedAt?.toISOString() ?? null,
+    grantedBy: contact.messagingConsentGrantedByUser,
+    note: contact.messagingConsentNote,
+  };
+}
+
 export async function setContactMessagingRestriction(
   actor: ContactActor,
   contactId: string,
@@ -339,6 +405,26 @@ export async function setContactMessagingRestriction(
     const currentlyRestricted = current.messagingOptOutAt !== null;
     if (currentlyRestricted === parsed.restricted) {
       return { messagingRestricted: currentlyRestricted };
+    }
+
+    if (parsed.restricted && current.messagingConsentGrantedAt !== null) {
+      const source = current.messagingConsentSource;
+      if (!source) {
+        throw new Error("Active messaging consent is missing its source");
+      }
+      await transaction.updateContactMessagingConsent(parsedContactId, {
+        messagingConsentGrantedAt: null,
+        messagingConsentSource: null,
+        messagingConsentGrantedByUserId: null,
+        messagingConsentNote: null,
+      });
+      await transaction.createContactMessagingConsentEvent({
+        contactId: parsedContactId,
+        actorUserId: actor.id,
+        action: ContactMessagingConsentAction.REVOKED,
+        source,
+        note: current.messagingConsentNote,
+      });
     }
 
     const updated = await transaction.updateContactMessagingRestriction(
@@ -366,6 +452,89 @@ export async function setContactMessagingRestriction(
 
     return { messagingRestricted: updated.messagingOptOutAt !== null };
   });
+}
+
+export async function setContactMessagingConsent(
+  actor: ContactActor,
+  contactId: string,
+  input: unknown,
+  dependencies: ContactMessagingConsentServiceDependencies =
+    contactMessagingConsentDependencies,
+): Promise<ContactMessagingConsentDto> {
+  const parsedContactId = contactIdSchema.parse(contactId);
+  const parsed = contactMessagingConsentSchema.parse(input);
+
+  return runContactRepositoryTransaction(
+    dependencies.repository,
+    async (transaction) => {
+      const current = await transaction.lockContactForMessagingConsent(
+        parsedContactId,
+      );
+      if (!current) throw new HttpError(404, "Contato não encontrado");
+      await requireActiveActor(actor, transaction);
+
+      if (parsed.action === "GRANT") {
+        if (current.messagingOptOutAt !== null) {
+          throw new HttpError(
+            409,
+            "Este contato está marcado como não contatar.",
+            "WHATSAPP_CONTACT_OPTED_OUT",
+          );
+        }
+
+        const note = parsed.note ?? null;
+        const isIdenticalGrant =
+          current.messagingConsentGrantedAt !== null &&
+          current.messagingConsentSource === parsed.source &&
+          current.messagingConsentNote === note;
+        if (isIdenticalGrant) return toContactMessagingConsentDto(current);
+
+        const updated = await transaction.updateContactMessagingConsent(
+          parsedContactId,
+          {
+            messagingConsentGrantedAt: dependencies.now(),
+            messagingConsentSource: parsed.source,
+            messagingConsentGrantedByUserId: actor.id,
+            messagingConsentNote: note,
+          },
+        );
+        await transaction.createContactMessagingConsentEvent({
+          contactId: parsedContactId,
+          actorUserId: actor.id,
+          action: ContactMessagingConsentAction.GRANTED,
+          source: parsed.source,
+          note,
+        });
+        return toContactMessagingConsentDto(updated);
+      }
+
+      if (current.messagingConsentGrantedAt === null) {
+        return toContactMessagingConsentDto(current);
+      }
+      const source = current.messagingConsentSource;
+      if (!source) {
+        throw new Error("Active messaging consent is missing its source");
+      }
+
+      const updated = await transaction.updateContactMessagingConsent(
+        parsedContactId,
+        {
+          messagingConsentGrantedAt: null,
+          messagingConsentSource: null,
+          messagingConsentGrantedByUserId: null,
+          messagingConsentNote: null,
+        },
+      );
+      await transaction.createContactMessagingConsentEvent({
+        contactId: parsedContactId,
+        actorUserId: actor.id,
+        action: ContactMessagingConsentAction.REVOKED,
+        source,
+        note: current.messagingConsentNote,
+      });
+      return toContactMessagingConsentDto(updated);
+    },
+  );
 }
 
 export async function replaceContactTags(

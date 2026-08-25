@@ -4,12 +4,15 @@ import { describe, expect, it } from "vitest";
 
 import { Prisma } from "@/generated/prisma/client";
 import {
+  ContactMessagingConsentAction,
+  ContactMessagingConsentSource,
   ContactMessagingRestrictionAction,
   UserRole,
 } from "@/generated/prisma/enums";
 import type { SessionUser } from "@/modules/auth/session";
 
 import {
+  contactMessagingConsentSchema,
   contactTagIdsSchema,
   contactMessagingRestrictionSchema,
   createContactDefinitionSchema,
@@ -25,6 +28,7 @@ import {
   listContactTags,
   normalizeContactDefinitionName,
   replaceContactTags,
+  setContactMessagingConsent,
   setContactMessagingRestriction,
   updateContact,
   updateContactType,
@@ -37,6 +41,8 @@ import type {
   DefinitionCreateData,
   DefinitionRecord,
   DefinitionUpdateData,
+  ContactMessagingConsentEventCreateData,
+  ContactMessagingConsentUpdateData,
 } from "./types";
 
 const attendant: SessionUser & { active?: boolean } = {
@@ -76,6 +82,11 @@ function contact(overrides: Partial<ContactRecord> = {}): ContactRecord {
     preferredName: null,
     phone: "+5511999991234",
     messagingOptOutAt: null,
+    messagingConsentGrantedAt: null,
+    messagingConsentSource: null,
+    messagingConsentGrantedByUserId: null,
+    messagingConsentGrantedByUser: null,
+    messagingConsentNote: null,
     contactTypeId: null,
     contactType: null,
     tagAssignments: [],
@@ -91,12 +102,13 @@ function createRepository(options: {
   failTagCreation?: boolean;
   transactionFailures?: unknown[];
   afterTransactionFailures?: Array<() => unknown>;
-  restrictionEvents?: Array<{
+    restrictionEvents?: Array<{
     contactId: string;
     actorUserId: string;
     action: ContactMessagingRestrictionAction;
-    reason: string;
-  }>;
+      reason: string;
+    }>;
+  consentEvents?: ContactMessagingConsentEventCreateData[];
 } = {}): ContactRepository & {
   listActiveContactTypes(): Promise<DefinitionRecord[]>;
   listActiveContactTags(): Promise<DefinitionRecord[]>;
@@ -112,11 +124,13 @@ function createRepository(options: {
     action: ContactMessagingRestrictionAction;
     reason: string;
   }>;
-  restrictionUpdates: Array<{
+    restrictionUpdates: Array<{
     messagingOptOutAt: Date | null;
     messagingRestrictionReason: string | null;
-    messagingRestrictedByUserId: string | null;
-  }>;
+      messagingRestrictedByUserId: string | null;
+    }>;
+  consentEvents: ContactMessagingConsentEventCreateData[];
+  consentUpdates: ContactMessagingConsentUpdateData[];
 } {
   let contactRecord: ContactRecord | null =
     options.contact === undefined ? contact() : options.contact;
@@ -132,6 +146,8 @@ function createRepository(options: {
     messagingRestrictionReason: string | null;
     messagingRestrictedByUserId: string | null;
   }> = [];
+  const consentEvents = [...(options.consentEvents ?? [])];
+  const consentUpdates: ContactMessagingConsentUpdateData[] = [];
   let transactionAttempts = 0;
 
   const hydrateContact = (): ContactRecord | null => {
@@ -158,6 +174,8 @@ function createRepository(options: {
     transactionAttempts: number;
     restrictionEvents: typeof restrictionEvents;
     restrictionUpdates: typeof restrictionUpdates;
+    consentEvents: typeof consentEvents;
+    consentUpdates: typeof consentUpdates;
   } = {
     get contactRecord() {
       return hydrateContact();
@@ -171,6 +189,8 @@ function createRepository(options: {
     contactUpdates,
     restrictionEvents,
     restrictionUpdates,
+    consentEvents,
+    consentUpdates,
     get transactionAttempts() {
       return transactionAttempts;
     },
@@ -195,6 +215,23 @@ function createRepository(options: {
     },
     createContactMessagingRestrictionEvent: async (data) => {
       restrictionEvents.push({ ...data });
+    },
+    lockContactForMessagingConsent: async (id) =>
+      id === contactId ? hydrateContact() : null,
+    updateContactMessagingConsent: async (id, data) => {
+      if (!contactRecord || id !== contactId) throw new Error("missing contact");
+      consentUpdates.push({ ...data });
+      contactRecord = {
+        ...contactRecord,
+        ...data,
+        messagingConsentGrantedByUser: data.messagingConsentGrantedByUserId
+          ? { id: data.messagingConsentGrantedByUserId, name: attendant.name }
+          : null,
+      };
+      return hydrateContact()!;
+    },
+    createContactMessagingConsentEvent: async (data) => {
+      consentEvents.push({ ...data });
     },
     listContactTypes: async () => typeRecords,
     listActiveContactTypes: async () =>
@@ -250,6 +287,7 @@ function createRepository(options: {
         assignmentTagIds,
         failTagCreation: options.failTagCreation,
         restrictionEvents,
+        consentEvents,
       });
       staged.isActorActive = repository.isActorActive;
       const result = await operation(staged);
@@ -266,6 +304,8 @@ function createRepository(options: {
         ...staged.restrictionEvents,
       );
       restrictionUpdates.push(...staged.restrictionUpdates);
+      consentEvents.splice(0, consentEvents.length, ...staged.consentEvents);
+      consentUpdates.push(...staged.consentUpdates);
       return result;
     },
   };
@@ -280,6 +320,18 @@ function serializationFailure(): Error {
   });
 }
 
+function rawSerializationFailure(): Error {
+  return new Prisma.PrismaClientKnownRequestError("serialization failure", {
+    code: "P2010",
+    clientVersion: "test",
+    meta: {
+      driverAdapterError: {
+        cause: { originalCode: "40001" },
+      },
+    },
+  });
+}
+
 function createRestrictionRepository(
   initialContact: ContactRecord = contact(),
 ) {
@@ -287,6 +339,47 @@ function createRestrictionRepository(
 }
 
 describe("contact classification schemas", () => {
+  it("accepts only strict consent grants and revokes with source-specific notes", () => {
+    const grant = {
+      action: "GRANT",
+      source: ContactMessagingConsentSource.LOJA_FISICA,
+    } as const;
+    expect(contactMessagingConsentSchema.parse(grant)).toEqual(grant);
+    expect(() =>
+      contactMessagingConsentSchema.parse({
+        action: "GRANT",
+        source: ContactMessagingConsentSource.OUTRO,
+      }),
+    ).toThrow();
+    expect(
+      contactMessagingConsentSchema.parse({
+        action: "GRANT",
+        source: ContactMessagingConsentSource.OUTRO,
+        note: "  Autorização registrada no evento da loja  ",
+      }),
+    ).toEqual({
+      action: "GRANT",
+      source: ContactMessagingConsentSource.OUTRO,
+      note: "Autorização registrada no evento da loja",
+    });
+    expect(() =>
+      contactMessagingConsentSchema.parse({
+        action: "GRANT",
+        source: ContactMessagingConsentSource.WHATSAPP,
+        note: "Não deve ser aceita",
+      }),
+    ).toThrow();
+    expect(contactMessagingConsentSchema.parse({ action: "REVOKE" })).toEqual({
+      action: "REVOKE",
+    });
+    expect(() =>
+      contactMessagingConsentSchema.parse({
+        action: "REVOKE",
+        actorUserId: attendant.id,
+      }),
+    ).toThrow();
+  });
+
   it("accepts only an explicit restriction state and a trimmed bounded reason", () => {
     expect(
       contactMessagingRestrictionSchema.parse({
@@ -371,6 +464,222 @@ describe("contact classification schemas", () => {
 });
 
 describe("contact classification service", () => {
+  it("grants consent with the authenticated actor and server clock", async () => {
+    const repository = createRepository();
+    const now = new Date("2026-08-25T10:30:00.000Z");
+
+    const result = await setContactMessagingConsent(
+      attendant,
+      contactId,
+      {
+        action: "GRANT",
+        source: ContactMessagingConsentSource.WHATSAPP,
+      },
+      { repository, now: () => now },
+    );
+
+    expect(result).toEqual({
+      active: true,
+      source: ContactMessagingConsentSource.WHATSAPP,
+      grantedAt: now.toISOString(),
+      grantedBy: { id: attendant.id, name: attendant.name },
+      note: null,
+    });
+    expect(repository.consentUpdates).toEqual([
+      {
+        messagingConsentGrantedAt: now,
+        messagingConsentSource: ContactMessagingConsentSource.WHATSAPP,
+        messagingConsentGrantedByUserId: attendant.id,
+        messagingConsentNote: null,
+      },
+    ]);
+    expect(repository.consentEvents).toEqual([
+      {
+        contactId,
+        actorUserId: attendant.id,
+        action: ContactMessagingConsentAction.GRANTED,
+        source: ContactMessagingConsentSource.WHATSAPP,
+        note: null,
+      },
+    ]);
+  });
+
+  it("is idempotent for an identical grant and audits a changed grant", async () => {
+    const repository = createRepository();
+    const first = new Date("2026-08-25T10:30:00.000Z");
+    const changed = new Date("2026-08-25T10:35:00.000Z");
+
+    await setContactMessagingConsent(
+      attendant,
+      contactId,
+      { action: "GRANT", source: ContactMessagingConsentSource.WHATSAPP },
+      { repository, now: () => first },
+    );
+    await setContactMessagingConsent(
+      attendant,
+      contactId,
+      { action: "GRANT", source: ContactMessagingConsentSource.WHATSAPP },
+      { repository, now: () => changed },
+    );
+    await setContactMessagingConsent(
+      attendant,
+      contactId,
+      {
+        action: "GRANT",
+        source: ContactMessagingConsentSource.OUTRO,
+        note: "Feira de tecnologia",
+      },
+      { repository, now: () => changed },
+    );
+
+    expect(repository.consentUpdates).toHaveLength(2);
+    expect(repository.consentEvents.map(({ action }) => action)).toEqual([
+      ContactMessagingConsentAction.GRANTED,
+      ContactMessagingConsentAction.GRANTED,
+    ]);
+    expect(repository.consentUpdates[1]).toMatchObject({
+      messagingConsentGrantedAt: changed,
+      messagingConsentSource: ContactMessagingConsentSource.OUTRO,
+      messagingConsentNote: "Feira de tecnologia",
+    });
+  });
+
+  it("revokes once and remains idempotent while inactive", async () => {
+    const repository = createRepository({
+      contact: contact({
+        messagingConsentGrantedAt: new Date("2026-08-25T10:00:00.000Z"),
+        messagingConsentSource: ContactMessagingConsentSource.LOJA_FISICA,
+        messagingConsentGrantedByUserId: attendant.id,
+        messagingConsentGrantedByUser: {
+          id: attendant.id,
+          name: attendant.name,
+        },
+        messagingConsentNote: null,
+      }),
+    });
+
+    const first = await setContactMessagingConsent(
+      attendant,
+      contactId,
+      { action: "REVOKE" },
+      { repository, now: () => new Date("2026-08-25T11:00:00.000Z") },
+    );
+    const second = await setContactMessagingConsent(
+      attendant,
+      contactId,
+      { action: "REVOKE" },
+      { repository, now: () => new Date("2026-08-25T11:05:00.000Z") },
+    );
+
+    expect(first).toEqual({
+      active: false,
+      source: null,
+      grantedAt: null,
+      grantedBy: null,
+      note: null,
+    });
+    expect(second).toEqual(first);
+    expect(repository.consentUpdates).toHaveLength(1);
+    expect(repository.consentEvents).toEqual([
+      {
+        contactId,
+        actorUserId: attendant.id,
+        action: ContactMessagingConsentAction.REVOKED,
+        source: ContactMessagingConsentSource.LOJA_FISICA,
+        note: null,
+      },
+    ]);
+  });
+
+  it("rejects inactive actors, missing contacts, and grants during opt-out", async () => {
+    const inactive = createRepository();
+    inactive.isActorActive = async () => false;
+    const missing = createRepository({ contact: null });
+    const optedOut = createRepository({
+      contact: contact({ messagingOptOutAt: new Date() }),
+    });
+    const input = {
+      action: "GRANT",
+      source: ContactMessagingConsentSource.TELEFONE,
+    } as const;
+
+    await expect(
+      setContactMessagingConsent(attendant, contactId, input, {
+        repository: inactive,
+        now: () => new Date(),
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      setContactMessagingConsent(attendant, contactId, input, {
+        repository: missing,
+        now: () => new Date(),
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    await expect(
+      setContactMessagingConsent(attendant, contactId, input, {
+        repository: optedOut,
+        now: () => new Date(),
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "WHATSAPP_CONTACT_OPTED_OUT",
+    });
+    expect(inactive.consentEvents).toEqual([]);
+    expect(missing.consentEvents).toEqual([]);
+    expect(optedOut.consentEvents).toEqual([]);
+  });
+
+  it("revokes consent atomically on opt-out and never restores it on opt-in", async () => {
+    const repository = createRepository({
+      contact: contact({
+        messagingConsentGrantedAt: new Date("2026-08-25T10:00:00.000Z"),
+        messagingConsentSource: ContactMessagingConsentSource.OUTRO,
+        messagingConsentGrantedByUserId: attendant.id,
+        messagingConsentGrantedByUser: {
+          id: attendant.id,
+          name: attendant.name,
+        },
+        messagingConsentNote: "Autorização em feira",
+      }),
+    });
+
+    await setContactMessagingRestriction(
+      attendant,
+      contactId,
+      { restricted: true, reason: "Cliente pediu bloqueio" },
+      repository,
+    );
+    await setContactMessagingRestriction(
+      attendant,
+      contactId,
+      { restricted: false, reason: "Cliente retirou o bloqueio" },
+      repository,
+    );
+
+    expect(repository.consentUpdates).toEqual([
+      {
+        messagingConsentGrantedAt: null,
+        messagingConsentSource: null,
+        messagingConsentGrantedByUserId: null,
+        messagingConsentNote: null,
+      },
+    ]);
+    expect(repository.consentEvents).toEqual([
+      {
+        contactId,
+        actorUserId: attendant.id,
+        action: ContactMessagingConsentAction.REVOKED,
+        source: ContactMessagingConsentSource.OUTRO,
+        note: "Autorização em feira",
+      },
+    ]);
+    expect(repository.contactRecord).toMatchObject({
+      messagingOptOutAt: null,
+      messagingConsentGrantedAt: null,
+      messagingConsentSource: null,
+    });
+  });
+
   it("records company-wide opt-out without exposing its reason or actor", async () => {
     const repository = createRestrictionRepository();
 
@@ -722,6 +1031,25 @@ describe("contact classification service", () => {
       replaceContactTags(attendant, contactId, [tagId], repository),
     ).resolves.toMatchObject({ tags: [expect.objectContaining({ id: tagId })] });
     expect(repository.transactionAttempts).toBe(3);
+  });
+
+  it("retries PostgreSQL 40001 conflicts surfaced by a raw locking query", async () => {
+    const repository = createRepository({
+      transactionFailures: [rawSerializationFailure()],
+    });
+
+    await expect(
+      setContactMessagingConsent(
+        attendant,
+        contactId,
+        {
+          action: "GRANT",
+          source: ContactMessagingConsentSource.WHATSAPP,
+        },
+        { repository, now: () => new Date("2026-08-25T10:00:00.000Z") },
+      ),
+    ).resolves.toMatchObject({ active: true });
+    expect(repository.transactionAttempts).toBe(2);
   });
 
   it("rechecks actor activity inside a fresh retry before mutating tags", async () => {
