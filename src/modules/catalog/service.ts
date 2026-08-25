@@ -181,6 +181,12 @@ export function createCatalogService(input: {
     weight: (page) => Math.max(1, page.products.length),
     now: nowMs,
   });
+  const exactProductCache = createBoundedTtlCache<CatalogProduct>({
+    ttlMs: input.ttlMs ?? DEFAULT_TTL_MS,
+    maximumEntries: 200,
+    maximumWeight: 200,
+    now: nowMs,
+  });
   let lastManualRefreshAt: number | null = null;
 
   function requireConfigured(): {
@@ -341,20 +347,30 @@ export function createCatalogService(input: {
 
     async resolveProduct(retailerId) {
       const { client } = requireConfigured();
-      let products: CatalogProduct[];
+      const key = `product:${retailerId}`;
       try {
-        products = await client.getProductsByRetailerIds([retailerId]);
+        const cached = await exactProductCache.load(key, async () => {
+          const products = await client.getProductsByRetailerIds([retailerId]);
+          const product = products.find(
+            (candidate) => candidate.retailerId === retailerId,
+          );
+          if (!product) {
+            throw new CatalogServiceError("CATALOG_PRODUCT_NOT_FOUND");
+          }
+          return product;
+        });
+        return cached.value;
       } catch (error) {
-        throw new CatalogServiceError(errorCode(error));
+        const code = errorCode(error);
+        if (!isTransient(code)) exactProductCache.invalidate(key);
+        throw new CatalogServiceError(code);
       }
-      const product = products.find((candidate) => candidate.retailerId === retailerId);
-      if (!product) throw new CatalogServiceError("CATALOG_PRODUCT_NOT_FOUND");
-      return product;
     },
 
     invalidate() {
       statusCache.invalidate();
       pageCache.invalidate();
+      exactProductCache.invalidate();
     },
   };
 }

@@ -61,6 +61,7 @@ Variáveis principais:
 | `META_APP_ID` / `META_APP_SECRET` | Identificação e segredo do aplicativo Meta. |
 | `WHATSAPP_PHONE_NUMBER_ID` | ID do número na Cloud API. |
 | `WHATSAPP_BUSINESS_ACCOUNT_ID` | ID da conta WhatsApp Business. |
+| `WHATSAPP_CATALOG_ID` | ID opcional do catálogo oficial da XP; fica somente no servidor. A ausência desativa apenas a consulta ao catálogo. |
 | `WHATSAPP_ACCESS_TOKEN` | Token permanente do System User. |
 | `WHATSAPP_VERIFY_TOKEN` | Valor aleatório escolhido para validar o webhook. |
 | `MEDIA_ROOT` | Diretório local de mídia; em container é sempre `/data/media`. |
@@ -211,6 +212,24 @@ Realize estes passos no Meta for Developers e no Business Manager com uma conta 
 9. confirme no painel Meta que a verificação do webhook passou e que eventos chegam com assinatura válida.
 
 Permissões, versões da Graph API, revisão do app e nomenclatura do painel mudam ao longo do tempo. Antes da ativação, confira a documentação oficial vigente da Meta e a data de expiração de todos os ativos. Planeje rotação de token e segredo.
+
+### Catálogo oficial da XP — Release A somente leitura
+
+A Meta/Commerce Manager continua sendo a fonte única de nome, código, descrição, preço, disponibilidade e imagem. A aplicação não cria tabela de produtos, não aceita um `catalog_id` vindo do navegador e, nesta release, não envia mensagem de produto. Administradores consultam o diagnóstico em `/configuracoes/catalogo`; atendentes podem pesquisar no seletor **Produtos**, onde a ação de envio permanece marcada como **Disponível na próxima etapa**.
+
+Ative a integração com privilégio mínimo e validação positiva, nesta ordem:
+
+1. em **Configurações do negócio > Fontes de dados > Catálogos**, localize o catálogo pertencente à **XP Eletrônicos**, registre de forma sanitizada seu nome, ID e empresa proprietária, e conceda ao System User controlado acesso somente a esse catálogo;
+2. preserve no token permanente as permissões operacionais já usadas pelo WhatsApp (`whatsapp_business_messaging` e `whatsapp_business_management`) e valide as permissões vigentes necessárias à leitura: `business_management` para descobrir/verificar a associação do ativo e `catalog_management` para ler o catálogo atribuído;
+3. gere ou rotacione o token somente depois de confirmar que todas as permissões WhatsApp anteriores continuam presentes. Nunca cole o token em linha de comando, histórico, Git, relatório ou saída de diagnóstico;
+4. faça leituras autenticadas e confirme simultaneamente: catálogo exato, propriedade da XP, associação à WABA/número esperado e produtos reconhecíveis. Se houver mais de um catálogo possível, propriedade divergente, erro de permissão ou associação ambígua, pare sem alterar a Meta ou a KVM;
+5. grave apenas o ID confirmado em `WHATSAPP_CATALOG_ID` no arquivo secreto `/opt/apps/example-app/.env.production`, com modo restrito. Não crie variável `NEXT_PUBLIC_`, `ARG` de Docker ou arquivo versionado com esse valor;
+6. leia `whatsapp_commerce_settings` do número, preserve o valor atual de `is_cart_enabled` e altere somente `is_catalog_visible=true`. Para a XP, o aceite exige catálogo visível e carrinho ainda habilitado;
+7. releia catálogo, produtos e commerce settings até obter convergência. Só depois recrie `xp-whatsapp-app` com a imagem aprovada e verifique o diagnóstico administrativo e a pesquisa autenticada.
+
+As referências técnicas usadas por esta release são a coleção oficial da Meta para [Commerce Settings da WhatsApp Cloud API](https://www.postman.com/meta/whatsapp-business-platform/folder/iyy9vwt/commerce-settings) e o [SDK oficial da Meta para Product Catalog](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/productcatalog.py). Como permissões e versões podem mudar, a leitura real e o painel Meta no momento da ativação prevalecem; nenhuma escrita deve ser feita por tentativa e erro.
+
+Falha de catálogo é isolada: login, webhook, texto, áudio e mídia continuam funcionando. O serviço usa cache curto e pode mostrar o último resultado sanitizado como desatualizado somente em falha transitória; erro de permissão ou catálogo incorreto falha fechado. Imagens passam por rota autenticada de mesma origem, com limite de tamanho, tipo, tempo, redirects e bloqueio de redes privadas.
 
 ### Saúde e alertas operacionais da Meta
 
@@ -385,6 +404,32 @@ curl --fail --silent http://127.0.0.1:3100/api/health
 ```
 
 O entrypoint aplica migrations antes do servidor. Nunca atualize simultaneamente o site principal e esta central, e nunca reutilize seus volumes ou `.env`.
+
+### Release imutável somente do app na KVM compartilhada
+
+Para uma release normal sem migration destrutiva, use `/opt/apps/example-app` como raiz operacional. A candidata deve ser um commit limpo que passou por todos os gates e que contém a revisão atualmente implantada como ancestral, depois da auditoria de todas as worktrees e branches.
+
+Antes de alterar qualquer estado, registre de forma sanitizada:
+
+- revisão e digest da imagem atual de `xp-whatsapp-app`;
+- ID e `StartedAt` de `xp-whatsapp-database`;
+- snapshot de todos os containers que não são `xp-whatsapp-app`;
+- redes e volumes do projeto;
+- link `current`, arquivo Compose candidato e backup preventivo.
+
+Crie `/opt/apps/example-app/releases/{revisão-completa}` a partir do `git archive` daquela revisão exata, construa `xp-whatsapp:{revisão-completa}` com o label OCI `org.opencontainers.image.revision`, confira o label e o digest e atualize atomicamente o link `current`. No arquivo secreto, altere somente `XP_WHATSAPP_IMAGE` e, quando o catálogo tiver sido positivamente identificado, `WHATSAPP_CATALOG_ID`.
+
+Use sempre o diretório do projeto, o arquivo secreto e o Compose da própria candidata. A única mutação permitida de containers é:
+
+```sh
+XP_WHATSAPP_IMAGE="$CANDIDATE_IMAGE" \
+  docker compose --project-directory "$CANDIDATE_RELEASE" \
+  --env-file "$ENV_FILE" \
+  -f "$CANDIDATE_RELEASE/deploy/kvm/docker-compose.yml" \
+  up -d --no-deps --force-recreate --wait --wait-timeout 120 app
+```
+
+Não execute `up` para `database`, não use `down` e não recrie Caddy, redes, volumes ou containers de outros sistemas. Compare novamente todos os invariantes; qualquer mudança fora de `xp-whatsapp-app` exige aborto e rollback imediato para a imagem/link anteriores. Depois, valide health local e público, autenticação, conversas e logs antes de habilitar a equipe.
 
 ### Migration de dados com writers drenados
 

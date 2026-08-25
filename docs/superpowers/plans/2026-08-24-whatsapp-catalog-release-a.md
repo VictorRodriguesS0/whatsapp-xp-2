@@ -335,11 +335,11 @@ Use a dedicated history marker analogous to the media viewer marker. Do not reus
 - Create: `src/whatsapp-catalog-release-a.test.ts`
 - Create: `docs/verification/2026-08-24-whatsapp-catalog-release-a.md`
 
-- [ ] **Step 1: Add RED integrated/deployment contracts**
+- [x] **Step 1: Add RED integrated/deployment contracts**
 
 Require the optional server-only env mapping, read routes, admin page, safe image route and absence of client-exposed Meta variables/product tables. Deployment mutations must reject removal of existing env mappings or recreation of non-app services.
 
-- [ ] **Step 2: Document the least-privilege Meta activation**
+- [x] **Step 2: Document the least-privilege Meta activation**
 
 Document, without secret values:
 

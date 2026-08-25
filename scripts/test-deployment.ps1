@@ -297,6 +297,9 @@ try {
   Assert-MutationFails 'remove existing Meta server wiring' (
     $OriginalCompose -replace '(?m)^      WHATSAPP_BUSINESS_ACCOUNT_ID:.*\r?\n', ''
   )
+  Assert-MutationFails 'remove existing WhatsApp catalog server wiring' (
+    $OriginalCompose -replace '(?m)^      WHATSAPP_CATALOG_ID:.*\r?\n', ''
+  )
   Assert-MutationFails 'pass Meta token as Compose build argument' (
     [regex]::Replace(
       $OriginalCompose,

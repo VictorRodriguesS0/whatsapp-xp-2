@@ -284,6 +284,10 @@ describe("catalog service", () => {
     await expect(service.resolveProduct("CTRL-01")).resolves.toMatchObject({
       retailerId: "CTRL-01",
     });
+    await expect(service.resolveProduct("CTRL-01")).resolves.toMatchObject({
+      retailerId: "CTRL-01",
+    });
+    expect(graph.getProductsByRetailerIds).toHaveBeenCalledTimes(1);
     await expect(service.resolveProduct("MISSING")).rejects.toMatchObject({
       code: "CATALOG_PRODUCT_NOT_FOUND",
     });
