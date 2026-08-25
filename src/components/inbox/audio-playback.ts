@@ -59,7 +59,9 @@ export function setAudioPlaybackSpeed(
 
 export function subscribeAudioPlaybackSpeed(listener: (speed: AudioPlaybackSpeed) => void) {
   speedListeners.add(listener);
-  return () => speedListeners.delete(listener);
+  return () => {
+    speedListeners.delete(listener);
+  };
 }
 
 export function claimAudioPlayback(element: HTMLAudioElement) {
