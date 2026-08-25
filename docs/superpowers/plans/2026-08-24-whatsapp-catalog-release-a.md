@@ -272,15 +272,15 @@ Use the existing session/origin/error helpers. Routes parse input, call the serv
 - Modify: `src/components/inbox/conversation-sidebar.test.tsx`
 - Modify: `src/app/error-states.test.tsx`
 
-- [ ] **Step 1: Write page/component tests**
+- [x] **Step 1: Write page/component tests**
 
 Require admin redirect behavior, masked ID, name/count, visible/cart status, freshness, last success, public remediation and rate-limited refresh. Prohibit product editing controls and secret/raw payload text. Add `Configurar catálogo` only for admins.
 
-- [ ] **Step 2: Implement with existing settings shell**
+- [x] **Step 2: Implement with existing settings shell**
 
 Follow `/configuracoes/meta` patterns. Use semantic status text plus a discreet visual state; color cannot be the sole indication. Refresh must preserve the previous successful summary while pending.
 
-- [ ] **Step 3: Run and commit**
+- [x] **Step 3: Run and commit**
 
     npx vitest run src/app/configuracoes/catalogo/page.test.tsx src/components/catalog/catalog-settings-screen.test.tsx src/hooks/use-catalog-status.test.ts src/components/inbox/conversation-sidebar.test.tsx src/app/error-states.test.tsx
     git add src/app/configuracoes/catalogo src/components/catalog src/hooks/use-catalog-status.ts src/hooks/use-catalog-status.test.ts src/components/inbox/conversation-sidebar.tsx src/components/inbox/conversation-sidebar.test.tsx src/app/error-states.test.tsx

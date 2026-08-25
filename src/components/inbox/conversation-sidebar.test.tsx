@@ -58,6 +58,7 @@ describe("ConversationSidebar", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Abrir configurações" }));
     expect(screen.getByRole("menuitem", { name: "Configurar respostas rápidas" })).toHaveAttribute("href", "/configuracoes/respostas-rapidas");
     expect(screen.queryByRole("menuitem", { name: "Configurar classificações" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("menuitem", { name: "Configurar catálogo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: "Configurar usuários" })).not.toBeInTheDocument();
   });
 
@@ -66,6 +67,7 @@ describe("ConversationSidebar", () => {
 
     await userEvent.setup().click(screen.getByRole("button", { name: "Abrir configurações" }));
     expect(screen.getByRole("menuitem", { name: "Configurar classificações" })).toHaveAttribute("href", "/configuracoes/atendimento");
+    expect(screen.getByRole("menuitem", { name: "Configurar catálogo" })).toHaveAttribute("href", "/configuracoes/catalogo");
     expect(screen.getByRole("menuitem", { name: "Configurar usuários" })).toHaveAttribute("href", "/configuracoes/usuarios");
   });
 

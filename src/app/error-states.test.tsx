@@ -11,6 +11,8 @@ import ClassificationError from "./configuracoes/atendimento/error";
 import ClassificationLoading from "./configuracoes/atendimento/loading";
 import MetaHealthError from "./configuracoes/meta/error";
 import MetaHealthLoading from "./configuracoes/meta/loading";
+import CatalogSettingsError from "./configuracoes/catalogo/error";
+import CatalogSettingsLoading from "./configuracoes/catalogo/loading";
 import QuickRepliesError from "./configuracoes/respostas-rapidas/error";
 import QuickRepliesLoading from "./configuracoes/respostas-rapidas/loading";
 
@@ -50,6 +52,7 @@ describe("application failure states", () => {
     ["usuários", UsersLoading, "Carregando usuários"],
     ["classificações", ClassificationLoading, "Carregando classificações"],
     ["saúde da Meta", MetaHealthLoading, "Carregando saúde da Meta"],
+    ["catálogo", CatalogSettingsLoading, "Carregando catálogo do WhatsApp"],
     ["respostas rápidas", QuickRepliesLoading, "Carregando respostas rápidas"],
   ])("keeps the %s loading state named and inside the branded settings shell", (_name, Component, label) => {
     render(<Component />);
@@ -63,6 +66,7 @@ describe("application failure states", () => {
     ["usuários", UsersError, "Não foi possível carregar os usuários"],
     ["classificações", ClassificationError, "Não foi possível carregar as classificações"],
     ["saúde da Meta", MetaHealthError, "Não foi possível carregar a saúde da Meta"],
+    ["catálogo", CatalogSettingsError, "Não foi possível carregar o catálogo"],
     ["respostas rápidas", QuickRepliesError, "Não foi possível carregar as respostas rápidas"],
   ])("keeps the %s route error safe, branded and retryable", (_name, Component, heading) => {
     const reset = vi.fn();

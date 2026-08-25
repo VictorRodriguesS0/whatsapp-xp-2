@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Menu, MessageSquareText, Settings, ShieldCheck, Tags } from "lucide-react";
+import { LogOut, Menu, MessageSquareText, Settings, ShieldCheck, ShoppingBag, Tags } from "lucide-react";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 import { AppBrand } from "@/components/brand/app-brand";
@@ -64,6 +64,7 @@ export function ConversationSidebar({
                   {user.role === "ADMIN" ? <>
                     <DropdownMenuItem asChild><a href="/configuracoes/atendimento"><Tags aria-hidden="true" className="size-4" />Configurar classificações</a></DropdownMenuItem>
                     <DropdownMenuItem asChild><a href="/configuracoes/whatsapp"><ShieldCheck aria-hidden="true" className="size-4" />Configurar WhatsApp</a></DropdownMenuItem>
+                    <DropdownMenuItem asChild><a href="/configuracoes/catalogo"><ShoppingBag aria-hidden="true" className="size-4" />Configurar catálogo</a></DropdownMenuItem>
                     <DropdownMenuItem asChild><a href="/configuracoes/usuarios"><Settings aria-hidden="true" className="size-4" />Configurar usuários</a></DropdownMenuItem>
                   </> : null}
                   <DropdownMenuItem onSelect={onLogout}><LogOut aria-hidden="true" className="size-4" />Sair</DropdownMenuItem>
