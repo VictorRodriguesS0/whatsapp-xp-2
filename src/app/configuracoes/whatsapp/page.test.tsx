@@ -1,4 +1,6 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const redirectMock = vi.hoisted(() =>
@@ -18,6 +20,9 @@ vi.mock("@/modules/auth/session", () => ({
 }));
 vi.mock("@/modules/templates/service", () => ({
   getWhatsAppPolicySettings: getWhatsAppPolicySettingsMock,
+}));
+vi.mock("@/components/theme/theme-menu", () => ({
+  ThemeMenu: () => <button aria-label="Tema" type="button" />,
 }));
 
 import WhatsAppSettingsError from "./error";
@@ -98,5 +103,13 @@ describe("WhatsAppSettingsPage", () => {
     expect(screen.queryByText(/Graph|token=secret/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Tentar novamente" }));
     expect(reset).toHaveBeenCalledOnce();
+  });
+
+  it("routes loading and error through the shared settings states", () => {
+    const loading = readFileSync(resolve(process.cwd(), "src/app/configuracoes/whatsapp/loading.tsx"), "utf8");
+    const error = readFileSync(resolve(process.cwd(), "src/app/configuracoes/whatsapp/error.tsx"), "utf8");
+
+    expect(loading).toContain("SettingsLoadingState");
+    expect(error).toContain("SettingsErrorState");
   });
 });

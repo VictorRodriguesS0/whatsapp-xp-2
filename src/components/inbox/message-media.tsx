@@ -326,14 +326,14 @@ export function MessageMedia({
   }
   if ((message.localMimeType ?? message.mediaMimeType) === "application/pdf" && onOpenMedia) {
     return (
-      <button aria-label="Abrir PDF" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] px-3 font-semibold text-[var(--accent)] outline-none hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-[var(--accent)]" onClick={(event) => { event.currentTarget.focus(); onOpenMedia(message.id); }} ref={(element) => { reconciledFocusTarget.current = element; }} type="button">
+      <button aria-label="Abrir PDF" className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--media-surface)] px-3 font-semibold text-[var(--accent)] outline-none transition-colors hover:bg-[var(--media-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]" onClick={(event) => { event.currentTarget.focus(); onOpenMedia(message.id); }} ref={(element) => { reconciledFocusTarget.current = element; }} type="button">
         <FileText aria-hidden="true" className="size-4" />
         {message.localFileName || message.body || "Visualizar PDF"}
       </button>
     );
   }
   return (
-    <a className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] px-3 font-semibold text-[var(--accent)] outline-none hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-[var(--accent)]" download href={source} ref={(element) => { reconciledFocusTarget.current = element; }}>
+    <a className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--border)] bg-[var(--media-surface)] px-3 font-semibold text-[var(--accent)] outline-none transition-colors hover:bg-[var(--media-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]" download href={source} ref={(element) => { reconciledFocusTarget.current = element; }}>
       <FileText aria-hidden="true" className="size-4" />
       {message.localFileName || message.body || "Baixar documento"}
     </a>

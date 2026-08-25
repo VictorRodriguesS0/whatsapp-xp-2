@@ -92,7 +92,9 @@ describe("MessageMedia", () => {
     />);
 
     expect(screen.queryByRole("button", { name: "Abrir PDF" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Baixar documento" })).toHaveAttribute("download");
+    const download = screen.getByRole("link", { name: "Baixar documento" });
+    expect(download).toHaveAttribute("download");
+    expect(download).toHaveClass("bg-[var(--media-surface)]", "hover:bg-[var(--media-surface-hover)]");
   });
 
   it("does not steal focus when pending media first renders", () => {

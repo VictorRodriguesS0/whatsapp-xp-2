@@ -13,6 +13,7 @@ describe("PdfMessagePreview", () => {
     const button = screen.getByRole("button", { name: "Abrir PDF Nota fiscal.pdf" });
     const image = screen.getByRole("img", { name: "Prévia da primeira página de Nota fiscal.pdf" });
     expect(button).toHaveClass("min-h-11");
+    expect(button).toHaveClass("bg-[var(--media-surface)]", "hover:bg-[var(--media-surface-hover)]");
     expect(image).toHaveAttribute("src", `/api/media/${mediaId}/thumbnail`);
     expect(screen.getByRole("status", { name: "Carregando prévia do PDF" })).toBeInTheDocument();
 
@@ -31,6 +32,7 @@ describe("PdfMessagePreview", () => {
 
     expect(screen.queryByRole("img")).toBeNull();
     const button = screen.getByRole("button", { name: "Abrir PDF Manual.pdf" });
+    expect(button).toHaveClass("bg-[var(--media-surface)]", "hover:bg-[var(--media-surface-hover)]");
     expect(button).toHaveTextContent("Manual.pdf");
     expect(button).toHaveTextContent("PDF");
     fireEvent.click(button);

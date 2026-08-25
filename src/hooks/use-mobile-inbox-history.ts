@@ -7,7 +7,7 @@ const INBOX_LAYER_KEY = "__xpInboxLayer";
 type InboxLayer = "thread" | "details";
 
 type MobileInboxHistoryOptions = {
-  isMobile: () => boolean;
+  isMobile: boolean;
   threadOpen: boolean;
   detailsOpen: boolean;
   closeThread: () => void;
@@ -41,10 +41,11 @@ function currentUrl() {
 
 export function useMobileInboxHistory(options: MobileInboxHistoryOptions) {
   const optionsRef = useRef(options);
+  const previousMobile = useRef(options.isMobile);
   optionsRef.current = options;
 
   const enterThread = useCallback(() => {
-    if (!optionsRef.current.isMobile()) return;
+    if (!optionsRef.current.isMobile) return;
     const state = stateWithLayer("thread");
     if (layerFromState(window.history.state) === "thread") {
       window.history.replaceState(state, "", currentUrl());
@@ -54,12 +55,12 @@ export function useMobileInboxHistory(options: MobileInboxHistoryOptions) {
   }, []);
 
   const switchThread = useCallback(() => {
-    if (!optionsRef.current.isMobile()) return;
+    if (!optionsRef.current.isMobile) return;
     window.history.replaceState(stateWithLayer("thread"), "", currentUrl());
   }, []);
 
   const enterDetails = useCallback(() => {
-    if (!optionsRef.current.isMobile()) return;
+    if (!optionsRef.current.isMobile) return;
     const layer = layerFromState(window.history.state);
     if (layer === "details") {
       window.history.replaceState(stateWithLayer("details"), "", currentUrl());
@@ -73,7 +74,7 @@ export function useMobileInboxHistory(options: MobileInboxHistoryOptions) {
 
   const leaveDetails = useCallback(() => {
     const current = optionsRef.current;
-    if (!current.isMobile()) {
+    if (!current.isMobile) {
       current.closeDetails();
       return;
     }
@@ -86,7 +87,7 @@ export function useMobileInboxHistory(options: MobileInboxHistoryOptions) {
 
   const leaveThread = useCallback(() => {
     const current = optionsRef.current;
-    if (!current.isMobile()) {
+    if (!current.isMobile) {
       current.closeThread();
       return;
     }
@@ -100,7 +101,7 @@ export function useMobileInboxHistory(options: MobileInboxHistoryOptions) {
   useEffect(() => {
     function handlePopState(event: PopStateEvent) {
       const current = optionsRef.current;
-      if (!current.isMobile()) return;
+      if (!current.isMobile) return;
       const nextLayer = layerFromState(event.state);
       if (current.detailsOpen && nextLayer !== "details") {
         current.closeDetails();
@@ -116,9 +117,30 @@ export function useMobileInboxHistory(options: MobileInboxHistoryOptions) {
   }, []);
 
   useEffect(() => {
+    const wasMobile = previousMobile.current;
+    previousMobile.current = options.isMobile;
+
+    if (wasMobile && !options.isMobile) {
+      if (layerFromState(window.history.state) !== null) {
+        window.history.replaceState(stateWithoutLayer(), "", currentUrl());
+      }
+      return;
+    }
+
+    if (!wasMobile && options.isMobile && options.threadOpen) {
+      if (options.detailsOpen) {
+        window.history.pushState(stateWithLayer("thread"), "", currentUrl());
+        window.history.pushState(stateWithLayer("details"), "", currentUrl());
+      } else {
+        window.history.pushState(stateWithLayer("thread"), "", currentUrl());
+      }
+    }
+  }, [options.detailsOpen, options.isMobile, options.threadOpen]);
+
+  useEffect(() => {
     if (
       !options.threadOpen &&
-      options.isMobile() &&
+      options.isMobile &&
       layerFromState(window.history.state) !== null
     ) {
       window.history.replaceState(stateWithoutLayer(), "", currentUrl());

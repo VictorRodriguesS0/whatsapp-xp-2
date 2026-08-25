@@ -6,7 +6,7 @@ import type { MetaHealthLabel, MetaHealthSummaryDto } from "@/modules/meta-healt
 
 const presentation: Record<MetaHealthLabel, { text: string; dot: string }> = {
   NORMAL: { text: "Meta normal", dot: "bg-[var(--accent)]" },
-  ATTENTION: { text: "Meta em atenção", dot: "bg-amber-500" },
+  ATTENTION: { text: "Meta em atenção", dot: "bg-[var(--attention-border)]" },
   CRITICAL: { text: "Meta crítica", dot: "bg-[var(--danger)]" },
   STALE: { text: "Meta sem atualização", dot: "bg-[var(--muted)]" },
 };
@@ -22,7 +22,7 @@ export function MetaHealthBadge({ initialSummary }: { initialSummary: MetaHealth
   return (
     <a
       aria-label={accessibleName}
-      className="inline-flex min-h-9 items-center gap-1.5 rounded-md px-2 text-[11px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
+      className="inline-flex min-h-11 items-center gap-1.5 rounded-md px-2 text-[11px] font-semibold text-[var(--muted)] transition-colors hover:bg-[var(--canvas)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-1"
       href="/configuracoes/meta"
     >
       <span aria-hidden="true" className={cn("size-1.5 shrink-0 rounded-full", current.dot)} />

@@ -102,7 +102,7 @@ export function MessageReactions({
             <button
               aria-label={badgeLabel(reaction)}
               className={cn(
-                "flex min-h-7 items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--panel)] px-2 text-sm shadow-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
+                "flex min-h-11 min-w-11 items-center justify-center rounded-full bg-transparent p-0 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]",
                 reaction.status === "PENDING" && "opacity-65",
               )}
               disabled={mutation.pending || reaction.reactor !== "BUSINESS"}
@@ -110,8 +110,10 @@ export function MessageReactions({
               onClick={() => reaction.reactor === "BUSINESS" && selectEmoji(reaction.emoji)}
               type="button"
             >
-              <span aria-hidden="true">{reaction.emoji}</span>
-              <span className="text-[10px] font-semibold text-[var(--muted)]">{reaction.reactor === "CONTACT" ? "Cliente" : "XP"}</span>
+              <span className="flex min-h-7 items-center gap-1 rounded-full border border-[var(--border)] bg-[var(--panel)] px-2 shadow-sm">
+                <span aria-hidden="true">{reaction.emoji}</span>
+                <span className="text-[10px] font-semibold text-[var(--muted)]">{reaction.reactor === "CONTACT" ? "Cliente" : "XP"}</span>
+              </span>
             </button>
           ))}
         </div>

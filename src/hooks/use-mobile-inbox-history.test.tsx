@@ -1,4 +1,4 @@
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { useMobileInboxHistory } from "./use-mobile-inbox-history";
@@ -17,7 +17,7 @@ describe("useMobileInboxHistory", () => {
     const pushState = vi.spyOn(window.history, "pushState");
     const replaceState = vi.spyOn(window.history, "replaceState");
     const hook = renderHook(() => useMobileInboxHistory({
-      isMobile: () => true,
+      isMobile: true,
       threadOpen: true,
       detailsOpen: false,
       closeThread: vi.fn(),
@@ -54,7 +54,7 @@ describe("useMobileInboxHistory", () => {
     const closeThread = vi.fn();
     const { rerender } = renderHook(
       ({ detailsOpen }) => useMobileInboxHistory({
-        isMobile: () => true,
+        isMobile: true,
         threadOpen: true,
         detailsOpen,
         closeThread,
@@ -79,7 +79,7 @@ describe("useMobileInboxHistory", () => {
     const closeThread = vi.fn();
     const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
     const hook = renderHook(() => useMobileInboxHistory({
-      isMobile: () => true,
+      isMobile: true,
       threadOpen: true,
       detailsOpen: true,
       closeThread,
@@ -110,7 +110,7 @@ describe("useMobileInboxHistory", () => {
     const replaceState = vi.spyOn(window.history, "replaceState");
     const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
     const hook = renderHook(() => useMobileInboxHistory({
-      isMobile: () => false,
+      isMobile: false,
       threadOpen: true,
       detailsOpen: true,
       closeThread,
@@ -137,7 +137,7 @@ describe("useMobileInboxHistory", () => {
     window.history.replaceState({ __xpInboxLayer: "thread" }, "", window.location.href);
     const { rerender } = renderHook(
       ({ threadOpen }) => useMobileInboxHistory({
-        isMobile: () => true,
+        isMobile: true,
         threadOpen,
         detailsOpen: false,
         closeThread: vi.fn(),
@@ -149,5 +149,46 @@ describe("useMobileInboxHistory", () => {
     rerender({ threadOpen: false });
 
     expect(window.history.state).toBeNull();
+  });
+
+  it("reconciles mobile open → desktop close → mobile reopen so back returns to the list", async () => {
+    const closeThread = vi.fn();
+    const closeDetails = vi.fn();
+    const pushState = vi.spyOn(window.history, "pushState");
+    window.history.replaceState({ __xpForeignOverlay: "menu" }, "", window.location.href);
+    const hook = renderHook(
+      ({ isMobile, threadOpen }) => useMobileInboxHistory({
+        isMobile,
+        threadOpen,
+        detailsOpen: false,
+        closeThread,
+        closeDetails,
+      }),
+      { initialProps: { isMobile: true, threadOpen: false } },
+    );
+
+    act(() => hook.result.current.enterThread());
+    hook.rerender({ isMobile: true, threadOpen: true });
+    expect(window.history.state).toEqual({
+      __xpForeignOverlay: "menu",
+      __xpInboxLayer: "thread",
+    });
+
+    hook.rerender({ isMobile: false, threadOpen: true });
+    expect(window.history.state).toEqual({ __xpForeignOverlay: "menu" });
+    act(() => hook.result.current.leaveThread());
+    expect(closeThread).toHaveBeenCalledOnce();
+
+    hook.rerender({ isMobile: false, threadOpen: false });
+    hook.rerender({ isMobile: true, threadOpen: false });
+    act(() => hook.result.current.enterThread());
+    hook.rerender({ isMobile: true, threadOpen: true });
+    expect(pushState).toHaveBeenCalledTimes(2);
+    expect(window.history.state).toMatchObject({ __xpInboxLayer: "thread" });
+
+    closeThread.mockClear();
+    window.history.back();
+    await waitFor(() => expect(window.history.state).toEqual({ __xpForeignOverlay: "menu" }));
+    await waitFor(() => expect(closeThread).toHaveBeenCalledOnce());
   });
 });

@@ -41,7 +41,7 @@ export function QuotedReplyPreview({
     </span>
   );
   const contentClass = cn(
-    "min-w-0 flex-1 border-l-[3px] border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_6%,white)] text-left",
+    "min-w-0 flex-1 border border-[var(--quoted-border)] border-l-[3px] bg-[var(--quoted-surface)] text-left",
     compact ? "rounded-sm px-2 py-1.5" : "rounded-md px-3 py-2",
   );
 
@@ -50,7 +50,7 @@ export function QuotedReplyPreview({
       {reply.available && onNavigate ? (
         <button
           aria-label={`Ir para mensagem original — ${reply.author} · ${typeLabel}: ${reply.summary}`}
-          className={cn(contentClass, "cursor-pointer outline-none hover:bg-[color-mix(in_srgb,var(--accent)_10%,white)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]")}
+          className={cn(contentClass, "cursor-pointer outline-none hover:bg-[var(--quoted-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]")}
           onClick={() => onNavigate(reply.messageId)}
           type="button"
         >

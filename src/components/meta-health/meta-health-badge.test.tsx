@@ -38,5 +38,6 @@ describe("Meta health badge", () => {
     expect(screen.getByText("2")).toHaveClass("bg-[var(--text)]", "text-[var(--canvas)]");
     expect(screen.getByText("2")).not.toHaveClass("text-white");
     expect(link).toHaveClass("focus-visible:ring-2");
+    expect(link).toHaveClass("min-h-11");
   });
 });

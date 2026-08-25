@@ -8,6 +8,7 @@ import { useInbox } from "@/hooks/use-inbox";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useMessageSearch } from "@/hooks/use-message-search";
 import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
+import { useMobileVisualViewportHeight } from "@/hooks/use-mobile-visual-viewport-height";
 import type { SessionUser } from "@/modules/auth/session";
 import type { MetaHealthSummaryDto } from "@/modules/meta-health/types";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
@@ -117,6 +118,7 @@ export function InboxShell({
   const selectedId = inbox.selectedId;
   const closeConversation = inbox.closeConversation;
   const isMobile = useMediaQuery("(max-width: 767px)");
+  const mobileViewportHeight = useMobileVisualViewportHeight(isMobile);
 
   const closeThreadLocally = useCallback(() => {
     const idToRestore = lastSelectedId.current ?? selectedId;
@@ -168,7 +170,7 @@ export function InboxShell({
   const closeDetailsLocally = useCallback(() => setDetailsOpen(false), []);
 
   const mobileHistory = useMobileInboxHistory({
-    isMobile: isMobileViewport,
+    isMobile,
     threadOpen: mobileView === "thread",
     detailsOpen,
     closeThread: closeThreadLocally,
@@ -287,8 +289,11 @@ export function InboxShell({
   }
 
   return (
-    <main aria-label="Central de atendimento" className="h-dvh min-h-[34rem] bg-[var(--canvas)] p-3 sm:p-4">
-      <div className="inbox-frame mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden border border-[var(--border)] bg-[var(--panel)] shadow-[0_8px_30px_rgba(32,37,34,0.06)]">
+    <main aria-label="Central de atendimento" className="h-dvh bg-[var(--canvas)] p-3 sm:p-4">
+      <div
+        className="inbox-frame mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden border border-[var(--border)] bg-[var(--panel)] shadow-[0_8px_30px_rgba(32,37,34,0.06)]"
+        style={isMobile ? { height: mobileViewportHeight } : undefined}
+      >
         <ConnectionBanner connected={inbox.connected} />
         <div className="inbox-grid min-h-0 flex-1" data-mobile-view={mobileView} data-testid="inbox-shell">
           <ConversationSidebar

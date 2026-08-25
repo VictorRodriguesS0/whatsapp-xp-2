@@ -16,7 +16,7 @@ type ContentOfKind<Kind extends MessageContent["kind"]> = Extract<
 >;
 
 const richCardClass =
-  "min-w-0 overflow-hidden rounded-md border border-[var(--border)] bg-white/35 p-3 text-[var(--text)]";
+  "min-w-0 overflow-hidden rounded-md border border-[var(--rich-border)] bg-[var(--rich-surface)] p-3 text-[var(--text)]";
 
 function Card({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -56,7 +56,7 @@ function LocationCard({ content }: { content: ContentOfKind<"location"> }) {
         </div>
       </div>
       <a
-        className="mt-3 inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-md border border-[var(--border)] px-3 text-center text-sm font-semibold text-[var(--accent)] outline-none hover:bg-white/50 focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+        className="mt-3 inline-flex min-h-11 max-w-full items-center justify-center gap-2 rounded-md border border-[var(--rich-border)] px-3 text-center text-sm font-semibold text-[var(--accent)] outline-none hover:bg-[var(--rich-surface-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
         href={`https://www.google.com/maps/search/?${query.toString()}`}
         rel="noopener noreferrer"
         target="_blank"
