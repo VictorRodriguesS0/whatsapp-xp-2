@@ -80,7 +80,7 @@ The sanitized machine-readable summary is `docs/verification/2026-08-24-responsi
 - The normal Browser tab correctly reported `(display-mode: standalone) === false`; no standalone window was claimed.
 - Runtime inspection returned zero service-worker registrations and zero Cache Storage keys.
 - HTTP returned 200 for the manifest and all three icons. It returned 404 for `/sw.js`, `/service-worker.js`, `/service-worker.prod.js`, `/workbox.js` and `/workbox-runtime.js`.
-- Chromium did not expose a native install button through this controlled profile. Zero CDP installability errors is the retained Task 9 native/Application evidence; Task 10 still revalidates the HTTPS install UI and standalone launch.
+- Chromium did not expose a native install button through this controlled profile. Zero CDP installability errors is the retained Task 9 native/Application evidence; the final HTTPS Chrome result is recorded below without claiming an installation.
 
 ## Console and network evidence by smoke family
 
@@ -109,7 +109,7 @@ Expected/controlled failures are separated from clean families. A synthetic What
 
 - The initial responsive candidate `7573545` was not a descendant of the then-live revision `6d67be6fc674450c35cb5756a0609f387a47cf12`. The release branch incorporated that exact live revision before promotion, preserving the live PDF/full-sync, service-window and Meta behavior. The resulting validated source candidate is `bdb6d758b8dc4439a2d3688d4b484a9488107a03`.
 - The exact `git archive` is `source-bdb6d758b8dc4439a2d3688d4b484a9488107a03.tar.gz`, 7,867,364 bytes, SHA-256 `cc80e3b19791cb4b17cf3aaaf95ef8f347307a44efd9d611a4ed71146993290d`. Its release directory is `/opt/apps/example-app/releases/bdb6d758b8dc4439a2d3688d4b484a9488107a03`; the transport archive was removed after hash verification.
-- The immutable Linux image is `xp-whatsapp:bdb6d758b8dc4439a2d3688d4b484a9488107a03`, image ID/digest `sha256:6bac3e2b26d2bf920e88ee684ace065bd503d40fbf7e91efa21a918755215bfd`. OCI revision and version labels are respectively the full candidate revision and `responsive-pwa-2026-08-24`. The superseded pre-fix image was not promoted.
+- The immutable Linux image is `xp-whatsapp:bdb6d758b8dc4439a2d3688d4b484a9488107a03`, image ID/digest `sha256:6bac3e2b26d2bf920e88ee684ace065bd503d40fbf7e91efa21a918755215bfd`. OCI revision and version labels are respectively the full candidate revision and `responsive-pwa-2026-08-24`. The superseded pre-fix image was not promoted and its exact rejected tag, image and release directory were removed in the follow-up below.
 - Runtime inspection proved UID/GID `1001:1001`, available `ffmpeg`, `ffprobe` and `pdftoppm`, six valid PNG application icons with their named dimensions, and absence of application `.env` files and application test source outside dependencies.
 
 ### Linux release gates
@@ -143,7 +143,8 @@ Expected/controlled failures are separated from clean families. A synthetic What
 ### HTTPS manifest and installation evidence
 
 - CDP `Page.getAppManifest` recognized the public HTTPS manifest, returned its data and reported no manifest errors. The contract retained `display: standalone`, `start_url: /conversas`, scope `/`, the required `any` icons and the maskable icon.
-- This browser-client target exposed neither `Page.getInstallabilityErrors`/`Page.getManifestIcons` nor a native install affordance or installation API. Therefore native installation and a standalone launch were not automated and are not claimed. The ordinary controlled tab correctly reported both standalone and minimal-ui display modes as false. This is the available HTTPS fallback evidence, not evidence of an installed application.
+- The initial browser-client target exposed neither `Page.getInstallabilityErrors`/`Page.getManifestIcons` nor a native install affordance or installation API. A subsequent fresh Chrome target also rejected `Schema.getDomains`, `Browser.getVersion`, `PWA.getOsAppState`, `Page.addScriptToEvaluateOnNewDocument` and the `Page.reload` initialization-script path as unsupported through its raw-CDP bridge. `Page.getAppManifest` remained available, returned no errors and resolved the default manifest ID to `https://whatsapp.xpeletronicos.com/conversas`.
+- Because that Chrome bridge did not expose the `PWA` domain or a supported pre-navigation `beforeinstallprompt` probe, `PWA.install`, `PWA.launch` and `PWA.uninstall` were not called. No installation or standalone launch is claimed, and no installed PWA state required cleanup. The temporary Chrome target was closed. The ordinary controlled tab correctly reported both standalone and minimal-ui display modes as false.
 - The no-service-worker and no-runtime-cache contract remained covered by the passing release suite; an unsupported Service Worker CDP method was not treated as positive runtime evidence.
 
 ### Soak and final state
@@ -155,3 +156,10 @@ Expected/controlled failures are separated from clean families. A synthetic What
 | 2026-08-25 00:05:09 | 200 | 200 | healthy | 0 | exact | 51 | 0 |
 
 The three samples were separated by 20 seconds. The critical scan covered uncaught/unhandled errors, fatal/panic events, migration failures, Prisma client errors and address conflicts without emitting log bodies. No rollback criterion occurred, so the prepared app-only rollback was not invoked and remains available at the recorded anchor.
+
+### Release follow-up closure
+
+- Provenance: the unrelated historical `.superpowers/sdd/task-10-report.md` was restored exactly to its contents at `7573545`. This release record now lives at `.superpowers/sdd/task-10-responsive-pwa-report.md`.
+- KVM hygiene began with `current` resolving exactly to the candidate and zero container/mount or symlink references to rejected revision `4b926a9c521cc3d6b966338afd507a0ce579788a` or image `sha256:b0a001de357c14c78c9f189506863f7e22235b394740bef01a39c60129bf706f`. The rejected tag, image and validated absolute release path under `/opt/apps/example-app/releases/` were then removed. The active app container ID did not change, stayed healthy with zero restarts, and both candidate and rollback images were preserved. The rejected artifact is recoverable by rebuilding an exact `git archive` from `4b926a9c521cc3d6b966338afd507a0ce579788a`.
+- Review-timeout classification: `src/modules/webhooks/process.test.ts` reran with its default test timeout against a dedicated PostgreSQL 18 database whose name ended in `_test`. All 20 migrations applied and 28/28 tests passed. Vitest took 15.11 seconds, the slowest individual case took 4.148 seconds, and migrations plus the test command took 35.03 seconds. The earlier timeout is therefore classified as harness/environment timing rather than a product failure; no implementation change was warranted. The disposable database, internal network, SSH tunnel and its exact unused anonymous volume were removed afterward, returning the host to the 47-volume baseline.
+- Final production recheck after every cleanup retained app container `45cc32d044db4a1a263b4d18aa5a24a64f20de2ea0cafd623ab08e537a6889d8`, health `healthy`, zero restarts, the exact candidate symlink/image and the immutable rollback image. No app deploy or environment-file mutation occurred during this follow-up.
