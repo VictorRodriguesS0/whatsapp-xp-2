@@ -168,15 +168,15 @@ Expected: PASS with no regression in Meta health.
 - Create: `src/modules/catalog/factory.ts`
 - Create: `src/modules/catalog/factory.test.ts`
 
-- [ ] **Step 1: Write cache tests**
+- [x] **Step 1: Write cache tests**
 
 Require five-minute default TTL, maximum entry/product counts, LRU-style eviction, one in-flight promise per normalized key, stale fallback only after a previous success, explicit invalidation and no cache sharing across catalog IDs.
 
-- [ ] **Step 2: Implement the in-process cache**
+- [x] **Step 2: Implement the in-process cache**
 
 The cache stores sanitized normalized products only. It never stores tokens, raw Graph payloads or arbitrary image URLs in client DTOs.
 
-- [ ] **Step 3: Write service tests**
+- [x] **Step 3: Write service tests**
 
 Cover:
 
@@ -189,7 +189,7 @@ Cover:
 - admin refresh rate limit;
 - status masks catalog ID and error details.
 
-- [ ] **Step 4: Implement service and singleton factory**
+- [x] **Step 4: Implement service and singleton factory**
 
 Expose server-only functions:
 
@@ -200,7 +200,7 @@ Expose server-only functions:
 
 Authorization stays in the service as defense in depth. The factory returns an unavailable implementation when the ID is absent.
 
-- [ ] **Step 5: Run tests and commit**
+- [x] **Step 5: Run tests and commit**
 
     npx vitest run src/modules/catalog/cache.test.ts src/modules/catalog/service.test.ts src/modules/catalog/factory.test.ts
     git add src/modules/catalog
