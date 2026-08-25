@@ -50,7 +50,7 @@ const severityCopy: Record<MetaOperationalAlertDto["severity"], string> = {
 
 const severityClass: Record<MetaOperationalAlertDto["severity"], string> = {
   INFO: "text-[var(--muted)]",
-  ATTENTION: "text-amber-700",
+  ATTENTION: "text-[var(--attention-text)]",
   CRITICAL: "text-[var(--danger)]",
 };
 
@@ -269,7 +269,7 @@ export function MetaHealthScreen({
       title="Saúde da Meta"
     >
         {(health.summary.stale || syncFailure || syncNotice) ? (
-          <div className="mt-5 border-l-2 border-amber-500 pl-4 text-sm text-[var(--text)]" role="status">
+          <div className="mt-5 border-l-2 border-[var(--attention-border)] pl-4 text-sm text-[var(--attention-text)]" role="status">
             {health.summary.stale ? <p>Os dados da Meta estão sem atualização recente.</p> : null}
             {syncFailure ? <p>{syncFailure}</p> : null}
             {syncNotice ? <p>{syncNotice}</p> : null}

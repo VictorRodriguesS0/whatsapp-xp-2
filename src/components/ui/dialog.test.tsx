@@ -13,4 +13,12 @@ describe("dialog geometry contracts", () => {
     expect(mobileModalRule).toContain("width: auto;");
     expect(mobileModalRule).toContain("inset:");
   });
+
+  it("stacks named settings dialog actions at the narrow breakpoint", () => {
+    const globalStyles = readFileSync(join(process.cwd(), "src", "app", "globals.css"), "utf8");
+    const narrowRule = globalStyles.match(/@media \(max-width: 389px\) \{([\s\S]*?)\r?\n\}/)?.[1] ?? "";
+
+    expect(narrowRule).toContain(".settings-dialog-actions");
+    expect(narrowRule).toContain("flex-direction: column");
+  });
 });

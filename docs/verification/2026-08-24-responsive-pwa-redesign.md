@@ -51,7 +51,7 @@ Every measured page satisfied `document.documentElement.scrollWidth === document
 | 1280×800 | light/dark, real selected conversation and customer details in three panes |
 | 1440×900 | light/dark/system resolved dark, real selected conversation and customer details in three panes; users and attendance settings |
 
-The release folder contains 45 synthetic PNG files. A mechanical audit opened every file with Sharp and proved all 45 have PNG magic `89504e470d0a1a0a`, decoded format `png`, and raster dimensions exactly matching the filename. No screenshot was resized to satisfy its name: browser viewport calibration produced the required raster, and Sharp was used only for lossless PNG encoding.
+The original release matrix contains 45 synthetic PNG files. A mechanical audit opened every original matrix file with Sharp and proved all 45 have PNG magic `89504e470d0a1a0a`, decoded format `png`, and raster dimensions exactly matching the filename. No screenshot in that original matrix was resized to satisfy its name: browser viewport calibration produced the required raster, and Sharp was used only for lossless PNG encoding. The four later WhatsApp-settings captures are documented separately in the final-review follow-up below.
 
 The browser returned the previous compositor frame on the first capture after some breakpoint transitions. Contact-sheet inspection caught the empty/loading evidence. Those 11 matrix images were recaptured by discarding the stale frame and retaining a second Browser capture only after DOM assertions proved Pedro selected, message content visible and the expected two/three panes. Five contact sheets were visually inspected for all 45 release images.
 
@@ -164,3 +164,21 @@ The three samples were separated by 20 seconds. The critical scan covered uncaug
 - KVM hygiene began with `current` resolving exactly to the candidate and zero container/mount or symlink references to rejected revision `4b926a9c521cc3d6b966338afd507a0ce579788a` or image `sha256:b0a001de357c14c78c9f189506863f7e22235b394740bef01a39c60129bf706f`. The rejected tag, image and validated absolute release path under `/opt/apps/example-app/releases/` were then removed. The active app container ID did not change, stayed healthy with zero restarts, and both candidate and rollback images were preserved. The rejected artifact is recoverable by rebuilding an exact `git archive` from `4b926a9c521cc3d6b966338afd507a0ce579788a`.
 - Review-timeout classification: `src/modules/webhooks/process.test.ts` reran with its default test timeout against a dedicated PostgreSQL 18 database whose name ended in `_test`. All 20 migrations applied and 28/28 tests passed. Vitest took 15.11 seconds, the slowest individual case took 4.148 seconds, and migrations plus the test command took 35.03 seconds. The earlier timeout is therefore classified as harness/environment timing rather than a product failure; no implementation change was warranted. The disposable database, internal network, SSH tunnel and its exact unused anonymous volume were removed afterward, returning the host to the 47-volume baseline.
 - Final production recheck after every cleanup retained app container `45cc32d044db4a1a263b4d18aa5a24a64f20de2ea0cafd623ab08e537a6889d8`, health `healthy`, zero restarts, the exact candidate symlink/image and the immutable rollback image. No app deploy or environment-file mutation occurred during this follow-up.
+
+## Final responsive review follow-up
+
+This follow-up was verified only against the exact local optimized build from immutable base `4ac6c734f4a5bcc73f9c73d6287540c70fc46b0a`, backed by a dedicated localhost PostgreSQL database and the synthetic seeded administrator. It did not mutate or probe production.
+
+- At 768×1024 light, `768x1024-light-client-drawer.png` now contains a real selected synthetic conversation with the customer drawer visibly open. Browser assertions proved the dialog opened, focus entered its first control, closing removed the dialog, and focus returned to `Abrir dados do cliente`.
+- The WhatsApp policy route was captured at 390×844 and 1440×900 in both explicit light and dark themes. Browser assertions proved the shared XP brand and theme menu were present and `scrollWidth === clientWidth` at both widths.
+- The browser-client returned JPEG bytes and, on the scrollable settings route, a client-area raster smaller than the requested viewport. The captured bytes were therefore converted to PNG and the four settings canvases were mechanically normalized to their named raster dimensions. No UI content was added or removed. The drawer capture was already 768×1024 before PNG conversion.
+- A final byte audit proved all five follow-up files have PNG magic `89504e470d0a1a0a` and exact named dimensions. The screenshot directory now contains 49 PNG files.
+- Controlled viewport emulation changed `visualViewport.height` from 844 to 500 pixels. The mobile `.inbox-frame` inline height changed from `844px` to `500px`, the composer bottom remained at the visual-viewport boundary, and horizontal overflow stayed false. This is emulated viewport evidence plus source/unit coverage; no physical on-screen keyboard capture is claimed.
+
+Follow-up screenshots:
+
+- `768x1024-light-client-drawer.png`
+- `390x844-light-whatsapp-settings.png`
+- `390x844-dark-whatsapp-settings.png`
+- `1440x900-light-whatsapp-settings.png`
+- `1440x900-dark-whatsapp-settings.png`

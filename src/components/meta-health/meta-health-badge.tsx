@@ -6,7 +6,7 @@ import type { MetaHealthLabel, MetaHealthSummaryDto } from "@/modules/meta-healt
 
 const presentation: Record<MetaHealthLabel, { text: string; dot: string }> = {
   NORMAL: { text: "Meta normal", dot: "bg-[var(--accent)]" },
-  ATTENTION: { text: "Meta em atenção", dot: "bg-amber-500" },
+  ATTENTION: { text: "Meta em atenção", dot: "bg-[var(--attention-border)]" },
   CRITICAL: { text: "Meta crítica", dot: "bg-[var(--danger)]" },
   STALE: { text: "Meta sem atualização", dot: "bg-[var(--muted)]" },
 };

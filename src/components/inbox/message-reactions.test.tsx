@@ -49,7 +49,10 @@ describe("MessageReactions", () => {
     const onReact = vi.fn();
     render(<MessageReactions message={message} onReact={onReact} />);
     fireEvent.click(screen.getByRole("button", { name: "Reagir à mensagem" }));
-    fireEvent.click(screen.getByRole("button", { name: "Remover reação ❤️" }));
+    const remove = screen.getByRole("button", { name: "XP reagiu com ❤️, enviado por Ana" });
+    expect(remove).toHaveClass("min-h-11", "min-w-11");
+    expect(remove.firstElementChild).toHaveClass("min-h-7", "rounded-full");
+    fireEvent.click(remove);
     expect(onReact).toHaveBeenCalledWith(message.id, "❤️");
   });
 

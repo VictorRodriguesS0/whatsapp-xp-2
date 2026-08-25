@@ -697,7 +697,11 @@ describe("InboxShell", () => {
     expect(conversationPane).not.toHaveAttribute("inert");
     expect(screen.getByRole("button", { name: /^Abrir conversa com Carlos\b/ })).toHaveAttribute("aria-current", "true");
     expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
-    expect(window.history.state).toEqual({ __xpInboxLayer: "thread" });
+    await waitFor(() => expect(window.history.state).toBeNull());
+
+    mobileQuery.matches = true;
+    mobileQuery.dispatchEvent(new Event("change"));
+    await waitFor(() => expect(window.history.state).toEqual({ __xpInboxLayer: "thread" }));
     vi.unstubAllGlobals();
   });
 });

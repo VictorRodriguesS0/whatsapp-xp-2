@@ -5,6 +5,7 @@ import postcss, { type AtRule, type Declaration, type Rule } from "postcss";
 import { describe, expect, it } from "vitest";
 
 const stylesheet = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8");
+const source = (path: string) => readFileSync(resolve(process.cwd(), path), "utf8");
 
 function declarationValue(rule: Rule, property: string) {
   return rule.nodes?.find(
@@ -121,5 +122,71 @@ describe("semantic button contrast", () => {
         ).toBeGreaterThanOrEqual(4.5);
       }
     }
+  });
+});
+
+describe("semantic message and attention contrast", () => {
+  it.each([
+    ["light", ':root[data-theme="light"]'],
+    ["dark", ':root[data-theme="dark"]'],
+  ])("keeps accent, muted and attention copy at 4.5:1 on their real %s surfaces", (_theme, selector) => {
+    const root = postcss.parse(stylesheet);
+    const theme = root.nodes?.find(
+      (node): node is Rule => node.type === "rule" && node.selector.includes(selector),
+    );
+
+    expect(theme).toBeDefined();
+    if (!theme) return;
+
+    const pairs = [
+      ["--accent", "--inbound"],
+      ["--accent", "--outbound"],
+      ["--accent", "--quoted-surface"],
+      ["--accent", "--rich-surface"],
+      ["--muted", "--inbound"],
+      ["--muted", "--outbound"],
+      ["--muted", "--quoted-surface"],
+      ["--muted", "--rich-surface"],
+      ["--attention-text", "--warning"],
+    ] as const;
+
+    for (const [foregroundToken, backgroundToken] of pairs) {
+      const foreground = declarationValue(theme, foregroundToken) ?? "";
+      const background = declarationValue(theme, backgroundToken) ?? "";
+      expect(foreground, foregroundToken).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(background, backgroundToken).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(
+        contrastRatio(foreground, background),
+        `${foregroundToken} over ${backgroundToken}`,
+      ).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
+  it("uses theme-owned quoted, rich and attention tokens without white or amber utility mixes", () => {
+    const quoted = source("src/components/inbox/quoted-reply-preview.tsx");
+    const rich = source("src/components/inbox/message-rich-content.tsx");
+    const meta = source("src/components/meta-health/meta-health-screen.tsx");
+
+    expect(quoted).toContain("var(--quoted-surface)");
+    expect(quoted).toContain("var(--quoted-border)");
+    expect(quoted).not.toMatch(/color-mix\([^)]*white/i);
+    expect(rich).toContain("var(--rich-surface)");
+    expect(rich).toContain("var(--rich-border)");
+    expect(rich).not.toMatch(/bg-white|white\//i);
+    expect(meta).toContain("var(--attention-text)");
+    expect(meta).toContain("var(--attention-border)");
+    expect(meta).not.toMatch(/text-amber|border-amber/i);
+  });
+});
+
+describe("mobile visual viewport contract", () => {
+  it("requests content resize and applies a mobile-only frame height without a 34rem floor", () => {
+    const layout = source("src/app/layout.tsx");
+    const shell = source("src/components/inbox/inbox-shell.tsx");
+
+    expect(layout).toContain('interactiveWidget: "resizes-content"');
+    expect(shell).toContain("useMobileVisualViewportHeight(isMobile)");
+    expect(shell).toContain("mobileViewportHeight");
+    expect(shell).not.toContain("min-h-[34rem]");
   });
 });

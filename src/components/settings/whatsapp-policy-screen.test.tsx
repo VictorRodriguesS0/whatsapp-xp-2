@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { WhatsAppPolicySettingsDto } from "@/modules/templates/types";
@@ -9,6 +11,9 @@ import { WhatsAppPolicyScreen } from "./whatsapp-policy-screen";
 const routerReplaceMock = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: routerReplaceMock }),
+}));
+vi.mock("@/components/theme/theme-menu", () => ({
+  ThemeMenu: () => <button aria-label="Tema" type="button" />,
 }));
 
 const approvedTemplate = {
@@ -73,6 +78,22 @@ describe("WhatsAppPolicyScreen", () => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
     routerReplaceMock.mockResolvedValue(undefined);
+  });
+
+  it("uses the shared branded settings shell and responsive dialog contracts", () => {
+    const source = readFileSync(
+      resolve(process.cwd(), "src/components/settings/whatsapp-policy-screen.tsx"),
+      "utf8",
+    );
+
+    render(<WhatsAppPolicyScreen initialSettings={settings()} />);
+
+    expect(screen.getByLabelText("XP Eletrônicos")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Tema" })).toBeVisible();
+    expect(source).toContain("SettingsPageShell");
+    expect(source).toContain('className="modal-dialog"');
+    expect(source).toContain("settings-dialog-actions");
+    expect(source).not.toMatch(/overflow-x-auto|min-w-\[[^\]]+\]/);
   });
 
   it("shows the four operational states, eligible rows and exact preview", () => {

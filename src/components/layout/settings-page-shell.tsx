@@ -14,7 +14,7 @@ type SettingsPageShellProps = {
 
 export function SettingsPageShell({ actions, children, description, eyebrow, title }: SettingsPageShellProps) {
   return (
-    <main aria-labelledby="settings-page-heading" className="min-h-dvh bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
+    <main aria-labelledby="settings-page-heading" className="min-h-dvh overflow-x-hidden bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
       <div className="mx-auto max-w-6xl">
         <header className="border-b border-[var(--border)] pb-5">
           <div className="flex min-h-11 items-center justify-between gap-3">

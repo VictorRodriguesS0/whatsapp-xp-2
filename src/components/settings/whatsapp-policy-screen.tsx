@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, CheckCircle2, RefreshCw, ShieldCheck, ShieldOff } from "lucide-react";
+import { CheckCircle2, RefreshCw, ShieldCheck, ShieldOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 
@@ -12,6 +12,7 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { SettingsPageShell } from "@/components/layout/settings-page-shell";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -377,30 +378,19 @@ export function WhatsAppPolicyScreen({
 
   return (
     <>
-      <main aria-labelledby="whatsapp-policy-heading" className="min-h-dvh overflow-x-hidden bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
-        <div className="mx-auto max-w-5xl">
-          <header className="border-b border-[var(--border)] pb-5">
-            <a className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold text-[var(--muted)] outline-none hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]" href="/conversas">
-              <ArrowLeft aria-hidden="true" className="size-4" />
-              Conversas
-            </a>
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Configurações</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight" id="whatsapp-policy-heading">WhatsApp e janela de atendimento</h1>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-              Controle o modelo aprovado usado para retomar conversas depois da janela de 24 horas.
-            </p>
-          </header>
-
+      <SettingsPageShell
+        actions={(
+          <Button disabled={busy} onClick={synchronize} variant="secondary">
+            {busy ? <Spinner label="Sincronizando" /> : <><RefreshCw aria-hidden="true" className="size-4" />Sincronizar com a Meta</>}
+          </Button>
+        )}
+        description="Controle o modelo aprovado usado para retomar conversas depois da janela de 24 horas."
+        eyebrow="Configurações"
+        title="WhatsApp e janela de atendimento"
+      >
           <section aria-labelledby="policy-status-heading" className="mt-7">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <h2 className="text-lg font-bold" id="policy-status-heading">Estado operacional</h2>
-                <p className="mt-1 text-sm text-[var(--muted)]">A ativação só é liberada com sincronização recente e modelo compatível.</p>
-              </div>
-              <Button disabled={busy} onClick={synchronize} variant="secondary">
-                {busy ? <Spinner label="Sincronizando" /> : <><RefreshCw aria-hidden="true" className="size-4" />Sincronizar com a Meta</>}
-              </Button>
-            </div>
+            <h2 className="text-lg font-bold" id="policy-status-heading">Estado operacional</h2>
+            <p className="mt-1 text-sm text-[var(--muted)]">A ativação só é liberada com sincronização recente e modelo compatível.</p>
 
             <dl className="mt-4 divide-y divide-[var(--border)] border-y border-[var(--border)] bg-[var(--panel)]">
               <div className="grid gap-1 px-4 py-3 sm:grid-cols-[14rem_1fr] sm:items-center"><dt className="text-sm font-semibold">Proteção da janela</dt><dd><Badge className={settings.mode === "ACTIVE" ? "bg-[var(--accent)]" : "bg-[var(--canvas)] text-[var(--muted)]"}>{settings.mode === "ACTIVE" ? "Proteção ativa" : "Proteção desativada"}</Badge></dd></div>
@@ -469,18 +459,17 @@ export function WhatsAppPolicyScreen({
           {notice ? (
             <div aria-atomic="true" aria-live="polite" className={`mt-6 border-l-4 bg-[var(--panel)] px-4 py-3 text-sm font-semibold ${notice.kind === "error" ? "border-[var(--danger)]" : "border-[var(--accent)]"}`} role={notice.kind === "error" ? "alert" : "status"}>{notice.text}</div>
           ) : null}
-        </div>
-      </main>
+      </SettingsPageShell>
 
       <AlertDialog onOpenChange={(open) => { if (!open && !busy) setConfirmation(null); }} open={confirmation !== null}>
-        <AlertDialogContent onCloseAutoFocus={restoreConfirmationFocus}>
+        <AlertDialogContent className="modal-dialog" onCloseAutoFocus={restoreConfirmationFocus}>
           <AlertDialogTitle className="text-xl font-bold">{confirmation === "ACTIVE" ? "Ativar proteção da janela" : "Desativar proteção da janela"}</AlertDialogTitle>
           <AlertDialogDescription className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {confirmation === "ACTIVE"
               ? "Mensagens livres serão bloqueadas quando a janela de 24 horas estiver fechada. A retomada usará o modelo aprovado selecionado."
               : "Mensagens livres deixarão de ser bloqueadas pela proteção interna. Use esta opção apenas durante manutenção controlada."}
           </AlertDialogDescription>
-          <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="settings-dialog-actions mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <AlertDialogCancel asChild><Button disabled={busy} variant="secondary">Cancelar</Button></AlertDialogCancel>
             <AlertDialogAction asChild>
               <Button disabled={busy} onClick={() => { if (confirmation) updateMode(confirmation); }} variant={confirmation === "INACTIVE" ? "danger" : "primary"}>

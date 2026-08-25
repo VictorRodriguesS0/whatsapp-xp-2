@@ -2,11 +2,15 @@
 
 import { EmojiPicker } from "frimousse";
 
+import { useMediaQuery } from "@/hooks/use-media-query";
+
 export function FullEmojiPicker({ onSelect }: { onSelect(emoji: string): void }) {
+  const compact = useMediaQuery("(max-width: 389px)");
+
   return (
     <EmojiPicker.Root
       className="flex h-[22rem] w-[min(20rem,calc(100vw-2rem))] flex-col overflow-hidden rounded-xl bg-[var(--panel)]"
-      columns={8}
+      columns={compact ? 6 : 7}
       locale="pt"
       onEmojiSelect={({ emoji }) => onSelect(emoji)}
     >
@@ -32,7 +36,7 @@ export function FullEmojiPicker({ onSelect }: { onSelect(emoji: string): void })
               <button
                 {...props}
                 aria-label={emoji.label}
-                className="flex size-10 items-center justify-center rounded-lg text-2xl outline-none hover:bg-[var(--canvas)] focus-visible:bg-[var(--canvas)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                className="flex size-11 items-center justify-center rounded-lg text-2xl outline-none hover:bg-[var(--canvas)] focus-visible:bg-[var(--canvas)] focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
                 type="button"
               >
                 {emoji.emoji}
