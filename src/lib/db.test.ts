@@ -95,12 +95,17 @@ describe("database", () => {
       ORDER BY table_name, column_name
     `;
 
-    expect(temporalColumns).toHaveLength(34);
+    expect(temporalColumns).toHaveLength(35);
     expect(temporalColumns).toEqual(
       expect.arrayContaining([
         {
           tableName: "contacts",
           columnName: "messaging_opt_out_at",
+          dataType: "timestamp with time zone",
+        },
+        {
+          tableName: "contacts",
+          columnName: "messaging_consent_granted_at",
           dataType: "timestamp with time zone",
         },
         {
