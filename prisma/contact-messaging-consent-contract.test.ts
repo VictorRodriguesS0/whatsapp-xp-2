@@ -17,9 +17,10 @@ const migrationDatabaseName = `xp_contact_consent_${process.pid}_test`;
 if (!testDatabaseUrl) {
   throw new Error("TEST_DATABASE_URL is required for contact consent contracts");
 }
+const requiredTestDatabaseUrl = testDatabaseUrl;
 
 function connectionStringForDatabase(database: string): string {
-  const url = new URL(testDatabaseUrl);
+  const url = new URL(requiredTestDatabaseUrl);
   url.pathname = `/${database}`;
   return url.toString();
 }
