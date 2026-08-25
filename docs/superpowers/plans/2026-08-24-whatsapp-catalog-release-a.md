@@ -243,15 +243,15 @@ The browser supplies only a bounded retailer ID. Return `Cache-Control: private,
 - Create: `src/app/api/settings/whatsapp/catalog/refresh/route.ts`
 - Create: `src/app/api/settings/whatsapp/catalog/refresh/route.test.ts`
 
-- [ ] **Step 1: Write route tests**
+- [x] **Step 1: Write route tests**
 
 For every route test unauthenticated, inactive-user and method behavior. Product search allows active attendants/admins; status/refresh require admin. Refresh requires same origin and returns `429` when limited. Validate bounded query, cursor and limit. Responses contain no token, raw URL, full catalog ID or raw Graph error.
 
-- [ ] **Step 2: Implement thin routes**
+- [x] **Step 2: Implement thin routes**
 
 Use the existing session/origin/error helpers. Routes parse input, call the service and serialize stable public errors only.
 
-- [ ] **Step 3: Run and commit**
+- [x] **Step 3: Run and commit**
 
     npx vitest run src/app/api/catalog/products/route.test.ts src/app/api/settings/whatsapp/catalog/route.test.ts src/app/api/settings/whatsapp/catalog/refresh/route.test.ts
     git add src/app/api/catalog src/app/api/settings/whatsapp/catalog
