@@ -310,6 +310,21 @@ export const prismaMetaHealthRepository: MetaHealthRepository = {
       for (const transition of input.transitions) {
         await applyTransition(transaction, input.snapshotId, transition);
       }
+      const presentTemplateIds = input.remote.templates.map(({ id }) => id);
+      await transaction.metaOperationalAlert.updateMany({
+        where: {
+          snapshotId: input.snapshotId,
+          active: true,
+          eventCode: "TEMPLATE_PENDING_DELETION",
+          resourceId: {
+            not: null,
+            ...(presentTemplateIds.length > 0
+              ? { notIn: presentTemplateIds }
+              : {}),
+          },
+        },
+        data: { active: false, resolvedAt: input.now },
+      });
       return true;
     });
   },

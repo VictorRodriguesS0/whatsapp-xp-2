@@ -144,6 +144,21 @@ function createMemoryMetaHealthRepository(
         syncLeaseUntil: null,
       });
       input.transitions.forEach(apply);
+      const presentTemplateIds = new Set(
+        input.remote.templates.map(({ id }) => id),
+      );
+      for (const alert of alerts) {
+        if (
+          alert.snapshotId === input.snapshotId &&
+          alert.active &&
+          alert.eventCode === "TEMPLATE_PENDING_DELETION" &&
+          alert.resourceId !== null &&
+          !presentTemplateIds.has(alert.resourceId)
+        ) {
+          alert.active = false;
+          alert.resolvedAt = input.now;
+        }
+      }
       return true;
     },
     async completeSyncFailure(input) {
@@ -267,6 +282,75 @@ describe("Meta health reconciliation service", () => {
     await expect(
       getMetaHealthSummary(admin, { repository, config, now: () => start }),
     ).resolves.toMatchObject({ label: "CRITICAL", lastSyncErrorCode: "META_TIMEOUT" });
+  });
+
+  it("preserves a pending deletion alert when Graph synchronization fails", async () => {
+    const repository = createMemoryMetaHealthRepository();
+    await applyMetaOperationalEvent(
+      {
+        wabaId: config.wabaId,
+        field: "message_template_status_update",
+        eventCode: "PENDING_DELETION",
+        resourceId: "template-timeout",
+        occurredAt: start,
+        details: { name: "template-timeout", language: "pt_BR" },
+        deduplicationKey: "template:timeout:pending-deletion",
+      },
+      { repository, config },
+    );
+    const client: MetaHealthGraphClient = {
+      fetchState: vi.fn().mockRejectedValue(new MetaHealthGraphError("META_TIMEOUT")),
+    };
+
+    await expect(
+      syncMetaHealth(admin, {
+        repository,
+        client,
+        config,
+        now: () => new Date(start.getTime() + 61_000),
+        force: true,
+      }),
+    ).resolves.toEqual({ status: "SYNCED", success: false });
+    expect(
+      repository.alerts.find((alert) => alert.resourceId === "template-timeout"),
+    ).toMatchObject({
+      eventCode: "TEMPLATE_PENDING_DELETION",
+      active: true,
+      resolvedAt: null,
+    });
+  });
+
+  it("resolves a pending deletion missing from a successful complete template snapshot", async () => {
+    const repository = createMemoryMetaHealthRepository();
+    await applyMetaOperationalEvent(
+      {
+        wabaId: config.wabaId,
+        field: "message_template_status_update",
+        eventCode: "PENDING_DELETION",
+        resourceId: "template-gone",
+        occurredAt: start,
+        details: { name: "template-gone", language: "pt_BR" },
+        deduplicationKey: "template:gone:pending-deletion",
+      },
+      { repository, config },
+    );
+
+    await expect(
+      syncMetaHealth(admin, {
+        repository,
+        client: clientWith(remote({ templates: [] })),
+        config,
+        now: () => new Date(start.getTime() + 61_000),
+        force: true,
+      }),
+    ).resolves.toEqual({ status: "SYNCED", success: true });
+    expect(
+      repository.alerts.find((alert) => alert.resourceId === "template-gone"),
+    ).toMatchObject({
+      eventCode: "TEMPLATE_PENDING_DELETION",
+      active: false,
+      resolvedAt: new Date(start.getTime() + 61_000),
+    });
   });
 
   it("rate-limits repeated manual refreshes for sixty seconds", async () => {
