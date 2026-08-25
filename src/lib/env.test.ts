@@ -51,4 +51,49 @@ describe("parseServerEnv", () => {
       }),
     ).toMatchObject({ WHATSAPP_PROVIDER: "meta" });
   });
+
+  it("keeps the catalog optional when the Meta provider is enabled", () => {
+    expect(
+      parseServerEnv({
+        ...validBase,
+        WHATSAPP_PROVIDER: "meta",
+        META_APP_ID: "app-id",
+        META_APP_SECRET: "app-secret",
+        WHATSAPP_PHONE_NUMBER_ID: "phone-number-id",
+        WHATSAPP_BUSINESS_ACCOUNT_ID: "business-account-id",
+        WHATSAPP_ACCESS_TOKEN: "access-token",
+        WHATSAPP_VERIFY_TOKEN: "verify-token",
+      }).WHATSAPP_CATALOG_ID,
+    ).toBeUndefined();
+  });
+
+  it("accepts a bounded numeric server-only catalog id", () => {
+    expect(
+      parseServerEnv({
+        ...validBase,
+        WHATSAPP_CATALOG_ID: " 123456789012345 ",
+      }).WHATSAPP_CATALOG_ID,
+    ).toBe("123456789012345");
+  });
+
+  it.each(["", "catalog-xp", "123\u0000", "1".repeat(65)])(
+    "rejects an invalid catalog id %#",
+    (catalogId) => {
+      expect(() =>
+        parseServerEnv({
+          ...validBase,
+          WHATSAPP_CATALOG_ID: catalogId,
+        }),
+      ).toThrow();
+    },
+  );
+
+  it("does not expose a public catalog environment field", () => {
+    const parsed = parseServerEnv({
+      ...validBase,
+      NEXT_PUBLIC_WHATSAPP_CATALOG_ID: "123456789012345",
+    });
+
+    expect(parsed).not.toHaveProperty("NEXT_PUBLIC_WHATSAPP_CATALOG_ID");
+  });
 });

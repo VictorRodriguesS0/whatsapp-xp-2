@@ -33,7 +33,7 @@
 - Create: `src/modules/catalog/schemas.ts`
 - Create: `src/modules/catalog/schemas.test.ts`
 
-- [ ] **Step 1: Write failing environment tests**
+- [x] **Step 1: Write failing environment tests**
 
 Cover these contracts:
 
@@ -48,11 +48,11 @@ Run:
 
 Expected: FAIL because the field is not modeled yet.
 
-- [ ] **Step 2: Add the optional environment field**
+- [x] **Step 2: Add the optional environment field**
 
 Add a bounded Meta identifier to the Zod schema and an empty documented entry to `.env.example`. Do not add it to `metaRequiredFields`.
 
-- [ ] **Step 3: Define catalog DTOs and raw-normalized boundaries**
+- [x] **Step 3: Define catalog DTOs and raw-normalized boundaries**
 
 Define:
 
@@ -93,7 +93,7 @@ Define:
 
 Raw types must remain module-private. Product DTOs may expose only internal image paths.
 
-- [ ] **Step 4: Write schema tests and implement bounded parsers**
+- [x] **Step 4: Write schema tests and implement bounded parsers**
 
 Test maximum query/cursor lengths, whitespace normalization, availability fallback, malformed Graph records, max page size and removal of control characters.
 
@@ -103,7 +103,7 @@ Run:
 
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
     git add .env.example src/lib/env.ts src/lib/env.test.ts src/modules/catalog
     git commit -m "feat: define catalog configuration contracts"
@@ -412,5 +412,4 @@ Verify health, login, conversations, text/audio/media regression, admin catalog 
 - [ ] All current message flows remain healthy.
 - [ ] Candidate is a reviewed superset of live production and completed parallel work.
 - [ ] Only `xp-whatsapp-app` was replaced.
-
 

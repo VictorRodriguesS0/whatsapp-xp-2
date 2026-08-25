@@ -24,6 +24,7 @@ const schema = z
     META_APP_SECRET: z.string().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
     WHATSAPP_BUSINESS_ACCOUNT_ID: z.string().optional(),
+    WHATSAPP_CATALOG_ID: z.string().trim().regex(/^\d{1,64}$/).optional(),
     WHATSAPP_ACCESS_TOKEN: z.string().optional(),
     WHATSAPP_VERIFY_TOKEN: z.string().optional(),
     MEDIA_ROOT: z.string().default("./data/media"),
