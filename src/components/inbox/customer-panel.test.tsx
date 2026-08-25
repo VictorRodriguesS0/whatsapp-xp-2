@@ -114,6 +114,31 @@ describe("CustomerPanel", () => {
     expect(dialog).not.toBeInTheDocument();
   });
 
+  it("places explicit consent above the separate contact restriction", () => {
+    render(
+      <CustomerPanel
+        {...tagProps}
+        conversation={conversation}
+        currentUserId="user-id"
+        onSetMessagingConsent={vi.fn().mockResolvedValue(true)}
+        onSetMessagingRestriction={vi.fn().mockResolvedValue(true)}
+        onSetResponsible={vi.fn()}
+        users={[]}
+      />,
+    );
+
+    const consentHeading = screen.getByRole("heading", {
+      name: "Autorização de mensagens",
+    });
+    const restrictionHeading = screen.getByRole("heading", {
+      name: "Preferência de contato",
+    });
+    expect(
+      consentHeading.compareDocumentPosition(restrictionHeading) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("keeps the restriction visible and requires a reason to allow contact again", async () => {
     const user = userEvent.setup();
     const onSetMessagingRestriction = vi.fn().mockResolvedValue(true);
@@ -133,6 +158,11 @@ describe("CustomerPanel", () => {
 
     expect(screen.getByText("Este contato está marcado como não contatar.")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Permitir contato novamente" }));
+    expect(
+      screen.getByText(
+        "Remover a restrição não restaura consentimento; registre uma nova autorização acima.",
+      ),
+    ).toBeVisible();
     await user.type(screen.getByRole("textbox", { name: "Motivo" }), "Cliente autorizou");
     await user.click(screen.getByRole("button", { name: "Confirmar permissão" }));
     expect(onSetMessagingRestriction).toHaveBeenCalledWith(
