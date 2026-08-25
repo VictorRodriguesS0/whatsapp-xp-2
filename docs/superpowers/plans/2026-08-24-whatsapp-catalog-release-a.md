@@ -215,19 +215,19 @@ Authorization stays in the service as defense in depth. The factory returns an u
 - Create: `src/app/api/catalog/products/[retailerId]/image/route.test.ts`
 - Create: `public/catalog-product-placeholder.svg`
 
-- [ ] **Step 1: Write SSRF and resource-bound tests**
+- [x] **Step 1: Write SSRF and resource-bound tests**
 
 Reject HTTP, credentials in URL, localhost, private/link-local/loopback/multicast IPv4 and IPv6, cloud metadata ranges, unsupported MIME, oversized response, slow response and too many redirects. Re-resolve and revalidate every redirect. Never attach Meta authorization to the image request.
 
-- [ ] **Step 2: Implement secure fetching**
+- [x] **Step 2: Implement secure fetching**
 
 Resolve the remote URL only through `resolveKnownCatalogProduct(retailerId)`. Use HTTPS, DNS/IP validation, three redirects maximum, a short timeout, bounded streaming bytes and an allow-list of JPEG/PNG/WebP. Return a same-origin placeholder on any unsafe or unavailable origin.
 
-- [ ] **Step 3: Implement the authenticated route**
+- [x] **Step 3: Implement the authenticated route**
 
 The browser supplies only a bounded retailer ID. Return `Cache-Control: private, max-age=300, stale-while-revalidate=60`, `X-Content-Type-Options: nosniff`, no upstream URL and no Graph details.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
     npx vitest run src/modules/catalog/image-proxy.test.ts "src/app/api/catalog/products/[retailerId]/image/route.test.ts"
     git add src/modules/catalog src/app/api/catalog public/catalog-product-placeholder.svg
