@@ -37,6 +37,10 @@ export type ContactMinAggregateOutputType = {
   messagingOptOutAt: Date | null
   messagingRestrictionReason: string | null
   messagingRestrictedByUserId: string | null
+  messagingConsentGrantedAt: Date | null
+  messagingConsentSource: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId: string | null
+  messagingConsentNote: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -54,6 +58,10 @@ export type ContactMaxAggregateOutputType = {
   messagingOptOutAt: Date | null
   messagingRestrictionReason: string | null
   messagingRestrictedByUserId: string | null
+  messagingConsentGrantedAt: Date | null
+  messagingConsentSource: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId: string | null
+  messagingConsentNote: string | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -71,6 +79,10 @@ export type ContactCountAggregateOutputType = {
   messagingOptOutAt: number
   messagingRestrictionReason: number
   messagingRestrictedByUserId: number
+  messagingConsentGrantedAt: number
+  messagingConsentSource: number
+  messagingConsentGrantedByUserId: number
+  messagingConsentNote: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -90,6 +102,10 @@ export type ContactMinAggregateInputType = {
   messagingOptOutAt?: true
   messagingRestrictionReason?: true
   messagingRestrictedByUserId?: true
+  messagingConsentGrantedAt?: true
+  messagingConsentSource?: true
+  messagingConsentGrantedByUserId?: true
+  messagingConsentNote?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -107,6 +123,10 @@ export type ContactMaxAggregateInputType = {
   messagingOptOutAt?: true
   messagingRestrictionReason?: true
   messagingRestrictedByUserId?: true
+  messagingConsentGrantedAt?: true
+  messagingConsentSource?: true
+  messagingConsentGrantedByUserId?: true
+  messagingConsentNote?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -124,6 +144,10 @@ export type ContactCountAggregateInputType = {
   messagingOptOutAt?: true
   messagingRestrictionReason?: true
   messagingRestrictedByUserId?: true
+  messagingConsentGrantedAt?: true
+  messagingConsentSource?: true
+  messagingConsentGrantedByUserId?: true
+  messagingConsentNote?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -214,6 +238,10 @@ export type ContactGroupByOutputType = {
   messagingOptOutAt: Date | null
   messagingRestrictionReason: string | null
   messagingRestrictedByUserId: string | null
+  messagingConsentGrantedAt: Date | null
+  messagingConsentSource: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId: string | null
+  messagingConsentNote: string | null
   createdAt: Date
   updatedAt: Date
   _count: ContactCountAggregateOutputType | null
@@ -252,6 +280,10 @@ export type ContactWhereInput = {
   messagingOptOutAt?: Prisma.DateTimeNullableFilter<"Contact"> | Date | string | null
   messagingRestrictionReason?: Prisma.StringNullableFilter<"Contact"> | string | null
   messagingRestrictedByUserId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  messagingConsentGrantedAt?: Prisma.DateTimeNullableFilter<"Contact"> | Date | string | null
+  messagingConsentSource?: Prisma.EnumContactMessagingConsentSourceNullableFilter<"Contact"> | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  messagingConsentNote?: Prisma.StringNullableFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationNullableScalarRelationFilter, Prisma.ConversationWhereInput> | null
@@ -259,6 +291,8 @@ export type ContactWhereInput = {
   whatsappAppContact?: Prisma.XOR<Prisma.WhatsAppAppContactNullableScalarRelationFilter, Prisma.WhatsAppAppContactWhereInput> | null
   messagingRestrictedBy?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventListRelationFilter
+  messagingConsentGrantedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventListRelationFilter
   tagAssignments?: Prisma.ContactTagAssignmentListRelationFilter
 }
 
@@ -275,6 +309,10 @@ export type ContactOrderByWithRelationInput = {
   messagingOptOutAt?: Prisma.SortOrderInput | Prisma.SortOrder
   messagingRestrictionReason?: Prisma.SortOrderInput | Prisma.SortOrder
   messagingRestrictedByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentGrantedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentSource?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentGrantedByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentNote?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   conversation?: Prisma.ConversationOrderByWithRelationInput
@@ -282,6 +320,8 @@ export type ContactOrderByWithRelationInput = {
   whatsappAppContact?: Prisma.WhatsAppAppContactOrderByWithRelationInput
   messagingRestrictedBy?: Prisma.UserOrderByWithRelationInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventOrderByRelationAggregateInput
+  messagingConsentGrantedByUser?: Prisma.UserOrderByWithRelationInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventOrderByRelationAggregateInput
   tagAssignments?: Prisma.ContactTagAssignmentOrderByRelationAggregateInput
 }
 
@@ -301,6 +341,10 @@ export type ContactWhereUniqueInput = Prisma.AtLeast<{
   messagingOptOutAt?: Prisma.DateTimeNullableFilter<"Contact"> | Date | string | null
   messagingRestrictionReason?: Prisma.StringNullableFilter<"Contact"> | string | null
   messagingRestrictedByUserId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  messagingConsentGrantedAt?: Prisma.DateTimeNullableFilter<"Contact"> | Date | string | null
+  messagingConsentSource?: Prisma.EnumContactMessagingConsentSourceNullableFilter<"Contact"> | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  messagingConsentNote?: Prisma.StringNullableFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   conversation?: Prisma.XOR<Prisma.ConversationNullableScalarRelationFilter, Prisma.ConversationWhereInput> | null
@@ -308,6 +352,8 @@ export type ContactWhereUniqueInput = Prisma.AtLeast<{
   whatsappAppContact?: Prisma.XOR<Prisma.WhatsAppAppContactNullableScalarRelationFilter, Prisma.WhatsAppAppContactWhereInput> | null
   messagingRestrictedBy?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventListRelationFilter
+  messagingConsentGrantedByUser?: Prisma.XOR<Prisma.UserNullableScalarRelationFilter, Prisma.UserWhereInput> | null
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventListRelationFilter
   tagAssignments?: Prisma.ContactTagAssignmentListRelationFilter
 }, "id" | "whatsappId" | "whatsappUserId" | "phone" | "whatsappAppContactId">
 
@@ -324,6 +370,10 @@ export type ContactOrderByWithAggregationInput = {
   messagingOptOutAt?: Prisma.SortOrderInput | Prisma.SortOrder
   messagingRestrictionReason?: Prisma.SortOrderInput | Prisma.SortOrder
   messagingRestrictedByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentGrantedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentSource?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentGrantedByUserId?: Prisma.SortOrderInput | Prisma.SortOrder
+  messagingConsentNote?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ContactCountOrderByAggregateInput
@@ -347,6 +397,10 @@ export type ContactScalarWhereWithAggregatesInput = {
   messagingOptOutAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Contact"> | Date | string | null
   messagingRestrictionReason?: Prisma.StringNullableWithAggregatesFilter<"Contact"> | string | null
   messagingRestrictedByUserId?: Prisma.UuidNullableWithAggregatesFilter<"Contact"> | string | null
+  messagingConsentGrantedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"Contact"> | Date | string | null
+  messagingConsentSource?: Prisma.EnumContactMessagingConsentSourceNullableWithAggregatesFilter<"Contact"> | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.UuidNullableWithAggregatesFilter<"Contact"> | string | null
+  messagingConsentNote?: Prisma.StringNullableWithAggregatesFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"Contact"> | Date | string
 }
@@ -361,6 +415,9 @@ export type ContactCreateInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
@@ -368,6 +425,8 @@ export type ContactCreateInput = {
   whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -384,10 +443,15 @@ export type ContactUncheckedCreateInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
 }
 
@@ -401,6 +465,9 @@ export type ContactUpdateInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
@@ -408,6 +475,8 @@ export type ContactUpdateInput = {
   whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -424,10 +493,15 @@ export type ContactUncheckedUpdateInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
 }
 
@@ -444,6 +518,10 @@ export type ContactCreateManyInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -458,6 +536,9 @@ export type ContactUpdateManyMutationInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -475,6 +556,10 @@ export type ContactUncheckedUpdateManyInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -502,6 +587,10 @@ export type ContactCountOrderByAggregateInput = {
   messagingOptOutAt?: Prisma.SortOrder
   messagingRestrictionReason?: Prisma.SortOrder
   messagingRestrictedByUserId?: Prisma.SortOrder
+  messagingConsentGrantedAt?: Prisma.SortOrder
+  messagingConsentSource?: Prisma.SortOrder
+  messagingConsentGrantedByUserId?: Prisma.SortOrder
+  messagingConsentNote?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -519,6 +608,10 @@ export type ContactMaxOrderByAggregateInput = {
   messagingOptOutAt?: Prisma.SortOrder
   messagingRestrictionReason?: Prisma.SortOrder
   messagingRestrictedByUserId?: Prisma.SortOrder
+  messagingConsentGrantedAt?: Prisma.SortOrder
+  messagingConsentSource?: Prisma.SortOrder
+  messagingConsentGrantedByUserId?: Prisma.SortOrder
+  messagingConsentNote?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -536,6 +629,10 @@ export type ContactMinOrderByAggregateInput = {
   messagingOptOutAt?: Prisma.SortOrder
   messagingRestrictionReason?: Prisma.SortOrder
   messagingRestrictedByUserId?: Prisma.SortOrder
+  messagingConsentGrantedAt?: Prisma.SortOrder
+  messagingConsentSource?: Prisma.SortOrder
+  messagingConsentGrantedByUserId?: Prisma.SortOrder
+  messagingConsentNote?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -557,10 +654,24 @@ export type ContactCreateNestedManyWithoutMessagingRestrictedByInput = {
   connect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
 }
 
+export type ContactCreateNestedManyWithoutMessagingConsentGrantedByUserInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput> | Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput[] | Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput[]
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput | Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput[]
+  createMany?: Prisma.ContactCreateManyMessagingConsentGrantedByUserInputEnvelope
+  connect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+}
+
 export type ContactUncheckedCreateNestedManyWithoutMessagingRestrictedByInput = {
   create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingRestrictedByInput, Prisma.ContactUncheckedCreateWithoutMessagingRestrictedByInput> | Prisma.ContactCreateWithoutMessagingRestrictedByInput[] | Prisma.ContactUncheckedCreateWithoutMessagingRestrictedByInput[]
   connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingRestrictedByInput | Prisma.ContactCreateOrConnectWithoutMessagingRestrictedByInput[]
   createMany?: Prisma.ContactCreateManyMessagingRestrictedByInputEnvelope
+  connect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+}
+
+export type ContactUncheckedCreateNestedManyWithoutMessagingConsentGrantedByUserInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput> | Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput[] | Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput[]
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput | Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput[]
+  createMany?: Prisma.ContactCreateManyMessagingConsentGrantedByUserInputEnvelope
   connect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
 }
 
@@ -578,6 +689,20 @@ export type ContactUpdateManyWithoutMessagingRestrictedByNestedInput = {
   deleteMany?: Prisma.ContactScalarWhereInput | Prisma.ContactScalarWhereInput[]
 }
 
+export type ContactUpdateManyWithoutMessagingConsentGrantedByUserNestedInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput> | Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput[] | Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput[]
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput | Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput[]
+  upsert?: Prisma.ContactUpsertWithWhereUniqueWithoutMessagingConsentGrantedByUserInput | Prisma.ContactUpsertWithWhereUniqueWithoutMessagingConsentGrantedByUserInput[]
+  createMany?: Prisma.ContactCreateManyMessagingConsentGrantedByUserInputEnvelope
+  set?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  disconnect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  delete?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  connect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  update?: Prisma.ContactUpdateWithWhereUniqueWithoutMessagingConsentGrantedByUserInput | Prisma.ContactUpdateWithWhereUniqueWithoutMessagingConsentGrantedByUserInput[]
+  updateMany?: Prisma.ContactUpdateManyWithWhereWithoutMessagingConsentGrantedByUserInput | Prisma.ContactUpdateManyWithWhereWithoutMessagingConsentGrantedByUserInput[]
+  deleteMany?: Prisma.ContactScalarWhereInput | Prisma.ContactScalarWhereInput[]
+}
+
 export type ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput = {
   create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingRestrictedByInput, Prisma.ContactUncheckedCreateWithoutMessagingRestrictedByInput> | Prisma.ContactCreateWithoutMessagingRestrictedByInput[] | Prisma.ContactUncheckedCreateWithoutMessagingRestrictedByInput[]
   connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingRestrictedByInput | Prisma.ContactCreateOrConnectWithoutMessagingRestrictedByInput[]
@@ -592,12 +717,30 @@ export type ContactUncheckedUpdateManyWithoutMessagingRestrictedByNestedInput = 
   deleteMany?: Prisma.ContactScalarWhereInput | Prisma.ContactScalarWhereInput[]
 }
 
+export type ContactUncheckedUpdateManyWithoutMessagingConsentGrantedByUserNestedInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput> | Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput[] | Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput[]
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput | Prisma.ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput[]
+  upsert?: Prisma.ContactUpsertWithWhereUniqueWithoutMessagingConsentGrantedByUserInput | Prisma.ContactUpsertWithWhereUniqueWithoutMessagingConsentGrantedByUserInput[]
+  createMany?: Prisma.ContactCreateManyMessagingConsentGrantedByUserInputEnvelope
+  set?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  disconnect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  delete?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  connect?: Prisma.ContactWhereUniqueInput | Prisma.ContactWhereUniqueInput[]
+  update?: Prisma.ContactUpdateWithWhereUniqueWithoutMessagingConsentGrantedByUserInput | Prisma.ContactUpdateWithWhereUniqueWithoutMessagingConsentGrantedByUserInput[]
+  updateMany?: Prisma.ContactUpdateManyWithWhereWithoutMessagingConsentGrantedByUserInput | Prisma.ContactUpdateManyWithWhereWithoutMessagingConsentGrantedByUserInput[]
+  deleteMany?: Prisma.ContactScalarWhereInput | Prisma.ContactScalarWhereInput[]
+}
+
 export type NullableStringFieldUpdateOperationsInput = {
   set?: string | null
 }
 
 export type NullableDateTimeFieldUpdateOperationsInput = {
   set?: Date | string | null
+}
+
+export type NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput = {
+  set?: $Enums.ContactMessagingConsentSource | null
 }
 
 export type ContactCreateNestedOneWithoutWhatsappAppContactInput = {
@@ -716,6 +859,20 @@ export type ContactUpdateOneRequiredWithoutMessagingRestrictionEventsNestedInput
   update?: Prisma.XOR<Prisma.XOR<Prisma.ContactUpdateToOneWithWhereWithoutMessagingRestrictionEventsInput, Prisma.ContactUpdateWithoutMessagingRestrictionEventsInput>, Prisma.ContactUncheckedUpdateWithoutMessagingRestrictionEventsInput>
 }
 
+export type ContactCreateNestedOneWithoutMessagingConsentEventsInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentEventsInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentEventsInput>
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingConsentEventsInput
+  connect?: Prisma.ContactWhereUniqueInput
+}
+
+export type ContactUpdateOneRequiredWithoutMessagingConsentEventsNestedInput = {
+  create?: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentEventsInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentEventsInput>
+  connectOrCreate?: Prisma.ContactCreateOrConnectWithoutMessagingConsentEventsInput
+  upsert?: Prisma.ContactUpsertWithoutMessagingConsentEventsInput
+  connect?: Prisma.ContactWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ContactUpdateToOneWithWhereWithoutMessagingConsentEventsInput, Prisma.ContactUpdateWithoutMessagingConsentEventsInput>, Prisma.ContactUncheckedUpdateWithoutMessagingConsentEventsInput>
+}
+
 export type ContactCreateWithoutMessagingRestrictedByInput = {
   id?: string
   whatsappId?: string | null
@@ -726,12 +883,17 @@ export type ContactCreateWithoutMessagingRestrictedByInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
   whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -747,10 +909,15 @@ export type ContactUncheckedCreateWithoutMessagingRestrictedByInput = {
   whatsappAppContactId?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
 }
 
@@ -761,6 +928,64 @@ export type ContactCreateOrConnectWithoutMessagingRestrictedByInput = {
 
 export type ContactCreateManyMessagingRestrictedByInputEnvelope = {
   data: Prisma.ContactCreateManyMessagingRestrictedByInput | Prisma.ContactCreateManyMessagingRestrictedByInput[]
+  skipDuplicates?: boolean
+}
+
+export type ContactCreateWithoutMessagingConsentGrantedByUserInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  messagingOptOutAt?: Date | string | null
+  messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
+  contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
+  messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
+  tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
+}
+
+export type ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  contactTypeId?: string | null
+  whatsappAppContactId?: string | null
+  messagingOptOutAt?: Date | string | null
+  messagingRestrictionReason?: string | null
+  messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
+  tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
+}
+
+export type ContactCreateOrConnectWithoutMessagingConsentGrantedByUserInput = {
+  where: Prisma.ContactWhereUniqueInput
+  create: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput>
+}
+
+export type ContactCreateManyMessagingConsentGrantedByUserInputEnvelope = {
+  data: Prisma.ContactCreateManyMessagingConsentGrantedByUserInput | Prisma.ContactCreateManyMessagingConsentGrantedByUserInput[]
   skipDuplicates?: boolean
 }
 
@@ -796,8 +1021,28 @@ export type ContactScalarWhereInput = {
   messagingOptOutAt?: Prisma.DateTimeNullableFilter<"Contact"> | Date | string | null
   messagingRestrictionReason?: Prisma.StringNullableFilter<"Contact"> | string | null
   messagingRestrictedByUserId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  messagingConsentGrantedAt?: Prisma.DateTimeNullableFilter<"Contact"> | Date | string | null
+  messagingConsentSource?: Prisma.EnumContactMessagingConsentSourceNullableFilter<"Contact"> | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.UuidNullableFilter<"Contact"> | string | null
+  messagingConsentNote?: Prisma.StringNullableFilter<"Contact"> | string | null
   createdAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"Contact"> | Date | string
+}
+
+export type ContactUpsertWithWhereUniqueWithoutMessagingConsentGrantedByUserInput = {
+  where: Prisma.ContactWhereUniqueInput
+  update: Prisma.XOR<Prisma.ContactUpdateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedUpdateWithoutMessagingConsentGrantedByUserInput>
+  create: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentGrantedByUserInput>
+}
+
+export type ContactUpdateWithWhereUniqueWithoutMessagingConsentGrantedByUserInput = {
+  where: Prisma.ContactWhereUniqueInput
+  data: Prisma.XOR<Prisma.ContactUpdateWithoutMessagingConsentGrantedByUserInput, Prisma.ContactUncheckedUpdateWithoutMessagingConsentGrantedByUserInput>
+}
+
+export type ContactUpdateManyWithWhereWithoutMessagingConsentGrantedByUserInput = {
+  where: Prisma.ContactScalarWhereInput
+  data: Prisma.XOR<Prisma.ContactUpdateManyMutationInput, Prisma.ContactUncheckedUpdateManyWithoutMessagingConsentGrantedByUserInput>
 }
 
 export type ContactCreateWithoutWhatsappAppContactInput = {
@@ -810,12 +1055,17 @@ export type ContactCreateWithoutWhatsappAppContactInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
   messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -831,10 +1081,15 @@ export type ContactUncheckedCreateWithoutWhatsappAppContactInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
 }
 
@@ -864,12 +1119,17 @@ export type ContactUpdateWithoutWhatsappAppContactInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
   messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -885,10 +1145,15 @@ export type ContactUncheckedUpdateWithoutWhatsappAppContactInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
 }
 
@@ -902,12 +1167,17 @@ export type ContactCreateWithoutContactTypeInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
   whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -923,10 +1193,15 @@ export type ContactUncheckedCreateWithoutContactTypeInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
 }
 
@@ -966,6 +1241,9 @@ export type ContactCreateWithoutTagAssignmentsInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
@@ -973,6 +1251,8 @@ export type ContactCreateWithoutTagAssignmentsInput = {
   whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
 }
 
 export type ContactUncheckedCreateWithoutTagAssignmentsInput = {
@@ -988,10 +1268,15 @@ export type ContactUncheckedCreateWithoutTagAssignmentsInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
 }
 
 export type ContactCreateOrConnectWithoutTagAssignmentsInput = {
@@ -1020,6 +1305,9 @@ export type ContactUpdateWithoutTagAssignmentsInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
@@ -1027,6 +1315,8 @@ export type ContactUpdateWithoutTagAssignmentsInput = {
   whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
 }
 
 export type ContactUncheckedUpdateWithoutTagAssignmentsInput = {
@@ -1042,10 +1332,15 @@ export type ContactUncheckedUpdateWithoutTagAssignmentsInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
 }
 
 export type ContactCreateWithoutConversationInput = {
@@ -1058,12 +1353,17 @@ export type ContactCreateWithoutConversationInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
   whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -1080,9 +1380,14 @@ export type ContactUncheckedCreateWithoutConversationInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
 }
 
@@ -1112,12 +1417,17 @@ export type ContactUpdateWithoutConversationInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
   whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -1134,9 +1444,14 @@ export type ContactUncheckedUpdateWithoutConversationInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
 }
 
@@ -1150,12 +1465,17 @@ export type ContactCreateWithoutMessagingRestrictionEventsInput = {
   profilePictureUrl?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
   contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
   whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
   messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
 }
 
@@ -1172,9 +1492,14 @@ export type ContactUncheckedCreateWithoutMessagingRestrictionEventsInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedCreateNestedManyWithoutContactInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
 }
 
@@ -1204,12 +1529,17 @@ export type ContactUpdateWithoutMessagingRestrictionEventsInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
   whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -1226,9 +1556,126 @@ export type ContactUncheckedUpdateWithoutMessagingRestrictionEventsInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
+  tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
+}
+
+export type ContactCreateWithoutMessagingConsentEventsInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  messagingOptOutAt?: Date | string | null
+  messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation?: Prisma.ConversationCreateNestedOneWithoutContactInput
+  contactType?: Prisma.ContactTypeCreateNestedOneWithoutContactsInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactCreateNestedOneWithoutContactInput
+  messagingRestrictedBy?: Prisma.UserCreateNestedOneWithoutMessagingRestrictedContactsInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventCreateNestedManyWithoutContactInput
+  messagingConsentGrantedByUser?: Prisma.UserCreateNestedOneWithoutMessagingConsentGrantsInput
+  tagAssignments?: Prisma.ContactTagAssignmentCreateNestedManyWithoutContactInput
+}
+
+export type ContactUncheckedCreateWithoutMessagingConsentEventsInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  contactTypeId?: string | null
+  whatsappAppContactId?: string | null
+  messagingOptOutAt?: Date | string | null
+  messagingRestrictionReason?: string | null
+  messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  conversation?: Prisma.ConversationUncheckedCreateNestedOneWithoutContactInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedCreateNestedManyWithoutContactInput
+  tagAssignments?: Prisma.ContactTagAssignmentUncheckedCreateNestedManyWithoutContactInput
+}
+
+export type ContactCreateOrConnectWithoutMessagingConsentEventsInput = {
+  where: Prisma.ContactWhereUniqueInput
+  create: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentEventsInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentEventsInput>
+}
+
+export type ContactUpsertWithoutMessagingConsentEventsInput = {
+  update: Prisma.XOR<Prisma.ContactUpdateWithoutMessagingConsentEventsInput, Prisma.ContactUncheckedUpdateWithoutMessagingConsentEventsInput>
+  create: Prisma.XOR<Prisma.ContactCreateWithoutMessagingConsentEventsInput, Prisma.ContactUncheckedCreateWithoutMessagingConsentEventsInput>
+  where?: Prisma.ContactWhereInput
+}
+
+export type ContactUpdateToOneWithWhereWithoutMessagingConsentEventsInput = {
+  where?: Prisma.ContactWhereInput
+  data: Prisma.XOR<Prisma.ContactUpdateWithoutMessagingConsentEventsInput, Prisma.ContactUncheckedUpdateWithoutMessagingConsentEventsInput>
+}
+
+export type ContactUpdateWithoutMessagingConsentEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
+  contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
+  messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
+}
+
+export type ContactUncheckedUpdateWithoutMessagingConsentEventsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
 }
 
@@ -1244,6 +1691,30 @@ export type ContactCreateManyMessagingRestrictedByInput = {
   whatsappAppContactId?: string | null
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type ContactCreateManyMessagingConsentGrantedByUserInput = {
+  id?: string
+  whatsappId?: string | null
+  whatsappUserId?: string | null
+  phone?: string | null
+  name: string
+  preferredName?: string | null
+  profilePictureUrl?: string | null
+  contactTypeId?: string | null
+  whatsappAppContactId?: string | null
+  messagingOptOutAt?: Date | string | null
+  messagingRestrictionReason?: string | null
+  messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1258,12 +1729,17 @@ export type ContactUpdateWithoutMessagingRestrictedByInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
   contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
   whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -1279,10 +1755,15 @@ export type ContactUncheckedUpdateWithoutMessagingRestrictedByInput = {
   whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
 }
 
@@ -1298,6 +1779,78 @@ export type ContactUncheckedUpdateManyWithoutMessagingRestrictedByInput = {
   whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type ContactUpdateWithoutMessagingConsentGrantedByUserInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
+  contactType?: Prisma.ContactTypeUpdateOneWithoutContactsNestedInput
+  whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
+  messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
+  tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
+}
+
+export type ContactUncheckedUpdateWithoutMessagingConsentGrantedByUserInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
+  messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
+  tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
+}
+
+export type ContactUncheckedUpdateManyWithoutMessagingConsentGrantedByUserInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  whatsappId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  phone?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  preferredName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  contactTypeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  whatsappAppContactId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1314,6 +1867,10 @@ export type ContactCreateManyContactTypeInput = {
   messagingOptOutAt?: Date | string | null
   messagingRestrictionReason?: string | null
   messagingRestrictedByUserId?: string | null
+  messagingConsentGrantedAt?: Date | string | null
+  messagingConsentSource?: $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: string | null
+  messagingConsentNote?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1328,12 +1885,17 @@ export type ContactUpdateWithoutContactTypeInput = {
   profilePictureUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUpdateOneWithoutContactNestedInput
   whatsappAppContact?: Prisma.WhatsAppAppContactUpdateOneWithoutContactNestedInput
   messagingRestrictedBy?: Prisma.UserUpdateOneWithoutMessagingRestrictedContactsNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUpdateManyWithoutContactNestedInput
+  messagingConsentGrantedByUser?: Prisma.UserUpdateOneWithoutMessagingConsentGrantsNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUpdateManyWithoutContactNestedInput
 }
 
@@ -1349,10 +1911,15 @@ export type ContactUncheckedUpdateWithoutContactTypeInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   conversation?: Prisma.ConversationUncheckedUpdateOneWithoutContactNestedInput
   messagingRestrictionEvents?: Prisma.ContactMessagingRestrictionEventUncheckedUpdateManyWithoutContactNestedInput
+  messagingConsentEvents?: Prisma.ContactMessagingConsentEventUncheckedUpdateManyWithoutContactNestedInput
   tagAssignments?: Prisma.ContactTagAssignmentUncheckedUpdateManyWithoutContactNestedInput
 }
 
@@ -1368,6 +1935,10 @@ export type ContactUncheckedUpdateManyWithoutContactTypeInput = {
   messagingOptOutAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   messagingRestrictionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messagingRestrictedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentGrantedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  messagingConsentSource?: Prisma.NullableEnumContactMessagingConsentSourceFieldUpdateOperationsInput | $Enums.ContactMessagingConsentSource | null
+  messagingConsentGrantedByUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  messagingConsentNote?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1379,11 +1950,13 @@ export type ContactUncheckedUpdateManyWithoutContactTypeInput = {
 
 export type ContactCountOutputType = {
   messagingRestrictionEvents: number
+  messagingConsentEvents: number
   tagAssignments: number
 }
 
 export type ContactCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   messagingRestrictionEvents?: boolean | ContactCountOutputTypeCountMessagingRestrictionEventsArgs
+  messagingConsentEvents?: boolean | ContactCountOutputTypeCountMessagingConsentEventsArgs
   tagAssignments?: boolean | ContactCountOutputTypeCountTagAssignmentsArgs
 }
 
@@ -1407,6 +1980,13 @@ export type ContactCountOutputTypeCountMessagingRestrictionEventsArgs<ExtArgs ex
 /**
  * ContactCountOutputType without action
  */
+export type ContactCountOutputTypeCountMessagingConsentEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ContactMessagingConsentEventWhereInput
+}
+
+/**
+ * ContactCountOutputType without action
+ */
 export type ContactCountOutputTypeCountTagAssignmentsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ContactTagAssignmentWhereInput
 }
@@ -1425,6 +2005,10 @@ export type ContactSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   messagingOptOutAt?: boolean
   messagingRestrictionReason?: boolean
   messagingRestrictedByUserId?: boolean
+  messagingConsentGrantedAt?: boolean
+  messagingConsentSource?: boolean
+  messagingConsentGrantedByUserId?: boolean
+  messagingConsentNote?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   conversation?: boolean | Prisma.Contact$conversationArgs<ExtArgs>
@@ -1432,6 +2016,8 @@ export type ContactSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs 
   whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   messagingRestrictedBy?: boolean | Prisma.Contact$messagingRestrictedByArgs<ExtArgs>
   messagingRestrictionEvents?: boolean | Prisma.Contact$messagingRestrictionEventsArgs<ExtArgs>
+  messagingConsentGrantedByUser?: boolean | Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>
+  messagingConsentEvents?: boolean | Prisma.Contact$messagingConsentEventsArgs<ExtArgs>
   tagAssignments?: boolean | Prisma.Contact$tagAssignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.ContactCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["contact"]>
@@ -1449,11 +2035,16 @@ export type ContactSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exten
   messagingOptOutAt?: boolean
   messagingRestrictionReason?: boolean
   messagingRestrictedByUserId?: boolean
+  messagingConsentGrantedAt?: boolean
+  messagingConsentSource?: boolean
+  messagingConsentGrantedByUserId?: boolean
+  messagingConsentNote?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
   whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   messagingRestrictedBy?: boolean | Prisma.Contact$messagingRestrictedByArgs<ExtArgs>
+  messagingConsentGrantedByUser?: boolean | Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["contact"]>
 
 export type ContactSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1469,11 +2060,16 @@ export type ContactSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exten
   messagingOptOutAt?: boolean
   messagingRestrictionReason?: boolean
   messagingRestrictedByUserId?: boolean
+  messagingConsentGrantedAt?: boolean
+  messagingConsentSource?: boolean
+  messagingConsentGrantedByUserId?: boolean
+  messagingConsentNote?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
   whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   messagingRestrictedBy?: boolean | Prisma.Contact$messagingRestrictedByArgs<ExtArgs>
+  messagingConsentGrantedByUser?: boolean | Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>
 }, ExtArgs["result"]["contact"]>
 
 export type ContactSelectScalar = {
@@ -1489,17 +2085,23 @@ export type ContactSelectScalar = {
   messagingOptOutAt?: boolean
   messagingRestrictionReason?: boolean
   messagingRestrictedByUserId?: boolean
+  messagingConsentGrantedAt?: boolean
+  messagingConsentSource?: boolean
+  messagingConsentGrantedByUserId?: boolean
+  messagingConsentNote?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ContactOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "whatsappId" | "whatsappUserId" | "phone" | "name" | "preferredName" | "profilePictureUrl" | "contactTypeId" | "whatsappAppContactId" | "messagingOptOutAt" | "messagingRestrictionReason" | "messagingRestrictedByUserId" | "createdAt" | "updatedAt", ExtArgs["result"]["contact"]>
+export type ContactOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "whatsappId" | "whatsappUserId" | "phone" | "name" | "preferredName" | "profilePictureUrl" | "contactTypeId" | "whatsappAppContactId" | "messagingOptOutAt" | "messagingRestrictionReason" | "messagingRestrictedByUserId" | "messagingConsentGrantedAt" | "messagingConsentSource" | "messagingConsentGrantedByUserId" | "messagingConsentNote" | "createdAt" | "updatedAt", ExtArgs["result"]["contact"]>
 export type ContactInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   conversation?: boolean | Prisma.Contact$conversationArgs<ExtArgs>
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
   whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   messagingRestrictedBy?: boolean | Prisma.Contact$messagingRestrictedByArgs<ExtArgs>
   messagingRestrictionEvents?: boolean | Prisma.Contact$messagingRestrictionEventsArgs<ExtArgs>
+  messagingConsentGrantedByUser?: boolean | Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>
+  messagingConsentEvents?: boolean | Prisma.Contact$messagingConsentEventsArgs<ExtArgs>
   tagAssignments?: boolean | Prisma.Contact$tagAssignmentsArgs<ExtArgs>
   _count?: boolean | Prisma.ContactCountOutputTypeDefaultArgs<ExtArgs>
 }
@@ -1507,11 +2109,13 @@ export type ContactIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
   whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   messagingRestrictedBy?: boolean | Prisma.Contact$messagingRestrictedByArgs<ExtArgs>
+  messagingConsentGrantedByUser?: boolean | Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>
 }
 export type ContactIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   contactType?: boolean | Prisma.Contact$contactTypeArgs<ExtArgs>
   whatsappAppContact?: boolean | Prisma.Contact$whatsappAppContactArgs<ExtArgs>
   messagingRestrictedBy?: boolean | Prisma.Contact$messagingRestrictedByArgs<ExtArgs>
+  messagingConsentGrantedByUser?: boolean | Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>
 }
 
 export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1522,6 +2126,8 @@ export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     whatsappAppContact: Prisma.$WhatsAppAppContactPayload<ExtArgs> | null
     messagingRestrictedBy: Prisma.$UserPayload<ExtArgs> | null
     messagingRestrictionEvents: Prisma.$ContactMessagingRestrictionEventPayload<ExtArgs>[]
+    messagingConsentGrantedByUser: Prisma.$UserPayload<ExtArgs> | null
+    messagingConsentEvents: Prisma.$ContactMessagingConsentEventPayload<ExtArgs>[]
     tagAssignments: Prisma.$ContactTagAssignmentPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -1537,6 +2143,10 @@ export type $ContactPayload<ExtArgs extends runtime.Types.Extensions.InternalArg
     messagingOptOutAt: Date | null
     messagingRestrictionReason: string | null
     messagingRestrictedByUserId: string | null
+    messagingConsentGrantedAt: Date | null
+    messagingConsentSource: $Enums.ContactMessagingConsentSource | null
+    messagingConsentGrantedByUserId: string | null
+    messagingConsentNote: string | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["contact"]>
@@ -1938,6 +2548,8 @@ export interface Prisma__ContactClient<T, Null = never, ExtArgs extends runtime.
   whatsappAppContact<T extends Prisma.Contact$whatsappAppContactArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$whatsappAppContactArgs<ExtArgs>>): Prisma.Prisma__WhatsAppAppContactClient<runtime.Types.Result.GetResult<Prisma.$WhatsAppAppContactPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   messagingRestrictedBy<T extends Prisma.Contact$messagingRestrictedByArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$messagingRestrictedByArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   messagingRestrictionEvents<T extends Prisma.Contact$messagingRestrictionEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$messagingRestrictionEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactMessagingRestrictionEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  messagingConsentGrantedByUser<T extends Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$messagingConsentGrantedByUserArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  messagingConsentEvents<T extends Prisma.Contact$messagingConsentEventsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$messagingConsentEventsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactMessagingConsentEventPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   tagAssignments<T extends Prisma.Contact$tagAssignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Contact$tagAssignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContactTagAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1980,6 +2592,10 @@ export interface ContactFieldRefs {
   readonly messagingOptOutAt: Prisma.FieldRef<"Contact", 'DateTime'>
   readonly messagingRestrictionReason: Prisma.FieldRef<"Contact", 'String'>
   readonly messagingRestrictedByUserId: Prisma.FieldRef<"Contact", 'String'>
+  readonly messagingConsentGrantedAt: Prisma.FieldRef<"Contact", 'DateTime'>
+  readonly messagingConsentSource: Prisma.FieldRef<"Contact", 'ContactMessagingConsentSource'>
+  readonly messagingConsentGrantedByUserId: Prisma.FieldRef<"Contact", 'String'>
+  readonly messagingConsentNote: Prisma.FieldRef<"Contact", 'String'>
   readonly createdAt: Prisma.FieldRef<"Contact", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"Contact", 'DateTime'>
 }
@@ -2480,6 +3096,49 @@ export type Contact$messagingRestrictionEventsArgs<ExtArgs extends runtime.Types
   take?: number
   skip?: number
   distinct?: Prisma.ContactMessagingRestrictionEventScalarFieldEnum | Prisma.ContactMessagingRestrictionEventScalarFieldEnum[]
+}
+
+/**
+ * Contact.messagingConsentGrantedByUser
+ */
+export type Contact$messagingConsentGrantedByUserArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the User
+   */
+  select?: Prisma.UserSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the User
+   */
+  omit?: Prisma.UserOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserInclude<ExtArgs> | null
+  where?: Prisma.UserWhereInput
+}
+
+/**
+ * Contact.messagingConsentEvents
+ */
+export type Contact$messagingConsentEventsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ContactMessagingConsentEvent
+   */
+  select?: Prisma.ContactMessagingConsentEventSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ContactMessagingConsentEvent
+   */
+  omit?: Prisma.ContactMessagingConsentEventOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ContactMessagingConsentEventInclude<ExtArgs> | null
+  where?: Prisma.ContactMessagingConsentEventWhereInput
+  orderBy?: Prisma.ContactMessagingConsentEventOrderByWithRelationInput | Prisma.ContactMessagingConsentEventOrderByWithRelationInput[]
+  cursor?: Prisma.ContactMessagingConsentEventWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ContactMessagingConsentEventScalarFieldEnum | Prisma.ContactMessagingConsentEventScalarFieldEnum[]
 }
 
 /**

@@ -21,6 +21,13 @@ const contact = {
   name: "Bia",
   phone: "+55 (11) 99999-1234",
   messagingRestricted: false,
+  messagingConsent: {
+    active: false,
+    source: null,
+    grantedAt: null,
+    grantedBy: null,
+    note: null,
+  },
   type: null,
   tags: [],
 };

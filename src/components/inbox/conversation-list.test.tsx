@@ -14,6 +14,13 @@ const fixture: ConversationListItem = {
     name: "Carlos Lima",
     phone: "+55 61 99999-0001",
     messagingRestricted: false,
+    messagingConsent: {
+      active: false,
+      source: null,
+      grantedAt: null,
+      grantedBy: null,
+      note: null,
+    },
     type: null,
     tags: [],
   },

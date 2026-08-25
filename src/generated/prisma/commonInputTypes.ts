@@ -167,6 +167,13 @@ export type DateTimeNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
 }
 
+export type EnumContactMessagingConsentSourceNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource | null
+}
+
 export type SortOrderInput = {
   sort: Prisma.SortOrder
   nulls?: Prisma.NullsOrder
@@ -217,6 +224,16 @@ export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
+}
+
+export type EnumContactMessagingConsentSourceNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumContactMessagingConsentSourceNullableWithAggregatesFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel>
 }
 
 export type IntFilter<$PrismaModel = never> = {
@@ -715,6 +732,40 @@ export type EnumContactMessagingRestrictionActionWithAggregatesFilter<$PrismaMod
   _max?: Prisma.NestedEnumContactMessagingRestrictionActionFilter<$PrismaModel>
 }
 
+export type EnumContactMessagingConsentActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentAction | Prisma.EnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentActionFilter<$PrismaModel> | $Enums.ContactMessagingConsentAction
+}
+
+export type EnumContactMessagingConsentSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentSourceFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource
+}
+
+export type EnumContactMessagingConsentActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentAction | Prisma.EnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentActionWithAggregatesFilter<$PrismaModel> | $Enums.ContactMessagingConsentAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContactMessagingConsentActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContactMessagingConsentActionFilter<$PrismaModel>
+}
+
+export type EnumContactMessagingConsentSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentSourceWithAggregatesFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContactMessagingConsentSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContactMessagingConsentSourceFilter<$PrismaModel>
+}
+
 export type NestedUuidFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel>
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel>
@@ -873,6 +924,13 @@ export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
   not?: Prisma.NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
 }
 
+export type NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource | null
+}
+
 export type NestedStringNullableWithAggregatesFilter<$PrismaModel = never> = {
   equals?: string | Prisma.StringFieldRefInput<$PrismaModel> | null
   in?: string[] | Prisma.ListStringFieldRefInput<$PrismaModel> | null
@@ -927,6 +985,16 @@ export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
   _min?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
   _max?: Prisma.NestedDateTimeNullableFilter<$PrismaModel>
+}
+
+export type NestedEnumContactMessagingConsentSourceNullableWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel> | null
+  not?: Prisma.NestedEnumContactMessagingConsentSourceNullableWithAggregatesFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource | null
+  _count?: Prisma.NestedIntNullableFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContactMessagingConsentSourceNullableFilter<$PrismaModel>
 }
 
 export type NestedIntWithAggregatesFilter<$PrismaModel = never> = {
@@ -1369,6 +1437,40 @@ export type NestedEnumContactMessagingRestrictionActionWithAggregatesFilter<$Pri
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumContactMessagingRestrictionActionFilter<$PrismaModel>
   _max?: Prisma.NestedEnumContactMessagingRestrictionActionFilter<$PrismaModel>
+}
+
+export type NestedEnumContactMessagingConsentActionFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentAction | Prisma.EnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentActionFilter<$PrismaModel> | $Enums.ContactMessagingConsentAction
+}
+
+export type NestedEnumContactMessagingConsentSourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentSourceFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource
+}
+
+export type NestedEnumContactMessagingConsentActionWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentAction | Prisma.EnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentAction[] | Prisma.ListEnumContactMessagingConsentActionFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentActionWithAggregatesFilter<$PrismaModel> | $Enums.ContactMessagingConsentAction
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContactMessagingConsentActionFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContactMessagingConsentActionFilter<$PrismaModel>
+}
+
+export type NestedEnumContactMessagingConsentSourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContactMessagingConsentSource | Prisma.EnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  in?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContactMessagingConsentSource[] | Prisma.ListEnumContactMessagingConsentSourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContactMessagingConsentSourceWithAggregatesFilter<$PrismaModel> | $Enums.ContactMessagingConsentSource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContactMessagingConsentSourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContactMessagingConsentSourceFilter<$PrismaModel>
 }
 
 

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { ContactMessagingConsentSource } from "@/generated/prisma/enums";
 import type { SessionUser } from "@/modules/auth/session";
 
 import { useInbox, type InboxMessage } from "./use-inbox";
@@ -43,12 +44,30 @@ const priorityTag = {
   active: true,
 };
 
+const inactiveConsent = {
+  active: false,
+  source: null,
+  grantedAt: null,
+  grantedBy: null,
+  note: null,
+} as const;
+
+const activeConsent = {
+  active: true,
+  source: ContactMessagingConsentSource.LOJA_FISICA,
+  grantedAt: "2026-08-25T10:30:00.000Z",
+  grantedBy: { id: user.id, name: user.name },
+  note: null,
+} as const;
+
 function updatedContact(id: string, tags = [contactTag]) {
   return {
     id,
     preferredName: null,
     name: "Carlos",
     phone: "+55 (61) 99999-9999",
+    messagingRestricted: false,
+    messagingConsent: inactiveConsent,
     type: null,
     tags: tags.map(({ displayName, position: _position, ...tag }) => ({
       ...tag,
@@ -71,6 +90,7 @@ function listItem(id: string, name = id, lastMessageAt = "2026-08-20T14:30:00.00
       name,
       phone: "5561999999999",
       messagingRestricted: false,
+      messagingConsent: inactiveConsent,
       type: null,
       tags: [],
     },
@@ -341,6 +361,99 @@ describe("useInbox", () => {
       reason: "CONTACT_OPTED_OUT",
     });
     expect(hook.result.current.messagingRestrictionError).toBeNull();
+    expect(listFetches).toBe(2);
+    expect(detailFetches).toBe(2);
+  });
+
+  it("shares one consent request, waits for the server, and reconciles list and detail", async () => {
+    const item = listItem("conversation-id", "Carlos");
+    let serverConsent: typeof inactiveConsent | typeof activeConsent =
+      inactiveConsent;
+    let resolveConsent!: (value: Response) => void;
+    let mutationCalls = 0;
+    let listFetches = 0;
+    let detailFetches = 0;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        listFetches += 1;
+        return response({
+          data: {
+            items: [{
+              ...item,
+              contact: { ...item.contact, messagingConsent: serverConsent },
+            }],
+            nextCursor: null,
+          },
+          error: null,
+        });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-id/messages") {
+        detailFetches += 1;
+        const detail = conversationDetail();
+        return response({
+          data: {
+            ...detail,
+            contact: { ...detail.contact, messagingConsent: serverConsent },
+          },
+          error: null,
+        });
+      }
+      if (
+        url === `/api/contacts/${item.contact.id}/messaging-consent` &&
+        init?.method === "PUT"
+      ) {
+        mutationCalls += 1;
+        expect(JSON.parse(String(init.body))).toEqual({
+          action: "GRANT",
+          source: ContactMessagingConsentSource.LOJA_FISICA,
+        });
+        return new Promise<Response>((resolve) => {
+          resolveConsent = resolve;
+        });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-id"));
+
+    let first!: Promise<boolean>;
+    let repeated!: Promise<boolean>;
+    act(() => {
+      first = hook.result.current.setMessagingConsent(item.contact.id, {
+        action: "GRANT",
+        source: ContactMessagingConsentSource.LOJA_FISICA,
+      });
+      repeated = hook.result.current.setMessagingConsent(item.contact.id, {
+        action: "REVOKE",
+      });
+    });
+    expect(repeated).toBe(first);
+    expect(mutationCalls).toBe(1);
+    expect(hook.result.current.messagingConsentPending).toBe(true);
+    expect(hook.result.current.conversation?.contact.messagingConsent).toEqual(
+      inactiveConsent,
+    );
+
+    serverConsent = activeConsent;
+    resolveConsent(await response({ data: activeConsent, error: null }));
+    await act(() => Promise.all([first, repeated]));
+
+    expect(hook.result.current.conversation?.contact.messagingConsent).toEqual(
+      activeConsent,
+    );
+    expect(hook.result.current.conversations[0]?.contact.messagingConsent).toEqual(
+      activeConsent,
+    );
+    expect(hook.result.current.messagingConsentPending).toBe(false);
+    expect(hook.result.current.messagingConsentError).toBeNull();
     expect(listFetches).toBe(2);
     expect(detailFetches).toBe(2);
   });
@@ -965,11 +1078,25 @@ describe("useInbox", () => {
     let listFetches = 0;
     let firstDetailFetches = 0;
     let secondDetailFetches = 0;
+    let secondConsent: typeof inactiveConsent | typeof activeConsent =
+      inactiveConsent;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
       const url = String(input);
       if (url === "/api/conversations") {
         listFetches += 1;
-        return response({ data: { items: [first, second], nextCursor: null }, error: null });
+        return response({
+          data: {
+            items: [
+              first,
+              {
+                ...second,
+                contact: { ...second.contact, messagingConsent: secondConsent },
+              },
+            ],
+            nextCursor: null,
+          },
+          error: null,
+        });
       }
       if (url === "/api/users/assignable") {
         return response({ data: { items: [] }, error: null });
@@ -983,7 +1110,14 @@ describe("useInbox", () => {
       }
       if (url === "/api/conversations/conversation-b/messages") {
         secondDetailFetches += 1;
-        return response({ data: conversationDetail("conversation-b"), error: null });
+        const detail = conversationDetail("conversation-b");
+        return response({
+          data: {
+            ...detail,
+            contact: { ...detail.contact, messagingConsent: secondConsent },
+          },
+          error: null,
+        });
       }
       throw new Error(`Unexpected request ${url}`);
     });
@@ -998,12 +1132,16 @@ describe("useInbox", () => {
     await waitFor(() => expect(listFetches).toBe(2));
     expect(secondDetailFetches).toBe(1);
 
+    secondConsent = activeConsent;
     act(() => FakeEventSource.instances[0].emit("update", {
       type: "contact.updated",
       contactId: second.contact.id,
     }));
     await waitFor(() => expect(listFetches).toBe(3));
     await waitFor(() => expect(secondDetailFetches).toBe(2));
+    expect(hook.result.current.conversation?.contact.messagingConsent).toEqual(
+      activeConsent,
+    );
     expect(firstDetailFetches).toBe(0);
     hook.unmount();
   });

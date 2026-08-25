@@ -3,7 +3,11 @@ import type {
   UpdateContactDefinitionInput,
   UpdateContactInput,
 } from "./schemas";
-import type { ContactMessagingRestrictionAction } from "@/generated/prisma/enums";
+import type {
+  ContactMessagingConsentAction,
+  ContactMessagingConsentSource,
+  ContactMessagingRestrictionAction,
+} from "@/generated/prisma/enums";
 
 export type DefinitionRecord = {
   id: string;
@@ -26,13 +30,21 @@ export type ContactTagAssignmentRecord = {
   tagId: string;
 };
 
-export type ContactRecord = {
+export type ContactMessagingConsentRecord = {
+  messagingOptOutAt: Date | null;
+  messagingConsentGrantedAt: Date | null;
+  messagingConsentSource: ContactMessagingConsentSource | null;
+  messagingConsentGrantedByUserId: string | null;
+  messagingConsentGrantedByUser: { id: string; name: string } | null;
+  messagingConsentNote: string | null;
+};
+
+export type ContactRecord = ContactMessagingConsentRecord & {
   id: string;
   name: string;
   preferredName: string | null;
   phone: string | null;
   whatsappAppContact?: { fullName: string | null; active: boolean } | null;
-  messagingOptOutAt: Date | null;
   contactTypeId: string | null;
   contactType: DefinitionRecord | null;
   tagAssignments: Array<{ tag: DefinitionRecord }>;
@@ -45,6 +57,7 @@ export type ContactDto = {
   name: string;
   phone: string;
   messagingRestricted: boolean;
+  messagingConsent: ContactMessagingConsentDto;
   type: ContactClassificationDto | null;
   tags: ContactClassificationDto[];
 };
@@ -73,6 +86,34 @@ export type ContactMessagingRestrictionDto = {
   messagingRestricted: boolean;
 };
 
+export type ContactMessagingConsentUpdateData = {
+  messagingConsentGrantedAt: Date | null;
+  messagingConsentSource: ContactMessagingConsentSource | null;
+  messagingConsentGrantedByUserId: string | null;
+  messagingConsentNote: string | null;
+};
+
+export type ContactMessagingConsentEventCreateData = {
+  contactId: string;
+  actorUserId: string;
+  action: ContactMessagingConsentAction;
+  source: ContactMessagingConsentSource;
+  note: string | null;
+};
+
+export type ContactMessagingConsentDto = {
+  active: boolean;
+  source: ContactMessagingConsentSource | null;
+  grantedAt: string | null;
+  grantedBy: { id: string; name: string } | null;
+  note: string | null;
+};
+
+export type ContactMessagingConsentServiceDependencies = {
+  repository: ContactRepository;
+  now(): Date;
+};
+
 export type DefinitionCreateData = CreateContactDefinitionInput & {
   normalizedName: string;
 };
@@ -93,6 +134,14 @@ export type ContactRepository = {
   ): Promise<ContactRecord>;
   createContactMessagingRestrictionEvent(
     data: ContactMessagingRestrictionEventCreateData,
+  ): Promise<void>;
+  lockContactForMessagingConsent(id: string): Promise<ContactRecord | null>;
+  updateContactMessagingConsent(
+    id: string,
+    data: ContactMessagingConsentUpdateData,
+  ): Promise<ContactRecord>;
+  createContactMessagingConsentEvent(
+    data: ContactMessagingConsentEventCreateData,
   ): Promise<void>;
 
   listContactTypes(): Promise<DefinitionRecord[]>;

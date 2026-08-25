@@ -74,7 +74,8 @@ export const ModelName = {
   WhatsAppTemplate: 'WhatsAppTemplate',
   WhatsAppTemplateAssignment: 'WhatsAppTemplateAssignment',
   ConversationResumption: 'ConversationResumption',
-  ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent'
+  ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent',
+  ContactMessagingConsentEvent: 'ContactMessagingConsentEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -132,6 +133,10 @@ export const ContactScalarFieldEnum = {
   messagingOptOutAt: 'messagingOptOutAt',
   messagingRestrictionReason: 'messagingRestrictionReason',
   messagingRestrictedByUserId: 'messagingRestrictedByUserId',
+  messagingConsentGrantedAt: 'messagingConsentGrantedAt',
+  messagingConsentSource: 'messagingConsentSource',
+  messagingConsentGrantedByUserId: 'messagingConsentGrantedByUserId',
+  messagingConsentNote: 'messagingConsentNote',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -502,6 +507,19 @@ export const ContactMessagingRestrictionEventScalarFieldEnum = {
 } as const
 
 export type ContactMessagingRestrictionEventScalarFieldEnum = (typeof ContactMessagingRestrictionEventScalarFieldEnum)[keyof typeof ContactMessagingRestrictionEventScalarFieldEnum]
+
+
+export const ContactMessagingConsentEventScalarFieldEnum = {
+  id: 'id',
+  contactId: 'contactId',
+  actorUserId: 'actorUserId',
+  action: 'action',
+  source: 'source',
+  note: 'note',
+  createdAt: 'createdAt'
+} as const
+
+export type ContactMessagingConsentEventScalarFieldEnum = (typeof ContactMessagingConsentEventScalarFieldEnum)[keyof typeof ContactMessagingConsentEventScalarFieldEnum]
 
 
 export const SortOrder = {

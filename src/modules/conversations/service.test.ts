@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ContactMessagingConsentSource,
   MediaStatus,
   MessageDirection,
   MessageStatus,
@@ -120,6 +121,11 @@ function conversation(
       preferredName: null,
       phone,
       messagingOptOutAt: null,
+      messagingConsentGrantedAt: null,
+      messagingConsentSource: null,
+      messagingConsentGrantedByUserId: null,
+      messagingConsentGrantedByUser: null,
+      messagingConsentNote: null,
       contactType: null,
       tagAssignments: [],
       ...contactOverrides,
@@ -614,6 +620,13 @@ describe("conversation service", () => {
       name: "Bia",
       phone: "+55 (11) 99999-1234",
       messagingRestricted: false,
+      messagingConsent: {
+        active: false,
+        source: null,
+        grantedAt: null,
+        grantedBy: null,
+        note: null,
+      },
       type: { id: typeId, name: "Cliente", color: "#112233", active: false },
       tags: [
         { id: firstTagId, name: "Primeiro", color: "#778899", active: true },
@@ -628,6 +641,42 @@ describe("conversation service", () => {
       "provider.example",
     );
     expect(result.items[0]).not.toHaveProperty("awaitingResponseSince");
+  });
+
+  it("maps an authoritative active consent without exposing audit history", async () => {
+    const grantedAt = new Date("2026-08-25T10:30:00.000Z");
+    const record = conversation(
+      "10000000-0000-4000-8000-000000000001",
+      "Bia",
+      "5511999991234",
+      new Date(1),
+      null,
+      [],
+      null,
+      {
+        messagingConsentGrantedAt: grantedAt,
+        messagingConsentSource: ContactMessagingConsentSource.OUTRO,
+        messagingConsentGrantedByUserId: marcos.id,
+        messagingConsentGrantedByUser: { id: marcos.id, name: marcos.name },
+        messagingConsentNote: "Autorização em feira",
+        messagingConsentEvents: [{ hidden: "audit" }],
+      },
+    );
+
+    const result = await listConversations(
+      victor.id,
+      {},
+      createRepository([record], []),
+    );
+
+    expect(result.items[0]?.contact.messagingConsent).toEqual({
+      active: true,
+      source: ContactMessagingConsentSource.OUTRO,
+      grantedAt: grantedAt.toISOString(),
+      grantedBy: { id: marcos.id, name: marcos.name },
+      note: "Autorização em feira",
+    });
+    expect(JSON.stringify(result.items[0]?.contact)).not.toContain("audit");
   });
 
   it("uses the exact display fallback when preferred and profile names are blank", async () => {

@@ -17,8 +17,10 @@ import type {
 import type { MessageContextDto } from "@/modules/message-search/types";
 import type {
   ContactDto as UpdatedContactDto,
+  ContactMessagingConsentDto,
   ContactMessagingRestrictionDto,
 } from "@/modules/contacts/types";
+import type { ContactMessagingConsentInput } from "@/modules/contacts/schemas";
 import {
   quotedReplyPreview,
   type QuotedReplyDto,
@@ -371,6 +373,11 @@ export function useInbox(initialUser: SessionUser) {
   const [messagingRestrictionErrors, setMessagingRestrictionErrors] = useState<
     Map<string, string>
   >(() => new Map());
+  const [messagingConsentPendingId, setMessagingConsentPendingId] =
+    useState<string | null>(null);
+  const [messagingConsentErrors, setMessagingConsentErrors] = useState<
+    Map<string, string>
+  >(() => new Map());
   const searchRef = useRef(search);
   const selectedIdRef = useRef(selectedId);
   const listRequest = useRef<{ sequence: number; controller: AbortController } | null>(null);
@@ -396,6 +403,9 @@ export function useInbox(initialUser: SessionUser) {
     { clientRequestId: string; promise: Promise<boolean> }
   >());
   const messagingRestrictionRequests = useRef(
+    new Map<string, Promise<boolean>>(),
+  );
+  const messagingConsentRequests = useRef(
     new Map<string, Promise<boolean>>(),
   );
   const mergedConversationIds = useRef(new Set<string>());
@@ -1386,6 +1396,101 @@ export function useInbox(initialUser: SessionUser) {
     return operation;
   }, [fetchConversation, refreshList]);
 
+  const setMessagingConsent = useCallback((
+    contactId: string,
+    input: ContactMessagingConsentInput,
+  ): Promise<boolean> => {
+    const existing = messagingConsentRequests.current.get(contactId);
+    if (existing) return existing;
+    const operation = (async () => {
+      setMessagingConsentPendingId(contactId);
+      setMessagingConsentErrors((current) => {
+        const next = new Map(current);
+        next.delete(contactId);
+        return next;
+      });
+      try {
+        const payload: ContactMessagingConsentInput =
+          input.action === "GRANT"
+            ? {
+                action: "GRANT",
+                source: input.source,
+                ...(input.note === undefined
+                  ? {}
+                  : { note: input.note.trim() }),
+              }
+            : { action: "REVOKE" };
+        const response = await fetch(
+          `/api/contacts/${contactId}/messaging-consent`,
+          {
+            method: "PUT",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          },
+        );
+        const result = await readEnvelope<ContactMessagingConsentDto>(response);
+        if (!mounted.current) return false;
+        setConversations((current) =>
+          current.map((item) =>
+            item.contact.id === contactId
+              ? {
+                  ...item,
+                  contact: { ...item.contact, messagingConsent: result },
+                }
+              : item,
+          ),
+        );
+        setConversation((current) =>
+          current?.contact.id === contactId
+            ? {
+                ...current,
+                contact: { ...current.contact, messagingConsent: result },
+              }
+            : current,
+        );
+        const activeConversationId = selectedIdRef.current;
+        const refreshes: Array<Promise<void>> = [refreshList()];
+        if (
+          activeConversationId &&
+          selectedContactIdRef.current === contactId
+        ) {
+          refreshes.push(fetchConversation(activeConversationId, false));
+        }
+        await Promise.all(refreshes);
+        return mounted.current;
+      } catch (error) {
+        if (!mounted.current) return false;
+        const requestError = error instanceof ApiRequestError ? error : null;
+        setMessagingConsentErrors((current) => {
+          const next = new Map(current);
+          next.set(
+            contactId,
+            publicErrorMessage(
+              "contact-consent-save",
+              requestError?.status,
+              false,
+              requestError?.code,
+            ),
+          );
+          return next;
+        });
+        return false;
+      } finally {
+        messagingConsentRequests.current.delete(contactId);
+        if (mounted.current) {
+          setMessagingConsentPendingId((current) =>
+            current === contactId ? null : current,
+          );
+        }
+      }
+    })();
+    messagingConsentRequests.current.set(contactId, operation);
+    return operation;
+  }, [fetchConversation, refreshList]);
+
   const getActiveConversationId = useCallback(() => selectedIdRef.current, []);
   const getReactionMessage = useCallback((messageId: string) => (
     conversation?.messages.find((message) => message.id === messageId) ?? null
@@ -1576,6 +1681,7 @@ export function useInbox(initialUser: SessionUser) {
       pinRequests.current.clear();
       resumptionRequests.current.clear();
       messagingRestrictionRequests.current.clear();
+      messagingConsentRequests.current.clear();
       contactTypeSaveRequests.current.clear();
       contactTagSaveRequests.current.clear();
       for (const previewUrl of previewUrls) {
@@ -1630,6 +1736,13 @@ export function useInbox(initialUser: SessionUser) {
       selectedContactIdRef.current === null
         ? null
         : messagingRestrictionErrors.get(selectedContactIdRef.current) ?? null,
+    messagingConsentPending:
+      selectedContactIdRef.current !== null &&
+      messagingConsentPendingId === selectedContactIdRef.current,
+    messagingConsentError:
+      selectedContactIdRef.current === null
+        ? null
+        : messagingConsentErrors.get(selectedContactIdRef.current) ?? null,
     connected: realtime.connected,
     setSearch: changeSearch,
     openConversation,
@@ -1643,6 +1756,7 @@ export function useInbox(initialUser: SessionUser) {
     setContactType,
     replaceContactTags,
     setMessagingRestriction,
+    setMessagingConsent,
     sendText,
     sendMedia,
     sendRecording,
