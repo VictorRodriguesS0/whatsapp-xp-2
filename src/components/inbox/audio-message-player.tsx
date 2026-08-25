@@ -59,7 +59,7 @@ export function AudioMessagePlayer({
     setError(null);
     return () => {
       if (!audio) return;
-      audio.pause();
+      if (!audio.paused) audio.pause();
       releaseAudioPlayback(audio);
     };
   }, [identity, source]);
