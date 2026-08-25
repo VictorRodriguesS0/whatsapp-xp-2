@@ -1,26 +1,26 @@
 "use client";
 
-import { LogOut, MessageSquareText, Search, Settings, Tags } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { useInbox } from "@/hooks/use-inbox";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useMessageSearch } from "@/hooks/use-message-search";
 import { useMobileInboxHistory } from "@/hooks/use-mobile-inbox-history";
 import type { SessionUser } from "@/modules/auth/session";
+import type { MetaHealthSummaryDto } from "@/modules/meta-health/types";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
 
 import { ConnectionBanner } from "./connection-banner";
+import { ConversationSidebar } from "./conversation-sidebar";
 import { ConversationList } from "./conversation-list";
 import { ConversationView } from "./conversation-view";
 import { CustomerPanel } from "./customer-panel";
 import { MessageSearchResults } from "./message-search-results";
 
 function isMobileViewport() {
-  return typeof window !== "undefined" && window.matchMedia?.("(max-width: 719px)").matches;
+  return typeof window !== "undefined" && window.matchMedia?.("(max-width: 767px)").matches;
 }
 
 function afterPaint(callback: () => void) {
@@ -38,7 +38,13 @@ function hasOpenDismissibleOverlay() {
   ));
 }
 
-export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
+export function InboxShell({
+  initialUser,
+  initialMetaHealthSummary,
+}: {
+  initialUser: SessionUser;
+  initialMetaHealthSummary?: MetaHealthSummaryDto | null;
+}) {
   const router = useRouter();
   const inbox = useInbox(initialUser);
   const [mobileView, setMobileView] = useState<"list" | "thread">("list");
@@ -48,7 +54,7 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const globalMessageSearch = useMessageSearch({ scope: "global" });
   const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
-  const detailsTrigger = useRef<HTMLButtonElement>(null);
+  const detailsRestoreTarget = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
   const selectedIdRef = useRef<string | null>(inbox.selectedId);
   const detailsOpenRef = useRef(detailsOpen);
@@ -60,8 +66,33 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
     ? inbox.conversation
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
+  const customerPanelProps = {
+    availableTags: inbox.contactTags,
+    availableTypes: inbox.contactTypes,
+    conversation: selectedListItem,
+    currentUserId: initialUser.id,
+    onRetryTags: () => void inbox.loadContactTags(),
+    onRetryTypes: () => void inbox.loadContactTypes(),
+    onSaveTags: inbox.replaceContactTags,
+    onSetMessagingRestriction: inbox.setMessagingRestriction,
+    onSetContactType: inbox.setContactType,
+    onSetResponsible: (id: string | null) => void inbox.setResponsible(id),
+    pending: inbox.responsiblePending,
+    messagingRestrictionError: inbox.messagingRestrictionError,
+    messagingRestrictionPending: inbox.messagingRestrictionPending,
+    tagSaveError: inbox.contactTagSaveError,
+    tagSavePending: inbox.contactTagSavePendingId === selectedListItem?.contact.id,
+    tagsError: inbox.contactTagsError,
+    tagsLoading: inbox.contactTagsLoading,
+    typeSaveError: inbox.contactTypeSaveError,
+    typeSavePending: inbox.contactTypeSavePendingId === selectedListItem?.contact.id,
+    typesError: inbox.contactTypesError,
+    typesLoading: inbox.contactTypesLoading,
+    users: inbox.users,
+  };
   const selectedId = inbox.selectedId;
   const closeConversation = inbox.closeConversation;
+  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const closeThreadLocally = useCallback(() => {
     const idToRestore = lastSelectedId.current ?? selectedId;
@@ -119,7 +150,8 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
     })();
   }
 
-  function openDetails() {
+  function openDetails(trigger: HTMLButtonElement | null) {
+    detailsRestoreTarget.current = trigger;
     setDetailsOpen(true);
     mobileHistory.enterDetails();
   }
@@ -178,51 +210,9 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
       <div className="inbox-frame mx-auto flex h-full max-w-[1600px] flex-col overflow-hidden border border-[var(--border)] bg-[var(--panel)] shadow-[0_8px_30px_rgba(32,37,34,0.06)]">
         <ConnectionBanner connected={inbox.connected} />
         <div className="inbox-grid min-h-0 flex-1" data-mobile-view={mobileView} data-testid="inbox-shell">
-          <aside aria-label="Conversas" className="conversation-pane flex min-h-0 flex-col border-r border-[var(--border)] bg-[var(--panel)]" role="region">
-            <header className="shrink-0 border-b border-[var(--border)] px-4 py-3">
-              <div className="flex min-h-11 items-center justify-between gap-3">
-                <div><p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">XP Eletrônicos</p><h1 className="text-lg font-bold tracking-tight text-[var(--text)]">Atendimento</h1></div>
-                <div className="flex">
-                  <Button asChild aria-label="Configurar respostas rápidas" size="icon" variant="ghost"><a href="/configuracoes/respostas-rapidas"><MessageSquareText aria-hidden="true" className="size-4" /></a></Button>
-                  {initialUser.role === "ADMIN" ? (
-                    <>
-                      <Button asChild aria-label="Configurar classificações" size="icon" variant="ghost"><a href="/configuracoes/atendimento"><Tags aria-hidden="true" className="size-4" /></a></Button>
-                      <Button asChild aria-label="Configurar usuários" size="icon" variant="ghost"><a href="/configuracoes/usuarios"><Settings aria-hidden="true" className="size-4" /></a></Button>
-                    </>
-                  ) : null}
-                  <Button aria-label="Sair" onClick={() => void logout()} size="icon" variant="ghost"><LogOut aria-hidden="true" className="size-4" /></Button>
-                </div>
-              </div>
-              <div aria-label="Tipo de busca" className="mt-3 grid grid-cols-2 rounded-md bg-[var(--canvas)] p-1" role="group">
-                <button
-                  aria-pressed={searchMode === "conversations"}
-                  className="min-h-9 rounded px-3 text-xs font-semibold text-[var(--muted)] transition-colors aria-pressed:bg-[var(--panel)] aria-pressed:text-[var(--accent)] aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                  onClick={() => setSearchMode("conversations")}
-                  type="button"
-                >Conversas</button>
-                <button
-                  aria-pressed={searchMode === "messages"}
-                  className="min-h-9 rounded px-3 text-xs font-semibold text-[var(--muted)] transition-colors aria-pressed:bg-[var(--panel)] aria-pressed:text-[var(--accent)] aria-pressed:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
-                  onClick={() => setSearchMode("messages")}
-                  type="button"
-                >Mensagens</button>
-              </div>
-              <label className="relative mt-2 block" htmlFor="conversation-search">
-                <span className="sr-only">{searchMode === "messages" ? "Buscar nas mensagens" : "Buscar conversas"}</span>
-                <Search aria-hidden="true" className="pointer-events-none absolute left-3 top-3.5 size-4 text-[var(--muted)]" />
-                <Input
-                  aria-label={searchMode === "messages" ? "Buscar nas mensagens" : "Buscar conversas"}
-                  className="pl-9"
-                  id="conversation-search"
-                  onChange={(event) => searchMode === "messages" ? globalMessageSearch.setQuery(event.target.value) : inbox.setSearch(event.target.value)}
-                  placeholder={searchMode === "messages" ? "Buscar nas mensagens" : "Buscar por nome ou telefone"}
-                  type="search"
-                  value={searchMode === "messages" ? globalMessageSearch.query : inbox.search}
-                />
-              </label>
-            </header>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              {searchMode === "conversations" ? <ConversationList
+          <ConversationSidebar
+            aria-hidden={isMobile && mobileView === "thread" ? true : undefined}
+            conversationList={<ConversationList
                 error={inbox.listError}
                 hasMore={Boolean(inbox.nextCursor)}
                 items={inbox.conversations}
@@ -238,7 +228,11 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                 pinPendingIds={inbox.pinPendingIds}
                 search={inbox.search}
                 selectedId={inbox.selectedId}
-              /> : <MessageSearchResults
+              />}
+            conversationQuery={inbox.search}
+            inert={isMobile && mobileView === "thread" || undefined}
+            messageQuery={globalMessageSearch.query}
+            messageSearchResults={<MessageSearchResults
                 error={globalMessageSearch.error}
                 hasMore={Boolean(globalMessageSearch.nextCursor)}
                 items={globalMessageSearch.items}
@@ -249,13 +243,18 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
                 onSelect={selectMessageResult}
                 query={globalMessageSearch.query}
               />}
-            </div>
-          </aside>
+            metaHealthSummary={initialMetaHealthSummary}
+            onConversationQueryChange={inbox.setSearch}
+            onLogout={() => void logout()}
+            onMessageQueryChange={globalMessageSearch.setQuery}
+            onSearchModeChange={setSearchMode}
+            searchMode={searchMode}
+            user={initialUser}
+          />
 
-          <section aria-label="Conversa ativa" className="thread-pane min-h-0 bg-[var(--panel)]">
+          <section aria-hidden={isMobile && mobileView === "list" ? true : undefined} aria-label="Conversa ativa" className="thread-pane min-h-0 bg-[var(--panel)]" inert={isMobile && mobileView === "list" || undefined} role="region">
             <ConversationView
               conversation={inbox.conversation}
-              detailsTriggerRef={detailsTrigger}
               error={inbox.conversationError}
               loading={inbox.loadingConversation}
               markUnreadError={inbox.markUnreadError}
@@ -270,6 +269,13 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
               onReactMessage={(messageId, emoji) => inbox.reactToMessage(messageId, emoji)}
               onRetryReaction={(messageId, reactionId) => inbox.retryReaction(messageId, reactionId)}
               reactionStateFor={inbox.reactionStateFor}
+              onResumeConversation={() => (
+                inbox.selectedId && inbox.conversation?.id === inbox.selectedId
+                  ? inbox.resumeConversation(inbox.selectedId)
+                  : Promise.resolve(false)
+              )}
+              resumeError={inbox.resumeError}
+              resumePending={inbox.resumePending}
               onSearchTarget={selectMessageInOpenConversation}
               onSearchTargetHandled={() => setSearchTargetMessageId(null)}
               onSendMedia={(file, caption, targetMessageId) => {
@@ -304,34 +310,14 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
           </section>
 
           <aside aria-label="Dados do cliente" className="customer-pane min-h-0 overflow-y-auto border-l border-[var(--border)] bg-[var(--panel)]">
-            <CustomerPanel
-              availableTags={inbox.contactTags}
-              availableTypes={inbox.contactTypes}
-              conversation={selectedListItem}
-              currentUserId={initialUser.id}
-              onRetryTags={() => void inbox.loadContactTags()}
-              onRetryTypes={() => void inbox.loadContactTypes()}
-              onSaveTags={inbox.replaceContactTags}
-              onSetContactType={inbox.setContactType}
-              onSetResponsible={(id) => void inbox.setResponsible(id)}
-              pending={inbox.responsiblePending}
-              tagSaveError={inbox.contactTagSaveError}
-              tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
-              tagsError={inbox.contactTagsError}
-              tagsLoading={inbox.contactTagsLoading}
-              typeSaveError={inbox.contactTypeSaveError}
-              typeSavePending={inbox.contactTypeSavePendingId === selectedListItem?.contact.id}
-              typesError={inbox.contactTypesError}
-              typesLoading={inbox.contactTypesLoading}
-              users={inbox.users}
-            />
+            <CustomerPanel {...customerPanelProps} />
           </aside>
         </div>
       </div>
 
       <Dialog
         onOpenChange={(open) => {
-          if (open) openDetails();
+          if (open) openDetails(detailsRestoreTarget.current);
           else if (detailsOpenRef.current) mobileHistory.leaveDetails();
         }}
         open={detailsOpen}
@@ -340,32 +326,12 @@ export function InboxShell({ initialUser }: { initialUser: SessionUser }) {
           className="customer-dialog"
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            detailsTrigger.current?.focus();
+            detailsRestoreTarget.current?.focus();
           }}
         >
           <DialogTitle className="pr-12 text-lg font-bold text-[var(--text)]">Dados do cliente</DialogTitle>
           <DialogDescription className="sr-only">Contato e responsável pela conversa selecionada.</DialogDescription>
-          <CustomerPanel
-            availableTags={inbox.contactTags}
-            availableTypes={inbox.contactTypes}
-            conversation={selectedListItem}
-            currentUserId={initialUser.id}
-            onRetryTags={() => void inbox.loadContactTags()}
-            onRetryTypes={() => void inbox.loadContactTypes()}
-            onSaveTags={inbox.replaceContactTags}
-            onSetContactType={inbox.setContactType}
-            onSetResponsible={(id) => void inbox.setResponsible(id)}
-            pending={inbox.responsiblePending}
-            tagSaveError={inbox.contactTagSaveError}
-            tagSavePending={inbox.contactTagSavePendingId === selectedListItem?.contact.id}
-            tagsError={inbox.contactTagsError}
-            tagsLoading={inbox.contactTagsLoading}
-            typeSaveError={inbox.contactTypeSaveError}
-            typeSavePending={inbox.contactTypeSavePendingId === selectedListItem?.contact.id}
-            typesError={inbox.contactTypesError}
-            typesLoading={inbox.contactTypesLoading}
-            users={inbox.users}
-          />
+          <CustomerPanel {...customerPanelProps} />
         </DialogContent>
       </Dialog>
     </main>

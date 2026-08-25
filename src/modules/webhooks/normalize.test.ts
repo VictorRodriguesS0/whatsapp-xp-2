@@ -4,19 +4,28 @@ import { describe, expect, it } from "vitest";
 
 import {
   buttonFixture,
+  accountReviewFixture,
+  accountUpdateFixture,
   contactsFixture,
   inboundButtonFixture,
   inboundContactsFixture,
   inboundListReplyFixture,
   inboundLocationFixture,
   inboundMediaFixture,
+  inboundMutationFixture,
   inboundOrderFixture,
   inboundStickerFixture,
   inboundSystemFixture,
   inboundTextFixture,
   locationFixture,
+  messageEchoMutationFixture,
+  phoneNameFixture,
+  phoneQualityFixture,
+  metaOperationalTemplateStatusFixture,
   stickerFixture,
   statusFixture,
+  templateQualityFixture,
+  templateStatusFixture,
   unsupportedMessageFixture,
 } from "@/test/fixtures/meta-webhooks";
 
@@ -167,7 +176,7 @@ describe("Meta webhook normalization", () => {
   it("ignores a structurally valid change for an unknown field", () => {
     const payload = structuredClone(inboundTextFixture) as Record<string, any>;
     payload.entry[0].changes = [
-      { field: "account_update", value: null },
+      { field: "future_account_update", value: null },
       payload.entry[0].changes[0],
     ];
 
@@ -667,21 +676,95 @@ describe("Meta webhook normalization", () => {
   it.each([
     ["edit", "EDIT"],
     ["revoke", "REVOKE"],
-  ] as const)("normalizes a valid app %s control as a deduplicable no-op", (rawAction, action) => {
-    expect(normalizeWebhook(messageEchoControlFixture(rawAction))).toEqual([
-      {
-        kind: "messageEchoControl",
+  ] as const)("normalizes a valid app %s as a unified mutation", (rawAction, action) => {
+    expect(normalizeWebhook(messageEchoMutationFixture(rawAction))).toEqual([
+      expect.objectContaining({
+        kind: "messageMutation",
         action,
-        whatsappMessageId: `wamid.echo-${rawAction}`,
-        originalWhatsappMessageId: "wamid.echo-original",
-        to: "5511999990001",
-        toUserId: "BR.Customer123",
-        toParentUserId: null,
-        timestamp: new Date("2026-08-19T10:00:04.000Z"),
-        timestampRaw: "1787133604",
+        providerEventId: `wamid.echo-${rawAction}-text`,
+        originalWhatsappMessageId: "wamid.echo-original-text",
+        identity: {
+          phone: "5511999990001",
+          whatsappUserId: "BR.Customer123",
+        },
         origin: "WHATSAPP_BUSINESS_APP",
+      }),
+    ]);
+  });
+
+  it("normalizes inbound text edits instead of creating an unsupported message", () => {
+    expect(normalizeWebhook(inboundMutationFixture("edit"))).toEqual([
+      {
+        kind: "messageMutation",
+        action: "EDIT",
+        providerEventId: "wamid.inbound-edit-text",
+        originalWhatsappMessageId: "wamid.inbound-original-text",
+        timestamp: new Date("2026-08-19T10:01:00.000Z"),
+        timestampRaw: "1787133660",
+        body: "Texto corrigido",
+        content: null,
+        identity: { phone: "5511999990001", whatsappUserId: null },
+        origin: "CONTACT",
       },
     ]);
+  });
+
+  it("normalizes an app media-caption edit without accepting replacement media fields", () => {
+    expect(normalizeWebhook(messageEchoMutationFixture("edit", "image"))).toEqual([
+      expect.objectContaining({
+        kind: "messageMutation",
+        action: "EDIT",
+        body: "Legenda corrigida",
+        content: null,
+      }),
+    ]);
+  });
+
+  it("normalizes revokes without replacement content on both webhook surfaces", () => {
+    for (const fixture of [
+      inboundMutationFixture("revoke"),
+      messageEchoMutationFixture("revoke"),
+    ]) {
+      expect(normalizeWebhook(fixture)).toEqual([
+        expect.objectContaining({
+          kind: "messageMutation",
+          action: "REVOKE",
+          body: null,
+          content: null,
+        }),
+      ]);
+    }
+  });
+
+  it.each([
+    ["missing original", () => {
+      const payload = inboundMutationFixture("edit") as Record<string, any>;
+      delete payload.entry[0].changes[0].value.messages[0].edit.original_message_id;
+      return payload;
+    }],
+    ["missing replacement", () => {
+      const payload = inboundMutationFixture("edit") as Record<string, any>;
+      delete payload.entry[0].changes[0].value.messages[0].edit.message;
+      return payload;
+    }],
+    ["unsupported replacement", () => {
+      const payload = inboundMutationFixture("edit") as Record<string, any>;
+      payload.entry[0].changes[0].value.messages[0].edit.message = {
+        type: "sticker",
+        sticker: { id: "private-provider-id" },
+      };
+      return payload;
+    }],
+    ["replacement attached to revoke", () => {
+      const payload = messageEchoMutationFixture("revoke") as Record<string, any>;
+      payload.entry[0].changes[0].value.message_echoes[0].revoke.message = {
+        type: "text",
+        text: { body: "must-not-survive" },
+      };
+      return payload;
+    }],
+  ] as const)("quarantines a malformed mutation: %s", (_name, fixture) => {
+    expect(() => normalizeWebhook(fixture())).toThrow(WebhookPayloadError);
   });
 
   it("normalizes multiple echoes, multiple changes, and standard messages together", () => {
@@ -1008,6 +1091,58 @@ describe("Meta webhook normalization", () => {
 
     expect(normalizeWebhook(payload)).toEqual([]);
   });
+
+  it.each([
+    [phoneQualityFixture(), "phone_number_quality_update", "FLAGGED", "+5561999990000"],
+    [accountUpdateFixture(), "account_update", "DISABLED_UPDATE", "+5561999990000"],
+    [accountReviewFixture(), "account_review_update", "PENDING", "waba-1"],
+    [phoneNameFixture(), "phone_number_name_update", "REJECTED", "+5561999990000"],
+    [metaOperationalTemplateStatusFixture(), "message_template_status_update", "REJECTED", "987654321"],
+  ] as const)("normalizes bounded operational field %s", (payload, field, eventCode, resourceId) => {
+    const [event] = normalizeWebhook(payload);
+    expect(event).toMatchObject({
+      kind: "metaOperational",
+      wabaId: "waba-1",
+      field,
+      eventCode,
+      resourceId,
+      occurredAt: new Date("2026-08-23T12:00:00.000Z"),
+      deduplicationKey: expect.stringMatching(/^meta:[a-f0-9]{64}$/),
+    });
+    expect(JSON.stringify(event)).not.toContain("provider-only");
+  });
+
+  it("keeps only allowlisted phone-quality details and creates a stable key", () => {
+    const first = normalizeWebhook(phoneQualityFixture())[0];
+    const second = normalizeWebhook(structuredClone(phoneQualityFixture()))[0];
+    expect(first).toEqual(second);
+    expect(first).toMatchObject({
+      details: {
+        displayPhoneNumber: "+5561999990000",
+        currentLimit: "TIER_10K",
+        previousLimit: "TIER_1K",
+      },
+    });
+  });
+
+  it.each([
+    ["id", " bad-waba"],
+    ["time", "yesterday"],
+  ] as const)("rejects malformed operational entry %s", (field, value) => {
+    const payload = phoneQualityFixture() as Record<string, any>;
+    payload.entry[0][field] = value;
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
+  });
+
+  it("rejects malformed known operational fields but continues to ignore unknown fields", () => {
+    const malformed = phoneQualityFixture() as Record<string, any>;
+    delete malformed.entry[0].changes[0].value.event;
+    expect(() => normalizeWebhook(malformed)).toThrow(WebhookPayloadError);
+    expect(normalizeWebhook({
+      object: "whatsapp_business_account",
+      entry: [{ id: "waba-1", changes: [{ field: "future_field", value: null }] }],
+    })).toEqual([]);
+  });
 });
 
 function contactSyncFixture(stateSync: unknown[]) {
@@ -1101,5 +1236,48 @@ describe("WhatsApp Business App contact sync normalization", () => {
         contactSyncItem("remove", { contact: { phone_number: "1" } }),
       ))),
     ).toThrow(WebhookPayloadError);
+  });
+});
+
+describe("WhatsApp template webhook normalization", () => {
+  it("normalizes official status and quality updates without raw provider fields", () => {
+    expect(normalizeWebhook(templateStatusFixture())).toEqual([
+      expect.objectContaining({
+        kind: "metaOperational",
+        field: "message_template_status_update",
+        eventCode: "APPROVED",
+        resourceId: "987654321",
+      }),
+      {
+        kind: "templateStatus",
+        metaTemplateId: "987654321",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        status: "APPROVED",
+        entryTimeRaw: "1787133602",
+      },
+    ]);
+    expect(normalizeWebhook(templateQualityFixture())).toEqual([
+      {
+        kind: "templateQuality",
+        metaTemplateId: "987654321",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        qualityScore: "GREEN",
+        entryTimeRaw: "1787133603",
+      },
+    ]);
+  });
+
+  it.each([
+    ["invalid time", (payload: any) => { payload.entry[0].time = "bad"; }],
+    ["invalid id", (payload: any) => { payload.entry[0].changes[0].value.message_template_id = "bad id"; }],
+    ["invalid name", (payload: any) => { payload.entry[0].changes[0].value.message_template_name = "Bad-Name"; }],
+    ["invalid language", (payload: any) => { payload.entry[0].changes[0].value.message_template_language = "pt-br"; }],
+    ["invalid status", (payload: any) => { payload.entry[0].changes[0].value.event = "APPROVED\nsecret"; }],
+  ])("rejects a bounded template status with %s", (_label, mutate) => {
+    const payload = structuredClone(templateStatusFixture()) as any;
+    mutate(payload);
+    expect(() => normalizeWebhook(payload)).toThrow(WebhookPayloadError);
   });
 });

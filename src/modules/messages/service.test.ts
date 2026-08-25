@@ -8,8 +8,10 @@ import {
   MessageOperationalState,
   MessageStatus,
   MessageType,
+  OutboundPayloadKind,
   UserRole,
 } from "@/generated/prisma/enums";
+import { HttpError } from "@/lib/http";
 import type { MediaStorage } from "@/modules/media/storage";
 import type { SessionUser } from "@/modules/auth/session";
 import type { WhatsAppProvider } from "@/modules/whatsapp/provider";
@@ -20,12 +22,14 @@ import {
   ProviderConcurrencyLimiter,
   createPrismaMessageRepository,
   retryMessage,
+  sendPreparedTemplateMessage,
   sendMessage,
   type MessageServiceDependencies,
   type MessageServiceRecord,
   type MessageServiceRepository,
   type MessageRateLimitReservation,
   type PendingMessageInput,
+  type PreparedTemplateMessageInput,
   type StoredMessageMediaInput,
 } from "./service";
 
@@ -120,6 +124,15 @@ class MemoryRepository implements MessageServiceRepository {
       sentByUser: { id: input.sentByUserId, name: actor.name },
       status: MessageStatus.PENDING,
       failureReason: null,
+      outboundPayloadKind: input.payload
+        ? OutboundPayloadKind.TEMPLATE
+        : OutboundPayloadKind.FREE_FORM,
+      templateName: input.payload?.name ?? null,
+      templateLanguage: input.payload?.language ?? null,
+      templateComponents: input.payload
+        ? [{ type: "body", parameters: input.payload.bodyParameters }]
+        : null,
+      templateDefinitionHash: input.payload?.definitionHash ?? null,
       operationalState: MessageOperationalState.READY,
       providerAttemptedAt: null,
       deliveryLeaseId: null,
@@ -267,6 +280,7 @@ class FakeProvider implements WhatsAppProvider {
   calls: string[] = [];
   textInputs: Array<Parameters<WhatsAppProvider["sendText"]>[0]> = [];
   mediaInputs: Array<Parameters<WhatsAppProvider["sendMedia"]>[0]> = [];
+  templateInputs: Array<Parameters<WhatsAppProvider["sendTemplate"]>[0]> = [];
   failWith: Error | null = null;
   mediaFailWith: Error | null = null;
   onCall?: () => void;
@@ -278,6 +292,12 @@ class FakeProvider implements WhatsAppProvider {
   }
 
   async markRead(): Promise<void> {}
+  async listTemplates() { return []; }
+  async sendTemplate(input: Parameters<WhatsAppProvider["sendTemplate"]>[0]) {
+    this.templateInputs.push(input);
+    this.calls.push("template");
+    return this.result();
+  }
 
   async sendText(input: Parameters<WhatsAppProvider["sendText"]>[0]) {
     this.textInputs.push(input);
@@ -332,11 +352,206 @@ function harness() {
       repository.history.push(`publish:${event.type}`);
       published.push(event.type);
     },
+    assertFreeFormSendAllowed: async () => undefined,
   };
   return { dependencies, repository, storage, provider, published };
 }
 
 describe("outbound message service", () => {
+  it("sends a prepared template without the free-form guard and persists its snapshot", async () => {
+    const state = harness();
+    state.dependencies.assertFreeFormSendAllowed = async () => {
+      throw new Error("free-form guard must not run");
+    };
+
+    const result = await sendPreparedTemplateMessage(
+      actor,
+      conversationId,
+      {
+        clientRequestId: "40000000-0000-4000-8000-000000000001",
+        body: "Olá, Carlos! Podemos continuar por aqui?",
+        payload: {
+          kind: "TEMPLATE",
+          name: "retomar_atendimento",
+          language: "pt_BR",
+          definitionHash: "a".repeat(64),
+          bodyParameters: [{ type: "text", text: "Carlos" }],
+        },
+      },
+      state.dependencies,
+    );
+
+    expect(state.provider.templateInputs).toEqual([
+      {
+        to: "5561999999999",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        bodyParameters: [{ type: "text", text: "Carlos" }],
+      },
+    ]);
+    expect(result).toMatchObject({
+      outboundPayloadKind: OutboundPayloadKind.TEMPLATE,
+      templateName: "retomar_atendimento",
+      templateLanguage: "pt_BR",
+      templateDefinitionHash: "a".repeat(64),
+      operationalState: MessageOperationalState.SENT,
+    });
+  });
+
+  it("never blindly retries a prepared template after provider or commit uncertainty", async () => {
+    const state = harness();
+    state.provider.failWith = new Error("timeout");
+    const input: PreparedTemplateMessageInput = {
+      clientRequestId: "40000000-0000-4000-8000-000000000002",
+      body: "Olá, cliente!",
+      payload: {
+        kind: "TEMPLATE",
+        name: "retomar_atendimento",
+        language: "pt_BR",
+        definitionHash: "b".repeat(64),
+        bodyParameters: [{ type: "text", text: "cliente" }],
+      },
+    };
+
+    const uncertain = await sendPreparedTemplateMessage(
+      actor,
+      conversationId,
+      input,
+      state.dependencies,
+    );
+    const repeated = await sendPreparedTemplateMessage(
+      actor,
+      conversationId,
+      input,
+      state.dependencies,
+    );
+
+    expect(uncertain.operationalState).toBe(MessageOperationalState.OUTCOME_UNKNOWN);
+    expect(repeated.operationalState).toBe(MessageOperationalState.OUTCOME_UNKNOWN);
+    expect(state.provider.templateInputs).toHaveLength(1);
+
+    const commitState = harness();
+    commitState.repository.failMarkSent = true;
+    const commitUnknown = await sendPreparedTemplateMessage(
+      actor,
+      conversationId,
+      { ...input, clientRequestId: "40000000-0000-4000-8000-000000000003" },
+      commitState.dependencies,
+    );
+    expect(commitUnknown.operationalState).toBe(MessageOperationalState.OUTCOME_UNKNOWN);
+    expect(commitState.provider.templateInputs).toHaveLength(1);
+  });
+
+  it("does not expose the ordinary failed-message retry path for templates", async () => {
+    const state = harness();
+    state.provider.failWith = new WhatsAppProviderError(
+      "rejected",
+      "provider diagnostic",
+      "131047",
+    );
+    const failed = await sendPreparedTemplateMessage(
+      actor,
+      conversationId,
+      {
+        clientRequestId: "40000000-0000-4000-8000-000000000004",
+        body: "Olá, cliente!",
+        payload: {
+          kind: "TEMPLATE",
+          name: "retomar_atendimento",
+          language: "pt_BR",
+          definitionHash: "c".repeat(64),
+          bodyParameters: [{ type: "text", text: "cliente" }],
+        },
+      },
+      state.dependencies,
+    );
+
+    await expect(
+      retryMessage(actor, failed.id, state.dependencies),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(state.provider.templateInputs).toHaveLength(1);
+  });
+
+  it("rejects a closed-window media send before validation, persistence, quota, or provider calls", async () => {
+    const state = harness();
+    const limiter = new CountingLimiter();
+    state.dependencies.limiter = limiter;
+    state.dependencies.assertFreeFormSendAllowed = async () => {
+      throw new HttpError(
+        409,
+        "A janela de atendimento terminou.",
+        "WHATSAPP_SERVICE_WINDOW_CLOSED",
+      );
+    };
+
+    await expect(
+      sendMessage(
+        actor,
+        conversationId,
+        {
+          type: MessageType.IMAGE,
+          clientRequestId: randomUUID(),
+          file: {
+            filename: "invalida.jpg",
+            mimeType: "image/jpeg",
+            bytes: Uint8Array.from([0]),
+          },
+        },
+        state.dependencies,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "WHATSAPP_SERVICE_WINDOW_CLOSED",
+    });
+    expect(state.repository.records).toHaveLength(0);
+    expect(state.storage.files).toHaveLength(0);
+    expect(state.provider.calls).toHaveLength(0);
+    expect(limiter.calls).toBe(0);
+  });
+
+  it("marks a just-created row failed when the window closes before the provider claim", async () => {
+    const state = harness();
+    const limiter = new CountingLimiter();
+    let checks = 0;
+    state.dependencies.limiter = limiter;
+    state.dependencies.assertFreeFormSendAllowed = async () => {
+      checks += 1;
+      if (checks === 2) {
+        throw new HttpError(
+          409,
+          "A janela de atendimento terminou.",
+          "WHATSAPP_SERVICE_WINDOW_CLOSED",
+        );
+      }
+    };
+
+    await expect(
+      sendMessage(
+        actor,
+        conversationId,
+        {
+          type: MessageType.TEXT,
+          clientRequestId: randomUUID(),
+          body: "Olá",
+        },
+        state.dependencies,
+      ),
+    ).rejects.toMatchObject({
+      status: 409,
+      code: "WHATSAPP_SERVICE_WINDOW_CLOSED",
+    });
+
+    expect(checks).toBe(2);
+    expect([...state.repository.records.values()]).toEqual([
+      expect.objectContaining({
+        status: MessageStatus.FAILED,
+        operationalState: MessageOperationalState.LOCAL_FAILURE,
+      }),
+    ]);
+    expect(state.provider.calls).toHaveLength(0);
+    expect(limiter.calls).toBe(0);
+  });
+
   it("persists and delivers a quoted text using the original official ID", async () => {
     const state = harness();
     const originalId = "21000000-0000-4000-8000-000000000001";

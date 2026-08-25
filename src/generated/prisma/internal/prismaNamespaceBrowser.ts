@@ -60,13 +60,21 @@ export const ModelName = {
   ContactTagAssignment: 'ContactTagAssignment',
   Conversation: 'Conversation',
   Message: 'Message',
+  MessageRevision: 'MessageRevision',
   MessageReaction: 'MessageReaction',
   MediaObject: 'MediaObject',
   ConversationRead: 'ConversationRead',
   ConversationAuditEvent: 'ConversationAuditEvent',
   WhatsAppReadSync: 'WhatsAppReadSync',
   WebhookEvent: 'WebhookEvent',
-  QuickReply: 'QuickReply'
+  MetaHealthSnapshot: 'MetaHealthSnapshot',
+  MetaOperationalAlert: 'MetaOperationalAlert',
+  QuickReply: 'QuickReply',
+  WhatsAppPolicyConfiguration: 'WhatsAppPolicyConfiguration',
+  WhatsAppTemplate: 'WhatsAppTemplate',
+  WhatsAppTemplateAssignment: 'WhatsAppTemplateAssignment',
+  ConversationResumption: 'ConversationResumption',
+  ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -121,6 +129,9 @@ export const ContactScalarFieldEnum = {
   profilePictureUrl: 'profilePictureUrl',
   contactTypeId: 'contactTypeId',
   whatsappAppContactId: 'whatsappAppContactId',
+  messagingOptOutAt: 'messagingOptOutAt',
+  messagingRestrictionReason: 'messagingRestrictionReason',
+  messagingRestrictedByUserId: 'messagingRestrictedByUserId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -191,7 +202,13 @@ export const ConversationScalarFieldEnum = {
   teamLastReadAt: 'teamLastReadAt',
   manualUnreadAt: 'manualUnreadAt',
   manualUnreadByUserId: 'manualUnreadByUserId',
-  awaitingResponseSince: 'awaitingResponseSince'
+  awaitingResponseSince: 'awaitingResponseSince',
+  lastCustomerMessageAt: 'lastCustomerMessageAt',
+  lastCustomerMessageId: 'lastCustomerMessageId',
+  pendingCustomerMessageAt: 'pendingCustomerMessageAt',
+  pendingCustomerMessageId: 'pendingCustomerMessageId',
+  awaitingCustomerSince: 'awaitingCustomerSince',
+  serviceWindowStateVersion: 'serviceWindowStateVersion'
 } as const
 
 export type ConversationScalarFieldEnum = (typeof ConversationScalarFieldEnum)[keyof typeof ConversationScalarFieldEnum]
@@ -213,7 +230,14 @@ export const MessageScalarFieldEnum = {
   sentByUserId: 'sentByUserId',
   status: 'status',
   failureReason: 'failureReason',
+  outboundPayloadKind: 'outboundPayloadKind',
+  templateName: 'templateName',
+  templateLanguage: 'templateLanguage',
+  templateComponents: 'templateComponents',
+  templateDefinitionHash: 'templateDefinitionHash',
+  editedAt: 'editedAt',
   revokedAt: 'revokedAt',
+  lastMutationAt: 'lastMutationAt',
   operationalState: 'operationalState',
   providerAttemptedAt: 'providerAttemptedAt',
   deliveryLeaseId: 'deliveryLeaseId',
@@ -224,6 +248,20 @@ export const MessageScalarFieldEnum = {
 } as const
 
 export type MessageScalarFieldEnum = (typeof MessageScalarFieldEnum)[keyof typeof MessageScalarFieldEnum]
+
+
+export const MessageRevisionScalarFieldEnum = {
+  id: 'id',
+  messageId: 'messageId',
+  providerEventId: 'providerEventId',
+  action: 'action',
+  providerTimestamp: 'providerTimestamp',
+  previousBody: 'previousBody',
+  previousContent: 'previousContent',
+  createdAt: 'createdAt'
+} as const
+
+export type MessageRevisionScalarFieldEnum = (typeof MessageRevisionScalarFieldEnum)[keyof typeof MessageRevisionScalarFieldEnum]
 
 
 export const MessageReactionScalarFieldEnum = {
@@ -322,6 +360,52 @@ export const WebhookEventScalarFieldEnum = {
 export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[keyof typeof WebhookEventScalarFieldEnum]
 
 
+export const MetaHealthSnapshotScalarFieldEnum = {
+  id: 'id',
+  phoneNumberId: 'phoneNumberId',
+  wabaId: 'wabaId',
+  displayPhoneNumber: 'displayPhoneNumber',
+  verifiedName: 'verifiedName',
+  qualityRating: 'qualityRating',
+  accountReviewStatus: 'accountReviewStatus',
+  accountEvent: 'accountEvent',
+  messagingLimit: 'messagingLimit',
+  lastSyncAttemptAt: 'lastSyncAttemptAt',
+  lastSuccessfulSyncAt: 'lastSuccessfulSyncAt',
+  lastSyncErrorCode: 'lastSyncErrorCode',
+  syncLeaseId: 'syncLeaseId',
+  syncLeaseUntil: 'syncLeaseUntil',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaHealthSnapshotScalarFieldEnum = (typeof MetaHealthSnapshotScalarFieldEnum)[keyof typeof MetaHealthSnapshotScalarFieldEnum]
+
+
+export const MetaOperationalAlertScalarFieldEnum = {
+  id: 'id',
+  snapshotId: 'snapshotId',
+  deduplicationKey: 'deduplicationKey',
+  category: 'category',
+  severity: 'severity',
+  source: 'source',
+  sourceField: 'sourceField',
+  eventCode: 'eventCode',
+  resourceId: 'resourceId',
+  summary: 'summary',
+  details: 'details',
+  occurredAt: 'occurredAt',
+  active: 'active',
+  resolvedAt: 'resolvedAt',
+  acknowledgedAt: 'acknowledgedAt',
+  acknowledgedByUserId: 'acknowledgedByUserId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaOperationalAlertScalarFieldEnum = (typeof MetaOperationalAlertScalarFieldEnum)[keyof typeof MetaOperationalAlertScalarFieldEnum]
+
+
 export const QuickReplyScalarFieldEnum = {
   id: 'id',
   shortcut: 'shortcut',
@@ -333,6 +417,91 @@ export const QuickReplyScalarFieldEnum = {
 } as const
 
 export type QuickReplyScalarFieldEnum = (typeof QuickReplyScalarFieldEnum)[keyof typeof QuickReplyScalarFieldEnum]
+
+
+export const WhatsAppPolicyConfigurationScalarFieldEnum = {
+  id: 'id',
+  mode: 'mode',
+  version: 'version',
+  lastTemplateSyncStatus: 'lastTemplateSyncStatus',
+  lastTemplateSyncAt: 'lastTemplateSyncAt',
+  lastTemplateSyncSucceededAt: 'lastTemplateSyncSucceededAt',
+  lastTemplateSyncFailureCode: 'lastTemplateSyncFailureCode',
+  activatedAt: 'activatedAt',
+  activatedByUserId: 'activatedByUserId',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppPolicyConfigurationScalarFieldEnum = (typeof WhatsAppPolicyConfigurationScalarFieldEnum)[keyof typeof WhatsAppPolicyConfigurationScalarFieldEnum]
+
+
+export const WhatsAppTemplateScalarFieldEnum = {
+  id: 'id',
+  metaId: 'metaId',
+  name: 'name',
+  language: 'language',
+  category: 'category',
+  status: 'status',
+  qualityScore: 'qualityScore',
+  components: 'components',
+  bodyText: 'bodyText',
+  parameterCount: 'parameterCount',
+  supported: 'supported',
+  definitionHash: 'definitionHash',
+  syncedAt: 'syncedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppTemplateScalarFieldEnum = (typeof WhatsAppTemplateScalarFieldEnum)[keyof typeof WhatsAppTemplateScalarFieldEnum]
+
+
+export const WhatsAppTemplateAssignmentScalarFieldEnum = {
+  function: 'function',
+  templateId: 'templateId',
+  assignedByUserId: 'assignedByUserId',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type WhatsAppTemplateAssignmentScalarFieldEnum = (typeof WhatsAppTemplateAssignmentScalarFieldEnum)[keyof typeof WhatsAppTemplateAssignmentScalarFieldEnum]
+
+
+export const ConversationResumptionScalarFieldEnum = {
+  id: 'id',
+  conversationId: 'conversationId',
+  sourceMessageId: 'sourceMessageId',
+  templateId: 'templateId',
+  messageId: 'messageId',
+  sentByUserId: 'sentByUserId',
+  clientRequestId: 'clientRequestId',
+  status: 'status',
+  renderedBody: 'renderedBody',
+  templateName: 'templateName',
+  templateLanguage: 'templateLanguage',
+  definitionHash: 'definitionHash',
+  parameters: 'parameters',
+  providerMessageId: 'providerMessageId',
+  providerAttemptedAt: 'providerAttemptedAt',
+  reservationUntil: 'reservationUntil',
+  failureReason: 'failureReason',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ConversationResumptionScalarFieldEnum = (typeof ConversationResumptionScalarFieldEnum)[keyof typeof ConversationResumptionScalarFieldEnum]
+
+
+export const ContactMessagingRestrictionEventScalarFieldEnum = {
+  id: 'id',
+  contactId: 'contactId',
+  actorUserId: 'actorUserId',
+  action: 'action',
+  reason: 'reason',
+  createdAt: 'createdAt'
+} as const
+
+export type ContactMessagingRestrictionEventScalarFieldEnum = (typeof ContactMessagingRestrictionEventScalarFieldEnum)[keyof typeof ContactMessagingRestrictionEventScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -349,6 +518,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {

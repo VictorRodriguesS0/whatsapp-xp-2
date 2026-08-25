@@ -1,5 +1,5 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 
 import type { MessageDto } from "@/modules/conversations/types";
 
@@ -18,15 +18,31 @@ const outboundFixture: MessageDto = {
   sentBy: { id: "30000000-0000-4000-8000-000000000001", name: "Marcos" },
   status: "DELIVERED",
   failureReason: null,
+  editedAt: null,
   revokedAt: null,
   reactions: [],
   externalTimestamp: "2026-08-20T14:31:00.000Z",
   createdAt: "2026-08-20T14:31:00.000Z",
 };
 
-describe("MessageBubble", () => {
-  afterEach(() => vi.useRealTimers());
+function pointer(
+  target: Element,
+  type: "down" | "move" | "up",
+  { x, y }: { x: number; y: number },
+) {
+  const event = new Event(`pointer${type}`, { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    pointerId: { value: 7 },
+    pointerType: { value: "touch" },
+    isPrimary: { value: true },
+    button: { value: 0 },
+    clientX: { value: x },
+    clientY: { value: y },
+  });
+  fireEvent(target, event);
+}
 
+describe("MessageBubble", () => {
   it("exposes a focusable message target and a semantic search highlight", () => {
     render(<MessageBubble message={outboundFixture} searchHighlighted />);
     const article = screen.getByRole("article");
@@ -45,9 +61,7 @@ describe("MessageBubble", () => {
     );
 
     const action = screen.getByRole("button", { name: "Responder à mensagem" });
-    expect(action).toHaveClass("min-h-11", "min-w-11");
-    expect(action).toHaveClass("opacity-100", "min-[720px]:opacity-0");
-    expect(action).not.toHaveClass("sm:opacity-0");
+    expect(action.closest(".message-actions-desktop")).not.toBeNull();
     fireEvent.click(action);
     expect(reply).toHaveBeenCalledWith(expect.objectContaining({ id: outboundFixture.id }));
 
@@ -132,6 +146,67 @@ describe("MessageBubble", () => {
     expect(screen.getByText(label)).toBeVisible();
   });
 
+  it("labels an edited message beside its timestamp", () => {
+    render(<MessageBubble message={{
+      ...outboundFixture,
+      editedAt: "2026-08-20T14:32:00.000Z",
+    }} />);
+
+    expect(screen.getByText("editada")).toBeVisible();
+    expect(screen.getByText(outboundFixture.body!)).toBeVisible();
+  });
+
+  it("renders a revoked message as a safe tombstone without content or actions", () => {
+    render(
+      <MessageBubble
+        message={{
+          ...outboundFixture,
+          type: "IMAGE",
+          body: "Conteúdo que não pode aparecer",
+          content: {
+            kind: "location",
+            latitude: -15.7,
+            longitude: -47.8,
+            name: "Local secreto",
+            address: null,
+          },
+          canReply: true,
+          replyTo: {
+            available: true,
+            messageId: "40000000-0000-4000-8000-000000000001",
+            direction: "INBOUND",
+            type: "TEXT",
+            author: "Cliente",
+            summary: "Prévia secreta",
+          },
+          mediaObjectId: "media-secret",
+          mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
+          editedAt: "2026-08-20T14:32:00.000Z",
+          revokedAt: "2026-08-20T14:33:00.000Z",
+          reactions: [{
+            id: "reaction-secret",
+            reactor: "CONTACT",
+            emoji: "👍",
+            status: "SENT",
+            sentBy: null,
+          }],
+        }}
+        onReact={vi.fn()}
+        onReply={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText("Mensagem apagada")).toBeVisible();
+    expect(screen.queryByText("Conteúdo que não pode aparecer")).not.toBeInTheDocument();
+    expect(screen.queryByText("Local secreto")).not.toBeInTheDocument();
+    expect(screen.queryByText("Prévia secreta")).not.toBeInTheDocument();
+    expect(screen.queryByRole("img")).not.toBeInTheDocument();
+    expect(screen.queryByText("👍")).not.toBeInTheDocument();
+    expect(screen.queryByText("editada")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Responder à mensagem" }))
+      .not.toBeInTheDocument();
+  });
+
   it("keeps a failed message in place and retries the same row", () => {
     const retry = vi.fn();
     render(
@@ -213,25 +288,55 @@ describe("MessageBubble", () => {
     expect(screen.getByRole("link", { name: "Abrir no Google Maps" })).toBeVisible();
     const heading = screen.getByRole("heading", { name: "XP Eletrônicos" });
     expect(heading.closest('[data-reply-swipe-ignore="true"]')).not.toBeNull();
-    expect(heading.closest("article")?.firstElementChild).toHaveClass(
+    expect(heading.closest("article")?.querySelector("[data-message-bubble]")).toHaveClass(
       "max-w-[min(78%,42rem)]",
+      "max-[767px]:max-w-[min(86%,36rem)]",
     );
   });
 
-  it("opens reactions after a 500ms long press and cancels after pointer movement", () => {
-    vi.useFakeTimers();
-    const { container, rerender } = render(<MessageBubble message={outboundFixture} onReact={vi.fn()} />);
-    const bubble = container.querySelector<HTMLElement>("[data-message-bubble]")!;
-    fireEvent.pointerDown(bubble, { button: 0, clientX: 10, clientY: 10 });
-    act(() => vi.advanceTimersByTime(500));
-    expect(screen.getByRole("toolbar", { name: "Reações rápidas" })).toBeVisible();
+  it("does not reply when an expired message is swiped", () => {
+    const reply = vi.fn();
+    render(
+      <MessageBubble
+        message={{ ...outboundFixture, canReply: true, externalTimestamp: "2020-01-01T00:00:00.000Z" }}
+        onReply={reply}
+      />,
+    );
+    const article = screen.getByRole("article");
 
-    fireEvent.keyDown(document, { key: "Escape" });
-    rerender(<MessageBubble message={{ ...outboundFixture, id: "another-message" }} onReact={vi.fn()} />);
-    const movedBubble = container.querySelector<HTMLElement>("[data-message-bubble]")!;
-    fireEvent.pointerDown(movedBubble, { button: 0, clientX: 10, clientY: 10 });
-    fireEvent.pointerMove(movedBubble, { clientX: 30, clientY: 10 });
-    act(() => vi.advanceTimersByTime(500));
-    expect(screen.queryByRole("toolbar", { name: "Reações rápidas" })).not.toBeInTheDocument();
+    pointer(article, "down", { x: 0, y: 0 });
+    pointer(article, "move", { x: 56, y: 0 });
+    pointer(article, "up", { x: 56, y: 0 });
+
+    expect(reply).not.toHaveBeenCalled();
+  });
+
+  it("uses one explicit mobile action trigger instead of floating bubble controls", () => {
+    render(<MessageBubble message={{ ...outboundFixture, canReply: true }} onReact={vi.fn()} onReply={vi.fn()} />);
+    expect(screen.getByRole("button", { name: "Ações da mensagem" })).toHaveClass("min-h-11", "min-w-11");
+    expect(screen.getByRole("button", { name: "Reagir à mensagem" }).closest(".message-actions-desktop")).not.toBeNull();
+  });
+
+  it("keeps reaction badges outside the clipped bubble content while containing long content", () => {
+    render(
+      <MessageBubble
+        message={{
+          ...outboundFixture,
+          reactions: [{
+            id: "reaction-id",
+            emoji: "👍",
+            reactor: "CONTACT",
+            sentBy: null,
+            status: "SENT",
+          }],
+        }}
+        onReact={vi.fn()}
+      />,
+    );
+
+    const bubble = screen.getByTestId("message-bubble");
+    expect(bubble).not.toHaveClass("overflow-hidden");
+    expect(screen.getByTestId("message-bubble-content")).toHaveClass("overflow-hidden");
+    expect(screen.getByRole("button", { name: "Cliente reagiu com 👍" }).parentElement).toHaveClass("-mb-3");
   });
 });

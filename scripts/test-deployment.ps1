@@ -55,6 +55,37 @@ if ($MigrationStart -lt 0 -or $RollbackStart -lt 0) {
 }
 $MigrationRunbook = $Readme.Substring($MigrationStart, $RollbackStart - $MigrationStart)
 
+function Assert-AppOnlyRecreationCommand {
+  param([Parameter(Mandatory)] [string] $Command)
+
+  if ($Command -cne 'compose up -d --no-deps --force-recreate --wait --wait-timeout 120 app') {
+    throw "Deploy deve recriar somente xp-whatsapp-app; comando recusado: $Command"
+  }
+}
+
+$AppRecreationCommands = [regex]::Matches(
+  $MigrationRunbook,
+  '(?m)^compose up -d .*?app$'
+)
+foreach ($Match in $AppRecreationCommands) {
+  Assert-AppOnlyRecreationCommand $Match.Value
+}
+foreach ($ForbiddenCommand in @(
+  'compose up -d --force-recreate --wait database app',
+  'compose up -d --no-deps --force-recreate --wait --wait-timeout 120 database app',
+  'compose up -d --force-recreate'
+)) {
+  $Rejected = $false
+  try {
+    Assert-AppOnlyRecreationCommand $ForbiddenCommand
+  } catch {
+    $Rejected = $true
+  }
+  if (-not $Rejected) {
+    throw "Mutation test aceitou recriação non-app: $ForbiddenCommand"
+  }
+}
+
 if (
   $BackupShell -notmatch 'docker compose --project-directory "\$PROJECT_ROOT" --env-file "\$ENV_FILE" -f "\$COMPOSE_FILE"' -or
   $BackupShell -match '(?m)^\s*(?:\.|source|eval)\s+.*ENV_FILE'
@@ -202,24 +233,34 @@ try {
   }
 
   $Verifier = Join-Path $TemporaryRoot 'scripts/verify-compose.ps1'
-  & pwsh -NoProfile -File $Verifier *> $null
+  $OriginalVerifierOutput = & pwsh -NoProfile -File $Verifier 2>&1
   if ($LASTEXITCODE -ne 0) {
-    throw 'A configuração original deveria passar antes dos mutation tests.'
+    throw "A configuração original deveria passar antes dos mutation tests:`n$($OriginalVerifierOutput -join [Environment]::NewLine)"
   }
 
   $OriginalCompose = Read-NormalizedText (Join-Path $TemporaryRoot 'docker-compose.yml')
+  $OriginalDockerfile = Read-NormalizedText (Join-Path $TemporaryRoot 'Dockerfile')
+  $OriginalEnvExample = Read-NormalizedText (Join-Path $TemporaryRoot '.env.example')
 
   function Assert-MutationFails {
     param(
       [Parameter(Mandatory)] [string] $Name,
-      [Parameter(Mandatory)] [string] $MutatedCompose
+      [Parameter(Mandatory)] [string] $MutatedCompose,
+      [string] $MutatedDockerfile = $OriginalDockerfile,
+      [string] $MutatedEnvExample = $OriginalEnvExample
     )
 
-    if ($MutatedCompose -eq $OriginalCompose) {
-      throw "Mutation test inválido, não alterou o Compose: $Name"
+    if (
+      $MutatedCompose -eq $OriginalCompose -and
+      $MutatedDockerfile -eq $OriginalDockerfile -and
+      $MutatedEnvExample -eq $OriginalEnvExample
+    ) {
+      throw "Mutation test inválido, não alterou artefato: $Name"
     }
 
     Set-Content -LiteralPath (Join-Path $TemporaryRoot 'docker-compose.yml') -Value $MutatedCompose -Encoding utf8NoBOM
+    Set-Content -LiteralPath (Join-Path $TemporaryRoot 'Dockerfile') -Value $MutatedDockerfile -Encoding utf8NoBOM
+    Set-Content -LiteralPath (Join-Path $TemporaryRoot '.env.example') -Value $MutatedEnvExample -Encoding utf8NoBOM
     & pwsh -NoProfile -File $Verifier *> $null
     if ($LASTEXITCODE -eq 0) {
       throw "O verificador aceitou mutação proibida: $Name"
@@ -245,6 +286,32 @@ try {
       1
     )
   )
+  Assert-MutationFails 'expose Meta business account to browser' (
+    [regex]::Replace(
+      $OriginalCompose,
+      '(?m)^(      WHATSAPP_BUSINESS_ACCOUNT_ID:.*)$',
+      '${1}' + "`n      NEXT_PUBLIC_WHATSAPP_BUSINESS_ACCOUNT_ID: `${WHATSAPP_BUSINESS_ACCOUNT_ID:-}",
+      1
+    )
+  )
+  Assert-MutationFails 'remove existing Meta server wiring' (
+    $OriginalCompose -replace '(?m)^      WHATSAPP_BUSINESS_ACCOUNT_ID:.*\r?\n', ''
+  )
+  Assert-MutationFails 'pass Meta token as Compose build argument' (
+    [regex]::Replace(
+      $OriginalCompose,
+      '(?m)^(      dockerfile: Dockerfile)$',
+      '${1}' + "`n      args:`n        WHATSAPP_ACCESS_TOKEN: `${WHATSAPP_ACCESS_TOKEN:-}",
+      1
+    )
+  )
+  $DockerfileWithCredentialArg = [regex]::Replace(
+    $OriginalDockerfile,
+    '(?m)^(FROM node:22-bookworm-slim AS base)$',
+    '${1}' + "`nARG WHATSAPP_ACCESS_TOKEN",
+    1
+  )
+  Assert-MutationFails 'pass Meta token as Dockerfile build argument' $OriginalCompose $DockerfileWithCredentialArg
 } finally {
   if (Test-Path -LiteralPath $TemporaryRoot) {
     $CanonicalTemporaryRoot = (Resolve-Path -LiteralPath $TemporaryRoot).Path

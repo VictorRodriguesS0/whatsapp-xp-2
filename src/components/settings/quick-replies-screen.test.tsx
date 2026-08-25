@@ -1,22 +1,44 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { QuickRepliesScreen } from "./quick-replies-screen";
 
 const replace = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace }) }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 const reply = { id: "10000000-0000-4000-8000-000000000001", shortcut: "horario", message: "Atendemos das 9h às 17h30.", position: 10, active: true };
 
 describe("quick replies settings screen", () => {
   beforeEach(() => { vi.restoreAllMocks(); replace.mockReset(); });
 
+  it("uses the shared settings shell and responsive modal contract", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/settings/quick-replies-screen.tsx"), "utf8");
+
+    expect(source).toContain("SettingsPageShell");
+    expect(source).toContain('className="modal-dialog"');
+  });
+
   it("shows active and inactive shared replies", () => {
     render(<QuickRepliesScreen initialQuickReplies={[reply, { ...reply, id: "2", shortcut: "pix", active: false }]} />);
     expect(screen.getByRole("heading", { name: "Respostas rápidas" })).toBeVisible();
     expect(screen.getByText("/horario")).toBeVisible();
     expect(screen.getByText("Inativa")).toBeVisible();
+  });
+
+  it("restores focus to the action that opened the reply dialog", async () => {
+    const user = userEvent.setup();
+    render(<QuickRepliesScreen initialQuickReplies={[reply]} />);
+    const trigger = screen.getByRole("button", { name: "Editar /horario" });
+
+    await user.click(trigger);
+    await screen.findByRole("dialog", { name: "Editar resposta rápida" });
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(trigger).toHaveFocus());
   });
 
   it("creates a reply from a multiline form", async () => {

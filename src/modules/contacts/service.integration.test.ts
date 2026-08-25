@@ -4,8 +4,19 @@ import { randomUUID } from "node:crypto";
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-import { UserRole } from "@/generated/prisma/enums";
+import {
+  ContactMessagingRestrictionAction,
+  MessageDirection,
+  MessageStatus,
+  MessageType,
+  UserRole,
+  WhatsAppPolicyMode,
+  WhatsAppTemplateFunction,
+  WhatsAppTemplateSyncStatus,
+} from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import { refreshResponseState } from "@/modules/conversations/shared-state";
+import { getMessagingPolicySnapshot } from "@/modules/messaging-policy/service";
 import { resetTestDatabase } from "@/test/database";
 
 import {
@@ -13,6 +24,7 @@ import {
   createContactType,
   createPrismaContactRepository,
   replaceContactTags,
+  setContactMessagingRestriction,
   updateContact,
 } from "./service";
 import type { ContactRepository } from "./types";
@@ -60,6 +72,109 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
 
     afterAll(async () => {
       await prisma.$disconnect();
+    });
+
+    it("shares audited opt-out and opt-in with the service-window policy immediately", async () => {
+      const actor = await prisma.user.create({
+        data: { ...admin, passwordHash: "not-used" },
+      });
+      const contact = await prisma.contact.create({
+        data: { name: "Contato Meta", phone: `+55${Date.now()}` },
+      });
+      const conversation = await prisma.conversation.create({
+        data: {
+          contactId: contact.id,
+          lastMessageAt: new Date("2026-08-22T10:00:00.000Z"),
+        },
+      });
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          direction: MessageDirection.INBOUND,
+          type: MessageType.TEXT,
+          body: "Preciso de ajuda",
+          status: MessageStatus.RECEIVED,
+          externalTimestamp: new Date("2026-08-22T10:00:00.000Z"),
+        },
+      });
+      await refreshResponseState(prisma, conversation.id);
+      const template = await prisma.whatsAppTemplate.create({
+        data: {
+          name: "retomar_atendimento",
+          language: "pt_BR",
+          category: "UTILITY",
+          status: "APPROVED",
+          components: [],
+          bodyText: "Olá, {{1}}! Podemos continuar por aqui?",
+          parameterCount: 1,
+          supported: true,
+          definitionHash: "a".repeat(64),
+          syncedAt: new Date("2026-08-23T09:00:00.000Z"),
+        },
+      });
+      await prisma.whatsAppTemplateAssignment.create({
+        data: {
+          function: WhatsAppTemplateFunction.SERVICE_RESUMPTION,
+          templateId: template.id,
+          assignedByUserId: actor.id,
+        },
+      });
+      await prisma.whatsAppPolicyConfiguration.update({
+        where: { id: 1 },
+        data: {
+          mode: WhatsAppPolicyMode.ACTIVE,
+          lastTemplateSyncAt: new Date("2026-08-23T09:00:00.000Z"),
+          lastTemplateSyncStatus: WhatsAppTemplateSyncStatus.SUCCEEDED,
+          lastTemplateSyncSucceededAt: new Date(
+            "2026-08-23T09:00:00.000Z",
+          ),
+          activatedAt: new Date("2026-08-23T09:00:00.000Z"),
+          activatedByUserId: actor.id,
+          version: { increment: 1 },
+        },
+      });
+      const now = new Date("2026-08-23T10:00:00.000Z");
+
+      await expect(
+        getMessagingPolicySnapshot(conversation.id, now),
+      ).resolves.toMatchObject({ sendMode: "RESUMPTION", reason: null });
+      await setContactMessagingRestriction(
+        actor,
+        contact.id,
+        { restricted: true, reason: "Cliente pediu bloqueio" },
+      );
+      await expect(
+        getMessagingPolicySnapshot(conversation.id, now),
+      ).resolves.toMatchObject({
+        sendMode: "BLOCKED",
+        reason: "CONTACT_OPTED_OUT",
+      });
+      await setContactMessagingRestriction(
+        actor,
+        contact.id,
+        { restricted: false, reason: "Cliente autorizou novo contato" },
+      );
+      await expect(
+        getMessagingPolicySnapshot(conversation.id, now),
+      ).resolves.toMatchObject({ sendMode: "RESUMPTION", reason: null });
+
+      const audit = await prisma.contactMessagingRestrictionEvent.findMany({
+        where: { contactId: contact.id },
+        select: { action: true, actorUserId: true, reason: true },
+      });
+      expect(audit).toHaveLength(2);
+      expect(audit).toEqual(expect.arrayContaining([
+        {
+          action: ContactMessagingRestrictionAction.OPT_OUT,
+          actorUserId: actor.id,
+          reason: "Cliente pediu bloqueio",
+        },
+        {
+          action: ContactMessagingRestrictionAction.OPT_IN,
+          actorUserId: actor.id,
+          reason: "Cliente autorizou novo contato",
+        },
+      ]));
     });
 
     it("maps two administrators racing to create canonically equivalent names to one success and one safe 409", async () => {

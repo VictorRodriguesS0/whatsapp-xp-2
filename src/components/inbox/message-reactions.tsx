@@ -28,6 +28,7 @@ export function MessageReactions({
   onRetry,
   open: controlledOpen,
   onOpenChange,
+  showTrigger = true,
 }: {
   message: MessageDto;
   mutation?: { pending: boolean; error: string | null };
@@ -35,6 +36,7 @@ export function MessageReactions({
   onRetry?(messageId: string, reactionId: string): unknown;
   open?: boolean;
   onOpenChange?(open: boolean): void;
+  showTrigger?: boolean;
 }) {
   const [internalOpen, setInternalOpen] = useState(false);
   const [showFullPicker, setShowFullPicker] = useState(false);
@@ -51,7 +53,7 @@ export function MessageReactions({
   }
 
   useEffect(() => {
-    if (!open || typeof window === "undefined" || !window.matchMedia?.("(max-width: 719px)").matches) return;
+    if (!open || typeof window === "undefined" || !window.matchMedia?.("(max-width: 767px)").matches) return;
     const state = window.history.state && typeof window.history.state === "object"
       ? window.history.state as Record<string, unknown>
       : {};
@@ -115,7 +117,7 @@ export function MessageReactions({
         </div>
       ) : null}
 
-      <Popover onOpenChange={handleOpenChange} open={open}>
+      {showTrigger ? <Popover onOpenChange={handleOpenChange} open={open}>
         <PopoverTrigger asChild>
           <button
             aria-label="Reagir à mensagem"
@@ -165,7 +167,7 @@ export function MessageReactions({
             </div>
           )}
         </PopoverContent>
-      </Popover>
+      </Popover> : null}
 
       {mutation.pending ? <span className="sr-only" role="status">Enviando reação</span> : null}
       {mutation.error ? (

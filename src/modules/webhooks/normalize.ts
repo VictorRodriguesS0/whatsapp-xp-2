@@ -10,14 +10,18 @@ import type {
   NormalizedMedia,
   NormalizedContactSyncBatchEvent,
   NormalizedContactSyncItem,
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMessageMutationEvent,
+  NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
+  NormalizedTemplateQualityEvent,
+  NormalizedTemplateStatusEvent,
   NormalizedWebhookEvent,
 } from "./types";
+import type { MetaOperationalField } from "@/modules/meta-health/types";
 import { isSingleEmoji } from "@/modules/reactions/emoji";
 
 type UnknownRecord = Record<string, unknown>;
@@ -152,6 +156,136 @@ function parseTimestamp(value: unknown): { date: Date; raw: string } | null {
   return Number.isSafeInteger(milliseconds) && !Number.isNaN(date.getTime())
     ? { date, raw: value }
     : null;
+}
+
+const operationalFields = new Set<MetaOperationalField>([
+  "phone_number_quality_update",
+  "account_update",
+  "account_review_update",
+  "phone_number_name_update",
+  "message_template_status_update",
+]);
+
+function isOperationalField(value: string): value is MetaOperationalField {
+  return operationalFields.has(value as MetaOperationalField);
+}
+
+function parseEntryTimestamp(value: unknown): Date | null {
+  const seconds =
+    typeof value === "number" && Number.isSafeInteger(value)
+      ? value
+      : typeof value === "string" && /^\d{1,16}$/u.test(value)
+        ? Number(value)
+        : Number.NaN;
+  const milliseconds = seconds * 1_000;
+  const date = new Date(milliseconds);
+  return Number.isSafeInteger(milliseconds) && !Number.isNaN(date.getTime())
+    ? date
+    : null;
+}
+
+function exactOperationalValue(value: unknown, maximum = 256): string | null {
+  const cleaned =
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0
+      ? String(value)
+      : exactIdentifier(value, maximum);
+  return cleaned && /^[A-Za-z0-9+._:-]+$/u.test(cleaned) ? cleaned : null;
+}
+
+function exactOperationalEvent(value: unknown): string | null {
+  const event = exactOperationalValue(value, 64);
+  return event && /^[A-Z][A-Z0-9_]*$/u.test(event) ? event : null;
+}
+
+function optionalOperationalDetail(
+  value: UnknownRecord,
+  key: string,
+  maximum = 256,
+): string | null | undefined {
+  if (!hasOwn(value, key) || value[key] === null) return null;
+  const cleaned = strictCleanString(value[key], maximum);
+  return cleaned ?? undefined;
+}
+
+function normalizedOperationalDetails(
+  pairs: Array<[string, string | null]>,
+): Record<string, string | null> | null {
+  const entries = pairs.filter(([, value]) => value !== null);
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+function normalizeMetaOperational(
+  field: MetaOperationalField,
+  value: UnknownRecord,
+  wabaId: string,
+  occurredAt: Date,
+): NormalizedMetaOperationalEvent | null {
+  let eventCode: string | null = null;
+  let resourceId: string | null = null;
+  let details: Record<string, string | null> | null = null;
+
+  if (field === "phone_number_quality_update") {
+    eventCode = exactOperationalEvent(value.event);
+    resourceId = exactOperationalValue(value.display_phone_number, 64);
+    const currentLimit = optionalOperationalDetail(value, "current_limit", 64);
+    const previousLimit = optionalOperationalDetail(value, "previous_limit", 64);
+    if (currentLimit === undefined || previousLimit === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["displayPhoneNumber", resourceId],
+      ["currentLimit", currentLimit],
+      ["previousLimit", previousLimit],
+    ]);
+  } else if (field === "account_update") {
+    eventCode = exactOperationalEvent(value.event);
+    resourceId = exactOperationalValue(value.phone_number, 64) ?? wabaId;
+    const currentLimit = optionalOperationalDetail(value, "current_limit", 64);
+    if (currentLimit === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["phoneNumber", resourceId === wabaId ? null : resourceId],
+      ["currentLimit", currentLimit],
+    ]);
+  } else if (field === "account_review_update") {
+    eventCode = exactOperationalEvent(value.decision);
+    resourceId = wabaId;
+  } else if (field === "phone_number_name_update") {
+    eventCode = exactOperationalEvent(value.decision);
+    resourceId = exactOperationalValue(value.display_phone_number, 64);
+    const requestedName = optionalOperationalDetail(value, "requested_verified_name", 256);
+    if (requestedName === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["displayPhoneNumber", resourceId],
+      ["requestedVerifiedName", requestedName],
+    ]);
+  } else {
+    eventCode = exactOperationalEvent(value.event);
+    resourceId = exactOperationalValue(value.message_template_id, 256);
+    const name = optionalOperationalDetail(value, "message_template_name", 512);
+    const language = optionalOperationalDetail(value, "message_template_language", 32);
+    if (name === undefined || language === undefined) return null;
+    details = normalizedOperationalDetails([
+      ["name", name],
+      ["language", language],
+    ]);
+  }
+
+  if (!eventCode || !resourceId) return null;
+  const technicalIdentity = JSON.stringify([
+    wabaId,
+    field,
+    eventCode,
+    resourceId,
+    occurredAt.toISOString(),
+  ]);
+  return {
+    kind: "metaOperational",
+    wabaId,
+    field,
+    eventCode,
+    resourceId,
+    occurredAt,
+    details,
+    deduplicationKey: `meta:${createHash("sha256").update(technicalIdentity).digest("hex")}`,
+  };
 }
 
 function whatsappUserId(value: unknown): string | null {
@@ -535,10 +669,92 @@ function normalizeUnknownContent(message: UnknownRecord): MessageContent | null 
   return parseMessageContent({ kind: "unknown", rawType: message.type });
 }
 
+function normalizeMutationReplacement(
+  control: UnknownRecord,
+): { body: string | null; content: MessageContent | null } | null {
+  const replacement = record(control.message);
+  const rawType = exactBoundedProviderString(replacement?.type, 64);
+
+  if (!replacement || !rawType) return null;
+
+  if (rawType === "text") {
+    const text = record(replacement.text);
+    const body = strictCleanString(text?.body, 4096, { trim: false });
+    return text && body ? { body, content: null } : null;
+  }
+
+  if (rawType === "image" || rawType === "video" || rawType === "document") {
+    const media = record(replacement[rawType]);
+    if (
+      !media ||
+      !hasOwn(media, "caption") ||
+      typeof media.caption !== "string" ||
+      media.caption.length > 4096
+    ) {
+      return null;
+    }
+
+    return {
+      body: cleanString(media.caption, 4096, { trim: false }),
+      content: null,
+    };
+  }
+
+  return null;
+}
+
+function normalizeMessageMutation(input: {
+  message: UnknownRecord;
+  action: "edit" | "revoke";
+  providerEventId: string;
+  timestamp: { date: Date; raw: string };
+  identity: NormalizedMessageMutationEvent["identity"];
+  origin: NormalizedMessageMutationEvent["origin"];
+}): NormalizedMessageMutationEvent | null {
+  const control = record(input.message[input.action]);
+  const originalWhatsappMessageId = exactIdentifier(
+    control?.original_message_id,
+    512,
+  );
+
+  if (!control || !originalWhatsappMessageId) return null;
+
+  if (input.action === "revoke") {
+    if (hasOwn(control, "message")) return null;
+    return {
+      kind: "messageMutation",
+      action: "REVOKE",
+      providerEventId: input.providerEventId,
+      originalWhatsappMessageId,
+      timestamp: input.timestamp.date,
+      timestampRaw: input.timestamp.raw,
+      body: null,
+      content: null,
+      identity: input.identity,
+      origin: input.origin,
+    };
+  }
+
+  const replacement = normalizeMutationReplacement(control);
+  if (!replacement) return null;
+
+  return {
+    kind: "messageMutation",
+    action: "EDIT",
+    providerEventId: input.providerEventId,
+    originalWhatsappMessageId,
+    timestamp: input.timestamp.date,
+    timestampRaw: input.timestamp.raw,
+    ...replacement,
+    identity: input.identity,
+    origin: input.origin,
+  };
+}
+
 function normalizeMessage(
   candidate: unknown,
   contactNames: Map<string, string>,
-): NormalizedMessageEvent | NormalizedReactionEvent | null {
+): NormalizedMessageEvent | NormalizedMessageMutationEvent | NormalizedReactionEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const from = whatsappUserId(message?.from);
@@ -547,6 +763,22 @@ function normalizeMessage(
 
   if (!message || !whatsappMessageId || !from || !rawType || !parsedTimestamp) {
     return null;
+  }
+
+  if (rawType === "edit" || rawType === "revoke") {
+    const hasUserId = hasOwn(message, "from_user_id");
+    const whatsappUserId = hasUserId
+      ? businessScopedUserId(message.from_user_id)
+      : null;
+    if (hasUserId && !whatsappUserId) return null;
+    return normalizeMessageMutation({
+      message,
+      action: rawType,
+      providerEventId: whatsappMessageId,
+      timestamp: parsedTimestamp,
+      identity: { phone: from, whatsappUserId },
+      origin: "CONTACT",
+    });
   }
 
   if (rawType === "reaction") {
@@ -724,7 +956,7 @@ function normalizeContactSyncBatch(value: UnknownRecord): NormalizedContactSyncB
 
 function normalizeMessageEcho(
   candidate: unknown,
-): NormalizedMessageEchoEvent | NormalizedMessageEchoControlEvent | NormalizedReactionEchoEvent | null {
+): NormalizedMessageEchoEvent | NormalizedMessageMutationEvent | NormalizedReactionEchoEvent | null {
   const message = record(candidate);
   const whatsappMessageId = exactIdentifier(message?.id, 512);
   const hasLegacyRecipient = message ? hasOwn(message, "to") : false;
@@ -752,28 +984,14 @@ function normalizeMessageEcho(
   }
 
   if (rawType === "edit" || rawType === "revoke") {
-    const control = record(message[rawType]);
-    const originalWhatsappMessageId = exactIdentifier(
-      control?.original_message_id,
-      512,
-    );
-
-    if (!control || !originalWhatsappMessageId) {
-      return null;
-    }
-
-    return {
-      kind: "messageEchoControl",
-      action: rawType === "edit" ? "EDIT" : "REVOKE",
-      whatsappMessageId,
-      originalWhatsappMessageId,
-      to,
-      toUserId,
-      toParentUserId,
-      timestamp: parsedTimestamp.date,
-      timestampRaw: parsedTimestamp.raw,
+    return normalizeMessageMutation({
+      message,
+      action: rawType,
+      providerEventId: whatsappMessageId,
+      timestamp: parsedTimestamp,
+      identity: { phone: to, whatsappUserId: toUserId },
       origin: "WHATSAPP_BUSINESS_APP",
-    };
+    });
   }
 
   if (rawType === "reaction") {
@@ -915,6 +1133,74 @@ function normalizeStatus(candidate: unknown): NormalizedStatusEvent | null {
   };
 }
 
+function exactEntryTime(value: unknown): string | null {
+  if (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 0
+  ) {
+    return String(value);
+  }
+  return typeof value === "string" && /^\d{1,16}$/u.test(value)
+    ? value
+    : null;
+}
+
+function templateIdentity(value: UnknownRecord) {
+  const rawMetaTemplateId = value.message_template_id;
+  const metaTemplateId =
+    typeof rawMetaTemplateId === "number" &&
+    Number.isSafeInteger(rawMetaTemplateId) &&
+    rawMetaTemplateId >= 0
+      ? String(rawMetaTemplateId)
+      : exactIdentifier(rawMetaTemplateId, 256);
+  const name = exactIdentifier(value.message_template_name, 512);
+  const language = exactIdentifier(value.message_template_language, 32);
+  if (
+    !metaTemplateId ||
+    !name ||
+    !language ||
+    !/^\d{1,256}$/u.test(metaTemplateId) ||
+    !/^[a-z0-9_]{1,512}$/u.test(name) ||
+    !/^[a-z]{2}_[A-Z]{2}$/u.test(language)
+  ) {
+    throw new WebhookPayloadError();
+  }
+  return { metaTemplateId, name, language };
+}
+
+function templateToken(value: unknown, maximum: number): string {
+  const token = exactIdentifier(value, maximum);
+  if (!token || !/^[A-Z][A-Z0-9_]*$/u.test(token)) {
+    throw new WebhookPayloadError();
+  }
+  return token;
+}
+
+function normalizeTemplateStatus(
+  value: UnknownRecord,
+  entryTimeRaw: string,
+): NormalizedTemplateStatusEvent {
+  return {
+    kind: "templateStatus",
+    ...templateIdentity(value),
+    status: templateToken(value.event, 64),
+    entryTimeRaw,
+  };
+}
+
+function normalizeTemplateQuality(
+  value: UnknownRecord,
+  entryTimeRaw: string,
+): NormalizedTemplateQualityEvent {
+  return {
+    kind: "templateQuality",
+    ...templateIdentity(value),
+    qualityScore: templateToken(value.new_quality_score, 32),
+    entryTimeRaw,
+  };
+}
+
 export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
   const root = record(payload);
 
@@ -946,18 +1232,63 @@ export function normalizeWebhook(payload: unknown): NormalizedWebhookEvent[] {
         throw new WebhookPayloadError();
       }
 
+      const value = record(change.value);
+
+      if (field === "message_template_status_update") {
+        const wabaId = exactOperationalValue(entry.id, 256);
+        const occurredAt = parseEntryTimestamp(entry.time);
+        const entryTimeRaw = exactEntryTime(entry.time);
+        if (!wabaId || !occurredAt || !entryTimeRaw || !value) {
+          throw new WebhookPayloadError();
+        }
+        const operational = normalizeMetaOperational(
+          field,
+          value,
+          wabaId,
+          occurredAt,
+        );
+        if (!operational) throw new WebhookPayloadError();
+        events.push(
+          operational,
+          normalizeTemplateStatus(value, entryTimeRaw),
+        );
+        continue;
+      }
+
+      if (isOperationalField(field)) {
+        const wabaId = exactOperationalValue(entry.id, 256);
+        const occurredAt = parseEntryTimestamp(entry.time);
+        if (!wabaId || !occurredAt || !value) throw new WebhookPayloadError();
+        const normalized = normalizeMetaOperational(
+          field,
+          value,
+          wabaId,
+          occurredAt,
+        );
+        if (!normalized) throw new WebhookPayloadError();
+        events.push(normalized);
+        continue;
+      }
+
       if (
         field !== "messages" &&
         field !== "smb_message_echoes" &&
-        field !== "smb_app_state_sync"
+        field !== "smb_app_state_sync" &&
+        field !== "message_template_status_update" &&
+        field !== "message_template_quality_update"
       ) {
         continue;
       }
 
-      const value = record(change.value);
-
       if (!value) {
         throw new WebhookPayloadError();
+      }
+
+      if (field === "message_template_quality_update") {
+        const entryTimeRaw = exactEntryTime(entry.time);
+        if (!entryTimeRaw) throw new WebhookPayloadError();
+        events.push(normalizeTemplateQuality(value, entryTimeRaw));
+        continue;
       }
 
       if (field === "smb_app_state_sync") {

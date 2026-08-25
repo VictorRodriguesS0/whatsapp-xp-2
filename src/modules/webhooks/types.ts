@@ -1,5 +1,6 @@
 import type { MessageStatus, MessageType } from "@/generated/prisma/enums";
 import type { MessageContent } from "@/modules/messages/content";
+import type { MetaOperationalField } from "@/modules/meta-health/types";
 
 export type NormalizedMedia = {
   metaMediaId: string;
@@ -47,17 +48,20 @@ export type NormalizedMessageEchoEvent = {
   origin: "WHATSAPP_BUSINESS_APP";
 };
 
-export type NormalizedMessageEchoControlEvent = {
-  kind: "messageEchoControl";
+export type NormalizedMessageMutationEvent = {
+  kind: "messageMutation";
   action: "EDIT" | "REVOKE";
-  whatsappMessageId: string;
+  providerEventId: string;
   originalWhatsappMessageId: string;
-  to: string | null;
-  toUserId: string | null;
-  toParentUserId: string | null;
   timestamp: Date;
   timestampRaw: string;
-  origin: "WHATSAPP_BUSINESS_APP";
+  body: string | null;
+  content: MessageContent | null;
+  identity: {
+    phone: string | null;
+    whatsappUserId: string | null;
+  };
+  origin: "CONTACT" | "WHATSAPP_BUSINESS_APP";
 };
 
 export type NormalizedReactionEvent = {
@@ -84,6 +88,17 @@ export type NormalizedReactionEchoEvent = {
   origin: "WHATSAPP_BUSINESS_APP";
 };
 
+export type NormalizedMetaOperationalEvent = {
+  kind: "metaOperational";
+  wabaId: string;
+  field: MetaOperationalField;
+  eventCode: string;
+  resourceId: string | null;
+  occurredAt: Date;
+  details: Record<string, string | null> | null;
+  deduplicationKey: string;
+};
+
 export type NormalizedContactSyncItem = {
   action: "ADD" | "REMOVE";
   phone: string;
@@ -99,14 +114,35 @@ export type NormalizedContactSyncBatchEvent = {
   quarantined: number;
 };
 
+export type NormalizedTemplateStatusEvent = {
+  kind: "templateStatus";
+  metaTemplateId: string;
+  name: string;
+  language: string;
+  status: string;
+  entryTimeRaw: string;
+};
+
+export type NormalizedTemplateQualityEvent = {
+  kind: "templateQuality";
+  metaTemplateId: string;
+  name: string;
+  language: string;
+  qualityScore: string;
+  entryTimeRaw: string;
+};
+
 export type NormalizedWebhookEvent =
   | NormalizedMessageEvent
   | NormalizedStatusEvent
   | NormalizedMessageEchoEvent
-  | NormalizedMessageEchoControlEvent
+  | NormalizedMessageMutationEvent
   | NormalizedReactionEvent
   | NormalizedReactionEchoEvent
-  | NormalizedContactSyncBatchEvent;
+  | NormalizedMetaOperationalEvent
+  | NormalizedContactSyncBatchEvent
+  | NormalizedTemplateStatusEvent
+  | NormalizedTemplateQualityEvent;
 
 export type ProcessSummary = {
   processed: number;

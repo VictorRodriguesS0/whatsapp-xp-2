@@ -36,6 +36,38 @@ function connectionStringForDatabase(database: string): string {
   return url.toString();
 }
 
+async function endPoolAfterConnectionsClose(pool: Pool | undefined): Promise<void> {
+  if (!pool) {
+    return;
+  }
+
+  const connectionCount = pool.totalCount;
+  if (connectionCount === 0) {
+    await pool.end();
+    return;
+  }
+
+  let removedConnections = 0;
+  let resolveConnectionsClosed: (() => void) | undefined;
+  const connectionsClosed = new Promise<void>((resolve) => {
+    resolveConnectionsClosed = resolve;
+  });
+  const handleRemove = () => {
+    removedConnections += 1;
+    if (removedConnections === connectionCount) {
+      resolveConnectionsClosed?.();
+    }
+  };
+
+  pool.on("remove", handleRemove);
+  try {
+    await pool.end();
+    await connectionsClosed;
+  } finally {
+    pool.off("remove", handleRemove);
+  }
+}
+
 async function resetContactClassification(): Promise<void> {
   const tables = await pg.query<{
     contact_types: string | null;
@@ -264,7 +296,7 @@ describe("shared inbox temporal schema contract", () => {
       expect(secondLedger.rows).toEqual(firstLedger.rows);
     } finally {
       try {
-        await deployed?.end();
+        await endPoolAfterConnectionsClose(deployed);
       } finally {
         try {
           await admin.query(
@@ -591,7 +623,7 @@ describe("shared inbox temporal schema contract", () => {
         },
       ]);
     } finally {
-      await legacy?.end();
+      await endPoolAfterConnectionsClose(legacy);
       await admin.query(`DROP DATABASE IF EXISTS "${migrationDatabaseName}" WITH (FORCE)`);
       await admin.end();
     }
@@ -761,7 +793,7 @@ describe("shared inbox temporal schema contract", () => {
         },
       ]);
     } finally {
-      await legacy?.end();
+      await endPoolAfterConnectionsClose(legacy);
       await admin.query(
         `DROP DATABASE IF EXISTS "${contactMigrationDatabaseName}" WITH (FORCE)`,
       );

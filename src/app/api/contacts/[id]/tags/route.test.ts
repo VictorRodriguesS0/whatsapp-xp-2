@@ -21,6 +21,7 @@ const contact = {
   preferredName: null,
   name: "Carlos",
   phone: "+55 (11) 99999-1234",
+  messagingRestricted: false,
   type: null,
   tags: [{ id: tagId, name: "VIP", color: "#A1B2C3", active: true }],
 };

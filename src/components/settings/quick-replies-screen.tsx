@@ -1,12 +1,13 @@
 "use client";
 
-import { ArrowLeft, Pencil, Plus, Power, PowerOff } from "lucide-react";
+import { Pencil, Plus, Power, PowerOff } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
+import { SettingsPageShell } from "@/components/layout/settings-page-shell";
 import type { QuickReplyDto } from "@/modules/quick-replies/service";
 
 function sort(items: QuickReplyDto[]) {
@@ -27,8 +28,10 @@ export function QuickRepliesScreen({ initialQuickReplies }: { initialQuickReplie
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const dialogTrigger = useRef<HTMLButtonElement | null>(null);
 
-  function open(item: QuickReplyDto | "new") {
+  function open(item: QuickReplyDto | "new", trigger: HTMLButtonElement) {
+    dialogTrigger.current = trigger;
     setEditing(item);
     setShortcut(item === "new" ? "" : item.shortcut);
     setMessage(item === "new" ? "" : item.message);
@@ -71,19 +74,14 @@ export function QuickRepliesScreen({ initialQuickReplies }: { initialQuickReplie
     if (result) merge(result);
   }
 
-  const dialogClass = "inset-auto bottom-auto right-auto left-1/2 top-1/2 max-h-[calc(100dvh-2rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-lg border shadow-[0_16px_48px_rgba(32,37,34,0.14)]";
   return (
-    <main aria-labelledby="quick-replies-heading" className="min-h-dvh bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <a className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[var(--muted)]" href="/conversas"><ArrowLeft className="size-4" />Conversas</a>
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Configurações</p>
-            <h1 className="mt-1 text-2xl font-bold" id="quick-replies-heading">Respostas rápidas</h1>
-            <p className="mt-1 text-sm text-[var(--muted)]">Atalhos compartilhados por toda a equipe.</p>
-          </div>
-          <Button disabled={busy} onClick={() => open("new")}><Plus className="size-4" />Nova resposta</Button>
-        </header>
+    <>
+      <SettingsPageShell
+        actions={<Button disabled={busy} onClick={(event) => open("new", event.currentTarget)}><Plus aria-hidden="true" className="size-4" />Nova resposta</Button>}
+        description="Atalhos compartilhados por toda a equipe."
+        eyebrow="Configurações"
+        title="Respostas rápidas"
+      >
         {error && !editing ? <p className="mt-4 rounded-md border border-[var(--danger)] p-3 text-sm text-[var(--danger)]" role="alert">{error}</p> : null}
         <section className="mt-6 space-y-3" aria-label="Catálogo de respostas rápidas">
           {items.length === 0 ? <p className="rounded-md border border-dashed border-[var(--border)] p-8 text-center text-sm text-[var(--muted)]">Nenhuma resposta rápida cadastrada.</p> : items.map((item) => (
@@ -91,16 +89,24 @@ export function QuickRepliesScreen({ initialQuickReplies }: { initialQuickReplie
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0"><div className="flex items-center gap-2"><strong className="text-[var(--accent)]">/{item.shortcut}</strong><Badge>{item.active ? "Ativa" : "Inativa"}</Badge></div><p className="mt-2 whitespace-pre-wrap text-sm">{item.message}</p></div>
                 <div className="flex shrink-0 gap-1">
-                  <Button aria-label={`Editar /${item.shortcut}`} disabled={busy} onClick={() => open(item)} size="icon" variant="ghost"><Pencil className="size-4" /></Button>
+                  <Button aria-label={`Editar /${item.shortcut}`} disabled={busy} onClick={(event) => open(item, event.currentTarget)} size="icon" variant="ghost"><Pencil className="size-4" /></Button>
                   <Button aria-label={`${item.active ? "Desativar" : "Ativar"} /${item.shortcut}`} disabled={busy} onClick={() => void toggle(item)} size="icon" variant="ghost">{item.active ? <PowerOff className="size-4" /> : <Power className="size-4" />}</Button>
                 </div>
               </div>
             </article>
           ))}
         </section>
-      </div>
+      </SettingsPageShell>
       <Dialog onOpenChange={(value) => { if (!value && !busy) setEditing(null); }} open={editing !== null}>
-        <DialogContent className={dialogClass}>
+        <DialogContent
+          className="modal-dialog"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            const trigger = dialogTrigger.current;
+            dialogTrigger.current = null;
+            if (trigger?.isConnected) trigger.focus();
+          }}
+        >
           <DialogTitle className="pr-12 text-xl font-bold">{editing === "new" ? "Nova resposta rápida" : "Editar resposta rápida"}</DialogTitle>
           <DialogDescription className="mt-1 text-sm text-[var(--muted)]">O atalho será usado depois de digitar / no atendimento.</DialogDescription>
           <form className="mt-5 space-y-4" onSubmit={(event) => void submit(event)}>
@@ -112,6 +118,6 @@ export function QuickRepliesScreen({ initialQuickReplies }: { initialQuickReplie
           </form>
         </DialogContent>
       </Dialog>
-    </main>
+    </>
   );
 }

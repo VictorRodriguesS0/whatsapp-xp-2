@@ -2,6 +2,7 @@ import "server-only";
 
 import { Prisma } from "@/generated/prisma/client";
 import {
+  ConversationResumptionStatus,
   MediaStatus,
   MessageDirection,
   MessageStatus,
@@ -11,9 +12,11 @@ import {
   type MessageStatus as MessageStatusValue,
 } from "@/generated/prisma/enums";
 import { prisma } from "@/lib/db";
+import type { MessageBoundary } from "@/modules/conversations/boundary";
 import type { MessageContent } from "@/modules/messages/content";
 import { messageContentForPrisma } from "@/modules/messages/content.server";
 import {
+  advanceTeamReadFromBusinessEcho,
   compareBoundary,
   refreshResponseState,
 } from "@/modules/conversations/shared-state";
@@ -24,16 +27,21 @@ import {
   reconcileReplyLinks,
 } from "@/modules/messages/reply-linking.server";
 import { shouldApplyMessageStatus } from "@/modules/messages/status-precedence";
+import { applyMessageMutation } from "@/modules/messages/mutations";
+import { applyMetaOperationalEvent } from "@/modules/meta-health/service";
 
 import type {
   NormalizedMedia,
   NormalizedContactSyncItem,
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMessageMutationEvent,
+  NormalizedMetaOperationalEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
   NormalizedStatusEvent,
+  NormalizedTemplateQualityEvent,
+  NormalizedTemplateStatusEvent,
   NormalizedWebhookEvent,
   ProcessSummary,
 } from "./types";
@@ -89,11 +97,19 @@ export type WebhookRepository = {
     externalTimestamp: Date;
   }): Promise<{ id: string; conversationId: string }>;
   refreshResponseState(conversationId: string): Promise<void>;
+  advanceTeamReadFromBusinessEcho(
+    conversationId: string,
+    echoBoundary: MessageBoundary,
+  ): Promise<void>;
   updateMessageStatus(
     messageId: string,
     status: NormalizedStatusEvent["status"],
     failureReason: string | null,
   ): Promise<MessageRecord>;
+  reconcileFailedOutbound(
+    messageId: string,
+    conversationId: string,
+  ): Promise<void>;
   findReactionTarget(whatsappMessageId: string): Promise<ReactionTargetRecord | null>;
   applyReaction(input: {
     messageId: string;
@@ -103,7 +119,16 @@ export type WebhookRepository = {
     providerEventId: string;
     providerTimestamp: Date;
   }): Promise<"APPLIED" | "IGNORED">;
-  revokeMessage(messageId: string, revokedAt: Date): Promise<MessageRecord>;
+  applyMessageMutation(input: {
+    messageId: string;
+    providerEventId: string;
+    action: "EDIT" | "REVOKE";
+    providerTimestamp: Date;
+    body: string | null;
+    content: MessageContent | null;
+  }): Promise<"APPLIED" | "IGNORED" | "MISSING">;
+  updateTemplateStatus(event: NormalizedTemplateStatusEvent): Promise<boolean>;
+  updateTemplateQuality(event: NormalizedTemplateQualityEvent): Promise<boolean>;
 };
 
 export type WebhookProcessDependencies = {
@@ -119,6 +144,7 @@ export type WebhookProcessDependencies = {
     errorSummary: string,
   ): Promise<void>;
   publishRealtime(event: RealtimeEvent): void;
+  applyMetaOperationalEvent(event: NormalizedMetaOperationalEvent): Promise<void>;
   now?(): Date;
 };
 
@@ -697,12 +723,45 @@ export function createPrismaWebhookRepository(
     refreshResponseState(conversationId) {
       return refreshResponseState(client, conversationId);
     },
+    async advanceTeamReadFromBusinessEcho(conversationId, echoBoundary) {
+      await advanceTeamReadFromBusinessEcho(
+        client,
+        conversationId,
+        echoBoundary,
+      );
+    },
     updateMessageStatus(messageId, status, failureReason) {
       return client.message.update({
         where: { id: messageId },
         data: { status, failureReason },
         select: { id: true, conversationId: true, status: true },
       });
+    },
+    async reconcileFailedOutbound(messageId, conversationId) {
+      const resumptions = await client.conversationResumption.updateMany({
+        where: {
+          messageId,
+          status: {
+            in: [
+              ConversationResumptionStatus.RESERVED,
+              ConversationResumptionStatus.SEND_IN_FLIGHT,
+              ConversationResumptionStatus.SENT,
+            ],
+          },
+        },
+        data: {
+          status: ConversationResumptionStatus.FAILED,
+          reservationUntil: null,
+          failureReason: "Falha de entrega confirmada pela Meta",
+        },
+      });
+      if (resumptions.count > 0) {
+        await client.conversation.update({
+          where: { id: conversationId },
+          data: { awaitingCustomerSince: null },
+        });
+      }
+      await refreshResponseState(client, conversationId);
     },
     findReactionTarget(whatsappMessageId) {
       return client.message.findUnique({
@@ -793,12 +852,30 @@ export function createPrismaWebhookRepository(
       });
       return "APPLIED";
     },
-    revokeMessage(messageId, revokedAt) {
-      return client.message.update({
-        where: { id: messageId },
-        data: { revokedAt },
-        select: { id: true, conversationId: true, status: true },
+    applyMessageMutation(input) {
+      return applyMessageMutation(client, input);
+    },
+    async updateTemplateStatus(event) {
+      const result = await client.whatsAppTemplate.updateMany({
+        where: {
+          metaId: event.metaTemplateId,
+          name: event.name,
+          language: event.language,
+        },
+        data: { status: event.status },
       });
+      return result.count === 1;
+    },
+    async updateTemplateQuality(event) {
+      const result = await client.whatsAppTemplate.updateMany({
+        where: {
+          metaId: event.metaTemplateId,
+          name: event.name,
+          language: event.language,
+        },
+        data: { qualityScore: event.qualityScore },
+      });
+      return result.count === 1;
     },
   };
 }
@@ -876,6 +953,7 @@ const defaultDependencies: WebhookProcessDependencies = {
       });
     }),
   publishRealtime,
+  applyMetaOperationalEvent,
 };
 
 function deduplicationKey(
@@ -888,14 +966,20 @@ function deduplicationKey(
       return `status:${event.whatsappMessageId}:${event.status}:${event.timestampRaw}`;
     case "messageEcho":
       return `message-echo:${event.whatsappMessageId}`;
-    case "messageEchoControl":
-      return `message-echo-control:${event.action}:${event.whatsappMessageId}:${event.originalWhatsappMessageId}`;
+    case "messageMutation":
+      return `message-mutation:${event.providerEventId}`;
     case "reaction":
       return `reaction:${event.whatsappMessageId}`;
     case "reactionEcho":
       return `reaction-echo:${event.whatsappMessageId}`;
+    case "metaOperational":
+      return event.deduplicationKey;
     case "contactSyncBatch":
       return `contact-sync-batch:${event.items[0]?.sourceVersionKey ?? "empty"}`;
+    case "templateStatus":
+      return `template-status:${event.metaTemplateId}:${event.status}:${event.entryTimeRaw}`;
+    case "templateQuality":
+      return `template-quality:${event.metaTemplateId}:${event.qualityScore}:${event.entryTimeRaw}`;
   }
 }
 
@@ -1004,6 +1088,10 @@ async function processMessageEcho(
     externalTimestamp: event.timestamp,
   });
   await repository.refreshResponseState(conversation.id);
+  await repository.advanceTeamReadFromBusinessEcho(conversation.id, {
+    id: message.id,
+    externalTimestamp: event.timestamp,
+  });
   await repository.completeEvent(key);
 
   return {
@@ -1028,7 +1116,7 @@ function numericIdentity(value: string | null): string | null {
 
 function reactionIdentityMatches(
   target: ReactionTargetRecord,
-  event: NormalizedReactionEvent | NormalizedReactionEchoEvent | NormalizedMessageEchoControlEvent,
+  event: NormalizedReactionEvent | NormalizedReactionEchoEvent | NormalizedMessageMutationEvent,
 ): boolean {
   const phoneIdentities = new Set(
     [target.contactWhatsappId, target.contactPhone]
@@ -1038,11 +1126,15 @@ function reactionIdentityMatches(
   if (event.kind === "reaction") {
     return phoneIdentities.has(numericIdentity(event.from) ?? "");
   }
-  const phoneMatches = event.to
-    ? phoneIdentities.has(numericIdentity(event.to) ?? "")
+  const phone = event.kind === "messageMutation" ? event.identity.phone : event.to;
+  const whatsappUserId = event.kind === "messageMutation"
+    ? event.identity.whatsappUserId
+    : event.toUserId;
+  const phoneMatches = phone
+    ? phoneIdentities.has(numericIdentity(phone) ?? "")
     : false;
-  const userMatches = event.toUserId
-    ? event.toUserId === target.contactWhatsappUserId
+  const userMatches = whatsappUserId
+    ? whatsappUserId === target.contactWhatsappUserId
     : false;
   return phoneMatches || userMatches;
 }
@@ -1081,30 +1173,42 @@ async function processReaction(
   };
 }
 
-async function processMessageEchoControl(
-  event: NormalizedMessageEchoControlEvent,
+async function processMessageMutation(
+  event: NormalizedMessageMutationEvent,
   key: string,
   repository: WebhookRepository,
+  now: Date,
 ): Promise<{
   duplicate: boolean;
   realtime: readonly RealtimeEvent[];
   pendingMediaId: string | null;
 }> {
-  if (event.action === "REVOKE") {
-    const target = await repository.findReactionTarget(event.originalWhatsappMessageId);
-    if (target) {
-      if (!reactionIdentityMatches(target, event)) throw new WebhookIdentityConflictError();
-      const revoked = await repository.revokeMessage(target.id, event.timestamp);
-      await repository.completeEvent(key);
-      return {
-        duplicate: false,
-        realtime: [{ type: "message.status", conversationId: revoked.conversationId, messageId: revoked.id }],
-        pendingMediaId: null,
-      };
+  const target = await repository.findReactionTarget(event.originalWhatsappMessageId);
+  if (!target) {
+    if (Math.abs(now.getTime() - event.timestamp.getTime()) <= MISSING_STATUS_RETRY_GRACE_MS) {
+      throw new WebhookProcessingError(true);
     }
+    await repository.completeEvent(key);
+    return { duplicate: false, realtime: [], pendingMediaId: null };
   }
+  if (!reactionIdentityMatches(target, event)) throw new WebhookIdentityConflictError();
+  const applied = await repository.applyMessageMutation({
+    messageId: target.id,
+    providerEventId: event.providerEventId,
+    action: event.action,
+    providerTimestamp: event.timestamp,
+    body: event.body,
+    content: event.content,
+  });
+  if (applied === "MISSING") throw new WebhookProcessingError(true);
   await repository.completeEvent(key);
-  return { duplicate: false, realtime: [], pendingMediaId: null };
+  return {
+    duplicate: applied === "IGNORED",
+    realtime: applied === "APPLIED"
+      ? [{ type: "message.updated", conversationId: target.conversationId, messageId: target.id }]
+      : [],
+    pendingMediaId: null,
+  };
 }
 
 async function processStatus(
@@ -1131,6 +1235,12 @@ async function processStatus(
       event.status,
       event.failureReason,
     );
+    if (event.status === MessageStatus.FAILED) {
+      await repository.reconcileFailedOutbound(
+        updated.id,
+        updated.conversationId,
+      );
+    }
     realtime = [{
       type: "message.status",
       conversationId: updated.conversationId,
@@ -1140,6 +1250,29 @@ async function processStatus(
 
   await repository.completeEvent(key);
   return { duplicate: false, realtime, pendingMediaId: null };
+}
+
+async function processTemplateUpdate(
+  event: NormalizedTemplateStatusEvent | NormalizedTemplateQualityEvent,
+  key: string,
+  repository: WebhookRepository,
+): Promise<{
+  duplicate: boolean;
+  realtime: readonly RealtimeEvent[];
+  pendingMediaId: null;
+}> {
+  const changed =
+    event.kind === "templateStatus"
+      ? await repository.updateTemplateStatus(event)
+      : await repository.updateTemplateQuality(event);
+  await repository.completeEvent(key);
+  return {
+    duplicate: false,
+    realtime: changed
+      ? [{ type: "settings.updated", scope: "whatsapp-policy" }]
+      : [],
+    pendingMediaId: null,
+  };
 }
 
 export async function processWebhookEvents(
@@ -1206,7 +1339,27 @@ export async function processWebhookEvents(
     };
 
     try {
-      outcome = await dependencies.transaction(async (repository) => {
+      if (event.kind === "metaOperational") {
+        const reservation = await dependencies.transaction((repository) =>
+          repository.reserveEvent(key, event.kind),
+        );
+        if (reservation === WebhookStatus.PROCESSED) {
+          outcome = { duplicate: true, realtime: [], pendingMediaId: null };
+        } else {
+          if (reservation === WebhookStatus.PROCESSING) {
+            throw new WebhookProcessingError(true, false);
+          }
+          await dependencies.applyMetaOperationalEvent(event);
+          await dependencies.transaction(async (repository) => {
+            await repository.completeEvent(key);
+          });
+          outcome = {
+            duplicate: false,
+            realtime: [{ type: "meta-health.updated" }],
+            pendingMediaId: null,
+          };
+        }
+      } else outcome = await dependencies.transaction(async (repository) => {
         const reservation = await repository.reserveEvent(key, event.kind);
 
         if (reservation === WebhookStatus.PROCESSED) {
@@ -1224,11 +1377,14 @@ export async function processWebhookEvents(
             return processStatus(event, key, repository, now);
           case "messageEcho":
             return processMessageEcho(event, key, repository);
-          case "messageEchoControl":
-            return processMessageEchoControl(event, key, repository);
+          case "messageMutation":
+            return processMessageMutation(event, key, repository, now);
           case "reaction":
           case "reactionEcho":
             return processReaction(event, key, repository, now);
+          case "templateStatus":
+          case "templateQuality":
+            return processTemplateUpdate(event, key, repository);
         }
       });
     } catch (error) {

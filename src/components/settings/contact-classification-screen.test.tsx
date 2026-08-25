@@ -1,11 +1,14 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContactClassificationScreen, type ContactDefinition } from "./contact-classification-screen";
 
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: routerReplaceMock }) }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 const lead: ContactDefinition = {
   id: "type-2",
@@ -50,6 +53,13 @@ describe("ContactClassificationScreen", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("uses the shared settings shell and responsive modal contract", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/settings/contact-classification-screen.tsx"), "utf8");
+
+    expect(source).toContain("SettingsPageShell");
+    expect(source).toContain('className="modal-dialog"');
   });
 
   it("orders compact sections by position and id while exposing status and color as text", () => {
@@ -180,6 +190,7 @@ describe("ContactClassificationScreen", () => {
     })));
     expect(await screen.findByText("Etiqueta desativada.")).toBeVisible();
     expect(within(screen.getByRole("region", { name: "Etiquetas" })).getByText("Inativo")).toBeVisible();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Nova etiqueta" })).toHaveFocus());
   });
 
   it("maps duplicate conflicts safely and lets Escape restore the current dialog trigger", async () => {

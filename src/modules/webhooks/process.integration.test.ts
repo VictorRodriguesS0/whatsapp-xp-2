@@ -24,9 +24,9 @@ import {
 } from "./process";
 import type {
   NormalizedContactSyncBatchEvent,
-  NormalizedMessageEchoControlEvent,
   NormalizedMessageEchoEvent,
   NormalizedMessageEvent,
+  NormalizedMessageMutationEvent,
   NormalizedReactionEchoEvent,
   NormalizedReactionEvent,
 } from "./types";
@@ -84,21 +84,37 @@ function inboundEvent(
   };
 }
 
-function controlEvent(
+function mutationEvent(
   action: "EDIT" | "REVOKE",
-  whatsappMessageId: string,
-): NormalizedMessageEchoControlEvent {
+  providerEventId: string,
+  options: {
+    originalWhatsappMessageId?: string;
+    body?: string | null;
+    phone?: string | null;
+    whatsappUserId?: string | null;
+    timestamp?: Date;
+    origin?: "CONTACT" | "WHATSAPP_BUSINESS_APP";
+  } = {},
+): NormalizedMessageMutationEvent {
+  const timestamp = options.timestamp ?? new Date("2026-08-21T12:01:00.000Z");
   return {
-    kind: "messageEchoControl",
+    kind: "messageMutation",
     action,
-    whatsappMessageId,
-    originalWhatsappMessageId: "wamid.control-original",
-    to: null,
-    toUserId: "BR.ControlCustomer",
-    toParentUserId: null,
-    timestamp: new Date("2026-08-21T12:00:00.000Z"),
-    timestampRaw: "1787313600",
-    origin: "WHATSAPP_BUSINESS_APP",
+    providerEventId,
+    originalWhatsappMessageId:
+      options.originalWhatsappMessageId ?? "wamid.reaction-target",
+    timestamp,
+    timestampRaw: String(timestamp.getTime() / 1_000),
+    body: action === "EDIT" ? (options.body ?? "Target corrigido") : null,
+    content: null,
+    identity: {
+      phone: options.phone === undefined ? "551100000031" : options.phone,
+      whatsappUserId:
+        options.whatsappUserId === undefined
+          ? "BR.ReactionCustomer"
+          : options.whatsappUserId,
+    },
+    origin: options.origin ?? "WHATSAPP_BUSINESS_APP",
   };
 }
 
@@ -165,6 +181,7 @@ async function seedReactionTarget() {
       direction: MessageDirection.OUTBOUND,
       type: MessageType.TEXT,
       body: "Target",
+      searchText: "target",
       status: MessageStatus.SENT,
       externalTimestamp: new Date("2026-08-21T12:00:00.000Z"),
     },
@@ -188,6 +205,9 @@ function transactionDependencies(
       throw new Error("unexpected quarantineEvent");
     },
     publishRealtime: (event) => realtime.push(event),
+    applyMetaOperationalEvent: async () => {
+      throw new Error("unexpected Meta operational event");
+    },
   };
 }
 
@@ -1359,11 +1379,21 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ]);
 
       const conversation = await prisma.conversation.findFirstOrThrow();
+      const inbound = await prisma.message.findUniqueOrThrow({
+        where: { whatsappMessageId: "wamid.echo-order-inbound" },
+      });
+      const manualUnreadAt = new Date("2026-08-21T12:02:30.000Z");
+      await prisma.conversation.update({
+        where: { id: conversation.id },
+        data: { manualUnreadAt },
+      });
       await expect(
         prisma.conversation.findUniqueOrThrow({ where: { id: conversation.id } }),
       ).resolves.toMatchObject({
         lastMessageAt: inboundTimestamp,
         awaitingResponseSince: inboundTimestamp,
+        teamLastReadMessageId: null,
+        manualUnreadAt,
       });
 
       await processWebhookEvents([
@@ -1377,6 +1407,8 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ).resolves.toMatchObject({
         lastMessageAt: inboundTimestamp,
         awaitingResponseSince: inboundTimestamp,
+        teamLastReadMessageId: null,
+        manualUnreadAt,
       });
 
       const latestTimestamp = new Date("2026-08-21T12:03:00.000Z");
@@ -1391,7 +1423,21 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       ).resolves.toMatchObject({
         lastMessageAt: latestTimestamp,
         awaitingResponseSince: null,
+        teamLastReadMessageId: inbound.id,
+        teamLastReadAt: inboundTimestamp,
+        manualUnreadAt,
       });
+      await expect(
+        prisma.conversationRead.count({ where: { conversationId: conversation.id } }),
+      ).resolves.toBe(0);
+      await expect(
+        prisma.whatsAppReadSync.count({ where: { conversationId: conversation.id } }),
+      ).resolves.toBe(0);
+      await expect(
+        prisma.conversationAuditEvent.count({
+          where: { conversationId: conversation.id },
+        }),
+      ).resolves.toBe(0);
     });
 
     it("reconciles contact reactions and removals without changing messages or response state", async () => {
@@ -1462,43 +1508,189 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
       await expect(prisma.messageReaction.count()).resolves.toBe(0);
     });
 
-    it("marks the original message revoked when the official app reports a revoke control", async () => {
-      const { message } = await seedReactionTarget();
-      const revoke = controlEvent("REVOKE", "wamid.echo-control-revoke-existing");
-      revoke.originalWhatsappMessageId = "wamid.reaction-target";
-      revoke.toUserId = "BR.ReactionCustomer";
-      await processWebhookEvents([revoke]);
+    it("applies an edit with an immutable snapshot without changing conversation state", async () => {
+      const { conversation, message } = await seedReactionTarget();
+      const stateSelect = {
+        awaitingResponseSince: true,
+        teamLastReadMessageId: true,
+        teamLastReadAt: true,
+        manualUnreadAt: true,
+        manualUnreadByUserId: true,
+        responsibleUserId: true,
+        lastMessageAt: true,
+      } as const;
+      const before = await prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: stateSelect,
+      });
+      const realtime: RealtimeEvent[] = [];
+      const edit = mutationEvent("EDIT", "wamid.mutation-edit");
+
+      await expect(
+        processWebhookEvents([edit], transactionDependencies(realtime)),
+      ).resolves.toEqual({ processed: 1, duplicates: 0 });
+
       await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id } }))
-        .resolves.toMatchObject({ revokedAt: revoke.timestamp });
+        .resolves.toMatchObject({
+          body: "Target corrigido",
+          searchText: "target corrigido",
+          editedAt: edit.timestamp,
+          lastMutationAt: edit.timestamp,
+          revokedAt: null,
+        });
+      await expect(prisma.messageRevision.findMany()).resolves.toEqual([
+        expect.objectContaining({
+          messageId: message.id,
+          providerEventId: edit.providerEventId,
+          action: "EDIT",
+          providerTimestamp: edit.timestamp,
+          previousBody: "Target",
+          previousContent: null,
+        }),
+      ]);
+      await expect(prisma.conversation.findUniqueOrThrow({
+        where: { id: conversation.id },
+        select: stateSelect,
+      })).resolves.toEqual(before);
+      await expect(prisma.conversationRead.count()).resolves.toBe(0);
+      await expect(prisma.conversationAuditEvent.count()).resolves.toBe(0);
+      await expect(prisma.whatsAppReadSync.count()).resolves.toBe(0);
+      expect(realtime).toEqual([{
+        type: "message.updated",
+        conversationId: conversation.id,
+        messageId: message.id,
+      }]);
+
+      await expect(
+        processWebhookEvents([edit], transactionDependencies(realtime)),
+      ).resolves.toEqual({ processed: 0, duplicates: 1 });
+      await expect(prisma.messageRevision.count()).resolves.toBe(1);
     });
 
-    it("deduplicates edit and revoke controls without mutating message history", async () => {
-      const edit = controlEvent("EDIT", "wamid.echo-control-edit");
-      const revoke = controlEvent("REVOKE", "wamid.echo-control-revoke");
+    it("orders edits monotonically by provider timestamp and event id", async () => {
+      const { message } = await seedReactionTarget();
+      const timestamp = new Date("2026-08-21T12:03:00.000Z");
+      const editB = mutationEvent("EDIT", "wamid.mutation-b", {
+        body: "Versão B",
+        timestamp,
+      });
+      const editA = mutationEvent("EDIT", "wamid.mutation-a", {
+        body: "Versão A",
+        timestamp,
+      });
+      const editC = mutationEvent("EDIT", "wamid.mutation-c", {
+        body: "Versão C",
+        timestamp,
+      });
+      const older = mutationEvent("EDIT", "wamid.mutation-old", {
+        body: "Versão antiga",
+        timestamp: new Date("2026-08-21T12:02:59.000Z"),
+      });
+
+      await processWebhookEvents([editB]);
+      await expect(processWebhookEvents([editA, editC, older])).resolves.toEqual({
+        processed: 1,
+        duplicates: 2,
+      });
+
+      await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id } }))
+        .resolves.toMatchObject({ body: "Versão C", lastMutationAt: timestamp });
+      await expect(prisma.messageRevision.findMany({
+        orderBy: { providerEventId: "asc" },
+        select: { providerEventId: true, previousBody: true },
+      })).resolves.toEqual([
+        { providerEventId: "wamid.mutation-b", previousBody: "Target" },
+        { providerEventId: "wamid.mutation-c", previousBody: "Versão B" },
+      ]);
+    });
+
+    it("renders a revoke as a tombstone without deleting media, reactions, or revisions", async () => {
+      const { message } = await seedReactionTarget();
+      const media = await prisma.mediaObject.create({
+        data: {
+          storageProvider: "local",
+          storageKey: "mutation-preserved/image.jpg",
+          originalFilename: "image.jpg",
+          mimeType: "image/jpeg",
+          sizeBytes: 42n,
+          status: MediaStatus.AVAILABLE,
+        },
+      });
+      await prisma.message.update({
+        where: { id: message.id },
+        data: { mediaObjectId: media.id },
+      });
+      await prisma.messageReaction.create({
+        data: {
+          messageId: message.id,
+          reactor: "CONTACT",
+          emoji: "👍",
+          status: "SENT",
+        },
+      });
+      const edit = mutationEvent("EDIT", "wamid.mutation-before-revoke", {
+        body: "Legenda corrigida",
+      });
+      const revoke = mutationEvent("REVOKE", "wamid.mutation-revoke", {
+        timestamp: new Date("2026-08-21T12:04:00.000Z"),
+      });
 
       await processWebhookEvents([edit, revoke]);
-      const duplicate = await processWebhookEvents([edit, revoke]);
 
-      expect(duplicate).toEqual({ processed: 0, duplicates: 2 });
-      await expect(prisma.message.count()).resolves.toBe(0);
-      await expect(prisma.contact.count()).resolves.toBe(0);
-      await expect(
-        prisma.webhookEvent.findMany({
-          orderBy: { deduplicationKey: "asc" },
-          select: { deduplicationKey: true, status: true },
-        }),
-      ).resolves.toEqual([
-        {
-          deduplicationKey:
-            "message-echo-control:EDIT:wamid.echo-control-edit:wamid.control-original",
-          status: WebhookStatus.PROCESSED,
-        },
-        {
-          deduplicationKey:
-            "message-echo-control:REVOKE:wamid.echo-control-revoke:wamid.control-original",
-          status: WebhookStatus.PROCESSED,
-        },
+      await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id } }))
+        .resolves.toMatchObject({
+          body: null,
+          content: null,
+          searchText: "mensagem apagada",
+          mediaObjectId: media.id,
+          revokedAt: revoke.timestamp,
+          lastMutationAt: revoke.timestamp,
+        });
+      await expect(prisma.messageRevision.findMany({
+        orderBy: { providerTimestamp: "asc" },
+        select: { action: true, previousBody: true, previousContent: true },
+      })).resolves.toEqual([
+        { action: "EDIT", previousBody: "Target", previousContent: null },
+        { action: "REVOKE", previousBody: null, previousContent: null },
       ]);
+      await expect(prisma.mediaObject.findUnique({ where: { id: media.id } }))
+        .resolves.not.toBeNull();
+      await expect(prisma.messageReaction.count()).resolves.toBe(1);
+
+      const afterRevoke = mutationEvent("EDIT", "wamid.mutation-after-revoke", {
+        body: "Não deve reaparecer",
+        timestamp: new Date("2026-08-21T12:05:00.000Z"),
+      });
+      await expect(processWebhookEvents([afterRevoke])).resolves.toEqual({
+        processed: 0,
+        duplicates: 1,
+      });
+      await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id } }))
+        .resolves.toMatchObject({ body: null, revokedAt: revoke.timestamp });
+      await expect(prisma.messageRevision.count()).resolves.toBe(2);
+    });
+
+    it("quarantines a mutation whose customer identity differs from the target", async () => {
+      const { message } = await seedReactionTarget();
+      const mutation = mutationEvent("EDIT", "wamid.mutation-wrong-identity", {
+        phone: "551199999999",
+        whatsappUserId: "BR.WrongCustomer",
+      });
+
+      await expect(processWebhookEvents([mutation])).resolves.toEqual({
+        processed: 0,
+        duplicates: 0,
+        quarantined: 1,
+      });
+      await expect(prisma.message.findUniqueOrThrow({ where: { id: message.id } }))
+        .resolves.toMatchObject({ body: "Target", editedAt: null });
+      await expect(prisma.messageRevision.count()).resolves.toBe(0);
+      await expect(prisma.webhookEvent.findUnique({
+        where: { deduplicationKey: `message-mutation:${mutation.providerEventId}` },
+      })).resolves.toMatchObject({
+        status: WebhookStatus.PROCESSED,
+        errorSummary: "quarantined:identity_conflict",
+      });
     });
   },
 );

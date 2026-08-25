@@ -45,7 +45,10 @@ export function conversationErrorResponse(error: unknown): Response {
     return Response.json(
       {
         data: null,
-        error: { code: errorCode(error.status), message: error.message },
+        error: {
+          code: error.code ?? errorCode(error.status),
+          message: error.message,
+        },
       },
       { status: error.status },
     );

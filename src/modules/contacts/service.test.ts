@@ -3,11 +3,15 @@
 import { describe, expect, it } from "vitest";
 
 import { Prisma } from "@/generated/prisma/client";
-import { UserRole } from "@/generated/prisma/enums";
+import {
+  ContactMessagingRestrictionAction,
+  UserRole,
+} from "@/generated/prisma/enums";
 import type { SessionUser } from "@/modules/auth/session";
 
 import {
   contactTagIdsSchema,
+  contactMessagingRestrictionSchema,
   createContactDefinitionSchema,
   updateContactSchema,
 } from "./schemas";
@@ -21,6 +25,7 @@ import {
   listContactTags,
   normalizeContactDefinitionName,
   replaceContactTags,
+  setContactMessagingRestriction,
   updateContact,
   updateContactType,
 } from "./service";
@@ -70,6 +75,7 @@ function contact(overrides: Partial<ContactRecord> = {}): ContactRecord {
     name: "Nome Meta",
     preferredName: null,
     phone: "+5511999991234",
+    messagingOptOutAt: null,
     contactTypeId: null,
     contactType: null,
     tagAssignments: [],
@@ -85,6 +91,12 @@ function createRepository(options: {
   failTagCreation?: boolean;
   transactionFailures?: unknown[];
   afterTransactionFailures?: Array<() => unknown>;
+  restrictionEvents?: Array<{
+    contactId: string;
+    actorUserId: string;
+    action: ContactMessagingRestrictionAction;
+    reason: string;
+  }>;
 } = {}): ContactRepository & {
   listActiveContactTypes(): Promise<DefinitionRecord[]>;
   listActiveContactTags(): Promise<DefinitionRecord[]>;
@@ -94,6 +106,17 @@ function createRepository(options: {
   assignmentTagIds: string[];
   contactUpdates: ContactUpdateData[];
   transactionAttempts: number;
+  restrictionEvents: Array<{
+    contactId: string;
+    actorUserId: string;
+    action: ContactMessagingRestrictionAction;
+    reason: string;
+  }>;
+  restrictionUpdates: Array<{
+    messagingOptOutAt: Date | null;
+    messagingRestrictionReason: string | null;
+    messagingRestrictedByUserId: string | null;
+  }>;
 } {
   let contactRecord: ContactRecord | null =
     options.contact === undefined ? contact() : options.contact;
@@ -103,6 +126,12 @@ function createRepository(options: {
   const contactUpdates: ContactUpdateData[] = [];
   const transactionFailures = [...(options.transactionFailures ?? [])];
   const afterTransactionFailures = [...(options.afterTransactionFailures ?? [])];
+  const restrictionEvents = [...(options.restrictionEvents ?? [])];
+  const restrictionUpdates: Array<{
+    messagingOptOutAt: Date | null;
+    messagingRestrictionReason: string | null;
+    messagingRestrictedByUserId: string | null;
+  }> = [];
   let transactionAttempts = 0;
 
   const hydrateContact = (): ContactRecord | null => {
@@ -127,6 +156,8 @@ function createRepository(options: {
     assignmentTagIds: string[];
     contactUpdates: ContactUpdateData[];
     transactionAttempts: number;
+    restrictionEvents: typeof restrictionEvents;
+    restrictionUpdates: typeof restrictionUpdates;
   } = {
     get contactRecord() {
       return hydrateContact();
@@ -138,6 +169,8 @@ function createRepository(options: {
     tagRecords,
     assignmentTagIds,
     contactUpdates,
+    restrictionEvents,
+    restrictionUpdates,
     get transactionAttempts() {
       return transactionAttempts;
     },
@@ -151,6 +184,17 @@ function createRepository(options: {
       contactUpdates.push({ ...data });
       contactRecord = { ...contactRecord, ...data };
       return hydrateContact()!;
+    },
+    lockContactForMessagingRestriction: async (id) =>
+      id === contactId ? hydrateContact() : null,
+    updateContactMessagingRestriction: async (id, data) => {
+      if (!contactRecord || id !== contactId) throw new Error("missing contact");
+      restrictionUpdates.push({ ...data });
+      contactRecord = { ...contactRecord, ...data };
+      return hydrateContact()!;
+    },
+    createContactMessagingRestrictionEvent: async (data) => {
+      restrictionEvents.push({ ...data });
     },
     listContactTypes: async () => typeRecords,
     listActiveContactTypes: async () =>
@@ -205,6 +249,7 @@ function createRepository(options: {
         tags: tagRecords,
         assignmentTagIds,
         failTagCreation: options.failTagCreation,
+        restrictionEvents,
       });
       staged.isActorActive = repository.isActorActive;
       const result = await operation(staged);
@@ -215,6 +260,12 @@ function createRepository(options: {
       tagRecords.splice(0, tagRecords.length, ...staged.tagRecords);
       assignmentTagIds.splice(0, assignmentTagIds.length, ...staged.assignmentTagIds);
       contactUpdates.push(...staged.contactUpdates);
+      restrictionEvents.splice(
+        0,
+        restrictionEvents.length,
+        ...staged.restrictionEvents,
+      );
+      restrictionUpdates.push(...staged.restrictionUpdates);
       return result;
     },
   };
@@ -229,7 +280,41 @@ function serializationFailure(): Error {
   });
 }
 
+function createRestrictionRepository(
+  initialContact: ContactRecord = contact(),
+) {
+  return createRepository({ contact: initialContact });
+}
+
 describe("contact classification schemas", () => {
+  it("accepts only an explicit restriction state and a trimmed bounded reason", () => {
+    expect(
+      contactMessagingRestrictionSchema.parse({
+        restricted: true,
+        reason: "  Cliente pediu para não receber mensagens  ",
+      }),
+    ).toEqual({
+      restricted: true,
+      reason: "Cliente pediu para não receber mensagens",
+    });
+    expect(() =>
+      contactMessagingRestrictionSchema.parse({ restricted: true, reason: "x" }),
+    ).toThrow();
+    expect(() =>
+      contactMessagingRestrictionSchema.parse({
+        restricted: false,
+        reason: "x".repeat(241),
+      }),
+    ).toThrow();
+    expect(() =>
+      contactMessagingRestrictionSchema.parse({
+        restricted: true,
+        reason: "Motivo válido",
+        actorUserId: attendant.id,
+      }),
+    ).toThrow();
+  });
+
   it("trims a non-empty preferred name and accepts null only for removal", () => {
     expect(updateContactSchema.parse({ preferredName: "  Bia  " })).toEqual({
       preferredName: "Bia",
@@ -286,6 +371,96 @@ describe("contact classification schemas", () => {
 });
 
 describe("contact classification service", () => {
+  it("records company-wide opt-out without exposing its reason or actor", async () => {
+    const repository = createRestrictionRepository();
+
+    const result = await setContactMessagingRestriction(
+      attendant,
+      contactId,
+      { restricted: true, reason: "  Cliente pediu bloqueio  " },
+      repository,
+    );
+
+    expect(result).toEqual({ messagingRestricted: true });
+    expect(repository.restrictionUpdates).toEqual([
+      {
+        messagingOptOutAt: expect.any(Date),
+        messagingRestrictionReason: "Cliente pediu bloqueio",
+        messagingRestrictedByUserId: attendant.id,
+      },
+    ]);
+    expect(repository.restrictionEvents).toEqual([
+      {
+        contactId,
+        actorUserId: attendant.id,
+        action: ContactMessagingRestrictionAction.OPT_OUT,
+        reason: "Cliente pediu bloqueio",
+      },
+    ]);
+    expect(JSON.stringify(result)).not.toContain("Cliente pediu bloqueio");
+    expect(JSON.stringify(result)).not.toContain(attendant.id);
+  });
+
+  it("is idempotent for the same state and audits one explicit opt-in", async () => {
+    const repository = createRestrictionRepository();
+
+    await setContactMessagingRestriction(
+      attendant,
+      contactId,
+      { restricted: true, reason: "Pedido do cliente" },
+      repository,
+    );
+    await setContactMessagingRestriction(
+      attendant,
+      contactId,
+      { restricted: true, reason: "Repetição da mesma ação" },
+      repository,
+    );
+    await setContactMessagingRestriction(
+      attendant,
+      contactId,
+      { restricted: false, reason: "Cliente autorizou novo contato" },
+      repository,
+    );
+
+    expect(repository.restrictionEvents.map(({ action }) => action)).toEqual([
+      ContactMessagingRestrictionAction.OPT_OUT,
+      ContactMessagingRestrictionAction.OPT_IN,
+    ]);
+    expect(repository.restrictionUpdates).toHaveLength(2);
+    expect(repository.restrictionUpdates[1]).toEqual({
+      messagingOptOutAt: null,
+      messagingRestrictionReason: null,
+      messagingRestrictedByUserId: null,
+    });
+  });
+
+  it("rechecks the active actor and contact inside the transaction", async () => {
+    const inactive = createRestrictionRepository();
+    inactive.isActorActive = async () => false;
+    const missing = createRestrictionRepository();
+    missing.contactRecord = null;
+
+    await expect(
+      setContactMessagingRestriction(
+        attendant,
+        contactId,
+        { restricted: true, reason: "Pedido do cliente" },
+        inactive,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    await expect(
+      setContactMessagingRestriction(
+        attendant,
+        contactId,
+        { restricted: true, reason: "Pedido do cliente" },
+        missing,
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(inactive.restrictionEvents).toEqual([]);
+    expect(missing.restrictionEvents).toEqual([]);
+  });
+
   it("normalizes only uniqueness/search names with NFKC, pt-BR case folding, whitespace collapse, and diacritic removal", () => {
     expect(normalizeContactDefinitionName("  CAＦÉ\tPremium  ")).toBe(
       "cafe premium",
@@ -318,6 +493,7 @@ describe("contact classification service", () => {
     });
     expect(Object.keys(result).sort()).toEqual([
       "id",
+      "messagingRestricted",
       "name",
       "phone",
       "preferredName",

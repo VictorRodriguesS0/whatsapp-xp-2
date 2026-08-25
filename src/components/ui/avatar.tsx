@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 export function Avatar({ className, ...props }: ComponentProps<typeof AvatarPrimitive.Root>) {
-  return <AvatarPrimitive.Root className={cn("relative flex size-10 shrink-0 overflow-hidden rounded-full bg-[var(--canvas)]", className)} {...props} />;
+  return <AvatarPrimitive.Root className={cn("relative flex size-10 shrink-0 overflow-hidden rounded-full bg-[var(--surface)] ring-1 ring-[var(--border)]", className)} {...props} />;
 }
 
 export function AvatarImage({ className, ...props }: ComponentProps<typeof AvatarPrimitive.Image>) {

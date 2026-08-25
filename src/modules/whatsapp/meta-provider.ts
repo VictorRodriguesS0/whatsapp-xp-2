@@ -1,10 +1,18 @@
 import "server-only";
 
-import type { MediaDownload, MediaMetadata, MediaUploadSource, WhatsAppProvider } from "./provider";
+import type {
+  MediaDownload,
+  MediaMetadata,
+  MediaUploadSource,
+  ProviderTemplate,
+  TemplateSendInput,
+  WhatsAppProvider,
+} from "./provider";
 
 type MetaProviderConfig = {
   version: string;
   phoneNumberId: string;
+  businessAccountId: string;
   accessToken: string;
   timeoutMs?: number;
   maximumJsonBytes?: number;
@@ -18,6 +26,7 @@ export class WhatsAppProviderError extends Error {
   constructor(
     public readonly kind: WhatsAppProviderErrorKind,
     message = "Falha no provedor WhatsApp",
+    public readonly graphCode: string | null = null,
   ) {
     super(message);
     this.name = "WhatsAppProviderError";
@@ -26,6 +35,11 @@ export class WhatsAppProviderError extends Error {
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_MAXIMUM_JSON_BYTES = 64 * 1024;
+const MAXIMUM_TEMPLATE_PAGE_BYTES = 512 * 1024;
+const MAXIMUM_TEMPLATE_PAGES = 20;
+const MAXIMUM_TEMPLATES = 2_000;
+const TEMPLATE_FIELDS =
+  "id,name,status,category,language,quality_score,components";
 
 function unknownProviderError(): WhatsAppProviderError {
   return new WhatsAppProviderError("unknown");
@@ -55,6 +69,50 @@ function isRecord(value: unknown): value is JsonRecord {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function boundedRequiredString(value: unknown, maximum: number): string {
+  if (typeof value !== "string") throw unknownProviderError();
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maximum) throw unknownProviderError();
+  return normalized;
+}
+
+function boundedNullableString(value: unknown, maximum: number): string | null {
+  if (value === null || value === undefined) return null;
+  return boundedRequiredString(value, maximum);
+}
+
+function normalizeTemplateComponent(value: unknown) {
+  if (!isRecord(value)) throw unknownProviderError();
+  return {
+    type: boundedRequiredString(value.type, 32),
+    format: boundedNullableString(value.format, 32),
+    text: boundedNullableString(value.text, 4_096),
+  };
+}
+
+function normalizeQualityScore(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  if (typeof value === "string") return boundedRequiredString(value, 32);
+  if (!isRecord(value)) throw unknownProviderError();
+  return boundedRequiredString(value.score, 32);
+}
+
+function normalizeProviderTemplate(value: unknown): ProviderTemplate {
+  if (!isRecord(value) || !Array.isArray(value.components)) {
+    throw unknownProviderError();
+  }
+  if (value.components.length > 32) throw unknownProviderError();
+  return {
+    metaId: boundedRequiredString(value.id, 256),
+    name: boundedRequiredString(value.name, 512),
+    language: boundedRequiredString(value.language, 32),
+    category: boundedRequiredString(value.category, 64),
+    status: boundedRequiredString(value.status, 64),
+    qualityScore: normalizeQualityScore(value.quality_score),
+    components: value.components.map(normalizeTemplateComponent),
+  };
+}
+
 export class MetaWhatsAppProvider implements WhatsAppProvider {
   constructor(
     private readonly config: MetaProviderConfig,
@@ -82,18 +140,21 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
     }
   }
 
-  private async json(response: Response, signal: AbortSignal): Promise<JsonRecord> {
+  private async json(
+    response: Response,
+    signal: AbortSignal,
+    maximumBytes = this.config.maximumJsonBytes ?? DEFAULT_MAXIMUM_JSON_BYTES,
+  ): Promise<JsonRecord> {
     if (!response.body) throw unknownProviderError();
     const reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
-    const maximum = this.config.maximumJsonBytes ?? DEFAULT_MAXIMUM_JSON_BYTES;
     let total = 0;
     try {
       while (true) {
         const result = await raceWithAbort(reader.read(), signal);
         if (result.done) break;
         total += result.value.byteLength;
-        if (total > maximum) {
+        if (total > maximumBytes) {
           await reader.cancel().catch(() => undefined);
           throw unknownProviderError();
         }
@@ -112,16 +173,24 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
 
     if (!response.ok) {
       const graphError = isRecord(payload) && isRecord(payload.error) ? payload.error : {};
-      const code = typeof graphError.code === "number" || typeof graphError.code === "string"
-        ? String(graphError.code).replace(/[^0-9A-Za-z_-]/g, "").slice(0, 32)
-        : "unknown";
+      const sanitizedCode =
+        typeof graphError.code === "number" || typeof graphError.code === "string"
+          ? String(graphError.code)
+              .replace(/[^0-9A-Za-z_-]/g, "")
+              .slice(0, 32)
+          : "";
+      const graphCode = sanitizedCode || null;
       const rawMessage = typeof graphError.message === "string" ? graphError.message : "request_failed";
       const message = rawMessage
         .replaceAll(this.config.accessToken, "[REDACTED]")
         .replace(/[\u0000-\u001f\u007f]/g, " ")
         .trim()
         .slice(0, 160);
-      throw new WhatsAppProviderError(providerErrorKindForStatus(response.status), `Graph ${code}: ${message || "request_failed"}`);
+      throw new WhatsAppProviderError(
+        providerErrorKindForStatus(response.status),
+        `Graph ${graphCode ?? "unknown"}: ${message || "request_failed"}`,
+        graphCode,
+      );
     }
 
     if (!isRecord(payload)) throw unknownProviderError();
@@ -141,6 +210,70 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
       const first = messages[0];
       if (!isRecord(first) || typeof first.id !== "string" || !first.id) throw unknownProviderError();
       return { whatsappMessageId: first.id, status: "SENT" as const };
+    });
+  }
+
+  async listTemplates(): Promise<ProviderTemplate[]> {
+    return this.operation(async (signal) => {
+      const templates: ProviderTemplate[] = [];
+      const seenCursors = new Set<string>();
+      let after: string | null = null;
+
+      for (let page = 0; page < MAXIMUM_TEMPLATE_PAGES; page += 1) {
+        const url = new URL(
+          this.endpoint(
+            `${encodeURIComponent(this.config.businessAccountId)}/message_templates`,
+          ),
+        );
+        url.searchParams.set("fields", TEMPLATE_FIELDS);
+        url.searchParams.set("limit", "100");
+        if (after) url.searchParams.set("after", after);
+
+        const response = await this.request(url.toString(), {
+          headers: this.authorizationHeaders(),
+          signal,
+        });
+        const payload = await this.json(
+          response,
+          signal,
+          MAXIMUM_TEMPLATE_PAGE_BYTES,
+        );
+        if (!Array.isArray(payload.data)) throw unknownProviderError();
+        if (templates.length + payload.data.length > MAXIMUM_TEMPLATES) {
+          throw unknownProviderError();
+        }
+        templates.push(...payload.data.map(normalizeProviderTemplate));
+
+        const paging = payload.paging;
+        if (paging === undefined || paging === null) return templates;
+        if (!isRecord(paging)) throw unknownProviderError();
+        const cursors = paging.cursors;
+        if (cursors === undefined || cursors === null) return templates;
+        if (!isRecord(cursors)) throw unknownProviderError();
+        if (cursors.after === undefined || cursors.after === null) return templates;
+        const nextAfter = boundedRequiredString(cursors.after, 2_048);
+        if (seenCursors.has(nextAfter)) throw unknownProviderError();
+        seenCursors.add(nextAfter);
+        after = nextAfter;
+      }
+
+      throw unknownProviderError();
+    });
+  }
+
+  sendTemplate(input: TemplateSendInput) {
+    return this.send({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "template",
+      template: {
+        name: input.name,
+        language: { code: input.language },
+        components: [
+          { type: "body", parameters: input.bodyParameters },
+        ],
+      },
     });
   }
 

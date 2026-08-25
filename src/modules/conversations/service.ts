@@ -1,16 +1,34 @@
 import "server-only";
 
 import { Prisma, type PrismaClient } from "@/generated/prisma/client";
-import { MessageDirection } from "@/generated/prisma/enums";
+import {
+  ConversationResumptionStatus,
+  MessageDirection,
+  MessageOperationalState,
+  MessageStatus,
+  WhatsAppPolicyMode,
+  WhatsAppTemplateFunction,
+} from "@/generated/prisma/enums";
 import { formatContactPhone, resolveContactName } from "@/lib/contact-display";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
 import { parseMessageContent } from "@/modules/messages/content";
 import {
+  deriveServiceWindowDto,
+  isConfirmingCurrentResumption,
+  preparedAttemptBlocksResumption,
+  resolveServiceResumptionTemplate,
+  type MessagingPolicyRecord,
+} from "@/modules/messaging-policy/service";
+import {
   quotedReplyPreview,
   whatsappMessageIdSchema,
 } from "@/modules/messages/reply-context";
+import {
+  renderServiceResumption,
+  resolveServiceResumptionContactName,
+} from "@/modules/templates/analysis";
 
 import {
   conversationCursorSchema,
@@ -35,6 +53,7 @@ import type {
   ConversationUserRecord,
   MessageDto,
   MessageRecord,
+  ServiceWindowPolicyContext,
 } from "./types";
 import { toMediaStateDto } from "./types";
 
@@ -49,6 +68,7 @@ const replyPreviewSelect = {
   content: true,
   sentByUser: { select: userSelect },
   mediaObject: { select: { originalFilename: true } },
+  revokedAt: true,
 } as const;
 const messageSelect = {
   id: true,
@@ -64,6 +84,7 @@ const messageSelect = {
   mediaObjectId: true,
   status: true,
   failureReason: true,
+  editedAt: true,
   revokedAt: true,
   externalTimestamp: true,
   createdAt: true,
@@ -100,6 +121,11 @@ const tagAssignmentOrderBy: Prisma.ContactTagAssignmentOrderByWithRelationInput[
   { tag: { position: "asc" } },
   { tagId: "asc" },
 ];
+const confirmingResumptionStatuses: ConversationResumptionStatus[] = [
+  ConversationResumptionStatus.RESERVED,
+  ConversationResumptionStatus.SEND_IN_FLIGHT,
+  ConversationResumptionStatus.OUTCOME_UNKNOWN,
+];
 const conversationSelect = {
   id: true,
   pinnedAt: true,
@@ -109,7 +135,25 @@ const conversationSelect = {
   teamLastReadMessageId: true,
   teamLastReadAt: true,
   manualUnreadAt: true,
-  awaitingResponseSince: true,
+  lastCustomerMessageAt: true,
+  lastCustomerMessageId: true,
+  pendingCustomerMessageId: true,
+  awaitingCustomerSince: true,
+  resumptions: {
+    where: {
+      status: {
+        in: confirmingResumptionStatuses,
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 1,
+    select: {
+      clientRequestId: true,
+      sourceMessageId: true,
+      status: true,
+      reservationUntil: true,
+    },
+  },
   teamLastReadMessage: {
     select: { id: true, externalTimestamp: true },
   },
@@ -119,6 +163,7 @@ const conversationSelect = {
       name: true,
       preferredName: true,
       phone: true,
+      messagingOptOutAt: true,
       whatsappAppContact: { select: { fullName: true, active: true } },
       contactType: { select: classificationSelect },
       tagAssignments: {
@@ -132,7 +177,12 @@ const conversationSelect = {
 
 type PrismaConversationRepositoryClient = Pick<
   PrismaClient,
-  "conversation" | "conversationRead" | "message" | "user"
+  | "conversation"
+  | "conversationRead"
+  | "message"
+  | "user"
+  | "whatsAppPolicyConfiguration"
+  | "whatsAppTemplateAssignment"
 >;
 
 type BaseConversationRow = {
@@ -146,12 +196,66 @@ type BaseConversationRow = {
   teamLastReadMessageId: string | null;
   teamLastReadAt: Date | null;
   manualUnreadAt: Date | null;
-  awaitingResponseSince: Date | null;
+  lastCustomerMessageAt: Date | null;
+  lastCustomerMessageId: string | null;
+  pendingCustomerMessageId: string | null;
+  awaitingCustomerSince: Date | null;
+  resumptions: Array<{
+    clientRequestId: string;
+    sourceMessageId: string;
+    status: ConversationResumptionStatus;
+    reservationUntil: Date | null;
+  }>;
   teamLastReadMessage: {
     id: string;
     externalTimestamp: Date;
   } | null;
 };
+
+type PreparedAttemptRow = {
+  clientRequestId: string | null;
+  status: MessageStatus;
+  operationalState: MessageOperationalState;
+  providerAttemptedAt: Date | null;
+};
+
+async function preparedAttemptRequests(
+  client: PrismaConversationRepositoryClient,
+  rows: BaseConversationRow[],
+): Promise<Set<string>> {
+  const requestIds = [...new Set(rows.flatMap((row) =>
+    (row.resumptions ?? [])
+      .filter(({ status }) => status === ConversationResumptionStatus.RESERVED)
+      .map(({ clientRequestId }) => clientRequestId),
+  ))];
+  if (requestIds.length === 0) return new Set();
+  const attempts = await client.message.findMany({
+    where: { clientRequestId: { in: requestIds } },
+    select: {
+      clientRequestId: true,
+      status: true,
+      operationalState: true,
+      providerAttemptedAt: true,
+    },
+  }) as PreparedAttemptRow[];
+  return new Set(
+    attempts
+      .filter((attempt) => preparedAttemptBlocksResumption(attempt))
+      .flatMap(({ clientRequestId }) => clientRequestId ? [clientRequestId] : []),
+  );
+}
+
+function withPreparedAttemptState(
+  resumptions: BaseConversationRow["resumptions"],
+  blockingRequests: Set<string>,
+) {
+  return resumptions.map((candidate) => ({
+    sourceMessageId: candidate.sourceMessageId,
+    status: candidate.status,
+    reservationUntil: candidate.reservationUntil,
+    hasBlockingAttempt: blockingRequests.has(candidate.clientRequestId),
+  }));
+}
 
 function isPrismaError(
   error: unknown,
@@ -216,7 +320,8 @@ function messageOrder(left: MessageRecord, right: MessageRecord): number {
 }
 
 function toMessageDto(message: MessageRecord): MessageDto {
-  const mediaState = message.mediaObject
+  const revoked = Boolean(message.revokedAt);
+  const mediaState = !revoked && message.mediaObject
     ? toMediaStateDto(message.mediaObject, new Date())
     : null;
 
@@ -225,10 +330,10 @@ function toMessageDto(message: MessageRecord): MessageDto {
     clientRequestId: message.clientRequestId ?? null,
     direction: message.direction,
     type: message.type,
-    body: message.body,
-    content: parseMessageContent(message.content),
-    canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
-    replyTo: message.replyToMessage
+    body: revoked ? null : message.body,
+    content: revoked ? null : parseMessageContent(message.content),
+    canReply: !revoked && whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
+    replyTo: !revoked && message.replyToMessage
       ? quotedReplyPreview({
           id: message.replyToMessage.id,
           direction: message.replyToMessage.direction,
@@ -236,20 +341,22 @@ function toMessageDto(message: MessageRecord): MessageDto {
           body: message.replyToMessage.body,
           content: message.replyToMessage.content,
           sentBy: message.replyToMessage.sentByUser,
+          revokedAt: message.replyToMessage.revokedAt,
         })
-      : message.replyToWhatsappMessageId
+      : !revoked && message.replyToWhatsappMessageId
         ? { available: false }
         : null,
-    mediaObjectId: message.mediaObjectId,
-    mediaMimeType: message.mediaObject?.mimeType ?? null,
+    mediaObjectId: revoked ? null : message.mediaObjectId,
+    mediaMimeType: revoked ? null : message.mediaObject?.mimeType ?? null,
     mediaState,
     sentBy: message.sentByUser
       ? { id: message.sentByUser.id, name: message.sentByUser.name }
       : null,
     status: message.status,
     failureReason: message.failureReason,
+    editedAt: message.editedAt?.toISOString() ?? null,
     revokedAt: message.revokedAt?.toISOString() ?? null,
-    reactions: [...message.reactions]
+    reactions: (revoked ? [] : [...message.reactions])
       .sort((left, right) => (
         (left.reactor === "CONTACT" ? 0 : 1) -
         (right.reactor === "CONTACT" ? 0 : 1)
@@ -300,6 +407,7 @@ function toContactDto(
       phone: contact.phone,
     }),
     phone: formatContactPhone(contact.phone),
+    messagingRestricted: contact.messagingOptOutAt !== null,
     type: contact.contactType
       ? toContactClassificationDto(contact.contactType)
       : null,
@@ -313,7 +421,49 @@ function toContactDto(
   };
 }
 
-function toListItem(record: ConversationListRecord): ConversationListItem {
+function toServiceWindow(
+  record: ConversationListRecord,
+  policy: ServiceWindowPolicyContext,
+  now: Date,
+) {
+  const template = policy.resumptionTemplate;
+  const messagingPolicyRecord: MessagingPolicyRecord = {
+    enforcement: policy.enforcement,
+    lastCustomerMessageAt: record.lastCustomerMessageAt,
+    pendingCustomerMessageId: record.pendingCustomerMessageId,
+    awaitingCustomerSince: record.awaitingCustomerSince,
+    confirmingResumption: isConfirmingCurrentResumption(
+      record.lastCustomerMessageId,
+      record.confirmingResumptions,
+      now,
+    ),
+    messagingOptOutAt: record.contact.messagingOptOutAt,
+    resumptionTemplate: template
+      ? {
+          templateName: template.templateName,
+          language: template.language,
+          previewBody: renderServiceResumption(
+            template.bodyText,
+            resolveServiceResumptionContactName({
+              preferredName: record.contact.preferredName,
+              whatsappAppName:
+                record.contact.whatsappAppContact?.fullName ?? null,
+              whatsappAppActive:
+                record.contact.whatsappAppContact?.active === true,
+              profileName: record.contact.name,
+            }),
+          ),
+        }
+      : null,
+  };
+  return deriveServiceWindowDto(messagingPolicyRecord, now);
+}
+
+function toListItem(
+  record: ConversationListRecord,
+  policy: ServiceWindowPolicyContext,
+  now: Date,
+): ConversationListItem {
   return {
     id: record.id,
     contact: toContactDto(record.contact),
@@ -328,14 +478,18 @@ function toListItem(record: ConversationListRecord): ConversationListItem {
     unreadCount: record.unreadCount,
     manuallyUnread: record.manualUnreadAt !== null,
     manualUnreadRevision: record.manualUnreadAt?.toISOString() ?? null,
-    awaitingResponseSince: record.awaitingResponseSince?.toISOString() ?? null,
     revision: record.updatedAt.toISOString(),
+    serviceWindow: toServiceWindow(record, policy, now),
   };
 }
 
-function toDetail(record: ConversationDetailRecord): ConversationDetail {
+function toDetail(
+  record: ConversationDetailRecord,
+  policy: ServiceWindowPolicyContext,
+  now: Date,
+): ConversationDetail {
   return {
-    ...toListItem(record),
+    ...toListItem(record, policy, now),
     createdAt: record.createdAt.toISOString(),
     updatedAt: record.updatedAt.toISOString(),
     messages: [...record.messages].sort(messageOrder).map(toMessageDto),
@@ -517,6 +671,45 @@ export function createPrismaConversationRepository(
   client: PrismaConversationRepositoryClient,
 ): ConversationRepository {
   const repository: ConversationRepository = {
+    async getServiceWindowPolicyContext(now) {
+      const [configuration, assignment] = await Promise.all([
+        client.whatsAppPolicyConfiguration.findUnique({
+          where: { id: 1 },
+          select: {
+            mode: true,
+            lastTemplateSyncStatus: true,
+            lastTemplateSyncSucceededAt: true,
+          },
+        }),
+        client.whatsAppTemplateAssignment.findUnique({
+          where: { function: WhatsAppTemplateFunction.SERVICE_RESUMPTION },
+          select: {
+            template: {
+              select: {
+                name: true,
+                language: true,
+                status: true,
+                supported: true,
+                parameterCount: true,
+                bodyText: true,
+                syncedAt: true,
+              },
+            },
+          },
+        }),
+      ]);
+      return {
+        enforcement:
+          configuration?.mode === WhatsAppPolicyMode.ACTIVE
+            ? "ACTIVE"
+            : "INACTIVE",
+        resumptionTemplate: resolveServiceResumptionTemplate(
+          configuration,
+          assignment?.template ?? null,
+          now,
+        ),
+      };
+    },
     async list(userId, query) {
       const rows = await client.conversation.findMany({
         where: {
@@ -542,9 +735,19 @@ export function createPrismaConversationRepository(
         },
       });
       const counts = await unreadCounts(client, rows);
+      const blockingRequests = await preparedAttemptRequests(client, rows);
 
-      return rows.map(({ messages, teamLastReadMessage: _boundary, ...row }) => ({
+      return rows.map(({
+        messages,
+        resumptions,
+        teamLastReadMessage: _boundary,
+        ...row
+      }) => ({
         ...row,
+        confirmingResumptions: withPreparedAttemptState(
+          resumptions ?? [],
+          blockingRequests,
+        ),
         latestMessage: messages[0] ?? null,
         unreadCount: counts.get(row.id) ?? 0,
       }));
@@ -566,10 +769,19 @@ export function createPrismaConversationRepository(
       }
 
       const counts = await unreadCounts(client, [row]);
-      const { teamLastReadMessage: _boundary, ...base } = row;
+      const blockingRequests = await preparedAttemptRequests(client, [row]);
+      const {
+        resumptions,
+        teamLastReadMessage: _boundary,
+        ...base
+      } = row;
 
       return {
         ...base,
+        confirmingResumptions: withPreparedAttemptState(
+          resumptions ?? [],
+          blockingRequests,
+        ),
         latestMessage: row.messages.at(-1) ?? null,
         unreadCount: counts.get(row.id) ?? 0,
         lastReadMessageId: row.teamLastReadMessageId,
@@ -665,21 +877,26 @@ export async function listConversations(
   userId: string,
   options: ConversationListOptions,
   repository: ConversationRepository = conversationRepository,
+  now: () => Date = () => new Date(),
 ): Promise<ConversationListResult> {
   const parsedUserId = conversationIdSchema.parse(userId);
   const parsed = conversationListOptionsSchema.parse(options);
-  const records = await repository.list(parsedUserId, {
-    search: parsed.search,
-    contactTypeId: parsed.contactTypeId,
-    tagIds: parsed.tagIds,
-    cursor: parsed.cursor ? decodeCursor(parsed.cursor) : undefined,
-    take: CONVERSATION_PAGE_SIZE + 1,
-  });
+  const currentTime = now();
+  const [records, policy] = await Promise.all([
+    repository.list(parsedUserId, {
+      search: parsed.search,
+      contactTypeId: parsed.contactTypeId,
+      tagIds: parsed.tagIds,
+      cursor: parsed.cursor ? decodeCursor(parsed.cursor) : undefined,
+      take: CONVERSATION_PAGE_SIZE + 1,
+    }),
+    repository.getServiceWindowPolicyContext(currentTime),
+  ]);
   const hasMore = records.length > CONVERSATION_PAGE_SIZE;
   const page = records.slice(0, CONVERSATION_PAGE_SIZE);
 
   return {
-    items: page.map(toListItem),
+    items: page.map((record) => toListItem(record, policy, currentTime)),
     nextCursor: hasMore && page.length > 0 ? encodeCursor(page.at(-1)!) : null,
   };
 }
@@ -718,16 +935,21 @@ export async function getConversation(
   userId: string,
   id: string,
   repository: ConversationRepository = conversationRepository,
+  now: () => Date = () => new Date(),
 ): Promise<ConversationDetail> {
   const parsedUserId = conversationIdSchema.parse(userId);
   const parsedId = conversationIdSchema.parse(id);
-  const conversation = await repository.findById(parsedUserId, parsedId);
+  const currentTime = now();
+  const [conversation, policy] = await Promise.all([
+    repository.findById(parsedUserId, parsedId),
+    repository.getServiceWindowPolicyContext(currentTime),
+  ]);
 
   if (!conversation) {
     throw new HttpError(404, "Conversa não encontrada");
   }
 
-  return toDetail(conversation);
+  return toDetail(conversation, policy, currentTime);
 }
 
 export async function markRead(
@@ -773,6 +995,7 @@ export async function setResponsible(
   id: string,
   userId: string | null,
   repository: ConversationRepository = conversationRepository,
+  now: () => Date = () => new Date(),
 ): Promise<ConversationDetail> {
   const parsedActorId = conversationIdSchema.parse(actor.id);
   const parsedId = conversationIdSchema.parse(id);
@@ -788,12 +1011,16 @@ export async function setResponsible(
     }
 
     await transaction.updateResponsible(parsedId, parsedUserId);
-    const committed = await transaction.findById(parsedActorId, parsedId);
+    const currentTime = now();
+    const [committed, policy] = await Promise.all([
+      transaction.findById(parsedActorId, parsedId),
+      transaction.getServiceWindowPolicyContext(currentTime),
+    ]);
 
     if (!committed) {
       throw new HttpError(404, "Conversa não encontrada");
     }
 
-    return toDetail(committed);
+    return toDetail(committed, policy, currentTime);
   });
 }

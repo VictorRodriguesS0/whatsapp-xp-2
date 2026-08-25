@@ -1,24 +1,25 @@
 "use client";
 
-import { ArrowLeft, CircleDot, Info, LoaderCircle } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
+import { useServiceWindow } from "@/hooks/use-service-window";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
-import { quotedReplyPreview } from "@/modules/messages/reply-context";
+import type { ServiceWindowDto } from "@/modules/messaging-policy/types";
+import {
+  quotedReplyPreview,
+  type AvailableQuotedReplyDto,
+} from "@/modules/messages/reply-context";
 
-import { ConversationMessageSearch } from "./conversation-message-search";
 import { galleryItems } from "./media-gallery";
 import { MediaViewerDialog } from "./media-viewer-dialog";
 import { MessageBubble } from "./message-bubble";
 import { MessageComposer } from "./message-composer";
-
-function initials(name: string) {
-  return name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
-}
+import { MessageTimeline } from "./message-timeline";
+import { ServiceWindowBanner } from "./service-window-banner";
+import { ThreadHeader } from "./thread-header";
 
 function lastConfirmedMessageId(messages: InboxMessage[]) {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
@@ -52,78 +53,65 @@ function removeMediaHistoryMarker(conversationId: string) {
   );
 }
 
-function ConversationHeader({
-  conversation,
-  detailsTriggerRef,
-  markUnreadError,
-  markUnreadPending,
-  onBack,
-  onMarkUnread,
-  onOpenDetails,
-  onSearchTarget,
+function ConversationControls({
+  conversationId,
+  disabled,
+  serviceWindow: authoritativeServiceWindow,
+  replyTo,
+  replyToMessageId,
+  onCancelReply,
+  onResumeConversation,
+  resumePending,
+  resumeError,
+  onSendMedia,
+  onSendRecording,
+  onSendText,
 }: {
-  conversation: InboxConversation | null;
-  detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
-  markUnreadError?: string | null;
-  markUnreadPending?: boolean;
-  onBack: () => void;
-  onMarkUnread?: (conversationId: string) => Promise<unknown>;
-  onOpenDetails: () => void;
-  onSearchTarget?: (result: MessageSearchResultDto) => void;
+  conversationId: string;
+  disabled: boolean;
+  serviceWindow: ServiceWindowDto;
+  replyTo: AvailableQuotedReplyDto | null;
+  replyToMessageId: string | null;
+  onCancelReply?: () => void;
+  onResumeConversation: () => Promise<boolean>;
+  resumePending: boolean;
+  resumeError: string | null;
+  onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
 }) {
-  async function handleMarkUnread(action: HTMLButtonElement) {
-    if (!conversation || !onMarkUnread) return;
-    const conversationId = conversation.id;
-    await onMarkUnread(conversationId);
-    if (action.isConnected && action.dataset.conversationId === conversationId) action.focus();
-  }
+  const serviceWindow = useServiceWindow(authoritativeServiceWindow);
 
-  const profilePictureUrl = conversation
-    ? (
-        conversation.contact as typeof conversation.contact & {
-          profilePictureUrl?: string | null;
-        }
-      ).profilePictureUrl
-    : null;
+  useEffect(() => {
+    if (serviceWindow.sendMode !== "FREE_FORM" && replyToMessageId) {
+      onCancelReply?.();
+    }
+  }, [onCancelReply, replyToMessageId, serviceWindow.sendMode]);
 
   return (
-    <header className="flex min-h-16 shrink-0 flex-wrap items-center gap-3 border-b border-[var(--border)] bg-[var(--panel)] px-3">
-      <Button aria-label="Voltar para conversas" className="mobile-back" onClick={onBack} size="icon" variant="ghost"><ArrowLeft aria-hidden="true" className="size-5" /></Button>
-      {conversation ? (
-        <>
-          <Avatar>
-            {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
-            <AvatarFallback>{initials(conversation.contact.name)}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1"><h2 className="truncate font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>{conversation.contact.name}</h2><p className="truncate text-xs text-[var(--muted)]">{conversation.contact.phone}</p></div>
-        </>
-      ) : <h2 className="min-w-0 flex-1 font-bold text-[var(--text)]" data-thread-heading tabIndex={-1}>Conversa</h2>}
-      <div className="flex shrink-0 flex-col items-end gap-1">
-        <Button
-          aria-busy={markUnreadPending || undefined}
-          aria-label="Marcar como não lida"
-          className="w-11 px-0 sm:w-auto sm:px-3"
-          data-conversation-id={conversation?.id}
-          disabled={!conversation || !onMarkUnread || markUnreadPending}
-          onClick={(event) => void handleMarkUnread(event.currentTarget)}
-          variant="secondary"
-        >
-          {markUnreadPending ? <LoaderCircle aria-hidden="true" className="size-4 animate-spin motion-reduce:animate-none" /> : <CircleDot aria-hidden="true" className="size-4" />}
-          <span className="hidden sm:inline">{markUnreadPending ? "Marcando…" : "Marcar como não lida"}</span>
-        </Button>
-        {markUnreadError ? <p className="max-w-40 text-right text-xs text-[var(--danger)]" role="alert">{markUnreadError}</p> : null}
-      </div>
-      <Button asChild aria-label="Abrir dados do cliente" className="details-trigger" disabled={!conversation} onClick={onOpenDetails} size="icon" variant="ghost">
-        <button ref={detailsTriggerRef} type="button"><Info aria-hidden="true" className="size-5" /></button>
-      </Button>
-      {conversation && onSearchTarget ? <ConversationMessageSearch conversationId={conversation.id} onTarget={onSearchTarget} /> : null}
-    </header>
+    <>
+      <ServiceWindowBanner
+        error={resumeError}
+        onResume={onResumeConversation}
+        pending={resumePending}
+        serviceWindow={serviceWindow}
+      />
+      {serviceWindow.sendMode === "FREE_FORM" ? (
+        <MessageComposer
+          conversationId={conversationId}
+          disabled={disabled}
+          onCancelReply={onCancelReply}
+          onSendMedia={onSendMedia}
+          onSendRecording={onSendRecording}
+          onSendText={onSendText}
+          replyTo={replyTo}
+        />
+      ) : null}
+    </>
   );
 }
-
 export function ConversationView({
   conversation,
-  detailsTriggerRef,
   loading,
   error,
   onBack,
@@ -136,6 +124,9 @@ export function ConversationView({
   onSendText,
   onSendMedia,
   onSendRecording,
+  onResumeConversation,
+  resumePending = false,
+  resumeError = null,
   onRetryMessage,
   onReactMessage,
   onRetryReaction,
@@ -148,19 +139,21 @@ export function ConversationView({
   onReplyToMessage,
 }: {
   conversation: InboxConversation | null;
-  detailsTriggerRef?: RefObject<HTMLButtonElement | null>;
   loading: boolean;
   error: string | null;
   onBack: () => void;
   markUnreadError?: string | null;
   markUnreadPending?: boolean;
   onMarkUnread?: (conversationId: string) => Promise<unknown>;
-  onOpenDetails: () => void;
+  onOpenDetails: (trigger: HTMLButtonElement | null) => void;
   onRetryLoad: () => void;
   onVisibleMessage: (messageId: string) => void;
   onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onResumeConversation: () => Promise<boolean>;
+  resumePending?: boolean;
+  resumeError?: string | null;
   onRetryMessage: (id: string) => void;
   onReactMessage?: (messageId: string, emoji: string) => unknown;
   onRetryReaction?: (messageId: string, reactionId: string) => unknown;
@@ -378,9 +371,8 @@ export function ConversationView({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <ConversationHeader
+      <ThreadHeader
         conversation={conversation}
-        detailsTriggerRef={detailsTriggerRef}
         markUnreadError={markUnreadError}
         markUnreadPending={markUnreadPending}
         onBack={onBack}
@@ -408,13 +400,11 @@ export function ConversationView({
       ) : null}
 
       {conversation && error ? <div className="flex min-h-11 items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--warning)] px-4 py-1 text-sm text-[var(--text)]" role="alert"><span>{error}</span><Button className="shrink-0 px-2" onClick={onRetryLoad} size="small" variant="ghost">Tentar novamente</Button></div> : null}
-      {conversation ? <div
-        aria-label={`Histórico com ${conversation.contact.name}`}
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-[var(--canvas)] p-4"
-        ref={historyRef}
-        role="log"
+      {conversation ? <MessageTimeline
+        empty={conversation.messages.length === 0}
+        historyRef={historyRef}
+        label={`Histórico com ${conversation.contact.name}`}
       >
-        {conversation.messages.length === 0 ? <p className="py-12 text-center text-sm text-[var(--muted)]">Ainda não há mensagens nesta conversa.</p> : null}
         {conversation.messages.map((message) => (
           <MessageBubble
             highlighted={highlightedMessageId === message.id}
@@ -430,16 +420,22 @@ export function ConversationView({
             registerElement={registerMessageElement}
           />
         ))}
-      </div> : null}
+      </MessageTimeline> : null}
       {conversation ? (
-        <MessageComposer
+        <ConversationControls
           conversationId={conversation.id}
           disabled={loading}
+          key={conversation.id}
           onCancelReply={onCancelReply}
+          onResumeConversation={onResumeConversation}
           onSendMedia={onSendMedia}
           onSendRecording={onSendRecording}
           onSendText={onSendText}
           replyTo={replyPreview}
+          replyToMessageId={replyToMessageId}
+          resumeError={resumeError}
+          resumePending={resumePending}
+          serviceWindow={conversation.serviceWindow}
         />
       ) : null}
       <MediaViewerDialog

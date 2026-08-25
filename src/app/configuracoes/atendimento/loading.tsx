@@ -1,15 +1,5 @@
-import { Spinner } from "@/components/ui/spinner";
+import { SettingsLoadingState } from "@/components/layout/settings-route-state";
 
 export default function ClassificationLoading() {
-  return (
-    <main aria-labelledby="classification-loading-heading" className="min-h-dvh bg-[var(--canvas)] px-4 py-8 sm:px-6">
-      <div className="mx-auto max-w-5xl">
-        <p className="text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Configurações</p>
-        <h1 className="mt-1 text-2xl font-bold" id="classification-loading-heading">Classificação do atendimento</h1>
-        <div className="mt-6 border-y border-[var(--border)] bg-[var(--panel)] px-4 py-12">
-          <Spinner label="Carregando classificações" />
-        </div>
-      </div>
-    </main>
-  );
+  return <SettingsLoadingState description="Organize os tipos e as etiquetas usados nos contatos." label="Carregando classificações" title="Classificação do atendimento" />;
 }

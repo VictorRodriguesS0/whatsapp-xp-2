@@ -10,9 +10,11 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
 import type { ConversationListItem } from "@/modules/conversations/types";
+import { formatServiceWindowStatus } from "@/hooks/use-service-window";
 
 import { ContactTagChip } from "./contact-tag-chip";
 import { ContactTypeChip } from "./contact-type-chip";
+import { ConversationListSkeleton } from "./conversation-list-skeleton";
 import { richMessagePreview } from "./message-rich-content";
 
 export { richMessagePreview } from "./message-rich-content";
@@ -59,6 +61,7 @@ function conversationTime(value: string) {
 
 function preview(item: ConversationListItem) {
   if (!item.latestMessage) return "Conversa iniciada";
+  if (item.latestMessage.revokedAt) return "Mensagem apagada";
   const mediaName = previewMediaNames[item.latestMessage.type];
   if (mediaName && item.latestMessage.mediaState?.status === "PENDING") return `Baixando ${mediaName}`;
   if (mediaName && item.latestMessage.mediaState?.status === "FAILED") return `${mediaName[0].toUpperCase()}${mediaName.slice(1)} indisponível`;
@@ -94,7 +97,7 @@ export function ConversationList({
   pinError,
 }: ConversationListProps) {
   if (loading && items.length === 0) {
-    return <div className="flex min-h-40 items-center justify-center p-6"><Spinner label="Carregando conversas" /></div>;
+    return <ConversationListSkeleton />;
   }
 
   if (error && items.length === 0) {
@@ -132,6 +135,11 @@ export function ConversationList({
       <ul aria-label="Conversas recentes" className="divide-y divide-[var(--border)]">
       {items.map((item) => {
         const selected = item.id === selectedId;
+        const serviceWindowStatus =
+          item.serviceWindow.enforcement === "ACTIVE" &&
+          item.serviceWindow.sendMode !== "FREE_FORM"
+            ? formatServiceWindowStatus(item.serviceWindow)
+            : null;
         const profilePictureUrl = (
           item.contact as typeof item.contact & { profilePictureUrl?: string | null }
         ).profilePictureUrl;
@@ -139,9 +147,8 @@ export function ConversationList({
           <li className="conversation-list-item group relative" key={item.id}>
             <button
               aria-current={selected ? "true" : undefined}
-              aria-label={`Abrir conversa com ${item.contact.name}`}
               className={cn(
-                "min-h-11 w-full py-3 pl-4 pr-16 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
+                "min-h-11 w-full py-2.5 pl-4 pr-16 text-left outline-none transition-colors hover:bg-[var(--canvas)] focus-visible:relative focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)] motion-reduce:transition-none",
                 selected && "bg-[var(--selected)]",
               )}
               data-conversation-id={item.id}
@@ -149,8 +156,9 @@ export function ConversationList({
               ref={(element) => onButtonRef?.(item.id, element)}
               type="button"
             >
+              <span className="sr-only">Abrir conversa com </span>
               <span className="flex min-w-0 items-start gap-3">
-                <Avatar>
+                <Avatar aria-hidden="true">
                   {profilePictureUrl ? <AvatarImage alt="" src={profilePictureUrl} /> : null}
                   <AvatarFallback>{initials(item.contact.name)}</AvatarFallback>
                 </Avatar>
@@ -171,19 +179,27 @@ export function ConversationList({
                     {item.unreadCount > 0 ? <Badge aria-label={`${item.unreadCount} ${item.unreadCount === 1 ? "mensagem não lida" : "mensagens não lidas"}`}>{item.unreadCount}</Badge> : null}
                     {item.manuallyUnread ? <span aria-label="Conversa marcada como não lida" className="size-2 shrink-0 rounded-full bg-[var(--accent)]" role="img" title="Conversa marcada como não lida" /> : null}
                   </span>
-                  {item.awaitingResponseSince ? <span className="mt-1 block text-xs font-medium text-[var(--text)]">Aguardando resposta</span> : null}
-                  <span className="mt-1 block truncate text-xs text-[var(--muted)]">{item.responsible?.name ?? "Sem responsável"}</span>
-                  {item.contact.type ? (
-                    <span aria-label={`Tipo de contato de ${item.contact.name}`} className="mt-1.5 flex min-w-0">
+                  <span className="mt-1 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs text-[var(--muted)]">
+                    {serviceWindowStatus ? (
+                      <span
+                        aria-label={`Estado do atendimento de ${item.contact.name}`}
+                        className="shrink-0 font-semibold text-[var(--accent)]"
+                      >
+                        {serviceWindowStatus}
+                      </span>
+                    ) : null}
+                    <span className="min-w-0 shrink truncate">{item.responsible?.name ?? "Sem responsável"}</span>
+                    {item.contact.type ? (
+                    <span aria-label={`Tipo de contato de ${item.contact.name}`} className="flex min-w-0 shrink">
                       <ContactTypeChip
                         color={item.contact.type.color}
                         compact
                         name={item.contact.type.name}
                       />
                     </span>
-                  ) : null}
-                  {item.contact.tags.length > 0 ? (
-                    <span aria-label={`Etiquetas de ${item.contact.name}`} className="mt-1.5 flex min-w-0 items-center gap-1">
+                    ) : null}
+                    {item.contact.tags.length > 0 ? (
+                    <span aria-label={`Etiquetas de ${item.contact.name}`} className="flex min-w-0 items-center gap-1 overflow-hidden">
                       {item.contact.tags.slice(0, 2).map((tag) => (
                         <ContactTagChip color={tag.color} compact key={tag.id} name={tag.name} />
                       ))}
@@ -196,7 +212,8 @@ export function ConversationList({
                         </span>
                       ) : null}
                     </span>
-                  ) : null}
+                    ) : null}
+                  </span>
                 </span>
               </span>
             </button>

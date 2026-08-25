@@ -24,6 +24,11 @@ export const realtimeEventSchema = z.discriminatedUnion("type", [
     messageId: id,
   }),
   z.strictObject({
+    type: z.literal("message.updated"),
+    conversationId: id,
+    messageId: id,
+  }),
+  z.strictObject({
     type: z.literal("media.updated"),
     conversationId: id,
     messageId: id,
@@ -45,10 +50,11 @@ export const realtimeEventSchema = z.discriminatedUnion("type", [
   }),
   z.strictObject({ type: z.literal("user.updated"), userId: id }),
   z.strictObject({ type: z.literal("contact.updated"), contactId: id }),
+  z.strictObject({ type: z.literal("meta-health.updated") }),
   z.strictObject({ type: z.literal("contacts.synced"), revision: id }),
   z.strictObject({
     type: z.literal("settings.updated"),
-    scope: z.enum(["contact-types", "contact-tags"]),
+    scope: z.enum(["contact-types", "contact-tags", "whatsapp-policy"]),
   }),
 ]);
 
