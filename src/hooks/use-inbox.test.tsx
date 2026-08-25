@@ -2475,6 +2475,47 @@ describe("useInbox", () => {
     await waitFor(() => expect(hook.result.current.conversations[0]?.id).toBe("rita"));
   });
 
+  it("keeps visible conversations during a deferred realtime reset and after its failure", async () => {
+    vi.stubGlobal("EventSource", FakeEventSource);
+    let listRequests = 0;
+    let resolveRefresh!: (value: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input) => {
+      const url = String(input);
+      if (url === "/api/users/assignable") return response({ data: { items: [] }, error: null });
+      if (url === "/api/contact-types") return response({ data: { items: [] }, error: null });
+      if (url === "/api/contact-tags") return response({ data: { items: [] }, error: null });
+      if (url === "/api/conversations") {
+        listRequests += 1;
+        if (listRequests === 1) {
+          return response({ data: { items: [listItem("visible")], nextCursor: null }, error: null });
+        }
+        if (listRequests === 2) {
+          return new Promise<Response>((resolve) => { resolveRefresh = resolve; });
+        }
+        return Promise.reject(new Error("offline"));
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["visible"]);
+
+    act(() => FakeEventSource.instances[0].onopen?.());
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(true));
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["visible"]);
+
+    await act(async () => {
+      resolveRefresh(await response({ data: { items: [listItem("authoritative")], nextCursor: null }, error: null }));
+    });
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["authoritative"]);
+
+    act(() => FakeEventSource.instances[0].onopen?.());
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    expect(hook.result.current.conversations.map(({ id }) => id)).toEqual(["authoritative"]);
+    expect(hook.result.current.listError).toBe("Não foi possível carregar as conversas.");
+  });
+
   it("ignores an older page response after the search changes", async () => {
     let resolveOlder!: (response: Response) => void;
     vi.spyOn(globalThis, "fetch").mockImplementation((input) => {

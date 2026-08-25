@@ -18,7 +18,7 @@ export default function DataDeletionPage() {
       <section>
         <h2>Como fazer a solicitação</h2>
         <p>Envie a frase <strong>Solicitação de exclusão de dados</strong> pelo WhatsApp oficial da XP Eletrônicos.</p>
-        <a className="mt-5 inline-flex min-h-11 items-center rounded-md bg-[var(--accent)] px-5 font-semibold text-white hover:bg-[var(--accent-hover)]" href="https://wa.me/556195149019?text=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados">Enviar solicitação pelo WhatsApp</a>
+        <a className="mt-5 inline-flex min-h-11 items-center rounded-md bg-[var(--primary)] px-5 font-semibold text-[var(--primary-foreground)] hover:bg-[var(--primary-hover)]" href="https://wa.me/556195149019?text=Solicita%C3%A7%C3%A3o%20de%20exclus%C3%A3o%20de%20dados">Enviar solicitação pelo WhatsApp</a>
       </section>
       <section>
         <h2>Confirmação de identidade</h2>

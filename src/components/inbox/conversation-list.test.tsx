@@ -66,6 +66,14 @@ const richPreviewCases: Array<[
 ];
 
 describe("ConversationList", () => {
+  it("keeps all visible row text inside the button's accessible name", () => {
+    render(<ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} />);
+
+    const row = screen.getByRole("button", { name: /Carlos Lima/i });
+    expect(row).not.toHaveAttribute("aria-label");
+    expect(row).toHaveAccessibleName(/Vocês têm esse modelo em estoque\?/i);
+  });
+
   it("shows the shared awaiting-customer state without restoring the generic marker", () => {
     render(
       <ConversationList
@@ -310,6 +318,14 @@ describe("ConversationList", () => {
       <ConversationList items={[]} selectedId={null} onSelect={vi.fn()} loading />,
     );
     expect(screen.getByRole("status")).toHaveTextContent("Carregando conversas");
+    expect(screen.getAllByTestId("conversation-list-skeleton-row")).toHaveLength(6);
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+
+    rerender(
+      <ConversationList items={[fixture]} selectedId={null} onSelect={vi.fn()} loading />,
+    );
+    expect(screen.getByRole("button", { name: /Carlos Lima/i })).toBeVisible();
+    expect(screen.queryByTestId("conversation-list-skeleton-row")).not.toBeInTheDocument();
 
     rerender(
       <ConversationList items={[]} selectedId={null} onSelect={vi.fn()} search="Carlos" />,

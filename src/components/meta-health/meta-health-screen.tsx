@@ -1,10 +1,11 @@
 "use client";
 
-import { ArrowLeft, LogOut, RefreshCw } from "lucide-react";
+import { LogOut, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { SettingsPageShell } from "@/components/layout/settings-page-shell";
 import { Spinner } from "@/components/ui/spinner";
 import { useMetaHealth } from "@/hooks/use-meta-health";
 import type {
@@ -252,27 +253,21 @@ export function MetaHealthScreen({
   }
 
   return (
-    <main aria-labelledby="meta-health-heading" className="min-h-dvh bg-[var(--canvas)] px-4 py-5 sm:px-6 sm:py-8">
-      <div className="mx-auto max-w-5xl">
-        <header className="flex flex-col gap-4 border-b border-[var(--border)] pb-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <a className="inline-flex min-h-11 items-center gap-2 rounded-md text-sm font-semibold text-[var(--muted)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]" href="/conversas">
-              <ArrowLeft aria-hidden="true" className="size-4" />Conversas
-            </a>
-            <p className="mt-3 text-xs font-bold uppercase tracking-[0.12em] text-[var(--accent)]">Configurações</p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight" id="meta-health-heading">Saúde da Meta</h1>
-            <p className="mt-2 max-w-2xl text-sm text-[var(--muted)]">Qualidade do número, situação da conta e alertas recebidos pela integração oficial.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
+    <SettingsPageShell
+      actions={(
+        <>
             <Button disabled={health.syncing} onClick={() => void synchronize()} variant="secondary">
               {health.syncing ? <Spinner label="Atualizando" /> : <><RefreshCw aria-hidden="true" className="size-4" />Atualizar agora</>}
             </Button>
             <Button aria-label="Sair" disabled={logoutPending} onClick={() => void logout()} size="icon" variant="ghost">
               <LogOut aria-hidden="true" className="size-4" />
             </Button>
-          </div>
-        </header>
-
+        </>
+      )}
+      description="Qualidade do número, situação da conta e alertas recebidos pela integração oficial."
+      eyebrow="Configurações"
+      title="Saúde da Meta"
+    >
         {(health.summary.stale || syncFailure || syncNotice) ? (
           <div className="mt-5 border-l-2 border-amber-500 pl-4 text-sm text-[var(--text)]" role="status">
             {health.summary.stale ? <p>Os dados da Meta estão sem atualização recente.</p> : null}
@@ -319,7 +314,6 @@ export function MetaHealthScreen({
             </Button>
           ) : null}
         </section>
-      </div>
-    </main>
+    </SettingsPageShell>
   );
 }

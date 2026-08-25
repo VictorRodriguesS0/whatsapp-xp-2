@@ -9,6 +9,7 @@ const { redirect, getCurrentUser, listQuickReplies } = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({ redirect, useRouter: () => ({ replace: vi.fn() }) }));
 vi.mock("@/modules/auth/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/quick-replies/service", () => ({ listQuickReplies }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 import Page from "./page";
 

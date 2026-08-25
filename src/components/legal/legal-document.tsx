@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { AppBrand } from "@/components/brand/app-brand";
+import { ThemeMenu } from "@/components/theme/theme-menu";
+
 type LegalDocumentProps = {
   children: ReactNode;
   current: "privacy" | "deletion";
@@ -13,9 +16,10 @@ export function LegalDocument({ children, current, description, eyebrow, title }
     <main className="min-h-dvh bg-[var(--canvas)] px-5 py-10 sm:px-8 sm:py-14">
       <article className="mx-auto max-w-3xl">
         <header className="border-b border-[var(--border)] pb-8">
-          <a className="inline-flex min-h-11 items-center text-sm font-bold text-[var(--accent)]" href="/login">
-            XP Eletrônicos
-          </a>
+          <div className="flex min-h-11 items-center justify-between gap-3">
+            <AppBrand href="/login" />
+            <ThemeMenu />
+          </div>
           <p className="mt-5 text-xs font-bold uppercase tracking-[0.14em] text-[var(--accent)]">{eyebrow}</p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight text-[var(--text)] sm:text-4xl">{title}</h1>
           <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text)]">{description}</p>

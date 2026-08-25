@@ -1,4 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { MetaAlertPageDto, MetaHealthSummaryDto, MetaOperationalAlertDto } from "@/modules/meta-health/types";
@@ -8,6 +10,7 @@ import { MetaHealthScreen } from "./meta-health-screen";
 const hookState = vi.hoisted(() => ({ sync: vi.fn(), refresh: vi.fn(), syncing: false, syncResult: null as null | { status: string; success: boolean } }));
 vi.mock("@/hooks/use-meta-health", () => ({ useMetaHealth: (summary: MetaHealthSummaryDto) => ({ ...hookState, summary }) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ replace: vi.fn() }) }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 const summary: MetaHealthSummaryDto = {
   label: "CRITICAL",
@@ -57,6 +60,12 @@ describe("MetaHealthScreen", () => {
     hookState.syncResult = null;
   });
   afterEach(() => vi.unstubAllGlobals());
+
+  it("uses the shared settings shell", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/meta-health/meta-health-screen.tsx"), "utf8");
+
+    expect(source).toContain("SettingsPageShell");
+  });
 
   it("shows current operational state, active alerts before history and no raw payload", () => {
     render(<MetaHealthScreen initialAlerts={page} initialSummary={summary} />);

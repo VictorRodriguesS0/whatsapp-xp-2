@@ -149,7 +149,7 @@ export function UserForm(props: UserFormProps) {
       {unchanged ? <p className="text-sm text-[var(--muted)]" role="status">Nenhuma alteração para salvar.</p> : null}
       <div className="flex justify-end border-t border-[var(--border)] pt-4">
         <Button disabled={busy} type="submit">
-          {busy ? <Spinner className="text-white" label="Salvando" /> : mode === "create" ? "Criar usuário" : "Salvar alterações"}
+          {busy ? <Spinner className="text-[var(--primary-foreground)]" label="Salvando" /> : mode === "create" ? "Criar usuário" : "Salvar alterações"}
         </Button>
       </div>
     </form>

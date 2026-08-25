@@ -266,4 +266,31 @@ describe("CustomerPanel", () => {
     );
     expect(screen.getByText("Importada").closest("span")).not.toHaveAttribute("style");
   });
+
+  it("uses a branded semantic contact summary that wraps long phone numbers and tags", () => {
+    const longPhone = "+55 61 99999-9999 ramal-super-longo-sem-espacos";
+    const longTag = "Etiqueta-muito-longa-sem-espacos-para-validar-quebra";
+    render(
+      <CustomerPanel
+        {...tagProps}
+        conversation={{
+          ...conversation,
+          contact: {
+            ...conversation.contact,
+            phone: longPhone,
+            tags: [{ id: "long", name: longTag, color: "#176B52", active: true }],
+          },
+        }}
+        currentUserId="user-id"
+        onSetResponsible={vi.fn()}
+        users={[]}
+      />,
+    );
+
+    expect(screen.getByText("XP Atendimento")).toBeVisible();
+    expect(screen.getByLabelText("Telefone de Carlos")).toHaveClass("break-all");
+    expect(screen.getByLabelText("Etiquetas de Carlos")).toHaveClass("flex-wrap");
+    expect(screen.getByText(longTag)).toHaveClass("whitespace-normal", "break-words");
+    expect(screen.getByRole("button", { name: "Gerenciar etiquetas" })).toHaveClass("w-full");
+  });
 });

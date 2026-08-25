@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { SessionUser } from "@/modules/auth/session";
@@ -10,6 +12,7 @@ import { UsersScreen } from "./users-screen";
 const routerReplaceMock = vi.hoisted(() => vi.fn());
 const routerRefreshMock = vi.hoisted(() => vi.fn());
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: routerRefreshMock, replace: routerReplaceMock }) }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 const admin: SessionUser = { id: "admin-1", name: "Victor", email: "victor@xp.test", role: "ADMIN" };
 const marcos = {
@@ -28,6 +31,14 @@ function deferredResponse() {
   return { promise, resolve };
 }
 
+function desktopDirectory() {
+  return within(screen.getByTestId("users-desktop-list"));
+}
+
+function desktopAction(name: string) {
+  return desktopDirectory().getByRole("button", { name });
+}
+
 describe("UsersScreen", () => {
   beforeEach(() => {
     routerReplaceMock.mockClear();
@@ -37,6 +48,21 @@ describe("UsersScreen", () => {
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("delegates the directory to the responsive list without the old horizontal-table contract", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/users/users-screen.tsx"), "utf8");
+
+    expect(source).toContain("ResponsiveSettingsList");
+    expect(source).not.toContain("overflow-x-auto");
+    expect(source).not.toContain("min-w-[760px]");
+  });
+
+  it("uses the shared settings shell and responsive modal contract", () => {
+    const source = readFileSync(resolve(process.cwd(), "src/components/users/users-screen.tsx"), "utf8");
+
+    expect(source).toContain("SettingsPageShell");
+    expect(source).toContain('className="modal-dialog"');
   });
 
   it("lists identity, profile and status, offers deactivation and never delete", () => {
@@ -53,7 +79,7 @@ describe("UsersScreen", () => {
   it("does not let the signed-in administrator deactivate their own account", () => {
     render(<UsersScreen currentUser={admin} initialUsers={[{ ...marcos, id: admin.id, name: admin.name, email: admin.email, role: "ADMIN" }]} />);
     expect(screen.queryByRole("button", { name: /Desativar Victor/ })).not.toBeInTheDocument();
-    expect(screen.getByText("Sua conta atual")).toBeVisible();
+    expect(screen.getAllByText("Sua conta atual")).toHaveLength(2);
   });
 
   it("moves focus to the first field when opening create and restores it when closing", async () => {
@@ -69,17 +95,31 @@ describe("UsersScreen", () => {
     const user = userEvent.setup();
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    const editTrigger = screen.getByRole("button", { name: "Editar Marcos" });
+    const editTrigger = desktopAction("Editar Marcos");
     editTrigger.focus();
     await user.keyboard("{Enter}");
     await screen.findByRole("dialog", { name: "Editar usuário" });
     await user.keyboard("{Escape}");
     await waitFor(() => expect(editTrigger).toHaveFocus());
 
-    const resetTrigger = screen.getByRole("button", { name: "Redefinir senha de Marcos" });
+    const resetTrigger = desktopAction("Redefinir senha de Marcos");
     await user.click(resetTrigger);
     await user.click(await screen.findByRole("button", { name: "Fechar" }));
     await waitFor(() => expect(resetTrigger).toHaveFocus());
+  });
+
+  it("restores focus to the equivalent visible action after crossing the responsive breakpoint", async () => {
+    const user = userEvent.setup();
+    render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
+    const desktopTrigger = desktopAction("Editar Marcos");
+    const mobileTrigger = within(screen.getByRole("list", { name: "Funcionários" })).getByRole("button", { name: "Editar Marcos" });
+
+    await user.click(desktopTrigger);
+    await screen.findByRole("dialog", { name: "Editar usuário" });
+    vi.stubGlobal("matchMedia", vi.fn(() => ({ matches: false })));
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(mobileTrigger).toHaveFocus());
   });
 
   it("restores the access trigger after Cancelar and after a successful confirmation", async () => {
@@ -87,7 +127,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, active: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    const trigger = screen.getByRole("button", { name: "Desativar Marcos" });
+    const trigger = desktopAction("Desativar Marcos");
     trigger.focus();
     await user.keyboard("{Enter}");
     const cancel = within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancelar" });
@@ -99,7 +139,7 @@ describe("UsersScreen", () => {
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
     await waitFor(() => expect(trigger).toHaveFocus());
 
-    const activateTrigger = screen.getByRole("button", { name: "Ativar Marcos" });
+    const activateTrigger = desktopAction("Ativar Marcos");
     await user.keyboard("{Enter}");
     const activateCancel = within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Cancelar" });
     activateCancel.focus();
@@ -112,7 +152,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 500 }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    const trigger = screen.getByRole("button", { name: "Desativar Marcos" });
+    const trigger = desktopAction("Desativar Marcos");
     await user.click(trigger);
     await user.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
     await screen.findByRole("status");
@@ -137,14 +177,14 @@ describe("UsersScreen", () => {
       body: JSON.stringify({ name: "Ana Souza", email: "ana@xp.test", role: "ATTENDANT", password: "Senha-2026!" }),
     })));
     expect(await screen.findByText("Usuário criado.")).toBeVisible();
-    expect(screen.getByText("Ana Souza")).toBeVisible();
+    expect(desktopDirectory().getByText("Ana Souza")).toBeVisible();
   });
 
   it("resets a password and reports that previous sessions ended", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: marcos }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    const trigger = screen.getByRole("button", { name: "Redefinir senha de Marcos" });
+    const trigger = desktopAction("Redefinir senha de Marcos");
     fireEvent.click(trigger);
     fireEvent.change(await screen.findByLabelText("Nova senha"), { target: { value: "Nova-senha-2026!" } });
     fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Nova-senha-2026!" } });
@@ -163,7 +203,7 @@ describe("UsersScreen", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(pending.promise);
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     const dialog = await screen.findByRole("alertdialog");
     const confirm = within(dialog).getByRole("button", { name: "Desativar usuário" });
     fireEvent.click(confirm);
@@ -174,14 +214,14 @@ describe("UsersScreen", () => {
     pending.resolve(new Response(JSON.stringify({ user: { ...marcos, active: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
 
     expect(await screen.findByText("Usuário desativado.")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Ativar Marcos" })).toBeVisible();
+    expect(desktopAction("Ativar Marcos")).toBeVisible();
   });
 
   it("redirects on an expired session without rendering a raw API error", async () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "GraphAPIError: token abc" }), { status: 401 }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     fireEvent.click((await screen.findByRole("alertdialog")).querySelector("button[type=button][data-confirm]")!);
 
     await waitFor(() => expect(routerReplaceMock).toHaveBeenCalledWith("/login?motivo=sessao-expirada"));
@@ -192,7 +232,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "Não é possível desativar o último administrador ativo" }), { status: 409 }));
     render(<UsersScreen currentUser={admin} initialUsers={[{ ...marcos, role: "ADMIN" }]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
 
     expect(await screen.findByRole("status")).toHaveTextContent("Mantenha pelo menos um administrador ativo");
@@ -202,7 +242,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "P2002 raw database detail" }), { status: 409 }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    const trigger = screen.getByRole("button", { name: "Editar Marcos" });
+    const trigger = desktopAction("Editar Marcos");
     fireEvent.click(trigger);
     fireEvent.change(await screen.findByLabelText("E-mail"), { target: { value: "existente@xp.test" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
@@ -217,7 +257,7 @@ describe("UsersScreen", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, name: "Marcos Lima" } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    const trigger = screen.getByRole("button", { name: "Editar Marcos" });
+    const trigger = desktopAction("Editar Marcos");
     fireEvent.click(trigger);
     fireEvent.change(await screen.findByLabelText("Nome"), { target: { value: "Marcos Lima" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
@@ -233,7 +273,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, id: admin.id, email: admin.email, role: "ATTENDANT" } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<UsersScreen currentUser={admin} initialUsers={[{ ...marcos, id: admin.id, name: admin.name, email: admin.email, role: "ADMIN" }]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar Victor" }));
+    fireEvent.click(desktopAction("Editar Victor"));
     fireEvent.change(await screen.findByLabelText("Nome"), { target: { value: "Victor Silva" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
@@ -246,7 +286,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: ownUser }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<UsersScreen currentUser={admin} initialUsers={[ownUser]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Redefinir senha de Victor" }));
+    fireEvent.click(desktopAction("Redefinir senha de Victor"));
     fireEvent.change(await screen.findByLabelText("Nova senha"), { target: { value: "Nova-senha-2026!" } });
     fireEvent.change(screen.getByLabelText("Confirmar nova senha"), { target: { value: "Nova-senha-2026!" } });
     fireEvent.click(screen.getByRole("button", { name: "Redefinir senha" }));
@@ -267,7 +307,7 @@ describe("UsersScreen", () => {
     fireEvent.click(screen.getByRole("button", { name: "Criar usuário" }));
 
     expect(await screen.findByText("Resposta inesperada do servidor. Tente novamente.")).toBeVisible();
-    expect(screen.getByText("Marcos")).toBeVisible();
+    expect(desktopDirectory().getByText("Marcos")).toBeVisible();
     expect(screen.queryByText("Ana Souza")).not.toBeInTheDocument();
   });
 
@@ -277,13 +317,13 @@ describe("UsersScreen", () => {
       .mockResolvedValueOnce(new Response("GraphAPI raw response", { status: 200 }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Sem conexão. Confira sua rede e tente novamente.");
     expect(screen.queryByText(/secret network detail/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
     expect(await screen.findByRole("status")).toHaveTextContent("Resposta inesperada do servidor. Tente novamente.");
     expect(screen.queryByText(/GraphAPI raw response/i)).not.toBeInTheDocument();
@@ -294,7 +334,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ user: { ...marcos, active: false } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     render(<StrictMode><UsersScreen currentUser={admin} initialUsers={[marcos]} /></StrictMode>);
 
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
 
     expect(await screen.findByText("Usuário desativado.")).toBeVisible();
@@ -304,7 +344,7 @@ describe("UsersScreen", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "internal details" }), { status: 500 }));
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Desativar Marcos" }));
+    fireEvent.click(desktopAction("Desativar Marcos"));
     fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Desativar usuário" }));
     await screen.findByRole("status");
     fireEvent.click(screen.getByRole("button", { name: "Fechar aviso" }));
@@ -317,7 +357,7 @@ describe("UsersScreen", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockReturnValue(first.promise);
     render(<UsersScreen currentUser={admin} initialUsers={[marcos]} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Editar Marcos" }));
+    fireEvent.click(desktopAction("Editar Marcos"));
     fireEvent.change(await screen.findByLabelText("Nome"), { target: { value: "Marcos Lima" } });
     fireEvent.click(screen.getByRole("button", { name: "Salvar alterações" }));
 
@@ -325,7 +365,7 @@ describe("UsersScreen", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     first.resolve(new Response(JSON.stringify({ user: { ...marcos, name: "Marcos Lima" } }), { status: 200, headers: { "Content-Type": "application/json" } }));
     expect(await screen.findByText("Alterações salvas.")).toBeVisible();
-    expect(screen.getByText("Marcos Lima")).toBeVisible();
+    expect(desktopDirectory().getByText("Marcos Lima")).toBeVisible();
   });
 
   it("keeps the current screen and reports when logout cannot reach the server", async () => {

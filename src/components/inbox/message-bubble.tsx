@@ -1,15 +1,16 @@
 "use client";
 
-import { AlertCircle, Check, CheckCheck, Clock3, Reply } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, Clock3 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import type { InboxMessage } from "@/hooks/use-inbox";
 import { useMessageReplyGesture } from "@/hooks/use-message-reply-gesture";
 import { cn } from "@/lib/utils";
 import type { MessageDto } from "@/modules/conversations/types";
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { MessageMedia } from "./message-media";
+import { MessageActions } from "./message-actions";
+import { canReplyToMessage } from "./message-interaction-eligibility";
 import { MessageReactions } from "./message-reactions";
 import { MessageRichContent } from "./message-rich-content";
 import { QuotedReplyPreview } from "./quoted-reply-preview";
@@ -33,10 +34,6 @@ function StatusIcon({ status }: { status: MessageDto["status"] }) {
   if (status === "FAILED") return <AlertCircle aria-hidden="true" className="size-3.5" />;
   if (status === "DELIVERED" || status === "READ") return <CheckCheck aria-hidden="true" className="size-3.5" />;
   return <Check aria-hidden="true" className="size-3.5" />;
-}
-
-function isInteractiveTarget(target: EventTarget | null) {
-  return target instanceof Element && Boolean(target.closest("a,button,input,textarea,select,audio,video,[role='button']"));
 }
 
 type MessageBubbleProps = {
@@ -71,74 +68,33 @@ export function MessageBubble({
   const revoked = Boolean(message.revokedAt);
   const canRetry = message.status === "FAILED" && Boolean(message.clientRequestId);
   const time = timeFormatter.format(new Date(message.externalTimestamp));
-  const canReply = !revoked && message.canReply && Boolean(onReply);
+  const canReply = canReplyToMessage(message, onReply);
   const gesture = useMessageReplyGesture(canReply, () => onReply?.(message));
-  const [reactionOpen, setReactionOpen] = useState(false);
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const pointerStart = useRef<{ x: number; y: number } | null>(null);
-
-  function cancelLongPress() {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-    longPressTimer.current = null;
-    pointerStart.current = null;
-  }
-
-  function handlePointerDown(event: ReactPointerEvent<HTMLDivElement>) {
-    if (revoked || !onReact || event.button > 0 || isInteractiveTarget(event.target)) return;
-    pointerStart.current = { x: event.clientX, y: event.clientY };
-    longPressTimer.current = setTimeout(() => {
-      setReactionOpen(true);
-      longPressTimer.current = null;
-    }, 500);
-  }
-
-  function handlePointerMove(event: ReactPointerEvent<HTMLDivElement>) {
-    const start = pointerStart.current;
-    if (!start || Math.hypot(event.clientX - start.x, event.clientY - start.y) <= 8) return;
-    cancelLongPress();
-  }
-
-  useEffect(() => () => {
-    if (longPressTimer.current) clearTimeout(longPressTimer.current);
-  }, []);
-
-  const replyAction = canReply ? (
-    <Button
-      aria-label="Responder à mensagem"
-      className="min-h-11 min-w-11 shrink-0 opacity-100 transition-opacity min-[720px]:opacity-0 min-[720px]:group-hover/message:opacity-100 min-[720px]:group-focus-within/message:opacity-100"
-      onClick={() => onReply?.(message)}
-      size="icon"
-      type="button"
-      variant="ghost"
-    >
-      <Reply aria-hidden="true" className="size-4" />
-    </Button>
-  ) : null;
-
   return (
     <article
       {...gesture.handlers}
       className={cn(
-        "message-row group/message flex items-center gap-1 rounded-lg [touch-action:pan-y] outline-none transition-[transform,background-color,box-shadow] duration-300 motion-reduce:transition-none",
+        "message-row group/message relative flex items-center gap-1 rounded-lg [touch-action:pan-y] outline-none transition-[transform,background-color,box-shadow] duration-300 motion-reduce:transition-none",
         outbound ? "justify-end" : "justify-start",
         isHighlighted && "bg-[color-mix(in_srgb,var(--search-mark)_45%,transparent)] shadow-[0_0_0_3px_var(--search-mark)]",
       )}
       data-highlighted={isHighlighted ? "true" : undefined}
       data-message-id={message.id}
+      data-direction={message.direction.toLowerCase()}
       data-search-highlighted={isHighlighted ? "true" : undefined}
       ref={(element) => registerElement?.(message.id, element)}
       style={{ transform: gesture.offset ? `translateX(${gesture.offset}px)` : undefined }}
       tabIndex={-1}
     >
-      {outbound ? replyAction : null}
       <div
-        className={cn("group relative max-w-[min(78%,42rem)] rounded-lg border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)]", outbound ? "bg-[var(--outbound)]" : "bg-[var(--inbound)]")}
+        className="relative max-w-[min(78%,42rem)] break-words max-[767px]:max-w-[min(86%,36rem)]"
         data-message-bubble
-        onPointerCancel={cancelLongPress}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={cancelLongPress}
+        data-testid="message-bubble"
       >
+        <div
+          className={cn("min-w-0 max-w-full overflow-hidden border border-[var(--border)] px-3 py-2 text-sm shadow-[0_1px_1px_rgba(32,37,34,0.03)]", outbound ? "rounded-[14px_14px_4px_14px] bg-[var(--outbound)]" : "rounded-[14px_14px_14px_4px] bg-[var(--inbound)]")}
+          data-testid="message-bubble-content"
+        >
         {outbound ? <p className="mb-1 text-xs font-bold text-[var(--accent)]" data-reply-swipe-ignore="true">{message.sentBy?.name ?? "WhatsApp"}</p> : null}
         {!revoked && message.replyTo ? (
           <div className="mb-2">
@@ -172,18 +128,18 @@ export function MessageBubble({
             {onRetry && canRetry ? <Button className="mt-1 px-0 text-[var(--danger)]" onClick={() => onRetry(message.id)} size="small" variant="ghost">Tentar enviar novamente</Button> : null}
           </div>
         ) : null}
+        </div>
         {!revoked && onReact ? (
           <MessageReactions
             message={message}
             mutation={reactionMutation}
-            onOpenChange={setReactionOpen}
             onReact={onReact}
             onRetry={onRetryReaction}
-            open={reactionOpen}
+            showTrigger={false}
           />
         ) : null}
       </div>
-      {!outbound ? replyAction : null}
+      <MessageActions message={message} onReact={onReact} onReply={canReply ? onReply : undefined} />
     </article>
   );
 }

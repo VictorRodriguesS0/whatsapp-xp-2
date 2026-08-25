@@ -50,4 +50,3 @@ export function createWhatsAppTemplateSyncRouteHandlers(
 }
 
 export const POST = createWhatsAppTemplateSyncRouteHandlers().POST;
-

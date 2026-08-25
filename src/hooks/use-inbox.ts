@@ -417,7 +417,6 @@ export function useInbox(initialUser: SessionUser) {
       pageRequest.current = null;
       hasLoadedAdditionalPages.current = false;
       nextCursorRef.current = null;
-      setConversations([]);
       setNextCursor(null);
       setLoadingMore(false);
       setLoadMoreError(null);

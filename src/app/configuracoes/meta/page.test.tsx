@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/modules/auth/session", () => ({ getCurrentUser }));
 vi.mock("@/modules/meta-health/service", () => ({ getMetaHealthSummary, listMetaHealthAlerts }));
 vi.mock("@/components/meta-health/meta-health-screen", () => ({ MetaHealthScreen: () => <h1>Saúde da Meta</h1> }));
+vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-label="Tema" type="button" /> }));
 
 import MetaHealthError from "./error";
 import MetaHealthLoading from "./loading";

@@ -1,5 +1,8 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import postcss, { type AtRule, type Container, type Declaration, type Rule } from "postcss";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ComponentProps } from "react";
 
@@ -44,6 +47,26 @@ function previewRecording(): AudioRecording {
   };
 }
 
+function cssRule(container: Container, selector: string): Rule {
+  const rule = container.nodes?.find((node): node is Rule => (
+    node.type === "rule" && node.selector.split(",").map((value) => value.trim()).includes(selector)
+  ));
+  expect(rule, `expected CSS rule for ${selector}`).toBeDefined();
+  return rule!;
+}
+
+function declarationValues(rule: Rule, property: string) {
+  return rule.nodes
+    ?.filter((node): node is Declaration => node.type === "decl" && node.prop === property)
+    .map((node) => node.value) ?? [];
+}
+
+function declarationValuesForSelector(container: Container, selector: string, property: string) {
+  return (container.nodes ?? [])
+    .filter((node): node is Rule => node.type === "rule" && node.selector.split(",").map((value) => value.trim()).includes(selector))
+    .flatMap((rule) => declarationValues(rule, property));
+}
+
 describe("MessageComposer", () => {
   const reply = {
     available: true as const,
@@ -62,6 +85,68 @@ describe("MessageComposer", () => {
     recorder.error = null;
     vi.clearAllMocks();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [] }, error: null })));
+  });
+
+  it("keeps the composer keyboard-safe with stable safe-area and compact-width hooks", () => {
+    const { container } = render(<MessageComposer {...props()} />);
+    const composer = screen.getByTestId("message-composer");
+    const css = postcss.parse(readFileSync(join(process.cwd(), "src", "app", "globals.css"), "utf8"));
+    const composerRule = cssRule(css, ".message-composer");
+    const compactMedia = css.nodes?.find((node): node is AtRule => node.type === "atrule" && node.name === "media" && node.params === "(max-width: 389px)");
+    expect(compactMedia, "expected compact composer media query").toBeDefined();
+    const compactRowRule = cssRule(compactMedia!, ".message-composer__row");
+    const compactStateRule = cssRule(compactMedia!, ".message-composer__state");
+
+    expect(composer).toHaveClass("message-composer", "relative");
+    expect(composer.querySelector(".message-composer__row")).toBeTruthy();
+    expect(screen.getByLabelText("Mensagem")).toHaveClass(
+      "message-composer__field",
+      "min-w-0",
+      "bg-[var(--surface-elevated)]",
+    );
+    expect(screen.getByRole("button", { name: "Anexar arquivo" })).toHaveClass("min-h-11", "min-w-11");
+    expect(screen.getByRole("button", { name: "Gravar áudio" })).toHaveClass("min-h-11", "min-w-11");
+    expect(declarationValues(composerRule, "padding")).toContain("0.625rem 0.75rem calc(0.625rem + env(safe-area-inset-bottom))");
+    expect(declarationValues(compactRowRule, "flex-wrap")).toContain("wrap");
+    expect(declarationValues(compactStateRule, "flex-wrap")).toContain("wrap");
+    expect(declarationValues(cssRule(compactMedia!, ".message-composer__field"), "min-width")).toContain("0");
+    const compactFileRule = cssRule(compactMedia!, ".message-composer__file-name");
+    expect(declarationValues(compactFileRule, "overflow-wrap")).toContain("anywhere");
+    expect(declarationValues(compactFileRule, "white-space")).toContain("normal");
+    expect(declarationValues(compactFileRule, "overflow")).toContain("visible");
+    expect(declarationValues(compactFileRule, "text-overflow")).toContain("clip");
+    expect(declarationValues(cssRule(compactMedia!, ".message-composer__quick-reply-message"), "white-space")).toContain("normal");
+    expect(declarationValues(cssRule(compactMedia!, ".message-composer__quoted-reply .quoted-reply-preview__author"), "white-space")).toContain("normal");
+    expect(declarationValuesForSelector(compactMedia!, ".message-composer__quoted-reply .quoted-reply-preview__summary", "-webkit-line-clamp")).toContain("unset");
+    expect(declarationValuesForSelector(compactMedia!, ".message-composer__quoted-reply .quoted-reply-preview__summary", "display")).toContain("block");
+    expect(declarationValues(cssRule(compactMedia!, ".message-composer__recording-label"), "white-space")).toContain("normal");
+    expect(container.querySelector(".message-composer__state")).toBeNull();
+  });
+
+  it("keeps desktop truncation while exposing narrow-only wrapping hooks", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
+      { id: "1", shortcut: "mensagem-muito-longa", message: "Uma resposta rápida suficientemente longa para continuar legível em 320 pixels.", position: 10, active: true },
+    ] }, error: null })));
+    const rendered = render(<MessageComposer {...props({ replyTo: reply })} />);
+
+    expect(rendered.container.querySelector(".message-composer__quoted-reply")).toBeTruthy();
+    expect(rendered.container.querySelector(".message-composer__quoted-reply .quoted-reply-preview__author")).toHaveClass("truncate");
+    expect(rendered.container.querySelector(".message-composer__quoted-reply .quoted-reply-preview__summary")).toHaveClass("line-clamp-2");
+
+    fireEvent.change(screen.getByLabelText("Mensagem"), { target: { value: "/mensagem" } });
+    expect((await screen.findByRole("listbox", { name: "Respostas rápidas" })).querySelector(".message-composer__quick-reply")).toBeTruthy();
+    expect(rendered.container.querySelector(".message-composer__quick-reply-message")).toHaveClass("truncate");
+
+    fireEvent.change(screen.getByLabelText("Mensagem"), { target: { value: "" } });
+    const input = rendered.container.querySelector<HTMLInputElement>('input[type="file"]')!;
+    fireEvent.change(input, { target: { files: [new File(["pdf"], "arquivo-com-um-nome-longo-para-validar-quebra-no-compositor.pdf", { type: "application/pdf" })] } });
+    expect(rendered.container.querySelector(".message-composer__file")).toBeTruthy();
+    expect(rendered.container.querySelector(".message-composer__file-name")).toHaveClass("truncate");
+
+    recorder.phase = "recording";
+    rendered.rerender(<MessageComposer {...props({ replyTo: reply })} />);
+    expect(rendered.container.querySelector(".message-composer__recording-details")).toBeTruthy();
+    expect(rendered.container.querySelector(".message-composer__recording-label")).not.toHaveClass("truncate", "whitespace-nowrap");
   });
 
   it("filters shared quick replies and inserts the selected text without sending", async () => {
@@ -229,6 +314,7 @@ describe("MessageComposer", () => {
     const input = container.querySelector<HTMLInputElement>('input[type="file"]')!;
     fireEvent.change(input, { target: { files: [new File(["pdf"], "pedido.pdf", { type: "application/pdf" })] } });
     expect(screen.getByText("pedido.pdf")).toBeVisible();
+    expect(container.querySelector(".message-composer__state")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Gravar áudio" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Remover anexo" }));
     expect(screen.queryByText("pedido.pdf")).not.toBeInTheDocument();

@@ -1,0 +1,39 @@
+{
+  "date": "2026-08-24",
+  "buildOrigin": "http://127.0.0.1:3197",
+  "lighthouseVersion": "12.8.2",
+  "audits": [
+    {
+      "page": "login",
+      "finalUrl": "http://127.0.0.1:3197/login",
+      "category": "accessibility",
+      "score": 100,
+      "failedBinaryAudits": [],
+      "runtimeError": null
+    },
+    {
+      "page": "login",
+      "finalUrl": "http://127.0.0.1:3197/login",
+      "category": "best-practices",
+      "score": 100,
+      "failedBinaryAudits": [],
+      "runtimeError": null
+    },
+    {
+      "page": "authenticated inbox",
+      "finalUrl": "http://127.0.0.1:3197/conversas",
+      "category": "accessibility",
+      "score": 100,
+      "failedBinaryAudits": [],
+      "runtimeError": null
+    },
+    {
+      "page": "authenticated inbox",
+      "finalUrl": "http://127.0.0.1:3197/conversas",
+      "category": "best-practices",
+      "score": 100,
+      "failedBinaryAudits": [],
+      "runtimeError": null
+    }
+  ]
+}

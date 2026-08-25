@@ -35,6 +35,8 @@ describe("Meta health badge", () => {
     const link = screen.getByRole("link", { name: "Meta crítica, 2 alertas não tratados" });
     expect(link).toHaveAttribute("href", "/configuracoes/meta");
     expect(screen.getByText("2")).toBeVisible();
+    expect(screen.getByText("2")).toHaveClass("bg-[var(--text)]", "text-[var(--canvas)]");
+    expect(screen.getByText("2")).not.toHaveClass("text-white");
     expect(link).toHaveClass("focus-visible:ring-2");
   });
 });

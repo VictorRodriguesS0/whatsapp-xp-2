@@ -36,4 +36,21 @@ describe("LoginForm", () => {
     expect(screen.getByLabelText("E-mail")).toHaveAttribute("autocomplete", "email");
     expect(screen.getByLabelText("Senha")).toHaveAttribute("autocomplete", "current-password");
   });
+
+  it("focuses a safe error summary and preserves the typed email", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({ ok: false, status: 401 } as Response);
+    render(<LoginForm />);
+
+    const email = screen.getByLabelText("E-mail");
+    fireEvent.change(email, { target: { value: "marcos@xp.test" } });
+    fireEvent.change(screen.getByLabelText("Senha"), { target: { value: "senha-inválida" } });
+    fireEvent.click(screen.getByRole("button", { name: "Entrar" }));
+
+    const alert = await screen.findByRole("alert");
+    await waitFor(() => expect(alert).toHaveFocus());
+    expect(email).toHaveValue("marcos@xp.test");
+    expect(fetch).toHaveBeenCalledWith("/api/auth/login", expect.objectContaining({
+      body: JSON.stringify({ email: "marcos@xp.test", password: "senha-inválida" }),
+    }));
+  });
 });

@@ -96,4 +96,3 @@ describe("WhatsApp template sync route", () => {
     });
   });
 });
-
