@@ -16,6 +16,9 @@ import {
 } from "./audio-playback";
 
 const playbackError = "Não foi possível reproduzir este áudio.";
+const mutedRailStyle = {
+  backgroundImage: "repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 42%, transparent) 0 3px, transparent 3px 6px)",
+} satisfies CSSProperties;
 
 function validDuration(duration: number) {
   return Number.isFinite(duration) && duration > 0;
@@ -38,13 +41,16 @@ export function AudioMessagePlayer({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(Number.NaN);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeed] = useState<AudioPlaybackSpeed>(() => readAudioPlaybackSpeed());
+  const [speed, setSpeed] = useState<AudioPlaybackSpeed>(1);
   const [error, setError] = useState<string | null>(null);
   const durationAvailable = validDuration(duration);
   const progress = durationAvailable ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0;
   const nextSpeed = nextAudioPlaybackSpeed(speed);
 
-  useEffect(() => subscribeAudioPlaybackSpeed(setSpeed), []);
+  useEffect(() => {
+    setSpeed(readAudioPlaybackSpeed());
+    return subscribeAudioPlaybackSpeed(setSpeed);
+  }, []);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -107,9 +113,6 @@ export function AudioMessagePlayer({
     setCurrentTime(next);
   }, []);
 
-  const railStyle = {
-    backgroundImage: "repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 42%, transparent) 0 3px, transparent 3px 6px)",
-  } satisfies CSSProperties;
   const progressStyle = {
     backgroundImage: "repeating-linear-gradient(to right, var(--accent) 0 3px, transparent 3px 6px)",
     width: `${progress}%`,
@@ -126,10 +129,10 @@ export function AudioMessagePlayer({
           setPlaying(false);
           releaseAudioPlayback(event.currentTarget);
         }}
-        onError={() => { setPlaying(false); setError(playbackError); }}
+        onError={(event) => { setPlaying(false); releaseAudioPlayback(event.currentTarget); setError(playbackError); }}
         onLoadedMetadata={(event) => syncDuration(event.currentTarget)}
         onPause={(event) => { setPlaying(false); releaseAudioPlayback(event.currentTarget); }}
-        onPlay={(event) => { claimAudioPlayback(event.currentTarget); setPlaying(true); setError(null); }}
+        onPlay={(event) => { claimAudioPlayback(event.currentTarget); event.currentTarget.playbackRate = speed; setPlaying(true); setError(null); }}
         onTimeUpdate={(event) => {
           const value = event.currentTarget.currentTime;
           setCurrentTime(Number.isFinite(value) && value >= 0 ? value : 0);
@@ -151,7 +154,7 @@ export function AudioMessagePlayer({
         </button>
 
         <div className="relative h-11 min-w-0 flex-1 rounded-sm focus-within:ring-2 focus-within:ring-[var(--accent)]">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-2 h-3 overflow-hidden" style={railStyle}>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-2 h-3 overflow-hidden" style={mutedRailStyle}>
             <div className="h-full transition-[width] duration-150 motion-reduce:transition-none" style={progressStyle} />
           </div>
           <span aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 font-mono text-[11px] leading-none tabular-nums text-[var(--muted)]">
