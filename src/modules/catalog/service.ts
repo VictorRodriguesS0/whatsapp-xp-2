@@ -34,6 +34,7 @@ export class CatalogServiceError extends Error {
 
 export type CatalogService = {
   getStatus(actor: SessionUser): Promise<CatalogStatusDto>;
+  getReadiness(actor: SessionUser): Promise<boolean>;
   refreshStatus(actor: SessionUser): Promise<CatalogStatusDto>;
   searchProducts(
     actor: SessionUser,
@@ -260,6 +261,12 @@ export function createCatalogService(input: {
         };
       }
       return loadStatus(false);
+    },
+
+    async getReadiness(actor) {
+      await requireUser(async () => actor);
+      if (!input.catalogId || !input.client) return false;
+      return (await loadStatus(false)).ready;
     },
 
     async refreshStatus(actor) {

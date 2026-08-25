@@ -166,6 +166,34 @@ describe("MessageComposer", () => {
     expect(sendText).not.toHaveBeenCalled();
   });
 
+  it("shows products only when ready and closes the picker before quick replies or a reply draft without clearing text", async () => {
+    vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
+      { id: "1", shortcut: "pix", message: "Nossa chave é 123.", position: 10, active: true },
+    ] }, error: null })));
+    const onOpenCatalog = vi.fn();
+    const onCloseCatalog = vi.fn();
+    const onCancelReply = vi.fn();
+    const base = props({ onOpenCatalog, onCloseCatalog, onCancelReply, replyTo: reply });
+    const rendered = render(<MessageComposer {...base} catalogReady={false} />);
+    expect(screen.queryByRole("button", { name: "Produtos" })).not.toBeInTheDocument();
+
+    rendered.rerender(<MessageComposer {...base} catalogReady />);
+    const message = screen.getByLabelText("Mensagem");
+    fireEvent.change(message, { target: { value: "/pi" } });
+    expect(await screen.findByRole("listbox", { name: "Respostas rápidas" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Produtos" }));
+    expect(onOpenCatalog).toHaveBeenCalledWith(expect.any(HTMLButtonElement));
+
+    rendered.rerender(<MessageComposer {...base} catalogPickerOpen catalogReady />);
+    expect(screen.getByLabelText("Mensagem")).toHaveValue("/pi");
+    expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
+    fireEvent.keyDown(screen.getByLabelText("Mensagem"), { key: "Escape" });
+    expect(onCloseCatalog).toHaveBeenCalledOnce();
+    expect(onCancelReply).not.toHaveBeenCalled();
+    expect(screen.getByRole("listbox", { name: "Respostas rápidas" })).toBeVisible();
+    expect(screen.getByLabelText("Mensagem")).toHaveValue("/pi");
+  });
+
   it("navigates suggestions with arrows, supports click, and dismisses with Escape", async () => {
     vi.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ data: { quickReplies: [
       { id: "1", shortcut: "endereco", message: "Estamos na Rua 1.", position: 10, active: true },

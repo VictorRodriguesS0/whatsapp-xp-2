@@ -53,6 +53,11 @@ const audioRecorder = vi.hoisted(() => ({
 vi.mock("@/hooks/use-inbox", () => ({ useInbox: useInboxMock }));
 vi.mock("@/hooks/use-message-search", () => ({ useMessageSearch: vi.fn(() => messageSearch) }));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: vi.fn(() => audioRecorder) }));
+vi.mock("@/components/catalog/catalog-picker", () => ({
+  CatalogPicker: ({ open, onClose }: { open: boolean; onClose(): void }) => open ? (
+    <aside aria-label="Produtos do catálogo"><button onClick={onClose} type="button">Fechar produtos</button></aside>
+  ) : null,
+}));
 vi.mock("@/components/meta-health/meta-health-badge", () => ({
   MetaHealthBadge: () => <a href="/configuracoes/meta">Meta normal</a>,
 }));
@@ -453,6 +458,36 @@ describe("InboxShell", () => {
 
     fireEvent.keyDown(window, { key: "Escape" });
     expect(defaultInbox.closeConversation).toHaveBeenCalledOnce();
+    vi.unstubAllGlobals();
+  });
+
+  it("closes catalog history before the quoted draft or conversation and restores focus", async () => {
+    vi.stubGlobal("matchMedia", vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
+    const back = vi.spyOn(window.history, "back").mockImplementation(() => undefined);
+    useInboxMock.mockReturnValue(inboxWithOpenConversation());
+    render(<InboxShell initialCatalogReady initialUser={user} />);
+    fireEvent.click(screen.getByRole("button", { name: "Responder à mensagem" }));
+    const message = screen.getByLabelText("Mensagem");
+    fireEvent.change(message, { target: { value: "Rascunho preservado" } });
+    const trigger = screen.getByRole("button", { name: "Produtos" });
+    fireEvent.click(trigger);
+
+    expect(screen.getByRole("complementary", { name: "Produtos do catálogo" })).toBeVisible();
+    expect(window.history.state).toMatchObject({ __xpCatalogPicker: "conversation-id" });
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(back).toHaveBeenCalledOnce();
+    expect(screen.getByRole("button", { name: "Cancelar resposta citada" })).toBeVisible();
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
+
+    window.history.replaceState(null, "", window.location.href);
+    fireEvent(window, new PopStateEvent("popstate", { state: null }));
+    await waitFor(() => expect(screen.queryByRole("complementary", { name: "Produtos do catálogo" })).not.toBeInTheDocument());
+    expect(screen.getByLabelText("Mensagem")).toHaveValue("Rascunho preservado");
+    await waitFor(() => expect(trigger).toHaveFocus());
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(screen.queryByRole("button", { name: "Cancelar resposta citada" })).not.toBeInTheDocument();
+    expect(defaultInbox.closeConversation).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
 

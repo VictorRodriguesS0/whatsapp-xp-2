@@ -76,6 +76,31 @@ describe("catalog service", () => {
     await expect(service.getStatus(attendant)).rejects.toMatchObject({ status: 403 });
   });
 
+  it("exposes only picker readiness to active attendants", async () => {
+    const graph = client();
+    const service = createCatalogService({
+      catalogId: "123456789012345",
+      client: graph,
+    });
+
+    await expect(service.getReadiness(attendant)).resolves.toBe(true);
+    expect(graph.getCatalogSummary).toHaveBeenCalledTimes(1);
+    expect(graph.getCommerceSettings).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the picker hidden when the catalog is unconfigured or unavailable", async () => {
+    await expect(
+      createCatalogService({ catalogId: null, client: null }).getReadiness(attendant),
+    ).resolves.toBe(false);
+    const graph = client({
+      getCatalogSummary: vi.fn().mockRejectedValue(new MetaCatalogGraphError("META_TIMEOUT")),
+    });
+    await expect(createCatalogService({
+      catalogId: "123456789012345",
+      client: graph,
+    }).getReadiness(attendant)).resolves.toBe(false);
+  });
+
   it("returns a ready masked status and reuses it while fresh", async () => {
     const graph = client();
     const service = createCatalogService({

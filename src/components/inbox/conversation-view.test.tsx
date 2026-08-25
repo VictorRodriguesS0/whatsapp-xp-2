@@ -23,6 +23,9 @@ const audioRecorder = vi.hoisted(() => ({
 }));
 const useAudioRecorderMock = vi.hoisted(() => vi.fn(() => audioRecorder));
 vi.mock("@/hooks/use-audio-recorder", () => ({ useAudioRecorder: useAudioRecorderMock }));
+vi.mock("@/components/catalog/catalog-picker", () => ({
+  CatalogPicker: ({ open }: { open: boolean }) => open ? <aside aria-label="Produtos do catálogo">Seletor</aside> : null,
+}));
 
 const message: InboxMessage = {
   id: "message-1",
@@ -127,10 +130,51 @@ describe("ConversationView", () => {
     expect(screen.queryByRole("textbox", { name: "Mensagem" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Anexar arquivo" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Gravar áudio" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Produtos" })).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Retomar atendimento" }));
     fireEvent.click(screen.getByRole("button", { name: "Enviar template" }));
     await waitFor(() => expect(handlers.onResumeConversation).toHaveBeenCalledOnce());
     expect(handlers.onSendText).not.toHaveBeenCalled();
+  });
+
+  it("exposes the read-only catalog only for a ready free-form conversation", () => {
+    const onOpenCatalog = vi.fn();
+    const view = render(
+      <ConversationView
+        {...handlers}
+        catalogPickerOpen={false}
+        catalogReady={false}
+        conversation={conversation}
+        onCloseCatalog={vi.fn()}
+        onOpenCatalog={onOpenCatalog}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Produtos" })).not.toBeInTheDocument();
+
+    view.rerender(
+      <ConversationView
+        {...handlers}
+        catalogPickerOpen={false}
+        catalogReady
+        conversation={conversation}
+        onCloseCatalog={vi.fn()}
+        onOpenCatalog={onOpenCatalog}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Produtos" }));
+    expect(onOpenCatalog).toHaveBeenCalledWith(expect.any(HTMLButtonElement));
+
+    view.rerender(
+      <ConversationView
+        {...handlers}
+        catalogPickerOpen
+        catalogReady
+        conversation={conversation}
+        onCloseCatalog={vi.fn()}
+        onOpenCatalog={onOpenCatalog}
+      />,
+    );
+    expect(screen.getByRole("complementary", { name: "Produtos do catálogo" })).toBeVisible();
   });
 
   it("discards an open resumption confirmation when the active conversation changes", () => {

@@ -300,7 +300,7 @@ Follow `/configuracoes/meta` patterns. Use semantic status text plus a discreet 
 - Modify: `src/components/inbox/inbox-shell.tsx`
 - Modify: `src/components/inbox/inbox-shell.test.tsx`
 
-- [ ] **Step 1: Write behavior tests**
+- [x] **Step 1: Write behavior tests**
 
 Require:
 
@@ -312,15 +312,15 @@ Require:
 - Escape closes picker before quick replies/reply draft; browser back closes picker before the conversation.
 - Opening/closing preserves text and reply state and returns focus to the trigger.
 
-- [ ] **Step 2: Implement hook and picker**
+- [x] **Step 2: Implement hook and picker**
 
 Keep query state scoped to the current conversation. Abort obsolete requests. Render empty/loading/stale/unavailable states accessibly.
 
-- [ ] **Step 3: Integrate history and Escape priority**
+- [x] **Step 3: Integrate history and Escape priority**
 
 Use a dedicated history marker analogous to the media viewer marker. Do not reuse or overwrite media/reply markers. When multiple layers exist, the most recently opened layer closes first.
 
-- [ ] **Step 4: Run and commit**
+- [x] **Step 4: Run and commit**
 
     npx vitest run src/components/catalog/catalog-picker.test.tsx src/hooks/use-catalog-products.test.ts src/components/inbox/message-composer.test.tsx src/components/inbox/conversation-view.test.tsx src/components/inbox/inbox-shell.test.tsx
     git add src/components/catalog src/hooks/use-catalog-products.ts src/hooks/use-catalog-products.test.ts src/components/inbox/message-composer.tsx src/components/inbox/message-composer.test.tsx src/components/inbox/conversation-view.tsx src/components/inbox/conversation-view.test.tsx src/components/inbox/inbox-shell.tsx src/components/inbox/inbox-shell.test.tsx

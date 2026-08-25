@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { CatalogPicker } from "@/components/catalog/catalog-picker";
 import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
 import { useServiceWindow } from "@/hooks/use-service-window";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
@@ -34,6 +35,7 @@ function prefersReducedMotion() {
 
 const messageUuidPattern = /^[0-9a-f-]{36}$/iu;
 const MEDIA_HISTORY_KEY = "__xpMediaViewer";
+const NOOP = () => undefined;
 
 function historyState(): Record<string, unknown> {
   return window.history.state && typeof window.history.state === "object"
@@ -56,10 +58,14 @@ function removeMediaHistoryMarker(conversationId: string) {
 function ConversationControls({
   conversationId,
   disabled,
+  catalogPickerOpen,
+  catalogReady,
   serviceWindow: authoritativeServiceWindow,
   replyTo,
   replyToMessageId,
   onCancelReply,
+  onCloseCatalog,
+  onOpenCatalog,
   onResumeConversation,
   resumePending,
   resumeError,
@@ -69,10 +75,14 @@ function ConversationControls({
 }: {
   conversationId: string;
   disabled: boolean;
+  catalogPickerOpen: boolean;
+  catalogReady: boolean;
   serviceWindow: ServiceWindowDto;
   replyTo: AvailableQuotedReplyDto | null;
   replyToMessageId: string | null;
   onCancelReply?: () => void;
+  onCloseCatalog?: () => void;
+  onOpenCatalog?: (trigger: HTMLButtonElement) => void;
   onResumeConversation: () => Promise<boolean>;
   resumePending: boolean;
   resumeError: string | null;
@@ -98,9 +108,13 @@ function ConversationControls({
       />
       {serviceWindow.sendMode === "FREE_FORM" ? (
         <MessageComposer
+          catalogPickerOpen={catalogPickerOpen}
+          catalogReady={catalogReady}
           conversationId={conversationId}
           disabled={disabled}
           onCancelReply={onCancelReply}
+          onCloseCatalog={onCloseCatalog}
+          onOpenCatalog={onOpenCatalog}
           onSendMedia={onSendMedia}
           onSendRecording={onSendRecording}
           onSendText={onSendText}
@@ -135,7 +149,11 @@ export function ConversationView({
   onSearchTarget,
   onSearchTargetHandled,
   replyToMessageId = null,
+  catalogPickerOpen = false,
+  catalogReady = false,
   onCancelReply,
+  onCloseCatalog,
+  onOpenCatalog,
   onReplyToMessage,
 }: {
   conversation: InboxConversation | null;
@@ -162,7 +180,11 @@ export function ConversationView({
   onSearchTarget?: (result: MessageSearchResultDto) => void;
   onSearchTargetHandled?: () => void;
   replyToMessageId?: string | null;
+  catalogPickerOpen?: boolean;
+  catalogReady?: boolean;
   onCancelReply?: () => void;
+  onCloseCatalog?: () => void;
+  onOpenCatalog?: (trigger: HTMLButtonElement) => void;
   onReplyToMessage?: (message: InboxMessage) => void;
 }) {
   const historyRef = useRef<HTMLDivElement>(null);
@@ -370,7 +392,8 @@ export function ConversationView({
   }, [conversation?.messages, onSearchTargetHandled, searchTargetMessageId]);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0">
+      <div className="flex min-w-0 flex-1 flex-col">
       <ThreadHeader
         conversation={conversation}
         markUnreadError={markUnreadError}
@@ -423,10 +446,14 @@ export function ConversationView({
       </MessageTimeline> : null}
       {conversation ? (
         <ConversationControls
+          catalogPickerOpen={catalogPickerOpen}
+          catalogReady={catalogReady}
           conversationId={conversation.id}
           disabled={loading}
           key={conversation.id}
           onCancelReply={onCancelReply}
+          onCloseCatalog={onCloseCatalog}
+          onOpenCatalog={onOpenCatalog}
           onResumeConversation={onResumeConversation}
           onSendMedia={onSendMedia}
           onSendRecording={onSendRecording}
@@ -445,6 +472,14 @@ export function ConversationView({
         onClose={closeMedia}
         returnFocus={mediaReturnFocus.current}
       />
+      </div>
+      {conversation ? (
+        <CatalogPicker
+          conversationId={conversation.id}
+          onClose={onCloseCatalog ?? NOOP}
+          open={catalogPickerOpen}
+        />
+      ) : null}
     </div>
   );
 }

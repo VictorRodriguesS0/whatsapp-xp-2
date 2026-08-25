@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Paperclip, Send, Square, Trash2, X } from "lucide-react";
+import { Mic, Paperclip, Send, ShoppingBag, Square, Trash2, X } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -22,8 +22,12 @@ import { QuotedReplyPreview } from "./quoted-reply-preview";
 type MessageComposerProps = {
   conversationId: string;
   disabled?: boolean;
+  catalogReady?: boolean;
+  catalogPickerOpen?: boolean;
   replyTo?: AvailableQuotedReplyDto | null;
   onCancelReply?: () => void;
+  onCloseCatalog?: () => void;
+  onOpenCatalog?: (trigger: HTMLButtonElement) => void;
   onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
@@ -38,8 +42,12 @@ function formatDuration(durationMs: number) {
 export function MessageComposer({
   conversationId,
   disabled,
+  catalogReady = false,
+  catalogPickerOpen = false,
   replyTo = null,
   onCancelReply,
+  onCloseCatalog,
+  onOpenCatalog,
   onSendText,
   onSendMedia,
   onSendRecording,
@@ -211,6 +219,12 @@ export function MessageComposer({
       event.nativeEvent.isComposing ||
       event.defaultPrevented
     ) return;
+    if (catalogPickerOpen && onCloseCatalog) {
+      event.preventDefault();
+      event.stopPropagation();
+      onCloseCatalog();
+      return;
+    }
     if (quickReplyMenuOpen) {
       event.preventDefault();
       event.stopPropagation();
@@ -315,6 +329,18 @@ export function MessageComposer({
               onChange={(event) => setFile(event.target.files?.[0] ?? null)}
               type="file"
             />
+            {catalogReady && onOpenCatalog ? (
+              <Button
+                aria-label="Produtos"
+                aria-expanded={catalogPickerOpen}
+                className="min-h-11 min-w-11"
+                onClick={(event) => onOpenCatalog(event.currentTarget)}
+                size="icon"
+                variant="ghost"
+              >
+                <ShoppingBag aria-hidden="true" className="size-5" />
+              </Button>
+            ) : null}
             <Button aria-label="Anexar arquivo" className="min-h-11 min-w-11" disabled={disabled} onClick={() => fileInputRef.current?.click()} size="icon" variant="ghost"><Paperclip aria-hidden="true" className="size-5" /></Button>
             <textarea
               aria-activedescendant={quickReplyMenuOpen ? `quick-reply-${filteredQuickReplies[Math.min(quickReplyIndex, filteredQuickReplies.length - 1)]?.id}` : undefined}
@@ -323,6 +349,12 @@ export function MessageComposer({
               id="message-body"
               onChange={(event) => { setBody(event.target.value); setQuickReplyDismissed(false); setQuickReplyIndex(0); }}
               onKeyDown={(event) => {
+                if (catalogPickerOpen && onCloseCatalog && event.key === "Escape") {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  onCloseCatalog();
+                  return;
+                }
                 if (quickReplyMenuOpen && event.key === "Escape") {
                   event.preventDefault();
                   event.stopPropagation();

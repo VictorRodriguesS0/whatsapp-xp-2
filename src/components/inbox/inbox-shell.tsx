@@ -38,12 +38,31 @@ function hasOpenDismissibleOverlay() {
   ));
 }
 
+const CATALOG_HISTORY_KEY = "__xpCatalogPicker";
+
+function browserHistoryState(): Record<string, unknown> {
+  return window.history.state && typeof window.history.state === "object"
+    ? window.history.state as Record<string, unknown>
+    : {};
+}
+
+function removeCatalogHistoryMarker(conversationId: string | null) {
+  if (!conversationId) return;
+  const state = browserHistoryState();
+  if (state[CATALOG_HISTORY_KEY] !== conversationId) return;
+  const next = { ...state };
+  delete next[CATALOG_HISTORY_KEY];
+  window.history.replaceState(Object.keys(next).length ? next : null, "", window.location.href);
+}
+
 export function InboxShell({
   initialUser,
   initialMetaHealthSummary,
+  initialCatalogReady = false,
 }: {
   initialUser: SessionUser;
   initialMetaHealthSummary?: MetaHealthSummaryDto | null;
+  initialCatalogReady?: boolean;
 }) {
   const router = useRouter();
   const inbox = useInbox(initialUser);
@@ -53,16 +72,21 @@ export function InboxShell({
   const [searchTargetMessageId, setSearchTargetMessageId] = useState<string | null>(null);
   const globalMessageSearch = useMessageSearch({ scope: "global" });
   const [replyToMessageId, setReplyToMessageId] = useState<string | null>(null);
+  const [catalogPickerOpen, setCatalogPickerOpen] = useState(false);
   const conversationButtons = useRef(new Map<string, HTMLButtonElement>());
   const detailsRestoreTarget = useRef<HTMLButtonElement>(null);
   const lastSelectedId = useRef<string | null>(null);
   const selectedIdRef = useRef<string | null>(inbox.selectedId);
   const detailsOpenRef = useRef(detailsOpen);
   const replyToMessageIdRef = useRef(replyToMessageId);
+  const catalogPickerOpenRef = useRef(catalogPickerOpen);
+  const catalogConversationIdRef = useRef<string | null>(null);
+  const catalogReturnFocus = useRef<HTMLButtonElement | null>(null);
   const cancelScheduledFocus = useRef<(() => void) | null>(null);
   selectedIdRef.current = inbox.selectedId;
   detailsOpenRef.current = detailsOpen;
   replyToMessageIdRef.current = replyToMessageId;
+  catalogPickerOpenRef.current = catalogPickerOpen;
   const selectedListItem = inbox.conversation?.id === inbox.selectedId
     ? inbox.conversation
     : inbox.conversations.find((item) => item.id === inbox.selectedId) ?? null;
@@ -100,12 +124,46 @@ export function InboxShell({
     setDetailsOpen(false);
     setSearchTargetMessageId(null);
     setReplyToMessageId(null);
+    setCatalogPickerOpen(false);
+    removeCatalogHistoryMarker(catalogConversationIdRef.current);
+    catalogConversationIdRef.current = null;
     closeConversation();
     if (idToRestore) {
       cancelScheduledFocus.current?.();
       cancelScheduledFocus.current = afterPaint(() => conversationButtons.current.get(idToRestore)?.focus());
     }
   }, [closeConversation, selectedId]);
+
+  const closeCatalogLocally = useCallback(() => {
+    setCatalogPickerOpen(false);
+    catalogConversationIdRef.current = null;
+    cancelScheduledFocus.current?.();
+    cancelScheduledFocus.current = afterPaint(() => {
+      if (catalogReturnFocus.current?.isConnected) catalogReturnFocus.current.focus();
+    });
+  }, []);
+
+  const closeCatalog = useCallback(() => {
+    if (!catalogPickerOpenRef.current) return;
+    if (window.history.state?.[CATALOG_HISTORY_KEY] === selectedIdRef.current) {
+      window.history.back();
+      return;
+    }
+    closeCatalogLocally();
+  }, [closeCatalogLocally]);
+
+  const openCatalog = useCallback((trigger: HTMLButtonElement) => {
+    const conversationId = selectedIdRef.current;
+    if (!conversationId || catalogPickerOpenRef.current) return;
+    catalogReturnFocus.current = trigger;
+    catalogConversationIdRef.current = conversationId;
+    window.history.pushState(
+      { ...browserHistoryState(), [CATALOG_HISTORY_KEY]: conversationId },
+      "",
+      window.location.href,
+    );
+    setCatalogPickerOpen(true);
+  }, []);
 
   const closeDetailsLocally = useCallback(() => setDetailsOpen(false), []);
 
@@ -161,11 +219,30 @@ export function InboxShell({
     else conversationButtons.current.delete(id);
   }, []);
 
-  useEffect(() => () => cancelScheduledFocus.current?.(), []);
+  useEffect(() => () => {
+    cancelScheduledFocus.current?.();
+    removeCatalogHistoryMarker(catalogConversationIdRef.current);
+  }, []);
 
   useEffect(() => {
     setReplyToMessageId(null);
+    setCatalogPickerOpen(false);
+    removeCatalogHistoryMarker(catalogConversationIdRef.current);
+    catalogConversationIdRef.current = null;
   }, [inbox.selectedId]);
+
+  useEffect(() => {
+    function handleCatalogPopState(event: PopStateEvent) {
+      if (!catalogPickerOpenRef.current) return;
+      const state = event.state && typeof event.state === "object"
+        ? event.state as Record<string, unknown>
+        : {};
+      if (state[CATALOG_HISTORY_KEY] === selectedIdRef.current) return;
+      closeCatalogLocally();
+    }
+    window.addEventListener("popstate", handleCatalogPopState);
+    return () => window.removeEventListener("popstate", handleCatalogPopState);
+  }, [closeCatalogLocally]);
 
   useEffect(() => {
     if (!replyToMessageId) return;
@@ -182,10 +259,14 @@ export function InboxShell({
         event.repeat ||
         event.isComposing ||
         event.defaultPrevented ||
-        isMobileViewport() ||
-        !selectedIdRef.current ||
-        detailsOpenRef.current
+        !selectedIdRef.current
       ) return;
+      if (catalogPickerOpenRef.current) {
+        event.preventDefault();
+        closeCatalog();
+        return;
+      }
+      if (isMobileViewport() || detailsOpenRef.current) return;
       if (hasOpenDismissibleOverlay()) return;
       if (replyToMessageIdRef.current) {
         event.preventDefault();
@@ -198,7 +279,7 @@ export function InboxShell({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeThreadLocally]);
+  }, [closeCatalog, closeThreadLocally]);
 
   async function logout() {
     try { await fetch("/api/auth/logout", { method: "POST" }); } catch { /* internal navigation remains available */ }
@@ -254,6 +335,8 @@ export function InboxShell({
 
           <section aria-hidden={isMobile && mobileView === "list" ? true : undefined} aria-label="Conversa ativa" className="thread-pane min-h-0 bg-[var(--panel)]" inert={isMobile && mobileView === "list" || undefined} role="region">
             <ConversationView
+              catalogPickerOpen={catalogPickerOpen}
+              catalogReady={initialCatalogReady}
               conversation={inbox.conversation}
               error={inbox.conversationError}
               loading={inbox.loadingConversation}
@@ -263,6 +346,8 @@ export function InboxShell({
               onMarkUnread={inbox.markUnread}
               onOpenDetails={openDetails}
               onCancelReply={() => setReplyToMessageId(null)}
+              onCloseCatalog={closeCatalog}
+              onOpenCatalog={openCatalog}
               onReplyToMessage={(message) => setReplyToMessageId(message.id)}
               onRetryLoad={inbox.refreshConversation}
               onRetryMessage={(id) => void inbox.retryMessage(id)}
