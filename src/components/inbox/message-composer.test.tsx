@@ -22,10 +22,23 @@ const recorder = vi.hoisted(() => ({
   discard: vi.fn(),
 }));
 const useAudioRecorderMock = vi.hoisted(() => vi.fn(() => recorder));
+const playbackCoordinator = vi.hoisted(() => ({
+  claim: vi.fn(),
+  release: vi.fn(),
+}));
 
 vi.mock("@/hooks/use-audio-recorder", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/hooks/use-audio-recorder")>();
   return { ...original, useAudioRecorder: useAudioRecorderMock };
+});
+
+vi.mock("./audio-playback", async (importOriginal) => {
+  const original = await importOriginal<typeof import("./audio-playback")>();
+  return {
+    ...original,
+    claimAudioPlayback: playbackCoordinator.claim,
+    releaseAudioPlayback: playbackCoordinator.release,
+  };
 });
 
 function props(overrides: Partial<ComponentProps<typeof MessageComposer>> = {}) {
@@ -378,6 +391,20 @@ describe("MessageComposer", () => {
     recorder.recording = null;
     rendered.rerender(<MessageComposer {...props()} />);
     await waitFor(() => expect(screen.getByRole("button", { name: "Gravar áudio" })).toHaveFocus());
+  });
+
+  it("coordinates recording preview playback with conversation audio", () => {
+    recorder.phase = "preview";
+    recorder.durationMs = 65_000;
+    recorder.recording = previewRecording();
+    render(<MessageComposer {...props()} />);
+    const audio = screen.getByLabelText("Prévia da gravação");
+
+    fireEvent.play(audio);
+    expect(playbackCoordinator.claim).toHaveBeenCalledWith(audio);
+
+    fireEvent.pause(audio);
+    expect(playbackCoordinator.release).toHaveBeenCalledWith(audio);
   });
 
   it("discards only after a successful send and preserves preview after null or rejection", async () => {

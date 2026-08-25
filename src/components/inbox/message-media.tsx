@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import type { InboxMessage } from "@/hooks/use-inbox";
 import type { MediaStateDto } from "@/modules/conversations/types";
 
+import { AudioMessagePlayer } from "./audio-message-player";
 import { PdfMessagePreview } from "./pdf-message-preview";
 
 const MAX_TIMER_DELAY = 2_147_483_647;
@@ -294,7 +295,15 @@ export function MessageMedia({
     // eslint-disable-next-line @next/next/no-img-element -- Native img preserves animated WEBP sticker frames without image transformation.
     return <img alt="Figurinha" className="h-auto max-h-48 w-auto max-w-48 object-contain" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} tabIndex={-1} />;
   }
-  if (message.type === "AUDIO") return <audio aria-label="Reproduzir áudio" className="max-w-full" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
+  if (message.type === "AUDIO") {
+    return (
+      <AudioMessagePlayer
+        buttonRef={(element) => { reconciledFocusTarget.current = element; }}
+        identity={mediaIdentity}
+        source={source}
+      />
+    );
+  }
   if (message.type === "VIDEO") {
     if (!onOpenMedia) return <video aria-label={message.body || "Vídeo da conversa"} className="max-h-80 max-w-full rounded-md" controls preload="metadata" ref={(element) => { reconciledFocusTarget.current = element; }} src={source} />;
     return (

@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useAudioRecorder } from "@/hooks/use-audio-recorder";
 import type { AvailableQuotedReplyDto } from "@/modules/messages/reply-context";
 
+import { claimAudioPlayback, releaseAudioPlayback } from "./audio-playback";
 import { QuickReplyMenu, type QuickReplyOption } from "./quick-reply-menu";
 import { QuotedReplyPreview } from "./quoted-reply-preview";
 
@@ -112,6 +113,15 @@ export function MessageComposer({
       previewRef.current?.focus();
     }
   }, [recorder.phase]);
+
+  useEffect(() => {
+    const preview = previewRef.current;
+    return () => {
+      if (!preview) return;
+      if (!preview.paused) preview.pause();
+      releaseAudioPlayback(preview);
+    };
+  }, [recorder.recording?.previewUrl]);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -268,6 +278,9 @@ export function MessageComposer({
               aria-label="Prévia da gravação"
               className="h-11 min-w-0 flex-1"
               controls
+              onEnded={(event) => releaseAudioPlayback(event.currentTarget)}
+              onPause={(event) => releaseAudioPlayback(event.currentTarget)}
+              onPlay={(event) => claimAudioPlayback(event.currentTarget)}
               preload="metadata"
               ref={previewRef}
               src={recorder.recording.previewUrl}

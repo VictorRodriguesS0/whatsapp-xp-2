@@ -326,11 +326,12 @@ describe("MessageMedia", () => {
     expect(await screen.findByRole("button", { name: "Tentar novamente" })).toBeInTheDocument();
   });
 
-  it("renders the existing player only after media becomes available", () => {
+  it.each(["INBOUND", "OUTBOUND"] as const)("renders the controlled %s player only after media becomes available", (direction) => {
     const { container } = render(
       <MessageMedia
         message={{
           ...baseMessage,
+          direction,
           mediaState: { status: "AVAILABLE", nextAttemptAt: null, canRetry: false },
         }}
       />,
@@ -341,7 +342,9 @@ describe("MessageMedia", () => {
       "src",
       `/api/media/${baseMessage.mediaObjectId}`,
     );
-    expect(container.querySelector("audio")).toHaveAttribute("aria-label", "Reproduzir áudio");
+    expect(container.querySelector("audio")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByRole("button", { name: "Reproduzir áudio" })).toBeVisible();
+    expect(container.querySelector(`[data-audio-player="${baseMessage.id}:${baseMessage.mediaObjectId}"]`)).toBeInTheDocument();
   });
 
   it("renders an available sticker from the authenticated route", () => {
