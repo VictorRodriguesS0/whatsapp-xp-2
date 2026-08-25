@@ -132,6 +132,14 @@ describe("Meta health severity", () => {
         "TEMPLATE_FLAGGED",
       ],
     });
+    expect(
+      describeMetaTransition("message_template_status_update", "DELETED"),
+    ).toMatchObject({
+      severity: "INFO",
+      active: false,
+      alertCode: "TEMPLATE_DELETED",
+      resolvesCodes: ["TEMPLATE_PENDING_DELETION"],
+    });
   });
 
   it("does not interpolate unknown provider content", () => {
