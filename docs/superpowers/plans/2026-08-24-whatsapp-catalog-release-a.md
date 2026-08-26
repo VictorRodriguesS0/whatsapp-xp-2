@@ -353,7 +353,7 @@ Document, without secret values:
 
 Stop before mutation if IDs, association or permissions are ambiguous.
 
-- [ ] **Step 3: Run full local gates**
+- [x] **Step 3: Run full local gates**
 
     npm test
     npm run lint
@@ -365,11 +365,11 @@ Stop before mutation if IDs, association or permissions are ambiguous.
 
 Expected: all exit zero, audit reports no production vulnerability and the tree contains only intentional changes.
 
-- [ ] **Step 4: Verify the production-like image**
+- [x] **Step 4: Verify the production-like image**
 
 Build the exact clean revision, run its full suite against disposable PostgreSQL 18, verify non-root UID 1001, healthcheck, Meta credentials absent from layers/client chunks and catalog failure isolation. Perform browser verification with synthetic data for desktop and mobile.
 
-- [ ] **Step 5: Mandatory concurrent-work and live-ancestry audit**
+- [x] **Step 5: Mandatory concurrent-work and live-ancestry audit**
 
 Immediately before deploy:
 
@@ -380,7 +380,7 @@ Immediately before deploy:
 
 Read every worktree status and relevant diff. Obtain the running immutable revision from the app container label without printing environment. Require it to be an ancestor of the candidate. If production or another completed reviewed feature is newer, reconcile by normal Git integration and rerun every gate. Never copy uncommitted parallel files.
 
-- [ ] **Step 6: Deploy only the app**
+- [x] **Step 6: Deploy only the app**
 
 Use the immutable release procedure already validated in `README.md`:
 
@@ -393,11 +393,11 @@ Use the immutable release procedure already validated in `README.md`:
 
 Abort/rollback if database container ID/StartedAt, non-app container snapshot, networks or volumes change.
 
-- [ ] **Step 7: Verify and record production**
+- [x] **Step 7: Verify and record production**
 
 Verify health, login, conversations, text/audio/media regression, admin catalog page, product search, safe images, catalog visibility and cart preservation. Do not send product messages in Release A. Soak logs and restart count, then record sanitized commit/image/health/test/invariant evidence.
 
-- [ ] **Step 8: Commit evidence**
+- [x] **Step 8: Commit evidence**
 
     git add README.md scripts src/whatsapp-catalog-release-a.test.ts docs/verification/2026-08-24-whatsapp-catalog-release-a.md
     git commit -m "docs: verify catalog read release"
