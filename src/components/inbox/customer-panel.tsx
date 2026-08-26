@@ -16,8 +16,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { ResponsibleOption } from "@/hooks/use-inbox";
+import type { ContactMessagingConsentInput } from "@/modules/contacts/schemas";
 import type { ContactClassificationRecord, ConversationListItem } from "@/modules/conversations/types";
 
+import { ContactConsentControl } from "./contact-consent-control";
 import { ContactTagChip } from "./contact-tag-chip";
 import { ContactTagEditor } from "./contact-tag-editor";
 import { ContactTypeSelector } from "./contact-type-selector";
@@ -45,6 +47,9 @@ export function CustomerPanel({
   tagSaveError,
   onRetryTags,
   onSaveTags,
+  onSetMessagingConsent,
+  messagingConsentPending = false,
+  messagingConsentError = null,
   onSetMessagingRestriction,
   messagingRestrictionPending = false,
   messagingRestrictionError = null,
@@ -71,6 +76,12 @@ export function CustomerPanel({
   tagSaveError: string | null;
   onRetryTags: () => void;
   onSaveTags: (contactId: string, tagIds: string[]) => Promise<boolean>;
+  onSetMessagingConsent?: (
+    contactId: string,
+    input: ContactMessagingConsentInput,
+  ) => Promise<boolean>;
+  messagingConsentPending?: boolean;
+  messagingConsentError?: string | null;
   onSetMessagingRestriction?: (
     contactId: string,
     restricted: boolean,
@@ -184,6 +195,17 @@ export function CustomerPanel({
         </div>
       </section>
 
+      {onSetMessagingConsent ? (
+        <ContactConsentControl
+          consent={conversation.contact.messagingConsent}
+          contactId={conversation.contact.id}
+          error={messagingConsentError}
+          messagingRestricted={conversation.contact.messagingRestricted}
+          onChange={onSetMessagingConsent}
+          pending={messagingConsentPending}
+        />
+      ) : null}
+
       {onSetMessagingRestriction ? (
         <section aria-labelledby="contact-permission-heading" className="border-b border-[var(--border)] py-5">
           <h3 className="flex items-center gap-2 text-sm font-bold text-[var(--text)]" id="contact-permission-heading">
@@ -271,7 +293,7 @@ export function CustomerPanel({
           <AlertDialogDescription className="mt-2 text-sm leading-6 text-[var(--muted)]">
             {restrictionIntent
               ? "A retomada por template será bloqueada para este contato."
-              : "A permissão vale para atendimentos futuros que respeitem as regras da Meta."}
+              : "Remover a restrição não restaura consentimento; registre uma nova autorização acima."}
           </AlertDialogDescription>
           <label className="mt-4 block text-sm font-semibold text-[var(--text)]" htmlFor="messaging-restriction-reason">
             Motivo

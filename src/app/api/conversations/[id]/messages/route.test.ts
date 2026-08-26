@@ -31,6 +31,13 @@ describe("conversation history route", () => {
         name: "Carlos",
         phone: "1",
         messagingRestricted: false,
+        messagingConsent: {
+          active: false,
+          source: null,
+          grantedAt: null,
+          grantedBy: null,
+          note: null,
+        },
         type: null,
         tags: [],
       },

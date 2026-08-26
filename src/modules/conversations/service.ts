@@ -13,6 +13,7 @@ import { formatContactPhone, resolveContactName } from "@/lib/contact-display";
 import { prisma } from "@/lib/db";
 import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
+import { toContactMessagingConsentDto } from "@/modules/contacts/service";
 import { parseMessageContent } from "@/modules/messages/content";
 import {
   deriveServiceWindowDto,
@@ -164,6 +165,11 @@ const conversationSelect = {
       preferredName: true,
       phone: true,
       messagingOptOutAt: true,
+      messagingConsentGrantedAt: true,
+      messagingConsentSource: true,
+      messagingConsentGrantedByUserId: true,
+      messagingConsentGrantedByUser: { select: { id: true, name: true } },
+      messagingConsentNote: true,
       whatsappAppContact: { select: { fullName: true, active: true } },
       contactType: { select: classificationSelect },
       tagAssignments: {
@@ -408,6 +414,7 @@ function toContactDto(
     }),
     phone: formatContactPhone(contact.phone),
     messagingRestricted: contact.messagingOptOutAt !== null,
+    messagingConsent: toContactMessagingConsentDto(contact),
     type: contact.contactType
       ? toContactClassificationDto(contact.contactType)
       : null,

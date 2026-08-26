@@ -33,6 +33,11 @@
   --rich-border: #c7d1db;
   --media-surface: #f1f5f8;
   --media-surface-hover: #e5edf3;
+  --audio-control: #005fbd;
+  --audio-control-hover: #004d99;
+  --audio-control-foreground: #ffffff;
+  --audio-progress: #005fbd;
+  --audio-rail: #5d6673;
   --channel: #168b61;
   --danger: #c23b3b;
   --danger-hover: #963932;
@@ -73,6 +78,11 @@
   --rich-border: #3a424e;
   --media-surface: #20252c;
   --media-surface-hover: #2a3038;
+  --audio-control: #5aa7ff;
+  --audio-control-hover: #80bbff;
+  --audio-control-foreground: #050505;
+  --audio-progress: #5aa7ff;
+  --audio-rail: #a9b2bf;
   --channel: #5dd3a5;
   --danger: #ff7b7b;
   --danger-hover: #ff9b9b;

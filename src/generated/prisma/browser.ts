@@ -137,3 +137,8 @@ export type ConversationResumption = Prisma.ConversationResumptionModel
  * 
  */
 export type ContactMessagingRestrictionEvent = Prisma.ContactMessagingRestrictionEventModel
+/**
+ * Model ContactMessagingConsentEvent
+ * 
+ */
+export type ContactMessagingConsentEvent = Prisma.ContactMessagingConsentEventModel

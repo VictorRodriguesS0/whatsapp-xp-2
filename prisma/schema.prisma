@@ -123,6 +123,18 @@ enum ContactMessagingRestrictionAction {
   OPT_IN
 }
 
+enum ContactMessagingConsentSource {
+  WHATSAPP
+  LOJA_FISICA
+  TELEFONE
+  OUTRO
+}
+
+enum ContactMessagingConsentAction {
+  GRANTED
+  REVOKED
+}
+
 enum MetaAlertCategory {
   PHONE_QUALITY
   ACCOUNT
@@ -163,7 +175,9 @@ model User {
   conversationResumptions     ConversationResumption[]           @relation("ConversationResumptionSender")
   messagingRestrictionEvents  ContactMessagingRestrictionEvent[] @relation("ContactMessagingRestrictionActor")
   messagingRestrictedContacts Contact[]                          @relation("ContactMessagingRestrictedBy")
-  acknowledgedMetaAlerts    MetaOperationalAlert[]    @relation("MetaAlertAcknowledgement")
+  messagingConsentGrants      Contact[]                          @relation("MessagingConsentGrantActor")
+  messagingConsentEvents      ContactMessagingConsentEvent[]     @relation("ContactMessagingConsentActor")
+  acknowledgedMetaAlerts      MetaOperationalAlert[]             @relation("MetaAlertAcknowledgement")
 
   @@map("users")
 }
@@ -182,26 +196,32 @@ model Session {
 }
 
 model Contact {
-  id                          String                             @id @default(uuid()) @db.Uuid
-  whatsappId                  String?                            @unique @map("whatsapp_id")
-  whatsappUserId              String?                            @unique @map("whatsapp_user_id")
-  phone                       String?                            @unique
-  name                        String
-  preferredName               String?                            @map("preferred_name")
-  profilePictureUrl           String?                            @map("profile_picture_url")
-  contactTypeId               String?                            @map("contact_type_id") @db.Uuid
-  whatsappAppContactId        String?                            @unique @map("whatsapp_app_contact_id") @db.Uuid
-  messagingOptOutAt           DateTime?                          @map("messaging_opt_out_at") @db.Timestamptz(3)
-  messagingRestrictionReason  String?                            @map("messaging_restriction_reason")
-  messagingRestrictedByUserId String?                            @map("messaging_restricted_by_user_id") @db.Uuid
-  createdAt                   DateTime                           @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                   DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(3)
-  conversation                Conversation?
-  contactType                 ContactType?                       @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
-  whatsappAppContact          WhatsAppAppContact?                @relation(fields: [whatsappAppContactId], references: [id], onDelete: SetNull)
-  messagingRestrictedBy       User?                              @relation("ContactMessagingRestrictedBy", fields: [messagingRestrictedByUserId], references: [id], onDelete: Restrict)
-  messagingRestrictionEvents  ContactMessagingRestrictionEvent[]
-  tagAssignments              ContactTagAssignment[]
+  id                              String                             @id @default(uuid()) @db.Uuid
+  whatsappId                      String?                            @unique @map("whatsapp_id")
+  whatsappUserId                  String?                            @unique @map("whatsapp_user_id")
+  phone                           String?                            @unique
+  name                            String
+  preferredName                   String?                            @map("preferred_name")
+  profilePictureUrl               String?                            @map("profile_picture_url")
+  contactTypeId                   String?                            @map("contact_type_id") @db.Uuid
+  whatsappAppContactId            String?                            @unique @map("whatsapp_app_contact_id") @db.Uuid
+  messagingOptOutAt               DateTime?                          @map("messaging_opt_out_at") @db.Timestamptz(3)
+  messagingRestrictionReason      String?                            @map("messaging_restriction_reason")
+  messagingRestrictedByUserId     String?                            @map("messaging_restricted_by_user_id") @db.Uuid
+  messagingConsentGrantedAt       DateTime?                          @map("messaging_consent_granted_at") @db.Timestamptz(3)
+  messagingConsentSource          ContactMessagingConsentSource?     @map("messaging_consent_source")
+  messagingConsentGrantedByUserId String?                            @map("messaging_consent_granted_by_user_id") @db.Uuid
+  messagingConsentNote            String?                            @map("messaging_consent_note")
+  createdAt                       DateTime                           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                       DateTime                           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  conversation                    Conversation?
+  contactType                     ContactType?                       @relation(fields: [contactTypeId], references: [id], onDelete: SetNull)
+  whatsappAppContact              WhatsAppAppContact?                @relation(fields: [whatsappAppContactId], references: [id], onDelete: SetNull)
+  messagingRestrictedBy           User?                              @relation("ContactMessagingRestrictedBy", fields: [messagingRestrictedByUserId], references: [id], onDelete: Restrict)
+  messagingRestrictionEvents      ContactMessagingRestrictionEvent[]
+  messagingConsentGrantedByUser   User?                              @relation("MessagingConsentGrantActor", fields: [messagingConsentGrantedByUserId], references: [id], onDelete: SetNull)
+  messagingConsentEvents          ContactMessagingConsentEvent[]
+  tagAssignments                  ContactTagAssignment[]
 
   @@map("contacts")
 }
@@ -506,26 +526,26 @@ model MetaHealthSnapshot {
 }
 
 model MetaOperationalAlert {
-  id                   String              @id @default(uuid()) @db.Uuid
-  snapshotId           String              @map("snapshot_id") @db.Uuid
-  deduplicationKey     String?             @unique @map("deduplication_key")
+  id                   String             @id @default(uuid()) @db.Uuid
+  snapshotId           String             @map("snapshot_id") @db.Uuid
+  deduplicationKey     String?            @unique @map("deduplication_key")
   category             MetaAlertCategory
   severity             MetaAlertSeverity
   source               MetaAlertSource
-  sourceField          String              @map("source_field")
-  eventCode            String              @map("event_code")
-  resourceId           String?             @map("resource_id")
+  sourceField          String             @map("source_field")
+  eventCode            String             @map("event_code")
+  resourceId           String?            @map("resource_id")
   summary              String
   details              Json?
-  occurredAt           DateTime            @map("occurred_at") @db.Timestamptz(3)
-  active               Boolean             @default(true)
-  resolvedAt           DateTime?           @map("resolved_at") @db.Timestamptz(3)
-  acknowledgedAt       DateTime?           @map("acknowledged_at") @db.Timestamptz(3)
-  acknowledgedByUserId String?             @map("acknowledged_by_user_id") @db.Uuid
-  createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt            DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
-  snapshot             MetaHealthSnapshot  @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
-  acknowledgedByUser   User?               @relation("MetaAlertAcknowledgement", fields: [acknowledgedByUserId], references: [id], onDelete: SetNull)
+  occurredAt           DateTime           @map("occurred_at") @db.Timestamptz(3)
+  active               Boolean            @default(true)
+  resolvedAt           DateTime?          @map("resolved_at") @db.Timestamptz(3)
+  acknowledgedAt       DateTime?          @map("acknowledged_at") @db.Timestamptz(3)
+  acknowledgedByUserId String?            @map("acknowledged_by_user_id") @db.Uuid
+  createdAt            DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  snapshot             MetaHealthSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+  acknowledgedByUser   User?              @relation("MetaAlertAcknowledgement", fields: [acknowledgedByUserId], references: [id], onDelete: SetNull)
 
   @@index([snapshotId, active, severity, occurredAt])
   @@index([occurredAt, id])
@@ -639,4 +659,19 @@ model ContactMessagingRestrictionEvent {
 
   @@index([contactId, createdAt])
   @@map("contact_messaging_restriction_events")
+}
+
+model ContactMessagingConsentEvent {
+  id          String                        @id @default(uuid()) @db.Uuid
+  contactId   String                        @map("contact_id") @db.Uuid
+  actorUserId String                        @map("actor_user_id") @db.Uuid
+  action      ContactMessagingConsentAction
+  source      ContactMessagingConsentSource
+  note        String?
+  createdAt   DateTime                      @default(now()) @map("created_at") @db.Timestamptz(3)
+  contact     Contact                       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  actorUser   User                          @relation("ContactMessagingConsentActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([contactId, createdAt])
+  @@map("contact_messaging_consent_events")
 }

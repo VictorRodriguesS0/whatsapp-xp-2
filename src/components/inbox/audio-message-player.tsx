@@ -17,7 +17,7 @@ import {
 
 const playbackError = "Não foi possível reproduzir este áudio.";
 const mutedRailStyle = {
-  backgroundImage: "repeating-linear-gradient(to right, color-mix(in srgb, var(--muted) 42%, transparent) 0 3px, transparent 3px 6px)",
+  backgroundImage: "repeating-linear-gradient(to right, var(--audio-rail) 0 3px, transparent 3px 6px)",
 } satisfies CSSProperties;
 
 function validDuration(duration: number) {
@@ -114,7 +114,7 @@ export function AudioMessagePlayer({
   }, []);
 
   const progressStyle = {
-    backgroundImage: "repeating-linear-gradient(to right, var(--accent) 0 3px, transparent 3px 6px)",
+    backgroundImage: "repeating-linear-gradient(to right, var(--audio-progress) 0 3px, transparent 3px 6px)",
     width: `${progress}%`,
   } satisfies CSSProperties;
 
@@ -145,7 +145,8 @@ export function AudioMessagePlayer({
       <div className="flex min-w-0 items-center gap-2">
         <button
           aria-label={playing ? "Pausar áudio" : "Reproduzir áudio"}
-          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--accent)] text-white outline-none transition-colors hover:bg-[var(--accent-hover)] focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 motion-reduce:transition-none"
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full bg-[var(--audio-control)] text-[var(--audio-control-foreground)] outline-none transition-colors hover:bg-[var(--audio-control-hover)] focus-visible:ring-2 focus-visible:ring-[var(--focus)] focus-visible:ring-offset-2 motion-reduce:transition-none"
+          data-audio-control="playback"
           onClick={() => void togglePlayback()}
           ref={buttonRef}
           type="button"
@@ -154,8 +155,8 @@ export function AudioMessagePlayer({
         </button>
 
         <div className="relative h-11 min-w-0 flex-1 rounded-sm focus-within:ring-2 focus-within:ring-[var(--accent)]">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-2 h-3 overflow-hidden" style={mutedRailStyle}>
-            <div className="h-full transition-[width] duration-150 motion-reduce:transition-none" style={progressStyle} />
+          <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-2 h-3 overflow-hidden" data-audio-track="rail" style={mutedRailStyle}>
+            <div className="h-full transition-[width] duration-150 motion-reduce:transition-none" data-audio-track="progress" style={progressStyle} />
           </div>
           <span aria-hidden="true" className="pointer-events-none absolute bottom-0 left-0 font-mono text-[11px] leading-none tabular-nums text-[var(--muted)]">
             {`${formatAudioTime(currentTime)} / ${formatAudioTime(duration)}`}

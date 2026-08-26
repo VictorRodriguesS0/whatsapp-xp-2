@@ -219,6 +219,60 @@ describe("semantic media action contrast", () => {
   });
 });
 
+describe("semantic audio player contrast", () => {
+  it.each([
+    ["light", ':root[data-theme="light"]'],
+    ["dark", ':root[data-theme="dark"]'],
+  ])("keeps the real audio control and track pairs at 3:1 in the %s theme", (_theme, selector) => {
+    const root = postcss.parse(stylesheet);
+    const theme = root.nodes?.find(
+      (node): node is Rule => node.type === "rule" && node.selector.includes(selector),
+    );
+
+    expect(theme).toBeDefined();
+    if (!theme) return;
+
+    const controlForeground = declarationValue(theme, "--audio-control-foreground") ?? "";
+    expect(controlForeground, "--audio-control-foreground").toMatch(/^#[0-9a-f]{6}$/i);
+    for (const backgroundToken of ["--audio-control", "--audio-control-hover"]) {
+      const background = declarationValue(theme, backgroundToken) ?? "";
+      expect(background, backgroundToken).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(
+        contrastRatio(controlForeground, background),
+        `--audio-control-foreground over ${backgroundToken}`,
+      ).toBeGreaterThanOrEqual(3);
+    }
+
+    for (const trackToken of ["--audio-progress", "--audio-rail"]) {
+      const track = declarationValue(theme, trackToken) ?? "";
+      expect(track, trackToken).toMatch(/^#[0-9a-f]{6}$/i);
+      for (const messageToken of ["--inbound", "--outbound"]) {
+        const messageSurface = declarationValue(theme, messageToken) ?? "";
+        expect(messageSurface, messageToken).toMatch(/^#[0-9a-f]{6}$/i);
+        expect(
+          contrastRatio(track, messageSurface),
+          `${trackToken} over ${messageToken}`,
+        ).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+
+  it("renders the audio control and track from dedicated semantic tokens", () => {
+    const player = source("src/components/inbox/audio-message-player.tsx");
+
+    for (const token of [
+      "--audio-control",
+      "--audio-control-hover",
+      "--audio-control-foreground",
+      "--audio-progress",
+      "--audio-rail",
+    ]) {
+      expect(player).toContain(`var(${token})`);
+    }
+    expect(player).not.toMatch(/text-white|color-mix\([^)]*--muted/i);
+  });
+});
+
 describe("mobile visual viewport contract", () => {
   it("requests content resize and applies a mobile-only frame height without a 34rem floor", () => {
     const layout = source("src/app/layout.tsx");
