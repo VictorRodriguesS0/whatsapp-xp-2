@@ -67,6 +67,18 @@ describe("parseServerEnv", () => {
     ).toBeUndefined();
   });
 
+  it.each(["", "   "])(
+    "normalizes an empty catalog value emitted by Compose as unconfigured",
+    (catalogId) => {
+      expect(
+        parseServerEnv({
+          ...validBase,
+          WHATSAPP_CATALOG_ID: catalogId,
+        }).WHATSAPP_CATALOG_ID,
+      ).toBeUndefined();
+    },
+  );
+
   it("accepts a bounded numeric server-only catalog id", () => {
     expect(
       parseServerEnv({
@@ -76,7 +88,7 @@ describe("parseServerEnv", () => {
     ).toBe("123456789012345");
   });
 
-  it.each(["", "catalog-xp", "123\u0000", "1".repeat(65)])(
+  it.each(["catalog-xp", "123\u0000", "1".repeat(65)])(
     "rejects an invalid catalog id %#",
     (catalogId) => {
       expect(() =>
