@@ -182,3 +182,17 @@ Follow-up screenshots:
 - `390x844-dark-whatsapp-settings.png`
 - `1440x900-light-whatsapp-settings.png`
 - `1440x900-dark-whatsapp-settings.png`
+
+## Final integrated production refresh — 2026-08-26
+
+The final responsive candidate now includes the exact intervening live consent revision through merge `8514a44d8cea4fb912104a83c736938f2ab53168`. The immutable production image is `sha256:8cd103eb405b45f8508e400d74f049a14d96162f1f11b403fd99054a482ccf87`, with validated backup `/srv/backups/example-app/example-backup`. Immediate app-only rollback remains `5698cc9c305fbda056545f6fbf2161c4e1b2521b` / `sha256:a0bbaadd9f53312499cc926ca2a8801e9377172a7184caf42d5f90d332b53518`.
+
+- The exact candidate Linux gate passed 205/205 files and 1785/1785 tests with zero skips and real FFmpeg before promotion.
+- A corrected full-ID app-only deployment was already complete when closing verification resumed. The closing pass did not recreate the application.
+- Local/public health, synthetic login, inbox, SSE, WhatsApp settings and consent grant/revoke passed. All disposable user/session/contact/consent rows were removed and verified at zero.
+- The public manifest and six exact-dimension PNG icons returned 200. Common service-worker paths returned 404, and the active source contains no service-worker registration.
+- Active responsive/theme structure includes `interactive-widget=resizes-content`, the mobile VisualViewport hook, semantic contrast tokens, the shared WhatsApp settings shell and light/dark/system theme handling.
+- Three soak samples at `02:34:30Z`, `02:34:50Z` and `02:35:10Z` each returned local/public 200, healthy, restart 0 and zero critical log matches.
+- Database ID/StartedAt and deterministic snapshots for 30 non-app containers, 14 networks and 51 volumes remained unchanged.
+
+The prior native user acceptance `INSTALOU E ABRIU` remains valid. No reinstall or physical on-screen-keyboard acceptance is claimed for this refresh. Full operational detail is in `.superpowers/sdd/final-production-refresh-report.md`.
