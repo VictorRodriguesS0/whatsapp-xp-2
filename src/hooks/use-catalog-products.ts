@@ -2,7 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { CatalogPageDto, CatalogProductDto } from "@/modules/catalog/types";
+import {
+  MAX_CATALOG_DESCRIPTION_LENGTH,
+  type CatalogPageDto,
+  type CatalogProductDto,
+} from "@/modules/catalog/types";
 
 const PRODUCT_KEYS = new Set([
   "retailerId",
@@ -38,7 +42,10 @@ function product(value: unknown): CatalogProductDto | null {
     typeof item.name !== "string" ||
     item.name.length < 1 ||
     item.name.length > 512 ||
-    !(item.description === null || (typeof item.description === "string" && item.description.length <= 2_000)) ||
+    !(item.description === null || (
+      typeof item.description === "string" &&
+      item.description.length <= MAX_CATALOG_DESCRIPTION_LENGTH
+    )) ||
     !(item.priceText === null || (typeof item.priceText === "string" && item.priceText.length <= 128)) ||
     typeof item.availability !== "string" ||
     !AVAILABILITY.has(item.availability) ||

@@ -3,6 +3,7 @@ import "server-only";
 import { z } from "zod";
 
 import {
+  MAX_CATALOG_DESCRIPTION_LENGTH,
   catalogAvailabilityValues,
   type CatalogAvailability,
   type CatalogProductDto,
@@ -10,8 +11,6 @@ import {
 
 const unsafeControlPattern = /[\u0000-\u001f\u007f-\u009f]/u;
 const retailerIdPattern = /^[A-Za-z0-9._:-]{1,128}$/u;
-const MAX_CATALOG_DESCRIPTION_LENGTH = 10_000;
-
 export const catalogRetailerIdSchema = z.string().regex(retailerIdPattern);
 
 function normalizedText(

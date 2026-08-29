@@ -7,6 +7,8 @@ export const catalogAvailabilityValues = [
   "UNKNOWN",
 ] as const;
 
+export const MAX_CATALOG_DESCRIPTION_LENGTH = 10_000;
+
 export type CatalogAvailability = (typeof catalogAvailabilityValues)[number];
 
 export type CatalogProductDto = {

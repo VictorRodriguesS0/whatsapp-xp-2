@@ -56,6 +56,19 @@ describe("useCatalogProducts", () => {
     );
   });
 
+  it("accepts the longer descriptions returned by the live Meta catalog", async () => {
+    const liveItem = { ...item, description: "A".repeat(2_278) };
+    vi.mocked(fetch).mockResolvedValue(envelope({
+      products: [liveItem], nextCursor: null, freshness: "FRESH", fetchedAt: "2026-08-29T12:00:00.000Z",
+    }));
+
+    const { result } = renderHook(() => useCatalogProducts({ conversationId: "one", open: true }));
+    await act(async () => vi.advanceTimersByTimeAsync(0));
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.items).toEqual([liveItem]);
+  });
+
   it("debounces search and aborts an obsolete request", async () => {
     const signals: AbortSignal[] = [];
     vi.mocked(fetch).mockImplementation((_url, init) => {
