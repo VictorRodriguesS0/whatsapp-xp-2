@@ -95,6 +95,20 @@ describe("normalizeCatalogProduct", () => {
     ).toMatchObject({ availableToSend: false });
   });
 
+  it("accepts the longer descriptions returned by the live Meta catalog", () => {
+    const description = "A".repeat(2_278);
+
+    expect(
+      normalizeCatalogProduct({
+        retailer_id: "XP-DESCRICAO-LONGA",
+        name: "Produto com descrição detalhada",
+        description,
+        availability: "in stock",
+        visibility: "published",
+      }),
+    ).toMatchObject({ description });
+  });
+
   it.each([
     {},
     { retailer_id: "", name: "Produto" },

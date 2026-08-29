@@ -10,6 +10,7 @@ import {
 
 const unsafeControlPattern = /[\u0000-\u001f\u007f-\u009f]/u;
 const retailerIdPattern = /^[A-Za-z0-9._:-]{1,128}$/u;
+const MAX_CATALOG_DESCRIPTION_LENGTH = 10_000;
 
 export const catalogRetailerIdSchema = z.string().regex(retailerIdPattern);
 
@@ -59,7 +60,7 @@ const catalogProductSchema = z
   .object({
     retailerId: catalogRetailerIdSchema,
     name: z.string().min(1).max(512),
-    description: z.string().max(2_000).nullable(),
+    description: z.string().max(MAX_CATALOG_DESCRIPTION_LENGTH).nullable(),
     priceText: z.string().max(128).nullable(),
     availability: z.enum(catalogAvailabilityValues),
     availableToSend: z.boolean(),
@@ -115,7 +116,7 @@ export function normalizeCatalogProduct(value: unknown): CatalogProduct | null {
 
   const description = raw.description == null
     ? null
-    : normalizedText(raw.description, 2_000);
+    : normalizedText(raw.description, MAX_CATALOG_DESCRIPTION_LENGTH);
   if (raw.description != null && description === null) return null;
 
   let priceText = raw.price == null
