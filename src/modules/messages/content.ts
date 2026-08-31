@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  catalogContentSchema,
+  catalogProductContentSchema,
+  catalogProductListContentSchema,
+} from "@/modules/catalog/message-content";
+
 const short = z.string().min(1).max(256);
 const optionalShort = short.nullable();
 const phone = z.object({ phone: z.string().min(1).max(32), type: optionalShort });
@@ -29,6 +35,9 @@ const schema = z.discriminatedUnion("kind", [
     catalogId: z.string().min(1).max(256).nullable(),
     productCount: z.number().int().min(0).max(1_000),
   }),
+  catalogContentSchema,
+  catalogProductContentSchema,
+  catalogProductListContentSchema,
   z.object({
     kind: z.literal("system"),
     text: z.string().min(1).max(512).nullable(),
