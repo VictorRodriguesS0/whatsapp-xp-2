@@ -1446,11 +1446,15 @@ function assertPreparedCatalogIdentity(
   input: PreparedCatalogMessageInput,
 ): void {
   assertSameIdempotentOperation(message, actor, conversationId, undefined);
+  const storedContent = catalogContent(message);
+  const storedRetailerIds = storedContent ? catalogRetailerIds(storedContent) : [];
+  const requestedRetailerIds = catalogRetailerIds(input.content);
   if (
     message.outboundPayloadKind !== OutboundPayloadKind.FREE_FORM ||
     message.type !== MessageType.INTERACTIVE ||
-    message.body !== input.body ||
-    JSON.stringify(message.content) !== JSON.stringify(input.content)
+    storedContent?.kind !== input.content.kind ||
+    storedRetailerIds.length !== requestedRetailerIds.length ||
+    storedRetailerIds.some((retailerId, index) => retailerId !== requestedRetailerIds[index])
   ) {
     throw new HttpError(409, "Identificador de envio já utilizado");
   }

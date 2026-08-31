@@ -432,6 +432,49 @@ describe("outbound message service", () => {
     });
   });
 
+  it("keeps a repeated catalog request idempotent after its snapshot is refreshed", async () => {
+    const state = harness();
+    state.dependencies.revalidateCatalogForSend = async () => [{
+      retailerId: "XP-1",
+      name: "Controle atualizado",
+      description: "Descrição atualizada",
+      priceText: "BRL 120.00",
+      availability: "IN_STOCK",
+      availableToSend: true,
+      imageUrl: "https://images.example.test/updated.webp",
+    }];
+    const input = {
+      clientRequestId: "41000000-0000-4000-8000-000000000007",
+      body: "Produto enviado: Controle",
+      content: {
+        kind: "catalogProduct" as const,
+        product: {
+          retailerId: "XP-1",
+          name: "Controle",
+          description: null,
+          priceText: "BRL 100.00",
+          availability: "IN_STOCK" as const,
+        },
+      },
+    };
+
+    const first = await sendPreparedCatalogMessage(
+      actor,
+      conversationId,
+      input,
+      state.dependencies,
+    );
+    const repeated = await sendPreparedCatalogMessage(
+      actor,
+      conversationId,
+      input,
+      state.dependencies,
+    );
+
+    expect(repeated.id).toBe(first.id);
+    expect(state.provider.productInputs).toHaveLength(1);
+  });
+
   it("sends an ordered product list and the complete catalog through their official operations", async () => {
     const list = harness();
     list.dependencies.revalidateCatalogForSend = async (ids) => ids.map((retailerId) => ({
