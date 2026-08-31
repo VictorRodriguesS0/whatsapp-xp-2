@@ -259,7 +259,7 @@ describe("outbound message PostgreSQL concurrency", () => {
           priceText: "BRL 120.00",
         },
       },
-      searchText: expect.stringContaining("Produto enviado: Controle"),
+      searchText: expect.stringContaining("produto enviado: controle"),
       status: MessageStatus.SENT,
     });
     expect(JSON.stringify(first.content)).not.toContain("images.example.test");
