@@ -3,8 +3,10 @@ import "server-only";
 import { HttpError } from "@/lib/http";
 import { requireUser } from "@/modules/auth/guards";
 import type { SessionUser } from "@/modules/auth/session";
+import type { MessageDto } from "@/modules/conversations/types";
 import { assertFreeFormSendAllowed } from "@/modules/messaging-policy/service";
 import { messageUuidSchema } from "@/modules/messages/schemas";
+import { sendPreparedCatalogMessage as deliverPreparedCatalogMessage } from "@/modules/messages/service";
 
 import {
   CATALOG_COMPLETE_MESSAGE_BODY,
@@ -20,6 +22,7 @@ import {
   CatalogServiceError,
   type CatalogService,
 } from "./service";
+import { getCatalogService } from "./factory";
 
 export type PreparedCatalogMessage = {
   clientRequestId: string;
@@ -34,6 +37,20 @@ export type CatalogSendPreflightDependencies = {
     now: Date,
   ) => Promise<void>;
   now?: () => Date;
+};
+
+export type CatalogSendDependencies = {
+  catalog?: Pick<CatalogService, "validateForSend">;
+  assertFreeFormSendAllowed?: (
+    conversationId: string,
+    now: Date,
+  ) => Promise<void>;
+  now?: () => Date;
+  sendPreparedCatalogMessage?: (
+    actor: SessionUser,
+    conversationId: string,
+    input: PreparedCatalogMessage,
+  ) => Promise<MessageDto>;
 };
 
 function publicCatalogError(error: CatalogServiceError): HttpError {
@@ -121,4 +138,27 @@ export async function preflightCatalogMessage(
       thumbnailRetailerId: null,
     },
   };
+}
+
+export async function sendCatalogMessage(
+  actor: SessionUser,
+  conversationId: string,
+  rawInput: unknown,
+  dependencies: CatalogSendDependencies = {},
+): Promise<MessageDto> {
+  const prepared = await preflightCatalogMessage(
+    actor,
+    conversationId,
+    rawInput,
+    {
+      catalog: dependencies.catalog ?? getCatalogService(),
+      assertFreeFormSendAllowed: dependencies.assertFreeFormSendAllowed,
+      now: dependencies.now,
+    },
+  );
+  return (dependencies.sendPreparedCatalogMessage ?? deliverPreparedCatalogMessage)(
+    actor,
+    conversationId,
+    prepared,
+  );
 }

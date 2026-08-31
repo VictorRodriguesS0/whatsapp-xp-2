@@ -54,4 +54,51 @@ describe("message retry route", () => {
     await expect(response.json()).resolves.toEqual({ error: "Mensagem não encontrada" });
     expect(retried).toBe(false);
   });
+
+  it("returns a structured catalog message after service-level revalidation", async () => {
+    const { POST } = createRetryMessageRouteHandlers({
+      assertSameOrigin: () => undefined,
+      requireUser: async () => actor,
+      retryMessage: async () => ({
+        id,
+        direction: MessageDirection.OUTBOUND,
+        type: MessageType.INTERACTIVE,
+        body: "Produto enviado: Controle",
+        content: {
+          kind: "catalogProduct",
+          product: {
+            retailerId: "XP-1",
+            name: "Controle",
+            description: null,
+            priceText: "BRL 100.00",
+            availability: "IN_STOCK",
+          },
+        },
+        canReply: false,
+        replyTo: null,
+        mediaObjectId: null,
+        mediaState: null,
+        sentBy: { id: actor.id, name: actor.name },
+        status: MessageStatus.SENT,
+        failureReason: null,
+        editedAt: null,
+        revokedAt: null,
+        reactions: [],
+        externalTimestamp: new Date(0).toISOString(),
+        createdAt: new Date(0).toISOString(),
+      }),
+    });
+
+    const response = await POST(
+      new Request(`http://localhost/api/messages/${id}/retry`, { method: "POST" }),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        type: MessageType.INTERACTIVE,
+        content: { kind: "catalogProduct", product: { retailerId: "XP-1" } },
+      },
+    });
+  });
 });

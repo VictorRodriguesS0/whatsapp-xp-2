@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { CatalogProduct } from "./schemas";
 import { CatalogServiceError } from "./service";
-import { preflightCatalogMessage } from "./send-service";
+import { preflightCatalogMessage, sendCatalogMessage } from "./send-service";
 
 const actor: SessionUser = {
   id: "00000000-0000-4000-8000-000000000001",
@@ -147,5 +147,28 @@ describe("catalog send preflight", () => {
     }, deps)).rejects.toBeDefined();
     expect(deps.assertFreeFormSendAllowed).not.toHaveBeenCalled();
     expect(deps.catalog.validateForSend).not.toHaveBeenCalled();
+  });
+
+  it("delivers only the server-prepared snapshot to the message state machine", async () => {
+    const deps = dependencies([product("XP-1", "Controle")]);
+    const sendPreparedCatalogMessage = vi.fn().mockResolvedValue({ id: "message-1" });
+
+    await expect(sendCatalogMessage(actor, conversationId, {
+      clientRequestId,
+      kind: "PRODUCT",
+      retailerIds: ["XP-1"],
+    }, { ...deps, sendPreparedCatalogMessage })).resolves.toEqual({ id: "message-1" });
+
+    expect(sendPreparedCatalogMessage).toHaveBeenCalledWith(
+      actor,
+      conversationId,
+      expect.objectContaining({
+        clientRequestId,
+        content: {
+          kind: "catalogProduct",
+          product: expect.objectContaining({ retailerId: "XP-1", name: "Controle" }),
+        },
+      }),
+    );
   });
 });
