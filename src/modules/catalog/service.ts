@@ -47,6 +47,7 @@ export type CatalogService = {
     actor: SessionUser,
     retailerIds: readonly string[],
   ): Promise<CatalogProduct[]>;
+  revalidateForSend(retailerIds: readonly string[]): Promise<CatalogProduct[]>;
   invalidate(): void;
 };
 
@@ -258,6 +259,49 @@ export function createCatalogService(input: {
     }
   }
 
+  async function revalidateForSend(
+    retailerIds: readonly string[],
+  ): Promise<CatalogProduct[]> {
+    const { catalogId, client } = requireConfigured();
+    if (
+      retailerIds.length > 30 ||
+      new Set(retailerIds).size !== retailerIds.length ||
+      retailerIds.some((id) => !/^[A-Za-z0-9._:-]{1,128}$/u.test(id))
+    ) {
+      throw new CatalogServiceError("CATALOG_PRODUCT_UNAVAILABLE");
+    }
+    try {
+      const [summary, commerce] = await Promise.all([
+        client.getCatalogSummary(),
+        client.getCommerceSettings(),
+      ]);
+      if (
+        summary.id !== catalogId ||
+        summary.productCount < 1 ||
+        !commerce.catalogVisible ||
+        !commerce.cartEnabled
+      ) {
+        throw new CatalogServiceError("CATALOG_NOT_READY");
+      }
+      if (retailerIds.length === 0) return [];
+
+      const products = await client.getProductsByRetailerIds(retailerIds);
+      const byRetailerId = new Map(
+        products.map((product) => [product.retailerId, product]),
+      );
+      return retailerIds.map((id) => {
+        const product = byRetailerId.get(id);
+        if (!product?.availableToSend) {
+          throw new CatalogServiceError("CATALOG_PRODUCT_UNAVAILABLE");
+        }
+        return product;
+      });
+    } catch (error) {
+      if (error instanceof CatalogServiceError) throw error;
+      throw new CatalogServiceError(errorCode(error));
+    }
+  }
+
   return {
     async getStatus(actor) {
       await requireAdmin(async () => actor);
@@ -375,44 +419,11 @@ export function createCatalogService(input: {
 
     async validateForSend(actor, retailerIds) {
       await requireUser(async () => actor);
-      const { catalogId, client } = requireConfigured();
-      if (
-        retailerIds.length > 30 ||
-        new Set(retailerIds).size !== retailerIds.length ||
-        retailerIds.some((id) => !/^[A-Za-z0-9._:-]{1,128}$/u.test(id))
-      ) {
-        throw new CatalogServiceError("CATALOG_PRODUCT_UNAVAILABLE");
-      }
-      try {
-        const [summary, commerce] = await Promise.all([
-          client.getCatalogSummary(),
-          client.getCommerceSettings(),
-        ]);
-        if (
-          summary.id !== catalogId ||
-          summary.productCount < 1 ||
-          !commerce.catalogVisible ||
-          !commerce.cartEnabled
-        ) {
-          throw new CatalogServiceError("CATALOG_NOT_READY");
-        }
-        if (retailerIds.length === 0) return [];
+      return revalidateForSend(retailerIds);
+    },
 
-        const products = await client.getProductsByRetailerIds(retailerIds);
-        const byRetailerId = new Map(
-          products.map((product) => [product.retailerId, product]),
-        );
-        return retailerIds.map((id) => {
-          const product = byRetailerId.get(id);
-          if (!product?.availableToSend) {
-            throw new CatalogServiceError("CATALOG_PRODUCT_UNAVAILABLE");
-          }
-          return product;
-        });
-      } catch (error) {
-        if (error instanceof CatalogServiceError) throw error;
-        throw new CatalogServiceError(errorCode(error));
-      }
+    revalidateForSend(retailerIds) {
+      return revalidateForSend(retailerIds);
     },
 
     invalidate() {

@@ -22,6 +22,7 @@ import {
   ProviderConcurrencyLimiter,
   createPrismaMessageRepository,
   retryMessage,
+  sendPreparedCatalogMessage,
   sendPreparedTemplateMessage,
   sendMessage,
   type MessageServiceDependencies,
@@ -119,6 +120,7 @@ class MemoryRepository implements MessageServiceRepository {
       direction: MessageDirection.OUTBOUND,
       type: input.type,
       body: input.body,
+      content: input.content ?? null,
       mediaObjectId: null,
       sentByUserId: input.sentByUserId,
       sentByUser: { id: input.sentByUserId, name: actor.name },
@@ -146,6 +148,14 @@ class MemoryRepository implements MessageServiceRepository {
     this.clientIds.set(input.clientRequestId, id);
     this.history.push(`create:${message.status}`);
     return { message, created: true };
+  }
+
+  async updateContent(messageId: string, content: MessageServiceRecord["content"]) {
+    const current = this.records.get(messageId)!;
+    const updated = { ...current, content };
+    this.records.set(messageId, updated);
+    this.history.push("update-content");
+    return updated;
   }
 
   async attachStoredMedia(messageId: string, input: StoredMessageMediaInput) {
@@ -281,6 +291,9 @@ class FakeProvider implements WhatsAppProvider {
   textInputs: Array<Parameters<WhatsAppProvider["sendText"]>[0]> = [];
   mediaInputs: Array<Parameters<WhatsAppProvider["sendMedia"]>[0]> = [];
   templateInputs: Array<Parameters<WhatsAppProvider["sendTemplate"]>[0]> = [];
+  productInputs: Array<Parameters<WhatsAppProvider["sendProduct"]>[0]> = [];
+  productListInputs: Array<Parameters<WhatsAppProvider["sendProductList"]>[0]> = [];
+  catalogInputs: Array<Parameters<WhatsAppProvider["sendCatalog"]>[0]> = [];
   failWith: Error | null = null;
   mediaFailWith: Error | null = null;
   onCall?: () => void;
@@ -296,6 +309,24 @@ class FakeProvider implements WhatsAppProvider {
   async sendTemplate(input: Parameters<WhatsAppProvider["sendTemplate"]>[0]) {
     this.templateInputs.push(input);
     this.calls.push("template");
+    return this.result();
+  }
+
+  async sendProduct(input: Parameters<WhatsAppProvider["sendProduct"]>[0]) {
+    this.productInputs.push(input);
+    this.calls.push("product");
+    return this.result();
+  }
+
+  async sendProductList(input: Parameters<WhatsAppProvider["sendProductList"]>[0]) {
+    this.productListInputs.push(input);
+    this.calls.push("product-list");
+    return this.result();
+  }
+
+  async sendCatalog(input: Parameters<WhatsAppProvider["sendCatalog"]>[0]) {
+    this.catalogInputs.push(input);
+    this.calls.push("catalog");
     return this.result();
   }
 
@@ -358,6 +389,177 @@ function harness() {
 }
 
 describe("outbound message service", () => {
+  it("persists, revalidates and sends one catalog product with an updated safe snapshot", async () => {
+    const state = harness();
+    state.dependencies.revalidateCatalogForSend = async () => [{
+      retailerId: "XP-1",
+      name: "Controle atualizado",
+      description: "Descrição atualizada",
+      priceText: "BRL 120.00",
+      availability: "IN_STOCK",
+      availableToSend: true,
+      imageUrl: "https://images.example.test/updated.webp",
+    }];
+
+    const result = await sendPreparedCatalogMessage(actor, conversationId, {
+      clientRequestId: "41000000-0000-4000-8000-000000000001",
+      body: "Produto enviado: Controle",
+      content: {
+        kind: "catalogProduct",
+        product: {
+          retailerId: "XP-1",
+          name: "Controle",
+          description: null,
+          priceText: "BRL 100.00",
+          availability: "IN_STOCK",
+        },
+      },
+    }, state.dependencies);
+
+    expect(state.provider.productInputs).toEqual([{
+      to: "5561999999999",
+      retailerId: "XP-1",
+      body: "Confira este produto do catálogo da XP Eletrônicos.",
+      footer: "XP Eletrônicos",
+    }]);
+    expect(result).toMatchObject({
+      type: MessageType.INTERACTIVE,
+      status: MessageStatus.SENT,
+      content: {
+        kind: "catalogProduct",
+        product: { name: "Controle atualizado", priceText: "BRL 120.00" },
+      },
+    });
+  });
+
+  it("sends an ordered product list and the complete catalog through their official operations", async () => {
+    const list = harness();
+    list.dependencies.revalidateCatalogForSend = async (ids) => ids.map((retailerId) => ({
+      retailerId,
+      name: retailerId,
+      description: null,
+      priceText: null,
+      availability: "IN_STOCK" as const,
+      availableToSend: true,
+      imageUrl: null,
+    }));
+    await sendPreparedCatalogMessage(actor, conversationId, {
+      clientRequestId: "41000000-0000-4000-8000-000000000002",
+      body: "Lista de produtos enviada (2)",
+      content: {
+        kind: "catalogProductList",
+        body: "Confira estas opções do catálogo da XP Eletrônicos.",
+        products: [
+          { retailerId: "XP-2", name: "Dois", description: null, priceText: null, availability: "IN_STOCK" },
+          { retailerId: "XP-1", name: "Um", description: null, priceText: null, availability: "IN_STOCK" },
+        ],
+      },
+    }, list.dependencies);
+    expect(list.provider.productListInputs[0]).toMatchObject({
+      retailerIds: ["XP-2", "XP-1"],
+      body: "Confira estas opções do catálogo da XP Eletrônicos.",
+    });
+
+    const catalog = harness();
+    catalog.dependencies.revalidateCatalogForSend = async () => [];
+    await sendPreparedCatalogMessage(actor, conversationId, {
+      clientRequestId: "41000000-0000-4000-8000-000000000003",
+      body: "Catálogo enviado",
+      content: {
+        kind: "catalog",
+        body: "Confira o catálogo da XP Eletrônicos.",
+        thumbnailRetailerId: null,
+      },
+    }, catalog.dependencies);
+    expect(catalog.provider.catalogInputs).toEqual([{
+      to: "5561999999999",
+      body: "Confira o catálogo da XP Eletrônicos.",
+      thumbnailRetailerId: null,
+    }]);
+  });
+
+  it("does not call Meta when product revalidation fails after persistence", async () => {
+    const state = harness();
+    state.dependencies.revalidateCatalogForSend = async () => {
+      throw new HttpError(409, "Produto indisponível", "CATALOG_PRODUCT_UNAVAILABLE");
+    };
+
+    const result = await sendPreparedCatalogMessage(actor, conversationId, {
+      clientRequestId: "41000000-0000-4000-8000-000000000004",
+      body: "Produto enviado: Controle",
+      content: {
+        kind: "catalogProduct",
+        product: { retailerId: "XP-1", name: "Controle", description: null, priceText: null, availability: "IN_STOCK" },
+      },
+    }, state.dependencies);
+
+    expect(result).toMatchObject({
+      status: MessageStatus.FAILED,
+      failureReason: "Produto indisponível",
+    });
+    expect(state.provider.calls).toEqual([]);
+  });
+
+  it("rejects reuse of a catalog request id for a different selection", async () => {
+    const state = harness();
+    state.dependencies.revalidateCatalogForSend = async (ids) => ids.map((retailerId) => ({
+      retailerId, name: retailerId, description: null, priceText: null,
+      availability: "IN_STOCK" as const, availableToSend: true, imageUrl: null,
+    }));
+    const clientRequestId = "41000000-0000-4000-8000-000000000005";
+    const prepared = (retailerId: string) => ({
+      clientRequestId,
+      body: `Produto enviado: ${retailerId}`,
+      content: {
+        kind: "catalogProduct" as const,
+        product: { retailerId, name: retailerId, description: null, priceText: null, availability: "IN_STOCK" as const },
+      },
+    });
+
+    await sendPreparedCatalogMessage(actor, conversationId, prepared("XP-1"), state.dependencies);
+    await expect(sendPreparedCatalogMessage(
+      actor,
+      conversationId,
+      prepared("XP-2"),
+      state.dependencies,
+    )).rejects.toMatchObject({ status: 409 });
+    expect(state.provider.calls).toHaveLength(1);
+  });
+
+  it("revalidates a failed catalog product before retry and blocks a removed item", async () => {
+    const state = harness();
+    let available = true;
+    state.dependencies.revalidateCatalogForSend = async () => {
+      if (!available) {
+        throw new HttpError(409, "Produto indisponível", "CATALOG_PRODUCT_UNAVAILABLE");
+      }
+      return [{
+        retailerId: "XP-1", name: "Controle", description: null, priceText: null,
+        availability: "IN_STOCK" as const, availableToSend: true, imageUrl: null,
+      }];
+    };
+    state.provider.failWith = new WhatsAppProviderError("rejected", "rejeitada");
+    const failed = await sendPreparedCatalogMessage(actor, conversationId, {
+      clientRequestId: "41000000-0000-4000-8000-000000000006",
+      body: "Produto enviado: Controle",
+      content: {
+        kind: "catalogProduct",
+        product: { retailerId: "XP-1", name: "Controle", description: null, priceText: null, availability: "IN_STOCK" },
+      },
+    }, state.dependencies);
+    expect(failed.status).toBe(MessageStatus.FAILED);
+    expect(state.provider.calls).toEqual(["product"]);
+
+    state.provider.failWith = null;
+    available = false;
+    const retried = await retryMessage(actor, failed.id, state.dependencies);
+    expect(retried).toMatchObject({
+      status: MessageStatus.FAILED,
+      failureReason: "Produto indisponível",
+    });
+    expect(state.provider.calls).toEqual(["product"]);
+  });
+
   it("sends a prepared template without the free-form guard and persists its snapshot", async () => {
     const state = harness();
     state.dependencies.assertFreeFormSendAllowed = async () => {

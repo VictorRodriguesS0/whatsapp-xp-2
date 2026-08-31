@@ -7,6 +7,8 @@ import { assertFreeFormSendAllowed } from "@/modules/messaging-policy/service";
 import { messageUuidSchema } from "@/modules/messages/schemas";
 
 import {
+  CATALOG_COMPLETE_MESSAGE_BODY,
+  CATALOG_PRODUCT_LIST_MESSAGE_BODY,
   toCatalogProductSnapshot,
   type CatalogOutboundContent,
 } from "./message-content";
@@ -18,14 +20,6 @@ import {
   CatalogServiceError,
   type CatalogService,
 } from "./service";
-
-export const CATALOG_PRODUCT_MESSAGE_BODY =
-  "Confira este produto do catálogo da XP Eletrônicos.";
-export const CATALOG_PRODUCT_LIST_MESSAGE_BODY =
-  "Confira estas opções do catálogo da XP Eletrônicos.";
-export const CATALOG_COMPLETE_MESSAGE_BODY =
-  "Confira o catálogo da XP Eletrônicos.";
-export const CATALOG_MESSAGE_FOOTER = "XP Eletrônicos";
 
 export type PreparedCatalogMessage = {
   clientRequestId: string;

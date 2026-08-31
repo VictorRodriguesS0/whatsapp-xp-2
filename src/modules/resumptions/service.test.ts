@@ -167,6 +167,7 @@ function sentMessage(
     direction: MessageDirection.OUTBOUND,
     type: MessageType.TEXT,
     body: input.body,
+    content: null,
     mediaObjectId: null,
     sentByUserId: actor.id,
     sentByUser: { id: actor.id, name: actor.name },

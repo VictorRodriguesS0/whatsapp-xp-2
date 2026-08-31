@@ -5,6 +5,14 @@ import {
   type CatalogAvailability,
 } from "./types";
 
+export const CATALOG_PRODUCT_MESSAGE_BODY =
+  "Confira este produto do catálogo da XP Eletrônicos.";
+export const CATALOG_PRODUCT_LIST_MESSAGE_BODY =
+  "Confira estas opções do catálogo da XP Eletrônicos.";
+export const CATALOG_COMPLETE_MESSAGE_BODY =
+  "Confira o catálogo da XP Eletrônicos.";
+export const CATALOG_MESSAGE_FOOTER = "XP Eletrônicos";
+
 const retailerIdSchema = z.string().regex(/^[A-Za-z0-9._:-]{1,128}$/u);
 
 export const catalogProductSnapshotSchema = z
@@ -77,6 +85,8 @@ type CatalogProductSnapshotSource = {
   description: string | null;
   priceText: string | null;
   availability: CatalogAvailability;
+  availableToSend?: boolean;
+  imageUrl?: string | null;
 };
 
 function boundedDescription(value: string | null): string | null {

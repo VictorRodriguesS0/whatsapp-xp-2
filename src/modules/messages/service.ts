@@ -30,6 +30,14 @@ import { validateMedia, validateMediaFile } from "@/modules/media/validation";
 import type { RealtimeEvent } from "@/modules/realtime/events";
 import { publishRealtime } from "@/modules/realtime/hub";
 import { getServerEnv } from "@/lib/env";
+import { getCatalogService } from "@/modules/catalog/factory";
+import {
+  CATALOG_MESSAGE_FOOTER,
+  CATALOG_PRODUCT_MESSAGE_BODY,
+  toCatalogProductSnapshot,
+  type CatalogOutboundContent,
+} from "@/modules/catalog/message-content";
+import type { CatalogProduct } from "@/modules/catalog/schemas";
 import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 import type { MediaMessageType, WhatsAppProvider } from "@/modules/whatsapp/provider";
@@ -48,6 +56,8 @@ import {
   reconcileReplyLinks,
   resolveReplyTarget,
 } from "./reply-linking.server";
+import { parseMessageContent, type MessageContent } from "./content";
+import { messageContentForPrisma } from "./content.server";
 import { shouldApplyMessageStatus } from "./status-precedence";
 import { safeFailureReason, safeOriginalFilename } from "./status";
 
@@ -99,6 +109,7 @@ export type MessageServiceRecord = {
   direction: MessageDirection;
   type: MessageTypeValue;
   body: string | null;
+  content: MessageContent | null;
   mediaObjectId: string | null;
   sentByUserId: string;
   sentByUser: { id: string; name: string };
@@ -133,6 +144,7 @@ export type PendingMessageInput = {
   sentByUserId: string;
   type: MessageTypeValue;
   body: string | null;
+  content?: MessageContent | null;
   replyToMessageId: string | null;
   externalTimestamp: Date;
   payload?: PreparedTemplatePayload;
@@ -142,6 +154,12 @@ export type PreparedTemplateMessageInput = {
   clientRequestId: string;
   body: string;
   payload: PreparedTemplatePayload;
+};
+
+export type PreparedCatalogMessageInput = {
+  clientRequestId: string;
+  body: string;
+  content: CatalogOutboundContent;
 };
 
 export type StoredMessageMediaInput = {
@@ -158,6 +176,7 @@ export type ProviderAttemptCommitResult = "MARKED" | "CAS_LOST";
 export interface MessageServiceRepository {
   findByClientRequestId(clientRequestId: string): Promise<MessageServiceRecord | null>;
   createPending(input: PendingMessageInput): Promise<{ message: MessageServiceRecord; created: boolean }>;
+  updateContent(messageId: string, content: MessageContent): Promise<MessageServiceRecord>;
   attachStoredMedia(messageId: string, input: StoredMessageMediaInput): Promise<AttachmentCommitResult>;
   setMediaMetaId(messageId: string, metaMediaId: string): Promise<MessageServiceRecord>;
   markOperation(messageId: string, operationalState: MessageOperationalState, attemptedAt?: Date | null): Promise<MessageServiceRecord>;
@@ -247,6 +266,9 @@ export type MessageServiceDependencies = {
     conversationId: string,
     now: Date,
   ): Promise<void>;
+  revalidateCatalogForSend?(
+    retailerIds: readonly string[],
+  ): Promise<CatalogProduct[]>;
 };
 
 function freeFormGuard(dependencies: MessageServiceDependencies) {
@@ -275,6 +297,7 @@ const prismaMessageScalarSelect = {
   direction: true,
   type: true,
   body: true,
+  content: true,
   mediaObjectId: true,
   sentByUserId: true,
   status: true,
@@ -337,6 +360,7 @@ async function hydrateServiceRecord(row: PrismaMessageRow): Promise<MessageServi
     direction: row.direction,
     type: row.type,
     body: row.body,
+    content: parseMessageContent(row.content),
     mediaObjectId: row.mediaObjectId,
     sentByUserId: row.sentByUserId,
     sentByUser,
@@ -515,6 +539,7 @@ export const prismaMessageRepository: MessageServiceRepository = {
             direction: MessageDirection.OUTBOUND,
             type: input.type,
             body: input.body,
+            content: messageContentForPrisma(input.content ?? null),
             replyToMessageId: replyTarget?.id ?? null,
             replyToWhatsappMessageId: replyTarget?.whatsappMessageId ?? null,
             sentByUserId: input.sentByUserId,
@@ -562,6 +587,14 @@ export const prismaMessageRepository: MessageServiceRepository = {
   },
   async attachStoredMedia(messageId, input) {
     return attachStoredMediaWithOutcome(messageId, input, {});
+  },
+  async updateContent(messageId, content) {
+    const row = await prisma.message.update({
+      where: { id: messageId },
+      data: { content: messageContentForPrisma(content) },
+      select: prismaMessageScalarSelect,
+    });
+    return hydrateServiceRecord(row);
   },
   async setMediaMetaId(messageId, metaMediaId) {
     const current = await prisma.message.findUniqueOrThrow({ where: { id: messageId }, select: { mediaObjectId: true } });
@@ -792,6 +825,8 @@ const defaultDependencies: MessageServiceDependencies = {
   idempotencyInFlight: defaultIdempotencyInFlight,
   publishRealtime,
   assertFreeFormSendAllowed,
+  revalidateCatalogForSend: (retailerIds) =>
+    getCatalogService().revalidateForSend(retailerIds),
 };
 
 function toMessageDto(message: MessageServiceRecord): MessageDto {
@@ -801,7 +836,7 @@ function toMessageDto(message: MessageServiceRecord): MessageDto {
     direction: message.direction,
     type: message.type,
     body: message.body,
-    content: null,
+    content: message.content,
     canReply: whatsappMessageIdSchema.safeParse(message.whatsappMessageId).success,
     replyTo: message.replyToMessage
       ? quotedReplyPreview({
@@ -858,6 +893,57 @@ function providerMediaType(type: MessageTypeValue): MediaMessageType {
   const value = type.toLowerCase();
   if (value === "image" || value === "audio" || value === "video" || value === "document") return value;
   throw new Error("Unsupported media message type");
+}
+
+function catalogContent(message: MessageServiceRecord): CatalogOutboundContent | null {
+  const content = message.content;
+  return content?.kind === "catalog" ||
+    content?.kind === "catalogProduct" ||
+    content?.kind === "catalogProductList"
+    ? content
+    : null;
+}
+
+function catalogRetailerIds(content: CatalogOutboundContent): string[] {
+  if (content.kind === "catalogProduct") return [content.product.retailerId];
+  if (content.kind === "catalogProductList") {
+    return content.products.map((product) => product.retailerId);
+  }
+  return content.thumbnailRetailerId ? [content.thumbnailRetailerId] : [];
+}
+
+async function refreshCatalogSnapshot(
+  message: MessageServiceRecord,
+  dependencies: MessageServiceDependencies,
+): Promise<MessageServiceRecord> {
+  const content = catalogContent(message);
+  if (!content) return message;
+  const products = await (
+    dependencies.revalidateCatalogForSend ??
+    ((ids: readonly string[]) => getCatalogService().revalidateForSend(ids))
+  )(catalogRetailerIds(content));
+
+  let refreshed: CatalogOutboundContent;
+  if (content.kind === "catalogProduct") {
+    const product = products[0];
+    if (!product) throw new HttpError(409, "Produto indisponível", "CATALOG_PRODUCT_UNAVAILABLE");
+    refreshed = { kind: "catalogProduct", product: toCatalogProductSnapshot(product) };
+  } else if (content.kind === "catalogProductList") {
+    if (products.length !== content.products.length) {
+      throw new HttpError(409, "Produto indisponível", "CATALOG_PRODUCT_UNAVAILABLE");
+    }
+    refreshed = {
+      kind: "catalogProductList",
+      body: content.body,
+      products: products.map(toCatalogProductSnapshot),
+    };
+  } else {
+    if (content.thumbnailRetailerId && products.length !== 1) {
+      throw new HttpError(409, "Produto indisponível", "CATALOG_PRODUCT_UNAVAILABLE");
+    }
+    refreshed = content;
+  }
+  return dependencies.repository.updateContent(message.id, refreshed);
 }
 
 class ProviderCallError extends Error {
@@ -948,6 +1034,40 @@ async function deliver(
       });
     }
   }
+  const catalog = catalogContent(message);
+  if (catalog) {
+    let result;
+    if (catalog.kind === "catalogProduct") {
+      result = await providerCall(() => dependencies.provider.sendProduct({
+        to: message.contactPhone,
+        retailerId: catalog.product.retailerId,
+        body: CATALOG_PRODUCT_MESSAGE_BODY,
+        footer: CATALOG_MESSAGE_FOOTER,
+      }));
+    } else if (catalog.kind === "catalogProductList") {
+      result = await providerCall(() => dependencies.provider.sendProductList({
+        to: message.contactPhone,
+        retailerIds: catalog.products.map((product) => product.retailerId),
+        header: "Produtos selecionados",
+        body: catalog.body,
+        footer: CATALOG_MESSAGE_FOOTER,
+        sectionTitle: "Produtos",
+      }));
+    } else {
+      result = await providerCall(() => dependencies.provider.sendCatalog({
+        to: message.contactPhone,
+        body: catalog.body,
+        thumbnailRetailerId: catalog.thumbnailRetailerId,
+      }));
+    }
+    try {
+      return await dependencies.repository.markSent(message.id, result.whatsappMessageId);
+    } catch (error) {
+      throw new ProviderCommitError("Provider result was not committed", {
+        cause: error,
+      });
+    }
+  }
   if (message.type === MessageType.TEXT) {
     const result = await providerCall(() => dependencies.provider.sendText({
       to: message.contactPhone,
@@ -1023,7 +1143,26 @@ async function deliverAndCommit(
       return toMessageDto(current);
     }
 
-    const rateReservation = dependencies.limiter.consume(message.sentByUserId);
+    let deliverable = claimed;
+    if (catalogContent(claimed)) {
+      try {
+        deliverable = await refreshCatalogSnapshot(claimed, dependencies);
+      } catch (error) {
+        const failed = await dependencies.repository.markFailed(
+          claimed.id,
+          error instanceof HttpError ? error.message : safeFailureReason(error),
+          MessageOperationalState.LOCAL_FAILURE,
+        );
+        publishSafely(dependencies, {
+          type: "message.status",
+          conversationId: failed.conversationId,
+          messageId: failed.id,
+        });
+        return toMessageDto(failed);
+      }
+    }
+
+    const rateReservation = dependencies.limiter.consume(deliverable.sentByUserId);
     if (!rateReservation) {
       const failed = await dependencies.repository.markFailed(
         claimed.id,
@@ -1034,12 +1173,12 @@ async function deliverAndCommit(
       throw new HttpError(429, "Limite de envios excedido");
     }
 
-    const firstOperation = claimed.type === MessageType.TEXT
+    const firstOperation = claimed.type === MessageType.TEXT || catalogContent(claimed)
       ? MessageOperationalState.SEND_IN_FLIGHT
       : MessageOperationalState.UPLOAD_IN_FLIGHT;
     let attemptCommit: ProviderAttemptCommitResult;
     try {
-      attemptCommit = await dependencies.repository.markProviderAttempt(claimed.id, leaseId, firstOperation, clock());
+      attemptCommit = await dependencies.repository.markProviderAttempt(deliverable.id, leaseId, firstOperation, clock());
     } catch {
       dependencies.limiter.refund(rateReservation);
       await dependencies.repository.releaseDeliveryClaim(claimed.id, leaseId).catch(() => undefined);
@@ -1052,7 +1191,7 @@ async function deliverAndCommit(
       const current = (await dependencies.repository.findById(claimed.id)) ?? claimed;
       return toMessageDto(current);
     }
-    const attempted = await dependencies.repository.findById(claimed.id);
+    const attempted = await dependencies.repository.findById(deliverable.id);
     if (!attempted) throw new Error("Committed provider attempt could not be hydrated");
 
     let final: MessageServiceRecord;
@@ -1300,6 +1439,97 @@ export function sendMessage(
   return operation;
 }
 
+function assertPreparedCatalogIdentity(
+  message: MessageServiceRecord,
+  actor: SessionUser,
+  conversationId: string,
+  input: PreparedCatalogMessageInput,
+): void {
+  assertSameIdempotentOperation(message, actor, conversationId, undefined);
+  if (
+    message.outboundPayloadKind !== OutboundPayloadKind.FREE_FORM ||
+    message.type !== MessageType.INTERACTIVE ||
+    message.body !== input.body ||
+    JSON.stringify(message.content) !== JSON.stringify(input.content)
+  ) {
+    throw new HttpError(409, "Identificador de envio já utilizado");
+  }
+}
+
+export async function sendPreparedCatalogMessage(
+  actor: SessionUser,
+  conversationId: string,
+  input: PreparedCatalogMessageInput,
+  dependencies: MessageServiceDependencies = defaultDependencies,
+): Promise<MessageDto> {
+  const actorId = messageUuidSchema.parse(actor.id);
+  const parsedConversationId = messageUuidSchema.parse(conversationId);
+  const clientRequestId = clientRequestIdSchema.parse(input.clientRequestId);
+  const normalizedBody = typeof input.body === "string" ? input.body.trim() : "";
+  if (!normalizedBody || normalizedBody.length > 4_096) {
+    throw new HttpError(400, "Mensagem de catálogo inválida");
+  }
+  const parsedContent = parseMessageContent(input.content);
+  if (
+    !parsedContent ||
+    (parsedContent.kind !== "catalog" &&
+      parsedContent.kind !== "catalogProduct" &&
+      parsedContent.kind !== "catalogProductList")
+  ) {
+    throw new HttpError(400, "Mensagem de catálogo inválida");
+  }
+  const prepared: PreparedCatalogMessageInput = {
+    clientRequestId,
+    body: normalizedBody,
+    content: parsedContent,
+  };
+
+  const existing = await dependencies.repository.findByClientRequestId(clientRequestId);
+  if (existing) {
+    assertPreparedCatalogIdentity(existing, actor, parsedConversationId, prepared);
+    if (
+      existing.status === MessageStatus.PENDING &&
+      existing.operationalState === MessageOperationalState.READY
+    ) {
+      return deliverAndCommit(existing, dependencies);
+    }
+    return toMessageDto(existing);
+  }
+
+  const clock = dependencies.now ?? (() => new Date());
+  await freeFormGuard(dependencies)(parsedConversationId, clock());
+  const created = await dependencies.repository.createPending({
+    conversationId: parsedConversationId,
+    clientRequestId,
+    sentByUserId: actorId,
+    type: MessageType.INTERACTIVE,
+    body: prepared.body,
+    content: prepared.content,
+    replyToMessageId: null,
+    externalTimestamp: clock(),
+  });
+  assertPreparedCatalogIdentity(
+    created.message,
+    actor,
+    parsedConversationId,
+    prepared,
+  );
+  if (created.created) {
+    publishSafely(dependencies, {
+      type: "message.created",
+      conversationId: created.message.conversationId,
+      messageId: created.message.id,
+    });
+  }
+  if (
+    created.message.status === MessageStatus.PENDING &&
+    created.message.operationalState === MessageOperationalState.READY
+  ) {
+    return deliverAndCommit(created.message, dependencies);
+  }
+  return toMessageDto(created.message);
+}
+
 function assertPreparedTemplateIdentity(
   message: MessageServiceRecord,
   actor: SessionUser,
@@ -1397,7 +1627,11 @@ export async function retryMessage(
   if (current.direction !== MessageDirection.OUTBOUND || current.status !== MessageStatus.FAILED) {
     throw new HttpError(409, "Somente mensagens enviadas com falha podem ser reenviadas");
   }
-  if (current.type !== MessageType.TEXT && !current.mediaObject) {
+  if (
+    current.type !== MessageType.TEXT &&
+    !catalogContent(current) &&
+    !current.mediaObject
+  ) {
     throw new HttpError(409, "A mídia original não está disponível; envie um novo arquivo");
   }
   if (current.outboundPayloadKind === OutboundPayloadKind.TEMPLATE) {

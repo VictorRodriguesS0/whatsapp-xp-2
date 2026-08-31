@@ -139,6 +139,9 @@ class InboundProvider implements WhatsAppProvider {
   async markRead(): Promise<void> {}
   async listTemplates() { return []; }
   async sendTemplate(): Promise<never> { throw new Error("unused"); }
+  async sendProduct(): Promise<never> { throw new Error("unused"); }
+  async sendProductList(): Promise<never> { throw new Error("unused"); }
+  async sendCatalog(): Promise<never> { throw new Error("unused"); }
   async getMediaMetadata() {
     this.metadataCalls += 1;
     if (this.metadataGate) await this.metadataGate;

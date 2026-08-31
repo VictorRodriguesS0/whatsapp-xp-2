@@ -22,6 +22,7 @@ import {
   createPrismaMessageRepository,
   prismaMessageRepository,
   retryMessage,
+  sendPreparedCatalogMessage,
   sendMessage,
   type MessageRateLimitReservation,
   type MessageServiceDependencies,
@@ -179,6 +180,89 @@ describe("outbound message PostgreSQL concurrency", () => {
       messageId: original.id,
       summary: "Tem esse produto?",
     });
+  });
+
+  it("persists one idempotent interactive catalog snapshot with searchable preview", async () => {
+    const { conversation, victor } = await seedReadFixture();
+    const actor = { id: victor.id, name: victor.name, email: victor.email, role: victor.role };
+    const provider = new DemoWhatsAppProvider();
+    const productInputs: Array<Parameters<typeof provider.sendProduct>[0]> = [];
+    provider.sendProduct = async (input) => {
+      productInputs.push(input);
+      return { whatsappMessageId: "wamid.pg-catalog-product", status: "SENT" };
+    };
+    const dependencies: MessageServiceDependencies = {
+      repository: prismaMessageRepository,
+      storage: new LocalMediaStorage(process.env.MEDIA_ROOT ?? ".media-test"),
+      provider,
+      limiter: new MessageSendRateLimiter(),
+      publishRealtime: () => undefined,
+      assertFreeFormSendAllowed: async () => undefined,
+      revalidateCatalogForSend: async () => [{
+        retailerId: "XP-1",
+        name: "Controle atualizado",
+        description: "Descrição segura",
+        priceText: "BRL 120.00",
+        availability: "IN_STOCK",
+        availableToSend: true,
+        imageUrl: "https://images.example.test/not-persisted.webp",
+      }],
+    };
+    const clientRequestId = randomUUID();
+    const input = {
+      clientRequestId,
+      body: "Produto enviado: Controle",
+      content: {
+        kind: "catalogProduct" as const,
+        product: {
+          retailerId: "XP-1",
+          name: "Controle",
+          description: null,
+          priceText: "BRL 100.00",
+          availability: "IN_STOCK" as const,
+        },
+      },
+    };
+
+    const first = await sendPreparedCatalogMessage(
+      actor,
+      conversation.id,
+      input,
+      dependencies,
+    );
+    const repeated = await sendPreparedCatalogMessage(
+      actor,
+      conversation.id,
+      input,
+      dependencies,
+    );
+
+    expect(first.id).toBe(repeated.id);
+    expect(productInputs).toHaveLength(1);
+    await expect(prisma.message.findUniqueOrThrow({
+      where: { clientRequestId },
+      select: {
+        type: true,
+        body: true,
+        content: true,
+        searchText: true,
+        status: true,
+      },
+    })).resolves.toMatchObject({
+      type: MessageType.INTERACTIVE,
+      body: "Produto enviado: Controle",
+      content: {
+        kind: "catalogProduct",
+        product: {
+          retailerId: "XP-1",
+          name: "Controle atualizado",
+          priceText: "BRL 120.00",
+        },
+      },
+      searchText: expect.stringContaining("Produto enviado: Controle"),
+      status: MessageStatus.SENT,
+    });
+    expect(JSON.stringify(first.content)).not.toContain("images.example.test");
   });
 
   it("merges an echo that arrives before the provider response is committed", async () => {
