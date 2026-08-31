@@ -1179,6 +1179,87 @@ describe("useInbox", () => {
     expect(body.clientRequestId).toMatch(/^[0-9a-f-]{36}$/i);
   });
 
+  it("sends a catalog product through its dedicated route and keeps completion scoped after switching conversations", async () => {
+    const first = listItem("conversation-a", "Ana");
+    const second = listItem("conversation-b", "Bia");
+    const product = {
+      retailerId: "CTRL-01",
+      name: "Controle sem fio",
+      description: "Controle para videogame",
+      priceText: "BRL 199.90",
+      availability: "IN_STOCK" as const,
+      availableToSend: true,
+      imagePath: "/api/catalog/products/CTRL-01/image",
+    };
+    let postedBody: Record<string, unknown> | null = null;
+    let resolveSend!: (value: Response) => void;
+    vi.spyOn(globalThis, "fetch").mockImplementation((input, init) => {
+      const url = String(input);
+      if (url === "/api/conversations") {
+        return response({ data: { items: [first, second], nextCursor: null }, error: null });
+      }
+      if (url === "/api/users/assignable") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/contact-types" || url === "/api/contact-tags") {
+        return response({ data: { items: [] }, error: null });
+      }
+      if (url === "/api/conversations/conversation-a/messages") {
+        return response({ data: conversationDetail("conversation-a"), error: null });
+      }
+      if (url === "/api/conversations/conversation-b/messages") {
+        return response({ data: conversationDetail("conversation-b"), error: null });
+      }
+      if (
+        url === "/api/conversations/conversation-a/catalog-messages" &&
+        init?.method === "POST"
+      ) {
+        postedBody = JSON.parse(String(init.body));
+        return new Promise<Response>((resolve) => { resolveSend = resolve; });
+      }
+      throw new Error(`Unexpected request ${url}`);
+    });
+    const hook = renderHook(() => useInbox(user));
+    await waitFor(() => expect(hook.result.current.loadingList).toBe(false));
+    await act(() => hook.result.current.openConversation("conversation-a"));
+
+    let sendPromise!: Promise<InboxMessage | null>;
+    act(() => {
+      sendPromise = hook.result.current.sendCatalog("conversation-a", "PRODUCT", [product]);
+    });
+    await waitFor(() => expect(hook.result.current.conversation?.messages).toHaveLength(1));
+    const optimistic = hook.result.current.conversation?.messages[0];
+    expect(optimistic).toMatchObject({
+      type: "INTERACTIVE",
+      body: "Produto enviado: Controle sem fio",
+      status: "PENDING",
+      content: {
+        kind: "catalogProduct",
+        product: {
+          retailerId: "CTRL-01",
+          name: "Controle sem fio",
+        },
+      },
+    });
+    expect(postedBody).toEqual({
+      clientRequestId: expect.stringMatching(/^[0-9a-f-]{36}$/i),
+      kind: "PRODUCT",
+      retailerIds: ["CTRL-01"],
+    });
+
+    await act(() => hook.result.current.openConversation("conversation-b"));
+    const confirmed = {
+      ...optimistic!,
+      id: "server-catalog-message",
+      status: "SENT" as const,
+    };
+    resolveSend(await response({ data: confirmed, error: null }, true, 201));
+    await act(() => sendPromise);
+    expect(hook.result.current.conversation?.id).toBe("conversation-b");
+    expect(hook.result.current.conversation?.messages).toEqual([]);
+    hook.unmount();
+  });
+
   it("removes a free-form optimistic row and reconciles the authoritative window on a boundary 409", async () => {
     const item = listItem("conversation-id", "Carlos");
     const closedWindow = {

@@ -96,6 +96,7 @@ const handlers = {
   onRetryLoad: vi.fn(),
   onVisibleMessage: vi.fn(),
   onSendText: vi.fn().mockResolvedValue(null),
+  onSendCatalog: vi.fn().mockResolvedValue(null),
   onSendMedia: vi.fn().mockResolvedValue(null),
   onSendRecording: vi.fn().mockResolvedValue(null),
   onResumeConversation: vi.fn().mockResolvedValue(true),

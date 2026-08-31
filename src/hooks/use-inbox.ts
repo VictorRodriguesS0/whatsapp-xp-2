@@ -4,6 +4,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { publicErrorMessage } from "@/lib/public-error";
 import type { SessionUser } from "@/modules/auth/session";
+import {
+  CATALOG_COMPLETE_MESSAGE_BODY,
+  CATALOG_PRODUCT_LIST_MESSAGE_BODY,
+  toCatalogProductSnapshot,
+  type CatalogOutboundContent,
+} from "@/modules/catalog/message-content";
+import type { CatalogProductDto } from "@/modules/catalog/types";
 import type {
   ContactClassificationRecord,
   ContactDto as ConversationContactDto,
@@ -71,7 +78,19 @@ type PendingMedia = PendingReply & {
   previewUrl?: string;
 };
 
-type PendingSend = PendingText | PendingMedia;
+export type CatalogSendKind = "PRODUCT" | "PRODUCT_LIST" | "CATALOG";
+
+type PendingCatalog = {
+  kind: "catalog";
+  conversationId: string;
+  clientRequestId: string;
+  operation: CatalogSendKind;
+  retailerIds: string[];
+  body: string;
+  content: CatalogOutboundContent;
+};
+
+type PendingSend = PendingText | PendingMedia | PendingCatalog;
 
 type ConfirmedSend = {
   conversationId: string;
@@ -141,11 +160,15 @@ function optimisticMessage(actor: SessionUser, pending: PendingSend): InboxMessa
     id: `optimistic:${pending.clientRequestId}`,
     clientRequestId: pending.clientRequestId,
     direction: "OUTBOUND",
-    type: pending.kind === "text" ? "TEXT" : pending.type,
+    type: pending.kind === "text"
+      ? "TEXT"
+      : pending.kind === "catalog"
+        ? "INTERACTIVE"
+        : pending.type,
     body: pending.body || null,
-    content: null,
+    content: pending.kind === "catalog" ? pending.content : null,
     canReply: false,
-    replyTo: pending.replyTo,
+    replyTo: pending.kind === "catalog" ? null : pending.replyTo,
     mediaObjectId: null,
     mediaState: null,
     sentBy: { id: actor.id, name: actor.name },
@@ -967,6 +990,15 @@ export function useInbox(initialUser: SessionUser) {
               ? { replyToMessageId: pending.replyToMessageId }
               : {}),
           });
+        } else if (pending.kind === "catalog") {
+          headers = { "Content-Type": "application/json" };
+          body = JSON.stringify({
+            clientRequestId: pending.clientRequestId,
+            kind: pending.operation,
+            ...(pending.operation === "CATALOG"
+              ? {}
+              : { retailerIds: pending.retailerIds }),
+          });
         } else {
           const form = new FormData();
           form.set("clientRequestId", pending.clientRequestId);
@@ -980,9 +1012,11 @@ export function useInbox(initialUser: SessionUser) {
           form.set("file", pending.file);
           body = form;
         }
-        const endpoint = pending.kind === "media" && pending.source === "recording"
-          ? `/api/conversations/${pending.conversationId}/recordings`
-          : `/api/conversations/${pending.conversationId}/messages`;
+        const endpoint = pending.kind === "catalog"
+          ? `/api/conversations/${pending.conversationId}/catalog-messages`
+          : pending.kind === "media" && pending.source === "recording"
+            ? `/api/conversations/${pending.conversationId}/recordings`
+            : `/api/conversations/${pending.conversationId}/messages`;
         const response = await fetch(endpoint, {
           method: "POST",
           headers,
@@ -1118,6 +1152,69 @@ export function useInbox(initialUser: SessionUser) {
       : current);
     return performSend(pending, optimistic.id);
   }, [conversation, initialUser, performSend]);
+
+  const sendCatalog = useCallback((
+    conversationId: string,
+    operation: CatalogSendKind,
+    products: CatalogProductDto[],
+  ): Promise<InboxMessage | null> => {
+    if (
+      (operation === "PRODUCT" && products.length !== 1) ||
+      (operation === "PRODUCT_LIST" && (products.length < 1 || products.length > 30))
+    ) return Promise.resolve(null);
+    if (operation !== "CATALOG") {
+      const retailerIds = products.map((product) => product.retailerId);
+      if (
+        products.some((product) => !product.availableToSend) ||
+        new Set(retailerIds).size !== retailerIds.length
+      ) return Promise.resolve(null);
+    }
+
+    let content: CatalogOutboundContent;
+    let body: string;
+    try {
+      if (operation === "PRODUCT") {
+        const product = toCatalogProductSnapshot(products[0]);
+        body = `Produto enviado: ${product.name}`;
+        content = { kind: "catalogProduct", product };
+      } else if (operation === "PRODUCT_LIST") {
+        const snapshots = products.map(toCatalogProductSnapshot);
+        body = `Lista de produtos enviada (${snapshots.length})`;
+        content = {
+          kind: "catalogProductList",
+          body: CATALOG_PRODUCT_LIST_MESSAGE_BODY,
+          products: snapshots,
+        };
+      } else {
+        body = "Catálogo enviado";
+        content = {
+          kind: "catalog",
+          body: CATALOG_COMPLETE_MESSAGE_BODY,
+          thumbnailRetailerId: null,
+        };
+      }
+    } catch {
+      return Promise.resolve(null);
+    }
+
+    const pending: PendingCatalog = {
+      kind: "catalog",
+      conversationId,
+      clientRequestId: crypto.randomUUID(),
+      operation,
+      retailerIds: operation === "CATALOG"
+        ? []
+        : products.map((product) => product.retailerId),
+      body,
+      content,
+    };
+    const optimistic = optimisticMessage(initialUser, pending);
+    pendingSends.current.set(optimistic.id, pending);
+    setConversation((current) => current?.id === conversationId
+      ? { ...current, messages: [...current.messages, optimistic] }
+      : current);
+    return performSend(pending, optimistic.id);
+  }, [initialUser, performSend]);
 
   const sendMedia = useCallback(async (
     conversationId: string,
@@ -1758,6 +1855,7 @@ export function useInbox(initialUser: SessionUser) {
     setMessagingRestriction,
     setMessagingConsent,
     sendText,
+    sendCatalog,
     sendMedia,
     sendRecording,
     retryMessage,

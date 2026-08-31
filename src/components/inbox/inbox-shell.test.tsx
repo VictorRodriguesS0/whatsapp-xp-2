@@ -135,6 +135,7 @@ const defaultInbox = {
   loadContactTags: vi.fn(),
   loadMore: vi.fn(),
   sendText: vi.fn(),
+  sendCatalog: vi.fn(),
   sendMedia: vi.fn(),
   sendRecording: vi.fn(),
   retryMessage: vi.fn(),

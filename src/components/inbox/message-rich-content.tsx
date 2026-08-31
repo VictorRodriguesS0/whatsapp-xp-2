@@ -1,6 +1,8 @@
 "use client";
 
-import { ExternalLink, MapPin } from "lucide-react";
+/* eslint-disable @next/next/no-img-element -- Catalog images use an authenticated same-origin resolver that the image optimizer cannot call with the user's session. */
+
+import { ExternalLink, MapPin, Package, ShoppingBag } from "lucide-react";
 import type { ReactNode } from "react";
 
 import type { InboxMessage } from "@/hooks/use-inbox";
@@ -133,6 +135,92 @@ function OrderCard({ content }: { content: ContentOfKind<"order"> }) {
   );
 }
 
+type CatalogProduct = ContentOfKind<"catalogProduct">["product"];
+
+function catalogImagePath(retailerId: string) {
+  return `/api/catalog/products/${encodeURIComponent(retailerId)}/image`;
+}
+
+function CatalogProductRow({ product }: { product: CatalogProduct }) {
+  return (
+    <div className="flex min-w-0 items-center gap-3">
+      {/* Product snapshots never persist remote image URLs; this same-origin route revalidates them. */}
+      <img
+        alt={product.name}
+        className="size-16 shrink-0 rounded-md border border-[var(--rich-border)] bg-[var(--surface)] object-cover"
+        height={64}
+        loading="lazy"
+        src={catalogImagePath(product.retailerId)}
+        width={64}
+      />
+      <div className="min-w-0 flex-1">
+        <h4 className="break-words text-sm font-semibold">{product.name}</h4>
+        {product.priceText ? (
+          <p className="mt-1 break-words text-sm font-medium text-[var(--accent)]">
+            {product.priceText}
+          </p>
+        ) : null}
+        <p className="mt-1 break-all text-xs text-[var(--muted)]">{product.retailerId}</p>
+      </div>
+    </div>
+  );
+}
+
+function CatalogProductCard({ content }: { content: ContentOfKind<"catalogProduct"> }) {
+  return (
+    <Card label="Produto enviado">
+      <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-[var(--muted)]">
+        <Package aria-hidden="true" className="size-4" />
+        <h3>Produto enviado</h3>
+      </div>
+      <CatalogProductRow product={content.product} />
+    </Card>
+  );
+}
+
+function CatalogProductListCard({ content }: { content: ContentOfKind<"catalogProductList"> }) {
+  return (
+    <Card label="Lista de produtos enviada">
+      <div className="flex items-center gap-2 text-sm font-semibold">
+        <ShoppingBag aria-hidden="true" className="size-4 text-[var(--accent)]" />
+        <h3>Lista de produtos</h3>
+      </div>
+      <p className="mt-1 text-xs text-[var(--muted)]">
+        {content.products.length} {content.products.length === 1 ? "produto" : "produtos"}
+      </p>
+      <ul className="mt-3 max-h-72 divide-y divide-[var(--rich-border)] overflow-y-auto">
+        {content.products.map((product) => (
+          <li className="py-3 first:pt-0 last:pb-0" key={product.retailerId}>
+            <CatalogProductRow product={product} />
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
+function CompleteCatalogCard({ content }: { content: ContentOfKind<"catalog"> }) {
+  return (
+    <Card label="Catálogo enviado">
+      {content.thumbnailRetailerId ? (
+        <img
+          alt="Capa do catálogo"
+          className="mb-3 aspect-[16/9] w-full rounded-md border border-[var(--rich-border)] bg-[var(--surface)] object-cover"
+          loading="lazy"
+          src={catalogImagePath(content.thumbnailRetailerId)}
+        />
+      ) : null}
+      <div className="flex items-start gap-2">
+        <ShoppingBag aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-[var(--accent)]" />
+        <div className="min-w-0">
+          <h3 className="font-semibold">Catálogo enviado</h3>
+          <p className="mt-1 break-words text-sm text-[var(--muted)]">{content.body}</p>
+        </div>
+      </div>
+    </Card>
+  );
+}
+
 function SystemCard({ content }: { content: ContentOfKind<"system"> }) {
   return (
     <Card label="Atualização do WhatsApp">
@@ -179,6 +267,15 @@ export function MessageRichContent({ message }: { message: InboxMessage }) {
   if (message.type === "INTERACTIVE" && content?.kind === "interactive") {
     return <InteractiveCard content={content} />;
   }
+  if (message.type === "INTERACTIVE" && content?.kind === "catalogProduct") {
+    return <CatalogProductCard content={content} />;
+  }
+  if (message.type === "INTERACTIVE" && content?.kind === "catalogProductList") {
+    return <CatalogProductListCard content={content} />;
+  }
+  if (message.type === "INTERACTIVE" && content?.kind === "catalog") {
+    return <CompleteCatalogCard content={content} />;
+  }
   if (message.type === "ORDER" && content?.kind === "order") {
     return <OrderCard content={content} />;
   }
@@ -209,6 +306,9 @@ export function richMessagePreview(message: MessageDto): string | null {
     case "CONTACTS":
       return "Contato compartilhado";
     case "INTERACTIVE":
+      if (content?.kind === "catalogProduct") return "Produto enviado";
+      if (content?.kind === "catalogProductList") return "Lista de produtos";
+      if (content?.kind === "catalog") return "Catálogo enviado";
       return content?.kind === "interactive" ? content.title : "Resposta interativa";
     case "ORDER":
       return "Pedido recebido";

@@ -5,8 +5,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { CatalogPicker } from "@/components/catalog/catalog-picker";
-import type { InboxConversation, InboxMessage } from "@/hooks/use-inbox";
+import type {
+  CatalogSendKind,
+  InboxConversation,
+  InboxMessage,
+} from "@/hooks/use-inbox";
 import { useServiceWindow } from "@/hooks/use-service-window";
+import type { CatalogProductDto } from "@/modules/catalog/types";
 import type { MessageSearchResultDto } from "@/modules/message-search/types";
 import type { ServiceWindowDto } from "@/modules/messaging-policy/types";
 import {
@@ -98,6 +103,12 @@ function ConversationControls({
     }
   }, [onCancelReply, replyToMessageId, serviceWindow.sendMode]);
 
+  useEffect(() => {
+    if (serviceWindow.sendMode !== "FREE_FORM" && catalogPickerOpen) {
+      onCloseCatalog?.();
+    }
+  }, [catalogPickerOpen, onCloseCatalog, serviceWindow.sendMode]);
+
   return (
     <>
       <ServiceWindowBanner
@@ -136,6 +147,7 @@ export function ConversationView({
   onRetryLoad,
   onVisibleMessage,
   onSendText,
+  onSendCatalog,
   onSendMedia,
   onSendRecording,
   onResumeConversation,
@@ -167,6 +179,7 @@ export function ConversationView({
   onRetryLoad: () => void;
   onVisibleMessage: (messageId: string) => void;
   onSendText: (body: string, replyToMessageId?: string | null) => Promise<unknown>;
+  onSendCatalog: (kind: CatalogSendKind, products: CatalogProductDto[]) => Promise<unknown>;
   onSendMedia: (file: File, caption: string, replyToMessageId?: string | null) => Promise<unknown>;
   onSendRecording: (file: File, clientRequestId: string, replyToMessageId?: string | null) => Promise<unknown>;
   onResumeConversation: () => Promise<boolean>;
@@ -477,6 +490,7 @@ export function ConversationView({
         <CatalogPicker
           conversationId={conversation.id}
           onClose={onCloseCatalog ?? NOOP}
+          onSendCatalog={onSendCatalog}
           open={catalogPickerOpen}
         />
       ) : null}

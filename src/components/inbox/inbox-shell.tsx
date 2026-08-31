@@ -379,6 +379,11 @@ export function InboxShell({
                   ? inbox.sendMedia(inbox.selectedId, file, caption, targetMessageId)
                   : inbox.sendMedia(inbox.selectedId, file, caption);
               }}
+              onSendCatalog={(kind, products) => (
+                inbox.selectedId && inbox.conversation?.id === inbox.selectedId
+                  ? inbox.sendCatalog(inbox.selectedId, kind, products)
+                  : Promise.resolve(null)
+              )}
               onSendRecording={(file, clientRequestId, targetMessageId) => (
                 inbox.selectedId && inbox.conversation?.id === inbox.selectedId
                   ? targetMessageId

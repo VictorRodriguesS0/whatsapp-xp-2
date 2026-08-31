@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { InboxMessage } from "@/hooks/use-inbox";
 
-import { MessageRichContent } from "./message-rich-content";
+import { MessageRichContent, richMessagePreview } from "./message-rich-content";
 
 const baseMessage: InboxMessage = {
   id: "40000000-0000-4000-8000-000000000010",
@@ -87,6 +87,54 @@ const unknownMessage: InboxMessage = {
   ...baseMessage,
   type: "UNSUPPORTED",
   content: { kind: "unknown", rawType: "reaction" },
+};
+
+const catalogProduct = {
+  retailerId: "CTRL-01",
+  name: "Controle sem fio",
+  description: "Controle para videogame",
+  priceText: "BRL 199.90",
+  availability: "IN_STOCK" as const,
+};
+
+const catalogProductMessage: InboxMessage = {
+  ...baseMessage,
+  direction: "OUTBOUND",
+  type: "INTERACTIVE",
+  body: "Produto enviado: Controle sem fio",
+  content: {
+    kind: "catalogProduct",
+    product: catalogProduct,
+  },
+};
+
+const catalogProductListMessage: InboxMessage = {
+  ...catalogProductMessage,
+  body: "Lista de produtos enviada (2)",
+  content: {
+    kind: "catalogProductList",
+    body: "Confira estas opções do catálogo da XP Eletrônicos.",
+    products: [
+      catalogProduct,
+      {
+        retailerId: "CABO-02",
+        name: "Cabo USB-C",
+        description: null,
+        priceText: "BRL 49.90",
+        availability: "AVAILABLE_FOR_ORDER",
+      },
+    ],
+  },
+};
+
+const completeCatalogMessage: InboxMessage = {
+  ...catalogProductMessage,
+  body: "Catálogo enviado",
+  content: {
+    kind: "catalog",
+    body: "Confira o catálogo da XP Eletrônicos.",
+    thumbnailRetailerId: null,
+  },
 };
 
 describe("MessageRichContent", () => {
@@ -184,5 +232,36 @@ describe("MessageRichContent", () => {
     view.rerender(<MessageRichContent message={{ ...contactsMessage, type: "LOCATION" }} />);
     expect(screen.getByRole("status")).toHaveTextContent("Conteúdo desta mensagem indisponível.");
     expect(screen.queryByText("Maria Silva")).toBeNull();
+  });
+
+  it("renders one sent product using only the local image proxy", () => {
+    render(<MessageRichContent message={catalogProductMessage} />);
+
+    expect(screen.getByRole("region", { name: "Produto enviado" })).toBeVisible();
+    expect(screen.getByText("Controle sem fio")).toBeVisible();
+    expect(screen.getByText("BRL 199.90")).toBeVisible();
+    expect(screen.getByRole("img", { name: "Controle sem fio" })).toHaveAttribute(
+      "src",
+      "/api/catalog/products/CTRL-01/image",
+    );
+  });
+
+  it("preserves product-list order and renders the complete catalog safely", () => {
+    const view = render(<MessageRichContent message={catalogProductListMessage} />);
+
+    const names = screen.getAllByRole("heading", { level: 4 }).map((heading) => heading.textContent);
+    expect(names).toEqual(["Controle sem fio", "Cabo USB-C"]);
+    expect(screen.getByRole("region", { name: "Lista de produtos enviada" })).toBeVisible();
+
+    view.rerender(<MessageRichContent message={completeCatalogMessage} />);
+    expect(screen.getByRole("region", { name: "Catálogo enviado" })).toBeVisible();
+    expect(screen.getByText("Confira o catálogo da XP Eletrônicos.")).toBeVisible();
+    expect(screen.queryByRole("img")).toBeNull();
+  });
+
+  it("uses specific safe previews for outbound catalog messages", () => {
+    expect(richMessagePreview(catalogProductMessage)).toBe("Produto enviado");
+    expect(richMessagePreview(catalogProductListMessage)).toBe("Lista de produtos");
+    expect(richMessagePreview(completeCatalogMessage)).toBe("Catálogo enviado");
   });
 });
