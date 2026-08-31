@@ -213,9 +213,13 @@ Realize estes passos no Meta for Developers e no Business Manager com uma conta 
 
 Permissões, versões da Graph API, revisão do app e nomenclatura do painel mudam ao longo do tempo. Antes da ativação, confira a documentação oficial vigente da Meta e a data de expiração de todos os ativos. Planeje rotação de token e segredo.
 
-### Catálogo oficial da XP — Release A somente leitura
+### Catálogo oficial da XP — leitura e envio
 
-A Meta/Commerce Manager continua sendo a fonte única de nome, código, descrição, preço, disponibilidade e imagem. A aplicação não cria tabela de produtos, não aceita um `catalog_id` vindo do navegador e, nesta release, não envia mensagem de produto. Administradores consultam o diagnóstico em `/configuracoes/catalogo`; atendentes podem pesquisar no seletor **Produtos**, onde a ação de envio permanece marcada como **Disponível na próxima etapa**.
+A Meta/Commerce Manager continua sendo a fonte única de nome, código, descrição, preço, disponibilidade e imagem. A aplicação não cria tabela de produtos e nunca aceita `catalog_id`, preço, imagem ou payload Graph vindo do navegador. Administradores consultam o diagnóstico em `/configuracoes/catalogo`; atendentes usam o seletor **Produtos** para enviar um produto, revisar uma lista de até 30 produtos distintos ou confirmar o envio do catálogo completo.
+
+Os três formatos são mensagens interativas oficiais construídas somente no servidor. O produto e a lista são revalidados diretamente no catálogo antes da gravação e novamente imediatamente antes da tentativa de entrega. Cada ação usa um UUID idempotente; repetir a mesma solicitação não envia outra mensagem, enquanto alterar a operação com o mesmo UUID é recusado. O histórico conserva apenas uma fotografia sanitizada de nome, código, descrição curta, preço exibido e disponibilidade; imagens sempre passam pela rota autenticada da aplicação.
+
+O envio de catálogo segue a mesma janela de atendimento de 24 horas das mensagens livres. Quando a janela estiver fechada, os botões desaparecem, nenhuma tentativa é feita contra a Meta e o atendente continua pelo fluxo existente de template aprovado. Restrição do contato, rate limit, estados de entrega, retry e reconciliação de resultado incerto também são os mesmos usados pelas mensagens comuns. Nunca use catálogo interativo como substituto de template fora da janela.
 
 Ative a integração com privilégio mínimo e validação positiva, nesta ordem:
 
@@ -227,7 +231,7 @@ Ative a integração com privilégio mínimo e validação positiva, nesta ordem
 6. leia `whatsapp_commerce_settings` do número, preserve o valor atual de `is_cart_enabled` e altere somente `is_catalog_visible=true`. Para a XP, o aceite exige catálogo visível e carrinho ainda habilitado;
 7. releia catálogo, produtos e commerce settings até obter convergência. Só depois recrie `xp-whatsapp-app` com a imagem aprovada e verifique o diagnóstico administrativo e a pesquisa autenticada.
 
-As referências técnicas usadas por esta release são a coleção oficial da Meta para [Commerce Settings da WhatsApp Cloud API](https://www.postman.com/meta/whatsapp-business-platform/folder/iyy9vwt/commerce-settings) e o [SDK oficial da Meta para Product Catalog](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/productcatalog.py). Como permissões e versões podem mudar, a leitura real e o painel Meta no momento da ativação prevalecem; nenhuma escrita deve ser feita por tentativa e erro.
+As referências técnicas usadas por esta integração são a coleção oficial da Meta para [Commerce Settings](https://www.postman.com/meta/whatsapp-business-platform/folder/iyy9vwt/commerce-settings), os exemplos oficiais de [mensagem de produto](https://www.postman.com/meta/whatsapp-business-platform/request/3k5lcda/send-single-product-message) e [lista de produtos](https://www.postman.com/meta/whatsapp-business-platform/request/j1w5o6p/send-multi-product-message), além do [SDK oficial da Meta para Product Catalog](https://github.com/facebook/facebook-python-business-sdk/blob/main/facebook_business/adobjects/productcatalog.py). Como permissões, versões e políticas podem mudar, a leitura real e o painel Meta no momento da ativação prevalecem; nenhuma escrita deve ser feita por tentativa e erro.
 
 Falha de catálogo é isolada: login, webhook, texto, áudio e mídia continuam funcionando. O serviço usa cache curto e pode mostrar o último resultado sanitizado como desatualizado somente em falha transitória; erro de permissão ou catálogo incorreto falha fechado. Imagens passam por rota autenticada de mesma origem, com limite de tamanho, tipo, tempo, redirects e bloqueio de redes privadas.
 

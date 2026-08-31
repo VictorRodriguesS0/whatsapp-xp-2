@@ -62,26 +62,18 @@ describe("WhatsApp catalog Release A", () => {
     expect(adminPage).toContain("CatalogSettingsScreen");
   });
 
-  it("keeps Meta as the sole product source and exposes no catalog send route", () => {
+  it("keeps Meta as the sole product source and preserves the read foundation", () => {
     const prisma = source("prisma/schema.prisma");
     expect(prisma).not.toMatch(/\bmodel\s+(?:Catalog)?Product(?:Item)?\b/);
     expect(prisma).not.toMatch(/@@map\("(?:catalog_)?products?"\)/);
 
-    const catalogRouteFiles = sourceFiles("src/app/api/catalog").map((path) =>
-      path.replaceAll("\\", "/"),
-    );
-    expect(catalogRouteFiles.some((path) => /\/send\/route\.ts$/.test(path))).toBe(
-      false,
-    );
     expect(source("src/modules/catalog/graph-client.ts")).toContain(
       "config.catalogId",
     );
     expect(source("src/modules/catalog/types.ts")).toContain(
       "availableToSend: boolean",
     );
-    expect(source("src/components/catalog/catalog-picker.tsx")).toContain(
-      "Disponível na próxima etapa",
-    );
+    expect(sourceFiles("src/components/catalog").length).toBeGreaterThan(0);
   });
 
   it("mutation-tests removal of catalog wiring and rejects non-app recreation", () => {
