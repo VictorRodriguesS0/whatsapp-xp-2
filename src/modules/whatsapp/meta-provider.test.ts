@@ -253,6 +253,118 @@ describe("Meta WhatsApp provider", () => {
     });
   });
 
+  it("sends product, product list and catalog with the exact official payloads", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async () =>
+      Response.json({ messages: [{ id: "wamid.catalog" }] }),
+    );
+    const provider = new MetaWhatsAppProvider(
+      { ...config, catalogId: "367025965434465", timeoutMs: 1_000 },
+      fetchMock,
+    );
+
+    await provider.sendProduct({
+      to: "5561999999999",
+      retailerId: "XP-CONTROLE-01",
+      body: "Confira este produto",
+      footer: "XP Eletrônicos",
+    });
+    await provider.sendProductList({
+      to: "5561999999999",
+      retailerIds: ["XP-CONTROLE-01", "XP-CONTROLE-02"],
+      header: "Produtos selecionados",
+      body: "Confira estas opções",
+      footer: "XP Eletrônicos",
+      sectionTitle: "Produtos",
+    });
+    await provider.sendCatalog({
+      to: "5561999999999",
+      body: "Confira nosso catálogo",
+      thumbnailRetailerId: "XP-CONTROLE-01",
+    });
+
+    expect(fetchMock.mock.calls.map((call) => JSON.parse(String(call[1]?.body))))
+      .toEqual([
+        {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: "5561999999999",
+          type: "interactive",
+          interactive: {
+            type: "product",
+            body: { text: "Confira este produto" },
+            footer: { text: "XP Eletrônicos" },
+            action: {
+              catalog_id: "367025965434465",
+              product_retailer_id: "XP-CONTROLE-01",
+            },
+          },
+        },
+        {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: "5561999999999",
+          type: "interactive",
+          interactive: {
+            type: "product_list",
+            header: { type: "text", text: "Produtos selecionados" },
+            body: { text: "Confira estas opções" },
+            footer: { text: "XP Eletrônicos" },
+            action: {
+              catalog_id: "367025965434465",
+              sections: [{
+                title: "Produtos",
+                product_items: [
+                  { product_retailer_id: "XP-CONTROLE-01" },
+                  { product_retailer_id: "XP-CONTROLE-02" },
+                ],
+              }],
+            },
+          },
+        },
+        {
+          messaging_product: "whatsapp",
+          recipient_type: "individual",
+          to: "5561999999999",
+          type: "interactive",
+          interactive: {
+            type: "catalog_message",
+            body: { text: "Confira nosso catálogo" },
+            action: {
+              name: "catalog_message",
+              parameters: {
+                thumbnail_product_retailer_id: "XP-CONTROLE-01",
+              },
+            },
+          },
+        },
+      ]);
+  });
+
+  it("rejects catalog sends without a configured catalog or with duplicate list items", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    const unconfigured = new MetaWhatsAppProvider(config, fetchMock);
+    const configured = new MetaWhatsAppProvider(
+      { ...config, catalogId: "367025965434465" },
+      fetchMock,
+    );
+
+    await expect(unconfigured.sendProduct({
+      to: "5561999999999",
+      retailerId: "XP-1",
+      body: "Produto",
+      footer: "XP Eletrônicos",
+    })).rejects.toMatchObject({ kind: "rejected", graphCode: null });
+    await expect(configured.sendProductList({
+      to: "5561999999999",
+      retailerIds: ["XP-1", "XP-1"],
+      header: "Produtos",
+      body: "Confira",
+      footer: "XP Eletrônicos",
+      sectionTitle: "Produtos",
+    })).rejects.toMatchObject({ kind: "rejected", graphCode: null });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it.each(["👍", ""])("sends a Meta reaction while preserving emoji %j", async (emoji) => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
       Response.json({ messaging_product: "whatsapp", messages: [{ id: "wamid.reaction" }] }),
@@ -628,6 +740,34 @@ describe("demo WhatsApp provider", () => {
       name: "retomar_atendimento",
       language: "pt_BR",
       bodyParameters: [{ type: "text", text: "cliente" }],
+    })).resolves.toEqual({
+      whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000",
+      status: "SENT",
+    });
+    await expect(provider.sendProduct({
+      to: "1",
+      retailerId: "XP-1",
+      body: "Produto",
+      footer: "XP Eletrônicos",
+    })).resolves.toEqual({
+      whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000",
+      status: "SENT",
+    });
+    await expect(provider.sendProductList({
+      to: "1",
+      retailerIds: ["XP-1"],
+      header: "Produtos",
+      body: "Confira",
+      footer: "XP Eletrônicos",
+      sectionTitle: "Produtos",
+    })).resolves.toEqual({
+      whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000",
+      status: "SENT",
+    });
+    await expect(provider.sendCatalog({
+      to: "1",
+      body: "Catálogo",
+      thumbnailRetailerId: null,
     })).resolves.toEqual({
       whatsappMessageId: "demo-123e4567-e89b-42d3-a456-426614174000",
       status: "SENT",

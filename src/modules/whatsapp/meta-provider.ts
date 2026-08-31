@@ -1,9 +1,12 @@
 import "server-only";
 
 import type {
+  CatalogSendInput,
   MediaDownload,
   MediaMetadata,
   MediaUploadSource,
+  ProductListSendInput,
+  ProductSendInput,
   ProviderTemplate,
   TemplateSendInput,
   WhatsAppProvider,
@@ -13,6 +16,7 @@ type MetaProviderConfig = {
   version: string;
   phoneNumberId: string;
   businessAccountId: string;
+  catalogId?: string | null;
   accessToken: string;
   timeoutMs?: number;
   maximumJsonBytes?: number;
@@ -40,9 +44,32 @@ const MAXIMUM_TEMPLATE_PAGES = 20;
 const MAXIMUM_TEMPLATES = 2_000;
 const TEMPLATE_FIELDS =
   "id,name,status,category,language,quality_score,components";
+const RETAILER_ID_PATTERN = /^[A-Za-z0-9._:-]{1,128}$/;
+const CATALOG_ID_PATTERN = /^\d{1,64}$/;
 
 function unknownProviderError(): WhatsAppProviderError {
   return new WhatsAppProviderError("unknown");
+}
+
+function rejectedProviderError(message: string): WhatsAppProviderError {
+  return new WhatsAppProviderError("rejected", message);
+}
+
+function catalogString(value: unknown, maximum: number, label: string): string {
+  if (typeof value !== "string") throw rejectedProviderError(`${label} inválido`);
+  const normalized = value.trim();
+  if (!normalized || normalized.length > maximum) {
+    throw rejectedProviderError(`${label} inválido`);
+  }
+  return normalized;
+}
+
+function retailerId(value: unknown): string {
+  const normalized = catalogString(value, 128, "Identificador do produto");
+  if (!RETAILER_ID_PATTERN.test(normalized)) {
+    throw rejectedProviderError("Identificador do produto inválido");
+  }
+  return normalized;
 }
 
 const DEFINITIVE_GRAPH_CLIENT_STATUSES = new Set([400, 401, 403, 404, 409, 410, 413, 415, 422]);
@@ -125,6 +152,14 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
 
   private authorizationHeaders(extra: Record<string, string> = {}): Record<string, string> {
     return { Authorization: `Bearer ${this.config.accessToken}`, ...extra };
+  }
+
+  private configuredCatalogId(): string {
+    const catalogId = this.config.catalogId?.trim() ?? "";
+    if (!CATALOG_ID_PATTERN.test(catalogId)) {
+      throw rejectedProviderError("Configuração de catálogo indisponível");
+    }
+    return catalogId;
   }
 
   private async operation<T>(work: (signal: AbortSignal) => Promise<T>): Promise<T> {
@@ -273,6 +308,86 @@ export class MetaWhatsAppProvider implements WhatsAppProvider {
         components: [
           { type: "body", parameters: input.bodyParameters },
         ],
+      },
+    });
+  }
+
+  async sendProduct(input: ProductSendInput) {
+    const catalogId = this.configuredCatalogId();
+    const productRetailerId = retailerId(input.retailerId);
+    const body = catalogString(input.body, 1_024, "Mensagem");
+    const footer = catalogString(input.footer, 60, "Rodapé");
+    return await this.send({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "interactive",
+      interactive: {
+        type: "product",
+        body: { text: body },
+        footer: { text: footer },
+        action: {
+          catalog_id: catalogId,
+          product_retailer_id: productRetailerId,
+        },
+      },
+    });
+  }
+
+  async sendProductList(input: ProductListSendInput) {
+    const catalogId = this.configuredCatalogId();
+    if (!Array.isArray(input.retailerIds) || input.retailerIds.length < 1 || input.retailerIds.length > 30) {
+      throw rejectedProviderError("Seleção de produtos inválida");
+    }
+    const retailerIds = input.retailerIds.map(retailerId);
+    if (new Set(retailerIds).size !== retailerIds.length) {
+      throw rejectedProviderError("A seleção contém produtos repetidos");
+    }
+    const header = catalogString(input.header, 60, "Título");
+    const body = catalogString(input.body, 1_024, "Mensagem");
+    const footer = catalogString(input.footer, 60, "Rodapé");
+    const sectionTitle = catalogString(input.sectionTitle, 24, "Seção");
+    return await this.send({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "interactive",
+      interactive: {
+        type: "product_list",
+        header: { type: "text", text: header },
+        body: { text: body },
+        footer: { text: footer },
+        action: {
+          catalog_id: catalogId,
+          sections: [{
+            title: sectionTitle,
+            product_items: retailerIds.map((productRetailerId) => ({
+              product_retailer_id: productRetailerId,
+            })),
+          }],
+        },
+      },
+    });
+  }
+
+  async sendCatalog(input: CatalogSendInput) {
+    this.configuredCatalogId();
+    const body = catalogString(input.body, 1_024, "Mensagem");
+    const parameters = input.thumbnailRetailerId === null
+      ? undefined
+      : { thumbnail_product_retailer_id: retailerId(input.thumbnailRetailerId) };
+    return await this.send({
+      messaging_product: "whatsapp",
+      recipient_type: "individual",
+      to: input.to,
+      type: "interactive",
+      interactive: {
+        type: "catalog_message",
+        body: { text: body },
+        action: {
+          name: "catalog_message",
+          ...(parameters ? { parameters } : {}),
+        },
       },
     });
   }

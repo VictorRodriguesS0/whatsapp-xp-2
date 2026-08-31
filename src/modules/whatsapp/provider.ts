@@ -54,9 +54,34 @@ export type TemplateSendInput = {
   bodyParameters: Array<{ type: "text"; text: string }>;
 };
 
+export type ProductSendInput = {
+  to: string;
+  retailerId: string;
+  body: string;
+  footer: string;
+};
+
+export type ProductListSendInput = {
+  to: string;
+  retailerIds: string[];
+  header: string;
+  body: string;
+  footer: string;
+  sectionTitle: string;
+};
+
+export type CatalogSendInput = {
+  to: string;
+  body: string;
+  thumbnailRetailerId: string | null;
+};
+
 export interface WhatsAppProvider {
   listTemplates(): Promise<ProviderTemplate[]>;
   sendTemplate(input: TemplateSendInput): Promise<SendResult>;
+  sendProduct(input: ProductSendInput): Promise<SendResult>;
+  sendProductList(input: ProductListSendInput): Promise<SendResult>;
+  sendCatalog(input: CatalogSendInput): Promise<SendResult>;
   markRead(input: { messageId: string }): Promise<void>;
   sendText(input: { to: string; body: string } & ProviderReplyContext): Promise<SendResult>;
   sendReaction(input: {

@@ -3,8 +3,11 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import type {
+  CatalogSendInput,
   MediaMessageType,
   MediaUploadSource,
+  ProductListSendInput,
+  ProductSendInput,
   ProviderTemplate,
   TemplateSendInput,
   ProviderReplyContext,
@@ -25,6 +28,18 @@ export class DemoWhatsAppProvider implements WhatsAppProvider {
   }
 
   async sendTemplate(_input: TemplateSendInput) {
+    return { whatsappMessageId: this.id(), status: "SENT" as const };
+  }
+
+  async sendProduct(_input: ProductSendInput) {
+    return { whatsappMessageId: this.id(), status: "SENT" as const };
+  }
+
+  async sendProductList(_input: ProductListSendInput) {
+    return { whatsappMessageId: this.id(), status: "SENT" as const };
+  }
+
+  async sendCatalog(_input: CatalogSendInput) {
     return { whatsappMessageId: this.id(), status: "SENT" as const };
   }
 

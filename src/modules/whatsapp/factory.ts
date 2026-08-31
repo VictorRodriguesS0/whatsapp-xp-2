@@ -13,6 +13,7 @@ export function createWhatsAppProvider(): WhatsAppProvider {
     version: env.META_GRAPH_API_VERSION,
     phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID!,
     businessAccountId: env.WHATSAPP_BUSINESS_ACCOUNT_ID!,
+    catalogId: env.WHATSAPP_CATALOG_ID,
     accessToken: env.WHATSAPP_ACCESS_TOKEN!,
     timeoutMs: env.META_HTTP_TIMEOUT_MS,
   });
