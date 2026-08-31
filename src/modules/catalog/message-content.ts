@@ -61,6 +61,15 @@ export const catalogProductListContentSchema = z
 export type CatalogProductSnapshot = z.infer<
   typeof catalogProductSnapshotSchema
 >;
+export type CatalogContent = z.infer<typeof catalogContentSchema>;
+export type CatalogProductContent = z.infer<typeof catalogProductContentSchema>;
+export type CatalogProductListContent = z.infer<
+  typeof catalogProductListContentSchema
+>;
+export type CatalogOutboundContent =
+  | CatalogContent
+  | CatalogProductContent
+  | CatalogProductListContent;
 
 type CatalogProductSnapshotSource = {
   retailerId: string;

@@ -23,7 +23,9 @@ import type { CatalogPageDto, CatalogStatusDto } from "./types";
 export type CatalogServiceErrorCode =
   | MetaCatalogGraphErrorCode
   | "CATALOG_NOT_CONFIGURED"
-  | "CATALOG_PRODUCT_NOT_FOUND";
+  | "CATALOG_PRODUCT_NOT_FOUND"
+  | "CATALOG_PRODUCT_UNAVAILABLE"
+  | "CATALOG_NOT_READY";
 
 export class CatalogServiceError extends Error {
   constructor(public readonly code: CatalogServiceErrorCode) {
@@ -41,6 +43,10 @@ export type CatalogService = {
     input: { query: string; cursor: string | null; limit: number },
   ): Promise<CatalogPageDto>;
   resolveProduct(retailerId: string): Promise<CatalogProduct>;
+  validateForSend(
+    actor: SessionUser,
+    retailerIds: readonly string[],
+  ): Promise<CatalogProduct[]>;
   invalidate(): void;
 };
 
@@ -364,6 +370,48 @@ export function createCatalogService(input: {
         const code = errorCode(error);
         if (!isTransient(code)) exactProductCache.invalidate(key);
         throw new CatalogServiceError(code);
+      }
+    },
+
+    async validateForSend(actor, retailerIds) {
+      await requireUser(async () => actor);
+      const { catalogId, client } = requireConfigured();
+      if (
+        retailerIds.length > 30 ||
+        new Set(retailerIds).size !== retailerIds.length ||
+        retailerIds.some((id) => !/^[A-Za-z0-9._:-]{1,128}$/u.test(id))
+      ) {
+        throw new CatalogServiceError("CATALOG_PRODUCT_UNAVAILABLE");
+      }
+      try {
+        const [summary, commerce] = await Promise.all([
+          client.getCatalogSummary(),
+          client.getCommerceSettings(),
+        ]);
+        if (
+          summary.id !== catalogId ||
+          summary.productCount < 1 ||
+          !commerce.catalogVisible ||
+          !commerce.cartEnabled
+        ) {
+          throw new CatalogServiceError("CATALOG_NOT_READY");
+        }
+        if (retailerIds.length === 0) return [];
+
+        const products = await client.getProductsByRetailerIds(retailerIds);
+        const byRetailerId = new Map(
+          products.map((product) => [product.retailerId, product]),
+        );
+        return retailerIds.map((id) => {
+          const product = byRetailerId.get(id);
+          if (!product?.availableToSend) {
+            throw new CatalogServiceError("CATALOG_PRODUCT_UNAVAILABLE");
+          }
+          return product;
+        });
+      } catch (error) {
+        if (error instanceof CatalogServiceError) throw error;
+        throw new CatalogServiceError(errorCode(error));
       }
     },
 

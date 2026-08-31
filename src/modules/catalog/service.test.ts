@@ -292,4 +292,68 @@ describe("catalog service", () => {
       code: "CATALOG_PRODUCT_NOT_FOUND",
     });
   });
+
+  it("revalidates send readiness and selected products without using picker caches", async () => {
+    const first = product("CTRL-01", "Controle PS5");
+    const second = product("FONE-01", "Headset");
+    const graph = client({
+      getProductsByRetailerIds: vi.fn().mockResolvedValue([second, first]),
+    });
+    const service = createCatalogService({
+      catalogId: "123456789012345",
+      client: graph,
+    });
+
+    await expect(
+      service.validateForSend(attendant, ["CTRL-01", "FONE-01"]),
+    ).resolves.toEqual([first, second]);
+    await expect(
+      service.validateForSend(attendant, ["CTRL-01", "FONE-01"]),
+    ).resolves.toEqual([first, second]);
+
+    expect(graph.getCatalogSummary).toHaveBeenCalledTimes(2);
+    expect(graph.getCommerceSettings).toHaveBeenCalledTimes(2);
+    expect(graph.getProductsByRetailerIds).toHaveBeenCalledTimes(2);
+  });
+
+  it("validates a full catalog send without requesting arbitrary product data", async () => {
+    const graph = client();
+    const service = createCatalogService({
+      catalogId: "123456789012345",
+      client: graph,
+    });
+
+    await expect(service.validateForSend(attendant, [])).resolves.toEqual([]);
+    expect(graph.getProductsByRetailerIds).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["removed", [product("OTHER", "Outro")]],
+    ["unavailable", [{ ...product("CTRL-01", "Controle PS5"), availableToSend: false }]],
+  ])("rejects a %s selected product with one stable code", async (_case, products) => {
+    const service = createCatalogService({
+      catalogId: "123456789012345",
+      client: client({ getProductsByRetailerIds: vi.fn().mockResolvedValue(products) }),
+    });
+
+    await expect(service.validateForSend(attendant, ["CTRL-01"]))
+      .rejects.toMatchObject({ code: "CATALOG_PRODUCT_UNAVAILABLE" });
+  });
+
+  it("rejects a hidden or empty catalog before product resolution", async () => {
+    const graph = client({
+      getCommerceSettings: vi.fn().mockResolvedValue({
+        catalogVisible: false,
+        cartEnabled: true,
+      }),
+    });
+    const service = createCatalogService({
+      catalogId: "123456789012345",
+      client: graph,
+    });
+
+    await expect(service.validateForSend(attendant, ["CTRL-01"]))
+      .rejects.toMatchObject({ code: "CATALOG_NOT_READY" });
+    expect(graph.getProductsByRetailerIds).not.toHaveBeenCalled();
+  });
 });
