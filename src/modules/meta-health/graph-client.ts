@@ -1,5 +1,7 @@
 import "server-only";
 
+import { appSubscribedToWaba, hasCoexistenceWebhookFields } from "./subscriptions";
+
 import type {
   MetaHealthRemoteState,
   MetaRemoteQualityRating,
@@ -29,6 +31,8 @@ type MetaHealthGraphClientConfig = {
   phoneNumberId: string;
   wabaId: string;
   accessToken: string;
+  appId?: string;
+  appSecret?: string;
   timeoutMs: number;
   fetcher?: typeof fetch;
 };
@@ -149,15 +153,17 @@ export function createMetaHealthGraphClient(
   const endpoint = (path: string) =>
     `${GRAPH_ORIGIN}/${encodeURIComponent(config.graphVersion)}/${path}`;
 
-  async function get(url: string): Promise<JsonRecord> {
+  async function get(url: string, token = config.accessToken): Promise<JsonRecord> {
     const signal = AbortSignal.timeout(config.timeoutMs);
     try {
       return await boundedJson(
         await fetcher(url, {
           method: "GET",
+          redirect: "error",
+          cache: "no-store",
           headers: {
             Accept: "application/json",
-            Authorization: `Bearer ${config.accessToken}`,
+            Authorization: `Bearer ${token}`,
           },
           signal,
         }),
@@ -178,7 +184,7 @@ export function createMetaHealthGraphClient(
       );
       phoneUrl.searchParams.set(
         "fields",
-        "id,display_phone_number,verified_name,quality_rating",
+        "id,display_phone_number,verified_name,quality_rating,status,platform_type,is_on_biz_app",
       );
       const phone = await get(phoneUrl.toString());
       if (phone.id !== config.phoneNumberId) {
@@ -235,6 +241,16 @@ export function createMetaHealthGraphClient(
         }
       }
 
+      let subscribed: boolean | null = null;
+      if (phone.status === "CONNECTED" && phone.platform_type === "CLOUD_API" && phone.is_on_biz_app === true && config.appId && config.appSecret) {
+        const wabaSubscription = await get(endpoint(`${encodeURIComponent(config.wabaId)}/subscribed_apps?limit=100`));
+        const appSubscription = await get(endpoint(`${encodeURIComponent(config.appId)}/subscriptions`), `${config.appId}|${config.appSecret}`);
+        const appReady = appSubscribedToWaba(wabaSubscription, config.appId);
+        const fieldsReady = hasCoexistenceWebhookFields(appSubscription);
+        if (appReady === null || fieldsReady === null) throw new MetaHealthGraphError("META_INVALID_RESPONSE");
+        subscribed = appReady && fieldsReady;
+      }
+
       return {
         phoneNumberId: config.phoneNumberId,
         wabaId: config.wabaId,
@@ -242,6 +258,12 @@ export function createMetaHealthGraphClient(
         verifiedName: boundedString(phone.verified_name, 256),
         qualityRating: qualityRating(phone.quality_rating),
         accountReviewStatus: reviewStatus(waba.account_review_status),
+        connection: {
+          status: boundedString(phone.status, 64, /^[A-Z_]+$/u),
+          platformType: boundedString(phone.platform_type, 64, /^[A-Z_]+$/u),
+          isOnBizApp: typeof phone.is_on_biz_app === "boolean" ? phone.is_on_biz_app : null,
+          subscribed,
+        },
         templates,
       };
     },

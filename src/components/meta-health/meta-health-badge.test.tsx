@@ -9,7 +9,8 @@ vi.mock("@/hooks/use-meta-health", () => ({ useMetaHealth: (summary: MetaHealthS
 
 const base: MetaHealthSummaryDto = {
   label: "NORMAL",
-  unacknowledgedCount: 0,
+  connection: { state: "CONNECTED" as const, observedAt: "2026-08-23T12:00:00Z", reason: "GRAPH_CONNECTED", stale: false },
+    unacknowledgedCount: 0,
   stale: false,
   phone: { displayPhoneNumber: "+55 61 9514-9019", verifiedName: "XP Eletrônicos", qualityRating: "GREEN" },
   account: { reviewStatus: "APPROVED", event: null, messagingLimit: null },
@@ -40,4 +41,9 @@ describe("Meta health badge", () => {
     expect(link).toHaveClass("focus-visible:ring-2");
     expect(link).toHaveClass("min-h-11");
   });
+});
+
+it("identifies a disconnected integration even if the quality label is normal", () => {
+  render(<MetaHealthBadge initialSummary={{ ...base, connection: { state: "DISCONNECTED", observedAt: null, reason: "ACCOUNT_OFFBOARDED", stale: true } }} />);
+  expect(screen.getByRole("link", { name: /WhatsApp desconectado/ })).toBeVisible();
 });

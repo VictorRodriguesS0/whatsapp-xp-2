@@ -242,6 +242,7 @@ function normalizeMetaOperational(
     if (currentLimit === undefined) return null;
     details = normalizedOperationalDetails([
       ["phoneNumber", resourceId === wabaId ? null : resourceId],
+      ["phoneNumberId", exactOperationalValue(value.phone_number_id, 64)],
       ["currentLimit", currentLimit],
     ]);
   } else if (field === "account_review_update") {

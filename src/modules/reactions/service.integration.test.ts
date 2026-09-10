@@ -5,6 +5,7 @@ import { randomUUID } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MessageDirection, MessageStatus, MessageType } from "@/generated/prisma/enums";
+import { HttpError } from "@/lib/http";
 import { prisma } from "@/lib/db";
 import { resetTestDatabase, seedReadFixture } from "@/test/database";
 
@@ -163,4 +164,14 @@ describe("reaction service with PostgreSQL", () => {
     await expect(first).resolves.toMatchObject({ emoji: "👍", status: "SENT" });
     expect(provider.sendReaction).toHaveBeenCalledOnce();
   });
+  it("releases a reaction when the connection disappears before the provider attempt", async () => {
+    const { victor, message } = await seedTarget();
+    const deps = dependencies();
+    const guard = vi.fn<() => Promise<void>>().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new HttpError(503, "Disconnected", "META_DISCONNECTED"));
+    await expect(setBusinessReaction(victor.id, message.id, { emoji: "👍", clientRequestId: randomUUID() }, { ...deps, assertConnectionSendAllowed: guard })).rejects.toMatchObject({ status: 503 });
+    expect(deps.provider.sendReaction).not.toHaveBeenCalled();
+    expect(await prisma.messageReaction.findFirst()).toMatchObject({ status: "FAILED", providerAttemptedAt: null });
+    await expect(setBusinessReaction(victor.id, message.id, { emoji: "👍", clientRequestId: randomUUID() }, deps)).resolves.toMatchObject({ status: "SENT" });
+  });
+
 });

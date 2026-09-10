@@ -201,6 +201,8 @@ Se o microfone falhar, confira nesta ordem: HTTPS válido, permissão do site no
 
 ## Configuração oficial da Meta
 
+Para reconectar o número existente pelo fluxo oficial de coexistência, consulte [Reconexão do WhatsApp Business](docs/meta-reconnection.md).
+
 Realize estes passos no Meta for Developers e no Business Manager com uma conta autorizada:
 
 1. crie um aplicativo do tipo apropriado para negócios e adicione o produto WhatsApp;

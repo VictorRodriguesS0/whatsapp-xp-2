@@ -16,7 +16,8 @@ vi.mock("./use-realtime", () => ({
 
 const normal: MetaHealthSummaryDto = {
   label: "NORMAL",
-  unacknowledgedCount: 0,
+  connection: { state: "CONNECTED" as const, observedAt: "2026-08-23T12:00:00Z", reason: "GRAPH_CONNECTED", stale: false },
+    unacknowledgedCount: 0,
   stale: false,
   phone: { displayPhoneNumber: "+55 61 9514-9019", verifiedName: "XP Eletrônicos", qualityRating: "GREEN" },
   account: { reviewStatus: "APPROVED", event: null, messagingLimit: null },

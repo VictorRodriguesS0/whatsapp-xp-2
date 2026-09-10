@@ -33,6 +33,9 @@ describe("Meta health Graph client", () => {
         display_phone_number: "+55 61 99999-0000",
         verified_name: "XP Eletrônicos",
         quality_rating: "GREEN",
+        status: "DISCONNECTED",
+        platform_type: "ON_PREMISE",
+        is_on_biz_app: true,
         private_field: "must-not-survive",
       },
       { id: "waba-1", account_review_status: "APPROVED" },
@@ -59,6 +62,7 @@ describe("Meta health Graph client", () => {
       verifiedName: "XP Eletrônicos",
       qualityRating: "GREEN",
       accountReviewStatus: "APPROVED",
+      connection: { status: "DISCONNECTED", platformType: "ON_PREMISE", isOnBizApp: true, subscribed: null },
       templates: [
         {
           id: "tpl-1",
@@ -192,4 +196,18 @@ describe("Meta health Graph client", () => {
       createMetaHealthGraphClient(config(fetcher)).fetchState(),
     ).rejects.toMatchObject({ code: "META_INVALID_RESPONSE" });
   });
+});
+
+it.each([true, false])("verifies both webhook subscriptions before reporting a ready connection (%s)", async (fieldsReady) => {
+  const responses = [
+    { id: "phone-1", status: "CONNECTED", platform_type: "CLOUD_API", is_on_biz_app: true },
+    { id: "waba-1" }, { data: [] },
+    { data: [{ whatsapp_business_api_data: { id: "app-1" } }] },
+    { data: [{ object: "whatsapp_business_account", active: true, fields: (fieldsReady ? ["messages", "account_update", "smb_message_echoes", "smb_app_state_sync"] : ["messages"]).map((name) => ({ name })) }] },
+  ];
+  const fetcher = vi.fn<typeof fetch>(async () => jsonResponse(responses.shift()));
+  const state = await createMetaHealthGraphClient({ ...config(fetcher), appId: "app-1", appSecret: "test-secret" }).fetchState();
+  expect(state.connection).toMatchObject({ status: "CONNECTED", subscribed: fieldsReady });
+  expect(fetcher).toHaveBeenCalledTimes(5);
+  expect(new Headers(fetcher.mock.calls[4][1]?.headers).get("Authorization")).toBe("Bearer app-1|test-secret");
 });

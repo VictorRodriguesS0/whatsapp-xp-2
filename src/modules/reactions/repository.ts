@@ -71,6 +71,11 @@ export const prismaReactionRepository: ReactionRepository = {
     });
   },
 
+  async findBusinessReactionByRequestId(clientRequestId) {
+    const row = await prisma.messageReaction.findUnique({ where: { clientRequestId }, select: reactionSelect });
+    return row ? hydrateBusinessReaction(row) : null;
+  },
+
   async findTarget(messageId) {
     const row = await prisma.message.findUnique({
       where: { id: messageId },
@@ -199,6 +204,14 @@ export const prismaReactionRepository: ReactionRepository = {
         providerMessageId,
         failureReason: null,
       },
+    });
+    return updated.count === 1 ? findHydratedById(reactionId) : null;
+  },
+
+  async markLocallyFailed(reactionId, clientRequestId, failureReason) {
+    const updated = await prisma.messageReaction.updateMany({
+      where: { id: reactionId, reactor: ReactionReactor.BUSINESS, clientRequestId, status: ReactionStatus.PENDING, providerAttemptedAt: null },
+      data: { status: ReactionStatus.FAILED, failureReason },
     });
     return updated.count === 1 ? findHydratedById(reactionId) : null;
   },

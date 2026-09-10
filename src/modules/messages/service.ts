@@ -19,6 +19,7 @@ import { HttpError } from "@/lib/http";
 import type { SessionUser } from "@/modules/auth/session";
 import { runConversationTransaction } from "@/modules/conversations/service";
 import { refreshResponseState } from "@/modules/conversations/shared-state";
+import { assertConnectionSendAllowed } from "@/modules/meta-health/send-guard";
 import { assertFreeFormSendAllowed } from "@/modules/messaging-policy/service";
 import type {
   MessageDto,
@@ -262,6 +263,7 @@ export type MessageServiceDependencies = {
   now?: () => Date;
   createUuid?: () => string;
   deliveryLeaseMs?: number;
+  assertConnectionSendAllowed?(): Promise<void>;
   assertFreeFormSendAllowed?(
     conversationId: string,
     now: Date,
@@ -270,6 +272,10 @@ export type MessageServiceDependencies = {
     retailerIds: readonly string[],
   ): Promise<CatalogProduct[]>;
 };
+
+function connectionGuard(dependencies: MessageServiceDependencies) {
+  return dependencies.assertConnectionSendAllowed ?? assertConnectionSendAllowed;
+}
 
 function freeFormGuard(dependencies: MessageServiceDependencies) {
   return dependencies.assertFreeFormSendAllowed ?? assertFreeFormSendAllowed;
@@ -1103,6 +1109,7 @@ async function deliverAndCommit(
 ): Promise<MessageDto> {
   const concurrency = dependencies.concurrency ?? defaultConcurrency;
   return concurrency.run(message.sentByUserId, async () => {
+    await connectionGuard(dependencies)();
     const clock = dependencies.now ?? (() => new Date());
     const leaseId = (dependencies.createUuid ?? randomUUID)();
     const now = clock();
@@ -1160,6 +1167,13 @@ async function deliverAndCommit(
         });
         return toMessageDto(failed);
       }
+    }
+
+    try {
+      await connectionGuard(dependencies)();
+    } catch (error) {
+      await dependencies.repository.releaseDeliveryClaim(claimed.id, leaseId);
+      throw error;
     }
 
     const rateReservation = dependencies.limiter.consume(deliverable.sentByUserId);
@@ -1289,6 +1303,7 @@ async function sendMessageOnce(
       (existing.status === MessageStatus.PENDING && existing.operationalState === MessageOperationalState.READY)
     );
     if (repairableMedia) {
+      await connectionGuard(dependencies)();
       await freeFormGuard(dependencies)(
         parsedConversationId,
         clock(),
@@ -1338,6 +1353,7 @@ async function sendMessageOnce(
     }
     return toMessageDto(existing);
   }
+  await connectionGuard(dependencies)();
   await freeFormGuard(dependencies)(parsedConversationId, clock());
   let validatedFile: MessageFileInput | undefined;
   if (input.type !== MessageType.TEXT) {
@@ -1501,6 +1517,7 @@ export async function sendPreparedCatalogMessage(
   }
 
   const clock = dependencies.now ?? (() => new Date());
+  await connectionGuard(dependencies)();
   await freeFormGuard(dependencies)(parsedConversationId, clock());
   const created = await dependencies.repository.createPending({
     conversationId: parsedConversationId,
@@ -1584,6 +1601,7 @@ export async function sendPreparedTemplateMessage(
     return existing;
   }
 
+  await connectionGuard(dependencies)();
   const created = await dependencies.repository.createPending({
     conversationId: parsedConversationId,
     clientRequestId,
@@ -1649,6 +1667,7 @@ export async function retryMessage(
     current.conversationId,
     clock(),
   );
+  await connectionGuard(dependencies)();
   const claimed = await dependencies.repository.claimFailedForRetry(parsedMessageId);
   if (!claimed) throw new HttpError(409, "Mensagem já está sendo reenviada");
   publishSafely(dependencies, { type: "message.status", conversationId: claimed.conversationId, messageId: claimed.id });

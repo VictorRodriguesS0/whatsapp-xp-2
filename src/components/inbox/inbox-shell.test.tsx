@@ -160,7 +160,8 @@ const defaultInbox = {
 const user: SessionUser = { id: "user-id", name: "Marcos", email: "marcos@xp.test", role: "ATTENDANT" };
 const metaSummary = {
   label: "NORMAL" as const,
-  unacknowledgedCount: 0,
+  connection: { state: "CONNECTED" as const, observedAt: "2026-08-23T12:00:00Z", reason: "GRAPH_CONNECTED", stale: false },
+    unacknowledgedCount: 0,
   stale: false,
   phone: { displayPhoneNumber: null, verifiedName: null, qualityRating: "GREEN" },
   account: { reviewStatus: "APPROVED", event: null, messagingLimit: null },

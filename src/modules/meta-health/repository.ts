@@ -4,6 +4,9 @@ import { Prisma, type PrismaClient } from "@/generated/prisma/client";
 import { prisma } from "@/lib/db";
 import type { SessionUser } from "@/modules/auth/session";
 
+import { connectionFromGraph, mergeConnectionEvidence, type ConnectionEvidence } from "./connection";
+import { describeMetaTransition } from "./severity";
+
 import type {
   MetaAlertCategory,
   MetaAlertSeverity,
@@ -20,6 +23,9 @@ export type MetaHealthSnapshotRecord = {
   qualityRating: string | null;
   accountReviewStatus: string | null;
   accountEvent: string | null;
+  connectionState: string;
+  connectionObservedAt: Date | null;
+  connectionReason: string | null;
   messagingLimit: string | null;
   lastSyncAttemptAt: Date | null;
   lastSuccessfulSyncAt: Date | null;
@@ -97,6 +103,7 @@ export type MetaHealthRepository = {
     phoneNumberId: string;
     wabaId: string;
     transition: MetaTransitionInput;
+    connection?: ConnectionEvidence;
     snapshotPatch?: Partial<
       Pick<
         MetaHealthSnapshotRecord,
@@ -128,6 +135,9 @@ const snapshotSelect = {
   qualityRating: true,
   accountReviewStatus: true,
   accountEvent: true,
+  connectionState: true,
+  connectionObservedAt: true,
+  connectionReason: true,
   messagingLimit: true,
   lastSyncAttemptAt: true,
   lastSuccessfulSyncAt: true,
@@ -198,8 +208,9 @@ async function applyTransition(
       resourceId: transition.resourceId,
     },
     orderBy: [{ occurredAt: "desc" }, { id: "desc" }],
-    select: { eventCode: true },
+    select: { eventCode: true, occurredAt: true },
   });
+  if (latest && latest.occurredAt > transition.occurredAt) return;
   if (latest?.eventCode === transition.eventCode) return;
 
   if (transition.resolvesCodes.length > 0) {
@@ -307,6 +318,21 @@ export const prismaMetaHealthRepository: MetaHealthRepository = {
         },
       });
       if (updated.count !== 1) return false;
+      if (input.remote.connection) {
+        const current = await transaction.metaHealthSnapshot.findUniqueOrThrow({ where: { id: input.snapshotId } });
+        const evidence = mergeConnectionEvidence(current, connectionFromGraph(input.remote.connection, input.now));
+        if (evidence) {
+          await transaction.metaHealthSnapshot.update({ where: { id: input.snapshotId }, data: evidence });
+          if (evidence.connectionState !== "UNKNOWN") {
+            const description = describeMetaTransition("account_update", `CONNECTION_${evidence.connectionState}`);
+            await applyTransition(transaction, input.snapshotId, {
+              ...description, eventCode: description.alertCode, deduplicationKey: null,
+              source: "RECONCILIATION", sourceField: "account_update", resourceId: current.phoneNumberId,
+              details: null, occurredAt: input.now,
+            });
+          }
+        }
+      }
       for (const transition of input.transitions) {
         await applyTransition(transaction, input.snapshotId, transition);
       }
@@ -337,7 +363,7 @@ export const prismaMetaHealthRepository: MetaHealthRepository = {
     return updated.count === 1;
   },
 
-  async applyOperationalEvent({ phoneNumberId, wabaId, transition, snapshotPatch }) {
+  async applyOperationalEvent({ phoneNumberId, wabaId, transition, snapshotPatch, connection }) {
     const snapshot = await prisma.metaHealthSnapshot.upsert({
       where: { phoneNumberId },
       create: { phoneNumberId, wabaId },
@@ -345,6 +371,17 @@ export const prismaMetaHealthRepository: MetaHealthRepository = {
       select: { id: true },
     });
     await serializable(async (transaction) => {
+      if (connection) {
+        const current = await transaction.metaHealthSnapshot.findUniqueOrThrow({ where: { id: snapshot.id } });
+        const evidence = mergeConnectionEvidence(current, connection);
+        if (!evidence) return;
+        await transaction.metaHealthSnapshot.update({ where: { id: snapshot.id }, data: evidence });
+      }
+      const latest = await transaction.metaOperationalAlert.findFirst({
+        where: { snapshotId: snapshot.id, sourceField: transition.sourceField, resourceId: transition.resourceId },
+        orderBy: { occurredAt: "desc" }, select: { occurredAt: true },
+      });
+      if (latest && latest.occurredAt > transition.occurredAt) return;
       if (snapshotPatch && Object.keys(snapshotPatch).length > 0) {
         await transaction.metaHealthSnapshot.update({
           where: { id: snapshot.id },

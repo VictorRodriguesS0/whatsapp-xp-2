@@ -136,3 +136,57 @@ describe("Meta health Prisma reconciliation", () => {
     });
   });
 });
+
+describe("connection lifecycle ordering in PostgreSQL", () => {
+  beforeEach(resetTestDatabase);
+  const lifecycle = (eventCode: string, seconds: number) => ({
+    wabaId: config.wabaId, field: "account_update" as const, eventCode,
+    resourceId: config.wabaId, occurredAt: new Date(now.getTime() + seconds * 1000), details: null,
+    deduplicationKey: `connection:${eventCode}:${seconds}`,
+  });
+  async function actor() {
+    return prisma.user.create({ data: { name: "Admin", email: "connection@example.test", passwordHash: "unused", role: "ADMIN" } });
+  }
+  const connected: MetaHealthGraphClient = { async fetchState() { return {
+    ...config, displayPhoneNumber: null, verifiedName: "Store", qualityRating: "GREEN", accountReviewStatus: "APPROVED", templates: [],
+    connection: { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: true, subscribed: true },
+  }; } };
+
+  it("keeps sends held through duplicate, old and unconfirmed reconnection events", async () => {
+    const user = await actor();
+    await syncMetaHealth(user, { config, client: connected, now: () => now });
+    await applyMetaOperationalEvent(lifecycle("ACCOUNT_OFFBOARDED", 60), { config });
+    await applyMetaOperationalEvent(lifecycle("ACCOUNT_OFFBOARDED", 60), { config });
+    await applyMetaOperationalEvent(lifecycle("ACCOUNT_RECONNECTED", 30), { config });
+    await expect(getMetaHealthSummary(user, { config, now: () => new Date(now.getTime() + 61_000) })).resolves.toMatchObject({ label: "CRITICAL", connection: { state: "DISCONNECTED" }, phone: { qualityRating: "GREEN" } });
+    await applyMetaOperationalEvent(lifecycle("ACCOUNT_RECONNECTED", 65), { config });
+    expect((await getMetaHealthSummary(user, { config })).connection.state).toBe("DISCONNECTED");
+    await syncMetaHealth(user, { config, client: connected, force: true, now: () => new Date(now.getTime() + 120_000) });
+    const summary = await getMetaHealthSummary(user, { config, now: () => new Date(now.getTime() + 121_000) });
+    expect(summary.connection.state).toBe("CONNECTED");
+    expect(summary.label).toBe("NORMAL");
+  });
+
+  it("does not overwrite a webhook that arrives while a Graph query is in flight", async () => {
+    const user = await actor();
+    const client: MetaHealthGraphClient = { async fetchState() {
+      await applyMetaOperationalEvent(lifecycle("PARTNER_REMOVED", 0), { config });
+      return connected.fetchState();
+    } };
+    await syncMetaHealth(user, { config, client, now: () => new Date(now.getTime() + 500) });
+    expect((await getMetaHealthSummary(user, { config })).connection.state).toBe("DISCONNECTED");
+  });
+  it("accepts a matching phone ID before a display phone has been loaded", async () => {
+    const user = await actor();
+    await applyMetaOperationalEvent({ ...lifecycle("ACCOUNT_OFFBOARDED", 0), details: { phoneNumberId: config.phoneNumberId, phoneNumber: "+55 11 99999-0000" } }, { config });
+    expect((await getMetaHealthSummary(user, { config })).connection.state).toBe("DISCONNECTED");
+  });
+  it("holds a previously connected phone when subscription verification fails", async () => {
+    const user = await actor();
+    await syncMetaHealth(user, { config, client: connected, now: () => now });
+    const client: MetaHealthGraphClient = { async fetchState() { return { ...await connected.fetchState(), connection: { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: true, subscribed: false } }; } };
+    await syncMetaHealth(user, { config, client, force: true, now: () => new Date(now.getTime() + 61_000) });
+    expect((await getMetaHealthSummary(user, { config })).connection.state).toBe("DISCONNECTED");
+  });
+
+});

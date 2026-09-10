@@ -8,6 +8,8 @@ describe("Meta health severity", () => {
     ["YELLOW", [], "ATTENTION"],
     ["RED", [], "CRITICAL"],
     ["GREEN", ["ACCOUNT_DISABLED"], "CRITICAL"],
+    ["GREEN", ["ACCOUNT_OFFBOARDED"], "CRITICAL"],
+    ["GREEN", ["PARTNER_REMOVED"], "CRITICAL"],
     ["GREEN", ["TEMPLATE_REJECTED"], "ATTENTION"],
   ] as const)(
     "maps %s and %j to %s",

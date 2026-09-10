@@ -8,6 +8,9 @@ import type {
 export const META_HEALTH_STALE_AFTER_MS = 15 * 60_000;
 
 const criticalAlertCodes = new Set([
+  "ACCOUNT_OFFBOARDED",
+  "PARTNER_REMOVED",
+  "CONNECTION_DISCONNECTED",
   "ACCOUNT_DISABLED",
   "ACCOUNT_BANNED",
   "QUALITY_RED",
@@ -28,6 +31,7 @@ const attentionAlertCodes = new Set([
 ]);
 
 type LabelInput = {
+  connectionState?: string;
   qualityRating: string | null;
   activeCodes: string[];
   lastSuccessfulSyncAt: Date | null;
@@ -38,6 +42,7 @@ export function deriveMetaHealthLabel(
   now = new Date(),
 ): MetaHealthLabel {
   if (
+    input.connectionState === "DISCONNECTED" ||
     input.qualityRating === "RED" ||
     input.activeCodes.some((code) => criticalAlertCodes.has(code))
   ) {
@@ -56,7 +61,7 @@ export function deriveMetaHealthLabel(
     now.getTime() - input.lastSuccessfulSyncAt.getTime() >
       META_HEALTH_STALE_AFTER_MS;
 
-  return stale ? "STALE" : "NORMAL";
+  return stale || input.connectionState === "UNKNOWN" ? "STALE" : "NORMAL";
 }
 
 const transitionMap = new Map<string, MetaTransitionDescription>();
@@ -267,6 +272,16 @@ transition(
     "TEMPLATE_PENDING_DELETION",
   ]),
 );
+
+for (const [eventCode, summary] of [
+  ["ACCOUNT_OFFBOARDED", "Integração desconectada do WhatsApp Business"],
+  ["PARTNER_REMOVED", "Plataforma comercial desconectada"],
+  ["CONNECTION_DISCONNECTED", "A Meta confirmou que a integração está desconectada"],
+] as const) {
+  transition("account_update", eventCode, critical("ACCOUNT", summary, eventCode));
+}
+transition("account_update", "ACCOUNT_RECONNECTED", info("ACCOUNT", "Reconexão informada pela Meta; aguardando confirmação", "ACCOUNT_RECONNECTED"));
+transition("account_update", "CONNECTION_CONNECTED", info("ACCOUNT", "Conexão com a plataforma confirmada", "CONNECTION_CONNECTED", ["ACCOUNT_OFFBOARDED", "PARTNER_REMOVED", "CONNECTION_DISCONNECTED"]));
 
 const fallbackByField: Record<
   MetaOperationalField,

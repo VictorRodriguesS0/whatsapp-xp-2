@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { MetaHealthScreen } from "@/components/meta-health/meta-health-screen";
+import { getMetaConnectionPublicConfig } from "@/modules/meta-connection/config";
 import { getCurrentUser } from "@/modules/auth/session";
 import { getMetaHealthSummary, listMetaHealthAlerts } from "@/modules/meta-health/service";
 
@@ -12,5 +13,5 @@ export default async function MetaHealthPage() {
     getMetaHealthSummary(user),
     listMetaHealthAlerts(user, { limit: 30 }),
   ]);
-  return <MetaHealthScreen initialAlerts={initialAlerts} initialSummary={initialSummary} />;
+  return <MetaHealthScreen connectionConfig={getMetaConnectionPublicConfig()} initialAlerts={initialAlerts} initialSummary={initialSummary} />;
 }

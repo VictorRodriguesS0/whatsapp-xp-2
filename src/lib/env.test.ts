@@ -109,3 +109,10 @@ describe("parseServerEnv", () => {
     expect(parsed).not.toHaveProperty("NEXT_PUBLIC_WHATSAPP_CATALOG_ID");
   });
 });
+
+it("keeps embedded signup opt-in and accepts its separate SDK version", () => {
+  expect(parseServerEnv(validBase)).toMatchObject({ META_EMBEDDED_SIGNUP_ENABLED: false, META_EMBEDDED_SIGNUP_GRAPH_VERSION: "v26.0" });
+  expect(parseServerEnv({ ...validBase, META_EMBEDDED_SIGNUP_ENABLED: "false" }).META_EMBEDDED_SIGNUP_ENABLED).toBe(false);
+  expect(parseServerEnv({ ...validBase, META_EMBEDDED_SIGNUP_CONFIG_ID: "123", META_BUSINESS_ID: "456" })).toMatchObject({ META_EMBEDDED_SIGNUP_CONFIG_ID: "123", META_BUSINESS_ID: "456" });
+  expect(() => parseServerEnv({ ...validBase, META_EMBEDDED_SIGNUP_ENABLED: "maybe" })).toThrow();
+});

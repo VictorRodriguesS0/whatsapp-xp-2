@@ -504,6 +504,9 @@ model WebhookEvent {
 
 model MetaHealthSnapshot {
   id                   String                 @id @default(uuid()) @db.Uuid
+  connectionState      String    @default("UNKNOWN") @map("connection_state")
+  connectionObservedAt DateTime? @map("connection_observed_at") @db.Timestamptz(3)
+  connectionReason     String? @map("connection_reason")
   phoneNumberId        String                 @unique @map("phone_number_id")
   wabaId               String                 @map("waba_id")
   displayPhoneNumber   String?                @map("display_phone_number")
@@ -674,4 +677,27 @@ model ContactMessagingConsentEvent {
 
   @@index([contactId, createdAt])
   @@map("contact_messaging_consent_events")
+}
+
+model MetaConnectionAttempt {
+  id              String    @id @default(uuid()) @db.Uuid
+  phoneNumberId   String    @map("phone_number_id")
+  userId          String    @map("user_id") @db.Uuid
+  sessionHash     String    @map("session_hash")
+  nonceHash       String    @map("nonce_hash")
+  state           String    @default("WAITING")
+  codeHash        String?   @unique @map("code_hash")
+  authorizedAt    DateTime? @map("authorized_at") @db.Timestamptz(3)
+  sessionInfoAt   DateTime? @map("session_info_at") @db.Timestamptz(3)
+  lastCheckAt     DateTime? @map("last_check_at") @db.Timestamptz(3)
+  checkLeaseId    String?   @map("check_lease_id") @db.Uuid
+  checkLeaseUntil DateTime? @map("check_lease_until") @db.Timestamptz(3)
+  errorCode       String?   @map("error_code")
+  expiresAt       DateTime  @map("expires_at") @db.Timestamptz(3)
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([userId, sessionHash, createdAt])
+  @@index([expiresAt])
+  @@map("meta_connection_attempts")
 }

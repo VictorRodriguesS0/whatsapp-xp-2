@@ -7,6 +7,8 @@ import { HttpError } from "@/lib/http";
 import { requireAdmin } from "@/modules/auth/guards";
 import type { SessionUser } from "@/modules/auth/session";
 
+import { connectionFromEvent } from "./connection";
+
 import {
   createMetaHealthGraphClient,
   MetaHealthGraphError,
@@ -75,6 +77,8 @@ function defaultClient(): MetaHealthGraphClient {
     phoneNumberId: env.WHATSAPP_PHONE_NUMBER_ID,
     wabaId: env.WHATSAPP_BUSINESS_ACCOUNT_ID,
     accessToken: env.WHATSAPP_ACCESS_TOKEN,
+    appId: env.META_APP_ID,
+    appSecret: env.META_APP_SECRET,
     timeoutMs: env.META_HTTP_TIMEOUT_MS,
   });
 }
@@ -85,6 +89,8 @@ function dtoDate(value: Date | null): string | null {
 
 function isStale(snapshot: MetaHealthSnapshotRecord, now: Date): boolean {
   return (
+    snapshot.connectionObservedAt === null ||
+    snapshot.connectionState === "UNKNOWN" ||
     snapshot.lastSuccessfulSyncAt === null ||
     now.getTime() - snapshot.lastSuccessfulSyncAt.getTime() > META_HEALTH_STALE_AFTER_MS
   );
@@ -204,12 +210,19 @@ export async function getMetaHealthSummary(
   return {
     label: deriveMetaHealthLabel(
       {
+        connectionState: view.snapshot.connectionState,
         qualityRating: view.snapshot.qualityRating,
         activeCodes: view.activeCodes,
         lastSuccessfulSyncAt: view.snapshot.lastSuccessfulSyncAt,
       },
       now,
     ),
+    connection: {
+      state: view.snapshot.connectionState === "CONNECTED" || view.snapshot.connectionState === "DISCONNECTED" ? view.snapshot.connectionState : "UNKNOWN",
+      observedAt: dtoDate(view.snapshot.connectionObservedAt),
+      reason: view.snapshot.connectionReason,
+      stale: !view.snapshot.connectionObservedAt || now.getTime() - view.snapshot.connectionObservedAt.getTime() > META_HEALTH_STALE_AFTER_MS || !!view.snapshot.lastSyncErrorCode,
+    },
     unacknowledgedCount: view.unacknowledgedCount,
     stale,
     phone: {
@@ -275,6 +288,8 @@ export async function syncMetaHealth(
 
   if (
     !force &&
+    snapshot.connectionObservedAt &&
+    snapshot.connectionState !== "UNKNOWN" &&
     snapshot.lastSuccessfulSyncAt &&
     now.getTime() - snapshot.lastSuccessfulSyncAt.getTime() <= META_HEALTH_STALE_AFTER_MS
   ) {
@@ -345,6 +360,13 @@ export async function applyMetaOperationalEvent(
     throw new HttpError(422, "Conta da Meta não corresponde à integração configurada");
   }
 
+  const connection = event.field === "account_update" ? connectionFromEvent(event.eventCode, event.occurredAt) : null;
+  if (connection && event.details?.phoneNumberId && event.details.phoneNumberId !== config.phoneNumberId) return;
+  if (connection && !event.details?.phoneNumberId && event.details?.phoneNumber) {
+    const snapshot = await repository.ensureSnapshot(config.phoneNumberId, config.wabaId);
+    const digits = (value: string) => value.replace(/\D/g, "");
+    if (!snapshot.displayPhoneNumber || digits(event.details.phoneNumber) !== digits(snapshot.displayPhoneNumber)) return;
+  }
   const description = describeMetaTransition(event.field, event.eventCode);
   const snapshotPatch: Parameters<MetaHealthRepository["applyOperationalEvent"]>[0]["snapshotPatch"] = {};
   if (event.field === "account_update") {
@@ -366,6 +388,7 @@ export async function applyMetaOperationalEvent(
     phoneNumberId: config.phoneNumberId,
     wabaId: config.wabaId,
     snapshotPatch,
+    connection: connection ?? undefined,
     transition: {
       deduplicationKey: event.deduplicationKey,
       category: description.category,
@@ -373,7 +396,7 @@ export async function applyMetaOperationalEvent(
       source: "WEBHOOK",
       sourceField: event.field,
       eventCode: description.alertCode,
-      resourceId: event.resourceId,
+      resourceId: connection ? config.phoneNumberId : event.resourceId,
       summary: description.summary,
       details: event.details,
       occurredAt: event.occurredAt,

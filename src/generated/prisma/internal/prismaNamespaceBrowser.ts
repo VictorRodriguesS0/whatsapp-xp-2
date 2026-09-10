@@ -75,7 +75,8 @@ export const ModelName = {
   WhatsAppTemplateAssignment: 'WhatsAppTemplateAssignment',
   ConversationResumption: 'ConversationResumption',
   ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent',
-  ContactMessagingConsentEvent: 'ContactMessagingConsentEvent'
+  ContactMessagingConsentEvent: 'ContactMessagingConsentEvent',
+  MetaConnectionAttempt: 'MetaConnectionAttempt'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -367,6 +368,9 @@ export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[k
 
 export const MetaHealthSnapshotScalarFieldEnum = {
   id: 'id',
+  connectionState: 'connectionState',
+  connectionObservedAt: 'connectionObservedAt',
+  connectionReason: 'connectionReason',
   phoneNumberId: 'phoneNumberId',
   wabaId: 'wabaId',
   displayPhoneNumber: 'displayPhoneNumber',
@@ -520,6 +524,28 @@ export const ContactMessagingConsentEventScalarFieldEnum = {
 } as const
 
 export type ContactMessagingConsentEventScalarFieldEnum = (typeof ContactMessagingConsentEventScalarFieldEnum)[keyof typeof ContactMessagingConsentEventScalarFieldEnum]
+
+
+export const MetaConnectionAttemptScalarFieldEnum = {
+  id: 'id',
+  phoneNumberId: 'phoneNumberId',
+  userId: 'userId',
+  sessionHash: 'sessionHash',
+  nonceHash: 'nonceHash',
+  state: 'state',
+  codeHash: 'codeHash',
+  authorizedAt: 'authorizedAt',
+  sessionInfoAt: 'sessionInfoAt',
+  lastCheckAt: 'lastCheckAt',
+  checkLeaseId: 'checkLeaseId',
+  checkLeaseUntil: 'checkLeaseUntil',
+  errorCode: 'errorCode',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaConnectionAttemptScalarFieldEnum = (typeof MetaConnectionAttemptScalarFieldEnum)[keyof typeof MetaConnectionAttemptScalarFieldEnum]
 
 
 export const SortOrder = {

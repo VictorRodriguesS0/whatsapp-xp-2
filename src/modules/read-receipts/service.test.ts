@@ -103,3 +103,10 @@ describe("WhatsApp read receipt delivery", () => {
     expect(provider.markRead).not.toHaveBeenCalled();
   });
 });
+
+it("keeps read receipts retryable with a pause when the local connection guard holds them", async () => {
+  const { dependencies, provider, repository } = harness();
+  provider.markRead.mockRejectedValue(new WhatsAppProviderError("rejected", "local", "LOCAL_CONNECTION_UNAVAILABLE"));
+  await deliverReadReceiptForConversation(claim.conversationId, dependencies);
+  expect(repository.fail).toHaveBeenCalledWith(claim, { kind: "TRANSIENT", nextAttemptAt: new Date(now.getTime() + 60_000) });
+});

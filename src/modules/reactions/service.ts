@@ -2,6 +2,7 @@ import "server-only";
 
 import { z } from "zod";
 
+import { assertConnectionSendAllowed } from "@/modules/meta-health/send-guard";
 import { HttpError } from "@/lib/http";
 import { getWhatsAppProvider } from "@/modules/whatsapp/factory";
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
@@ -31,6 +32,7 @@ export type ReactionServiceDependencies = {
   repository: ReactionRepository;
   provider: ReactionProvider;
   now?: () => Date;
+  assertConnectionSendAllowed?(): Promise<void>;
   inFlight?: Map<string, Promise<ReactionMutationDto>>;
 };
 
@@ -92,6 +94,13 @@ async function setBusinessReactionOnce(
   if (!target) throw new HttpError(404, "Mensagem não encontrada");
   assertEligibleTarget(target, clock());
 
+  const existing = await repository.findBusinessReactionByRequestId(input.clientRequestId);
+  if (existing) {
+    if (existing.messageId !== messageId || existing.sentByUser.id !== actor.id) throw new HttpError(409, "Identificador de reação já utilizado");
+    return toMutationDto(existing, { removed: existing.emoji === "" && existing.status === "SENT" });
+  }
+  const guard = dependencies.assertConnectionSendAllowed ?? assertConnectionSendAllowed;
+  await guard();
   const beginning = await repository.beginBusinessReaction({
     messageId,
     actorId: actor.id,
@@ -107,6 +116,12 @@ async function setBusinessReactionOnce(
   }
 
   const { reaction, providerEmoji } = beginning;
+  try {
+    await guard();
+  } catch (error) {
+    await repository.markLocallyFailed(reaction.id, input.clientRequestId, "Integração indisponível antes do envio");
+    throw error;
+  }
   const attemptedAt = clock();
   const ownsAttempt = await repository.markProviderAttempt(
     reaction.id,
