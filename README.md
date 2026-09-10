@@ -1,5 +1,7 @@
 # XP Atendimento — WhatsApp
 
+Os endereços de servidor, caminhos de implantação e identidades SSH desta documentação são exemplos. Adapte-os ao seu ambiente e mantenha as configurações reais fora do Git.
+
 Central interna da XP Eletrônicos para atendimento compartilhado pela API oficial do WhatsApp Business da Meta. O MVP reúne interface, API, webhook e Server-Sent Events (SSE) em uma única aplicação Next.js, com PostgreSQL e mídia local persistente.
 
 Produção: `https://whatsapp.xpeletronicos.com`
