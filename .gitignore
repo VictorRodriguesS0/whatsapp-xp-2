@@ -1,9 +1,11 @@
 .worktrees/
 .superpowers/
-.env
-.env.local
 .next/
 node_modules/
 coverage/
 data/
 *.tsbuildinfo
+
+# Local environments may contain credentials.
+.env*
+!.env.example
