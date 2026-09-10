@@ -26,6 +26,9 @@ export type AggregateMetaHealthSnapshot = {
 
 export type MetaHealthSnapshotMinAggregateOutputType = {
   id: string | null
+  connectionState: string | null
+  connectionObservedAt: Date | null
+  connectionReason: string | null
   phoneNumberId: string | null
   wabaId: string | null
   displayPhoneNumber: string | null
@@ -45,6 +48,9 @@ export type MetaHealthSnapshotMinAggregateOutputType = {
 
 export type MetaHealthSnapshotMaxAggregateOutputType = {
   id: string | null
+  connectionState: string | null
+  connectionObservedAt: Date | null
+  connectionReason: string | null
   phoneNumberId: string | null
   wabaId: string | null
   displayPhoneNumber: string | null
@@ -64,6 +70,9 @@ export type MetaHealthSnapshotMaxAggregateOutputType = {
 
 export type MetaHealthSnapshotCountAggregateOutputType = {
   id: number
+  connectionState: number
+  connectionObservedAt: number
+  connectionReason: number
   phoneNumberId: number
   wabaId: number
   displayPhoneNumber: number
@@ -85,6 +94,9 @@ export type MetaHealthSnapshotCountAggregateOutputType = {
 
 export type MetaHealthSnapshotMinAggregateInputType = {
   id?: true
+  connectionState?: true
+  connectionObservedAt?: true
+  connectionReason?: true
   phoneNumberId?: true
   wabaId?: true
   displayPhoneNumber?: true
@@ -104,6 +116,9 @@ export type MetaHealthSnapshotMinAggregateInputType = {
 
 export type MetaHealthSnapshotMaxAggregateInputType = {
   id?: true
+  connectionState?: true
+  connectionObservedAt?: true
+  connectionReason?: true
   phoneNumberId?: true
   wabaId?: true
   displayPhoneNumber?: true
@@ -123,6 +138,9 @@ export type MetaHealthSnapshotMaxAggregateInputType = {
 
 export type MetaHealthSnapshotCountAggregateInputType = {
   id?: true
+  connectionState?: true
+  connectionObservedAt?: true
+  connectionReason?: true
   phoneNumberId?: true
   wabaId?: true
   displayPhoneNumber?: true
@@ -215,6 +233,9 @@ export type MetaHealthSnapshotGroupByArgs<ExtArgs extends runtime.Types.Extensio
 
 export type MetaHealthSnapshotGroupByOutputType = {
   id: string
+  connectionState: string
+  connectionObservedAt: Date | null
+  connectionReason: string | null
   phoneNumberId: string
   wabaId: string
   displayPhoneNumber: string | null
@@ -255,6 +276,9 @@ export type MetaHealthSnapshotWhereInput = {
   OR?: Prisma.MetaHealthSnapshotWhereInput[]
   NOT?: Prisma.MetaHealthSnapshotWhereInput | Prisma.MetaHealthSnapshotWhereInput[]
   id?: Prisma.UuidFilter<"MetaHealthSnapshot"> | string
+  connectionState?: Prisma.StringFilter<"MetaHealthSnapshot"> | string
+  connectionObservedAt?: Prisma.DateTimeNullableFilter<"MetaHealthSnapshot"> | Date | string | null
+  connectionReason?: Prisma.StringNullableFilter<"MetaHealthSnapshot"> | string | null
   phoneNumberId?: Prisma.StringFilter<"MetaHealthSnapshot"> | string
   wabaId?: Prisma.StringFilter<"MetaHealthSnapshot"> | string
   displayPhoneNumber?: Prisma.StringNullableFilter<"MetaHealthSnapshot"> | string | null
@@ -275,6 +299,9 @@ export type MetaHealthSnapshotWhereInput = {
 
 export type MetaHealthSnapshotOrderByWithRelationInput = {
   id?: Prisma.SortOrder
+  connectionState?: Prisma.SortOrder
+  connectionObservedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  connectionReason?: Prisma.SortOrderInput | Prisma.SortOrder
   phoneNumberId?: Prisma.SortOrder
   wabaId?: Prisma.SortOrder
   displayPhoneNumber?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -299,6 +326,9 @@ export type MetaHealthSnapshotWhereUniqueInput = Prisma.AtLeast<{
   AND?: Prisma.MetaHealthSnapshotWhereInput | Prisma.MetaHealthSnapshotWhereInput[]
   OR?: Prisma.MetaHealthSnapshotWhereInput[]
   NOT?: Prisma.MetaHealthSnapshotWhereInput | Prisma.MetaHealthSnapshotWhereInput[]
+  connectionState?: Prisma.StringFilter<"MetaHealthSnapshot"> | string
+  connectionObservedAt?: Prisma.DateTimeNullableFilter<"MetaHealthSnapshot"> | Date | string | null
+  connectionReason?: Prisma.StringNullableFilter<"MetaHealthSnapshot"> | string | null
   wabaId?: Prisma.StringFilter<"MetaHealthSnapshot"> | string
   displayPhoneNumber?: Prisma.StringNullableFilter<"MetaHealthSnapshot"> | string | null
   verifiedName?: Prisma.StringNullableFilter<"MetaHealthSnapshot"> | string | null
@@ -318,6 +348,9 @@ export type MetaHealthSnapshotWhereUniqueInput = Prisma.AtLeast<{
 
 export type MetaHealthSnapshotOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
+  connectionState?: Prisma.SortOrder
+  connectionObservedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  connectionReason?: Prisma.SortOrderInput | Prisma.SortOrder
   phoneNumberId?: Prisma.SortOrder
   wabaId?: Prisma.SortOrder
   displayPhoneNumber?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -343,6 +376,9 @@ export type MetaHealthSnapshotScalarWhereWithAggregatesInput = {
   OR?: Prisma.MetaHealthSnapshotScalarWhereWithAggregatesInput[]
   NOT?: Prisma.MetaHealthSnapshotScalarWhereWithAggregatesInput | Prisma.MetaHealthSnapshotScalarWhereWithAggregatesInput[]
   id?: Prisma.UuidWithAggregatesFilter<"MetaHealthSnapshot"> | string
+  connectionState?: Prisma.StringWithAggregatesFilter<"MetaHealthSnapshot"> | string
+  connectionObservedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"MetaHealthSnapshot"> | Date | string | null
+  connectionReason?: Prisma.StringNullableWithAggregatesFilter<"MetaHealthSnapshot"> | string | null
   phoneNumberId?: Prisma.StringWithAggregatesFilter<"MetaHealthSnapshot"> | string
   wabaId?: Prisma.StringWithAggregatesFilter<"MetaHealthSnapshot"> | string
   displayPhoneNumber?: Prisma.StringNullableWithAggregatesFilter<"MetaHealthSnapshot"> | string | null
@@ -362,6 +398,9 @@ export type MetaHealthSnapshotScalarWhereWithAggregatesInput = {
 
 export type MetaHealthSnapshotCreateInput = {
   id?: string
+  connectionState?: string
+  connectionObservedAt?: Date | string | null
+  connectionReason?: string | null
   phoneNumberId: string
   wabaId: string
   displayPhoneNumber?: string | null
@@ -382,6 +421,9 @@ export type MetaHealthSnapshotCreateInput = {
 
 export type MetaHealthSnapshotUncheckedCreateInput = {
   id?: string
+  connectionState?: string
+  connectionObservedAt?: Date | string | null
+  connectionReason?: string | null
   phoneNumberId: string
   wabaId: string
   displayPhoneNumber?: string | null
@@ -402,6 +444,9 @@ export type MetaHealthSnapshotUncheckedCreateInput = {
 
 export type MetaHealthSnapshotUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionState?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionObservedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  connectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phoneNumberId?: Prisma.StringFieldUpdateOperationsInput | string
   wabaId?: Prisma.StringFieldUpdateOperationsInput | string
   displayPhoneNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -422,6 +467,9 @@ export type MetaHealthSnapshotUpdateInput = {
 
 export type MetaHealthSnapshotUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionState?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionObservedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  connectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phoneNumberId?: Prisma.StringFieldUpdateOperationsInput | string
   wabaId?: Prisma.StringFieldUpdateOperationsInput | string
   displayPhoneNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -442,6 +490,9 @@ export type MetaHealthSnapshotUncheckedUpdateInput = {
 
 export type MetaHealthSnapshotCreateManyInput = {
   id?: string
+  connectionState?: string
+  connectionObservedAt?: Date | string | null
+  connectionReason?: string | null
   phoneNumberId: string
   wabaId: string
   displayPhoneNumber?: string | null
@@ -461,6 +512,9 @@ export type MetaHealthSnapshotCreateManyInput = {
 
 export type MetaHealthSnapshotUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionState?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionObservedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  connectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phoneNumberId?: Prisma.StringFieldUpdateOperationsInput | string
   wabaId?: Prisma.StringFieldUpdateOperationsInput | string
   displayPhoneNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -480,6 +534,9 @@ export type MetaHealthSnapshotUpdateManyMutationInput = {
 
 export type MetaHealthSnapshotUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionState?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionObservedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  connectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phoneNumberId?: Prisma.StringFieldUpdateOperationsInput | string
   wabaId?: Prisma.StringFieldUpdateOperationsInput | string
   displayPhoneNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -499,6 +556,9 @@ export type MetaHealthSnapshotUncheckedUpdateManyInput = {
 
 export type MetaHealthSnapshotCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  connectionState?: Prisma.SortOrder
+  connectionObservedAt?: Prisma.SortOrder
+  connectionReason?: Prisma.SortOrder
   phoneNumberId?: Prisma.SortOrder
   wabaId?: Prisma.SortOrder
   displayPhoneNumber?: Prisma.SortOrder
@@ -518,6 +578,9 @@ export type MetaHealthSnapshotCountOrderByAggregateInput = {
 
 export type MetaHealthSnapshotMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  connectionState?: Prisma.SortOrder
+  connectionObservedAt?: Prisma.SortOrder
+  connectionReason?: Prisma.SortOrder
   phoneNumberId?: Prisma.SortOrder
   wabaId?: Prisma.SortOrder
   displayPhoneNumber?: Prisma.SortOrder
@@ -537,6 +600,9 @@ export type MetaHealthSnapshotMaxOrderByAggregateInput = {
 
 export type MetaHealthSnapshotMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
+  connectionState?: Prisma.SortOrder
+  connectionObservedAt?: Prisma.SortOrder
+  connectionReason?: Prisma.SortOrder
   phoneNumberId?: Prisma.SortOrder
   wabaId?: Prisma.SortOrder
   displayPhoneNumber?: Prisma.SortOrder
@@ -575,6 +641,9 @@ export type MetaHealthSnapshotUpdateOneRequiredWithoutAlertsNestedInput = {
 
 export type MetaHealthSnapshotCreateWithoutAlertsInput = {
   id?: string
+  connectionState?: string
+  connectionObservedAt?: Date | string | null
+  connectionReason?: string | null
   phoneNumberId: string
   wabaId: string
   displayPhoneNumber?: string | null
@@ -594,6 +663,9 @@ export type MetaHealthSnapshotCreateWithoutAlertsInput = {
 
 export type MetaHealthSnapshotUncheckedCreateWithoutAlertsInput = {
   id?: string
+  connectionState?: string
+  connectionObservedAt?: Date | string | null
+  connectionReason?: string | null
   phoneNumberId: string
   wabaId: string
   displayPhoneNumber?: string | null
@@ -629,6 +701,9 @@ export type MetaHealthSnapshotUpdateToOneWithWhereWithoutAlertsInput = {
 
 export type MetaHealthSnapshotUpdateWithoutAlertsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionState?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionObservedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  connectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phoneNumberId?: Prisma.StringFieldUpdateOperationsInput | string
   wabaId?: Prisma.StringFieldUpdateOperationsInput | string
   displayPhoneNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -648,6 +723,9 @@ export type MetaHealthSnapshotUpdateWithoutAlertsInput = {
 
 export type MetaHealthSnapshotUncheckedUpdateWithoutAlertsInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionState?: Prisma.StringFieldUpdateOperationsInput | string
+  connectionObservedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  connectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   phoneNumberId?: Prisma.StringFieldUpdateOperationsInput | string
   wabaId?: Prisma.StringFieldUpdateOperationsInput | string
   displayPhoneNumber?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -698,6 +776,9 @@ export type MetaHealthSnapshotCountOutputTypeCountAlertsArgs<ExtArgs extends run
 
 export type MetaHealthSnapshotSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  connectionState?: boolean
+  connectionObservedAt?: boolean
+  connectionReason?: boolean
   phoneNumberId?: boolean
   wabaId?: boolean
   displayPhoneNumber?: boolean
@@ -719,6 +800,9 @@ export type MetaHealthSnapshotSelect<ExtArgs extends runtime.Types.Extensions.In
 
 export type MetaHealthSnapshotSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  connectionState?: boolean
+  connectionObservedAt?: boolean
+  connectionReason?: boolean
   phoneNumberId?: boolean
   wabaId?: boolean
   displayPhoneNumber?: boolean
@@ -738,6 +822,9 @@ export type MetaHealthSnapshotSelectCreateManyAndReturn<ExtArgs extends runtime.
 
 export type MetaHealthSnapshotSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
+  connectionState?: boolean
+  connectionObservedAt?: boolean
+  connectionReason?: boolean
   phoneNumberId?: boolean
   wabaId?: boolean
   displayPhoneNumber?: boolean
@@ -757,6 +844,9 @@ export type MetaHealthSnapshotSelectUpdateManyAndReturn<ExtArgs extends runtime.
 
 export type MetaHealthSnapshotSelectScalar = {
   id?: boolean
+  connectionState?: boolean
+  connectionObservedAt?: boolean
+  connectionReason?: boolean
   phoneNumberId?: boolean
   wabaId?: boolean
   displayPhoneNumber?: boolean
@@ -774,7 +864,7 @@ export type MetaHealthSnapshotSelectScalar = {
   updatedAt?: boolean
 }
 
-export type MetaHealthSnapshotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "phoneNumberId" | "wabaId" | "displayPhoneNumber" | "verifiedName" | "qualityRating" | "accountReviewStatus" | "accountEvent" | "messagingLimit" | "lastSyncAttemptAt" | "lastSuccessfulSyncAt" | "lastSyncErrorCode" | "syncLeaseId" | "syncLeaseUntil" | "createdAt" | "updatedAt", ExtArgs["result"]["metaHealthSnapshot"]>
+export type MetaHealthSnapshotOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "connectionState" | "connectionObservedAt" | "connectionReason" | "phoneNumberId" | "wabaId" | "displayPhoneNumber" | "verifiedName" | "qualityRating" | "accountReviewStatus" | "accountEvent" | "messagingLimit" | "lastSyncAttemptAt" | "lastSuccessfulSyncAt" | "lastSyncErrorCode" | "syncLeaseId" | "syncLeaseUntil" | "createdAt" | "updatedAt", ExtArgs["result"]["metaHealthSnapshot"]>
 export type MetaHealthSnapshotInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   alerts?: boolean | Prisma.MetaHealthSnapshot$alertsArgs<ExtArgs>
   _count?: boolean | Prisma.MetaHealthSnapshotCountOutputTypeDefaultArgs<ExtArgs>
@@ -789,6 +879,9 @@ export type $MetaHealthSnapshotPayload<ExtArgs extends runtime.Types.Extensions.
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
+    connectionState: string
+    connectionObservedAt: Date | null
+    connectionReason: string | null
     phoneNumberId: string
     wabaId: string
     displayPhoneNumber: string | null
@@ -1229,6 +1322,9 @@ export interface Prisma__MetaHealthSnapshotClient<T, Null = never, ExtArgs exten
  */
 export interface MetaHealthSnapshotFieldRefs {
   readonly id: Prisma.FieldRef<"MetaHealthSnapshot", 'String'>
+  readonly connectionState: Prisma.FieldRef<"MetaHealthSnapshot", 'String'>
+  readonly connectionObservedAt: Prisma.FieldRef<"MetaHealthSnapshot", 'DateTime'>
+  readonly connectionReason: Prisma.FieldRef<"MetaHealthSnapshot", 'String'>
   readonly phoneNumberId: Prisma.FieldRef<"MetaHealthSnapshot", 'String'>
   readonly wabaId: Prisma.FieldRef<"MetaHealthSnapshot", 'String'>
   readonly displayPhoneNumber: Prisma.FieldRef<"MetaHealthSnapshot", 'String'>

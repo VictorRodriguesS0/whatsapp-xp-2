@@ -42,10 +42,12 @@ export type BeginBusinessReactionInput = {
 
 export interface ReactionRepository {
   findActiveUser(userId: string): Promise<ActiveReactionUser | null>;
+  findBusinessReactionByRequestId(clientRequestId: string): Promise<BusinessReactionRecord | null>;
   findTarget(messageId: string): Promise<ReactionTargetRecord | null>;
   beginBusinessReaction(input: BeginBusinessReactionInput): Promise<BeginBusinessReactionResult>;
   markProviderAttempt(reactionId: string, clientRequestId: string, attemptedAt: Date): Promise<boolean>;
   markSent(reactionId: string, clientRequestId: string, providerMessageId: string): Promise<BusinessReactionRecord | null>;
+  markLocallyFailed(reactionId: string, clientRequestId: string, failureReason: string): Promise<BusinessReactionRecord | null>;
   markFailed(
     reactionId: string,
     clientRequestId: string,

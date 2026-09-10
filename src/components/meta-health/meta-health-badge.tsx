@@ -13,7 +13,11 @@ const presentation: Record<MetaHealthLabel, { text: string; dot: string }> = {
 
 export function MetaHealthBadge({ initialSummary }: { initialSummary: MetaHealthSummaryDto }) {
   const { summary } = useMetaHealth(initialSummary);
-  const current = presentation[summary.label];
+  const current = summary.connection?.state === "DISCONNECTED"
+    ? { text: "WhatsApp desconectado", dot: "bg-[var(--danger)]" }
+    : summary.label === "NORMAL" && (summary.connection?.state === "UNKNOWN" || summary.connection?.stale)
+      ? { text: "Conexão a confirmar", dot: "bg-[var(--muted)]" }
+      : presentation[summary.label];
   const count = summary.unacknowledgedCount;
   const accessibleName = count > 0
     ? `${current.text}, ${count} ${count === 1 ? "alerta não tratado" : "alertas não tratados"}`

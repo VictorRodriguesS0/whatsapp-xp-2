@@ -14,7 +14,8 @@ vi.mock("@/components/theme/theme-menu", () => ({ ThemeMenu: () => <button aria-
 
 const summary: MetaHealthSummaryDto = {
   label: "CRITICAL",
-  unacknowledgedCount: 2,
+  connection: { state: "CONNECTED" as const, observedAt: "2026-08-23T12:00:00Z", reason: "GRAPH_CONNECTED", stale: false },
+    unacknowledgedCount: 2,
   stale: false,
   phone: { displayPhoneNumber: "+55 61 9514-9019", verifiedName: "XP Eletrônicos", qualityRating: "RED" },
   account: { reviewStatus: "APPROVED", event: "DISABLED_UPDATE", messagingLimit: "TIER_10K" },

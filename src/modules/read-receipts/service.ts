@@ -47,8 +47,9 @@ async function deliverClaim(
     await dependencies.repository.confirm(claim, clock());
     return "CONFIRMED";
   } catch (error) {
+    const locallyHeld = error instanceof WhatsAppProviderError && error.graphCode === "LOCAL_CONNECTION_UNAVAILABLE";
     const rejected =
-      error instanceof WhatsAppProviderError && error.kind === "rejected";
+      error instanceof WhatsAppProviderError && error.kind === "rejected" && !locallyHeld;
     const failedAt = clock();
     await dependencies.repository.fail(claim, {
       kind: rejected
@@ -56,7 +57,7 @@ async function deliverClaim(
         : ReadReceiptFailureKind.TRANSIENT,
       nextAttemptAt: rejected
         ? null
-        : new Date(failedAt.getTime() + retryDelayMs(claim.attemptCount)),
+        : new Date(failedAt.getTime() + Math.max(locallyHeld ? 60_000 : 0, retryDelayMs(claim.attemptCount))),
     });
     return "PENDING";
   }

@@ -142,3 +142,8 @@ export type ContactMessagingRestrictionEvent = Prisma.ContactMessagingRestrictio
  * 
  */
 export type ContactMessagingConsentEvent = Prisma.ContactMessagingConsentEventModel
+/**
+ * Model MetaConnectionAttempt
+ * 
+ */
+export type MetaConnectionAttempt = Prisma.MetaConnectionAttemptModel

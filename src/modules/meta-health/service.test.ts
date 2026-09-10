@@ -55,6 +55,9 @@ function createMemoryMetaHealthRepository(
     qualityRating: null,
     accountReviewStatus: null,
     accountEvent: null,
+    connectionState: "UNKNOWN",
+    connectionObservedAt: null,
+    connectionReason: null,
     messagingLimit: null,
     lastSyncAttemptAt: null,
     lastSuccessfulSyncAt: null,
@@ -208,6 +211,8 @@ describe("Meta health reconciliation service", () => {
 
   it("short-circuits a fresh automatic synchronization", async () => {
     const repository = createMemoryMetaHealthRepository({
+      connectionState: "CONNECTED",
+      connectionObservedAt: new Date(start.getTime() - 60_000),
       lastSuccessfulSyncAt: new Date(start.getTime() - 60_000),
     });
     const client = clientWith(remote());

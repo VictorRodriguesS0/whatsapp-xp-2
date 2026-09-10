@@ -1,3 +1,5 @@
+import type { GraphConnection, MetaConnectionState } from "./connection";
+
 export type MetaHealthLabel = "NORMAL" | "ATTENTION" | "CRITICAL" | "STALE";
 
 export type MetaOperationalField =
@@ -36,6 +38,7 @@ export type MetaHealthRemoteState = {
   verifiedName: string | null;
   qualityRating: MetaRemoteQualityRating | null;
   accountReviewStatus: MetaRemoteReviewStatus | null;
+  connection?: GraphConnection;
   templates: Array<{
     id: string;
     name: string;
@@ -46,6 +49,7 @@ export type MetaHealthRemoteState = {
 
 export type MetaHealthSummaryDto = {
   label: MetaHealthLabel;
+  connection: { state: MetaConnectionState; observedAt: string | null; reason: string | null; stale: boolean };
   unacknowledgedCount: number;
   stale: boolean;
   phone: {

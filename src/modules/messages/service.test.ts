@@ -1248,3 +1248,31 @@ describe("outbound message service", () => {
     expect(state.storage.removeCalls).toBe(1);
   });
 });
+
+describe("connection admission", () => {
+  const disconnected = async () => { throw new HttpError(503, "Integração desconectada", "META_DISCONNECTED"); };
+  it("rejects a new text before persistence or a provider attempt", async () => {
+    const state = harness();
+    state.dependencies.assertConnectionSendAllowed = disconnected;
+    await expect(sendMessage(actor, conversationId, { type: "TEXT", body: "Olá", clientRequestId: randomUUID() }, state.dependencies)).rejects.toMatchObject({ code: "META_DISCONNECTED" });
+    expect(state.repository.records.size).toBe(0);
+    expect(state.provider.calls).toEqual([]);
+  });
+  it("returns an existing sent message during an outage without resending", async () => {
+    const state = harness();
+    const input = { type: "TEXT" as const, body: "Olá", clientRequestId: randomUUID() };
+    const sent = await sendMessage(actor, conversationId, input, state.dependencies);
+    state.dependencies.assertConnectionSendAllowed = disconnected;
+    expect((await sendMessage(actor, conversationId, input, state.dependencies)).id).toBe(sent.id);
+    expect(state.provider.calls).toEqual(["text"]);
+  });
+  it("holds an existing READY message without changing its delivery intent", async () => {
+    const state = harness();
+    const input = { type: "TEXT" as const, body: "Olá", clientRequestId: randomUUID() };
+    const pending = await state.repository.createPending({ conversationId, sentByUserId: actor.id, clientRequestId: input.clientRequestId, type: "TEXT", body: input.body, replyToMessageId: null, externalTimestamp: new Date() });
+    state.dependencies.assertConnectionSendAllowed = disconnected;
+    await expect(sendMessage(actor, conversationId, input, state.dependencies)).rejects.toMatchObject({ code: "META_DISCONNECTED" });
+    expect(state.provider.calls).toEqual([]);
+    expect((await state.repository.findById(pending.message.id))?.providerAttemptedAt).toBeNull();
+  });
+});

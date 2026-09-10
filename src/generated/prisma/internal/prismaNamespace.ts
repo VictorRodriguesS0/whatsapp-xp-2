@@ -421,7 +421,8 @@ export const ModelName = {
   WhatsAppTemplateAssignment: 'WhatsAppTemplateAssignment',
   ConversationResumption: 'ConversationResumption',
   ContactMessagingRestrictionEvent: 'ContactMessagingRestrictionEvent',
-  ContactMessagingConsentEvent: 'ContactMessagingConsentEvent'
+  ContactMessagingConsentEvent: 'ContactMessagingConsentEvent',
+  MetaConnectionAttempt: 'MetaConnectionAttempt'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -437,7 +438,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "session" | "contact" | "whatsAppAppContact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageRevision" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "whatsAppReadSync" | "webhookEvent" | "metaHealthSnapshot" | "metaOperationalAlert" | "quickReply" | "whatsAppPolicyConfiguration" | "whatsAppTemplate" | "whatsAppTemplateAssignment" | "conversationResumption" | "contactMessagingRestrictionEvent" | "contactMessagingConsentEvent"
+    modelProps: "user" | "session" | "contact" | "whatsAppAppContact" | "contactType" | "contactTagDefinition" | "contactTagAssignment" | "conversation" | "message" | "messageRevision" | "messageReaction" | "mediaObject" | "conversationRead" | "conversationAuditEvent" | "whatsAppReadSync" | "webhookEvent" | "metaHealthSnapshot" | "metaOperationalAlert" | "quickReply" | "whatsAppPolicyConfiguration" | "whatsAppTemplate" | "whatsAppTemplateAssignment" | "conversationResumption" | "contactMessagingRestrictionEvent" | "contactMessagingConsentEvent" | "metaConnectionAttempt"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2291,6 +2292,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MetaConnectionAttempt: {
+      payload: Prisma.$MetaConnectionAttemptPayload<ExtArgs>
+      fields: Prisma.MetaConnectionAttemptFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MetaConnectionAttemptFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MetaConnectionAttemptFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>
+        }
+        findFirst: {
+          args: Prisma.MetaConnectionAttemptFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MetaConnectionAttemptFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>
+        }
+        findMany: {
+          args: Prisma.MetaConnectionAttemptFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>[]
+        }
+        create: {
+          args: Prisma.MetaConnectionAttemptCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>
+        }
+        createMany: {
+          args: Prisma.MetaConnectionAttemptCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MetaConnectionAttemptCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>[]
+        }
+        delete: {
+          args: Prisma.MetaConnectionAttemptDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>
+        }
+        update: {
+          args: Prisma.MetaConnectionAttemptUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>
+        }
+        deleteMany: {
+          args: Prisma.MetaConnectionAttemptDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MetaConnectionAttemptUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MetaConnectionAttemptUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>[]
+        }
+        upsert: {
+          args: Prisma.MetaConnectionAttemptUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MetaConnectionAttemptPayload>
+        }
+        aggregate: {
+          args: Prisma.MetaConnectionAttemptAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMetaConnectionAttempt>
+        }
+        groupBy: {
+          args: Prisma.MetaConnectionAttemptGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MetaConnectionAttemptGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MetaConnectionAttemptCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MetaConnectionAttemptCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -2603,6 +2678,9 @@ export type WebhookEventScalarFieldEnum = (typeof WebhookEventScalarFieldEnum)[k
 
 export const MetaHealthSnapshotScalarFieldEnum = {
   id: 'id',
+  connectionState: 'connectionState',
+  connectionObservedAt: 'connectionObservedAt',
+  connectionReason: 'connectionReason',
   phoneNumberId: 'phoneNumberId',
   wabaId: 'wabaId',
   displayPhoneNumber: 'displayPhoneNumber',
@@ -2756,6 +2834,28 @@ export const ContactMessagingConsentEventScalarFieldEnum = {
 } as const
 
 export type ContactMessagingConsentEventScalarFieldEnum = (typeof ContactMessagingConsentEventScalarFieldEnum)[keyof typeof ContactMessagingConsentEventScalarFieldEnum]
+
+
+export const MetaConnectionAttemptScalarFieldEnum = {
+  id: 'id',
+  phoneNumberId: 'phoneNumberId',
+  userId: 'userId',
+  sessionHash: 'sessionHash',
+  nonceHash: 'nonceHash',
+  state: 'state',
+  codeHash: 'codeHash',
+  authorizedAt: 'authorizedAt',
+  sessionInfoAt: 'sessionInfoAt',
+  lastCheckAt: 'lastCheckAt',
+  checkLeaseId: 'checkLeaseId',
+  checkLeaseUntil: 'checkLeaseUntil',
+  errorCode: 'errorCode',
+  expiresAt: 'expiresAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MetaConnectionAttemptScalarFieldEnum = (typeof MetaConnectionAttemptScalarFieldEnum)[keyof typeof MetaConnectionAttemptScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -3400,6 +3500,7 @@ export type GlobalOmitConfig = {
   conversationResumption?: Prisma.ConversationResumptionOmit
   contactMessagingRestrictionEvent?: Prisma.ContactMessagingRestrictionEventOmit
   contactMessagingConsentEvent?: Prisma.ContactMessagingConsentEventOmit
+  metaConnectionAttempt?: Prisma.MetaConnectionAttemptOmit
 }
 
 /* Types for Logging */

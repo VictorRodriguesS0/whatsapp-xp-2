@@ -4,6 +4,8 @@ import { LogOut, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { MetaConnectionCard } from "./meta-connection-card";
+import type { MetaConnectionPublicConfig } from "@/modules/meta-connection/types";
 import { Button } from "@/components/ui/button";
 import { SettingsPageShell } from "@/components/layout/settings-page-shell";
 import { Spinner } from "@/components/ui/spinner";
@@ -14,6 +16,8 @@ import type {
   MetaOperationalAlertDto,
   MetaSyncResult,
 } from "@/modules/meta-health/types";
+
+const disabledSignup: MetaConnectionPublicConfig = { enabled: false, reason: "A reconexão oficial precisa ser configurada na Meta.", appId: null, configId: null, sdkVersion: "v26.0" };
 
 const dateFormatter = new Intl.DateTimeFormat("pt-BR", {
   dateStyle: "short",
@@ -122,9 +126,11 @@ function AlertList({
 }
 
 export function MetaHealthScreen({
+  connectionConfig = disabledSignup,
   initialAlerts,
   initialSummary,
 }: {
+  connectionConfig?: MetaConnectionPublicConfig;
   initialAlerts: MetaAlertPageDto;
   initialSummary: MetaHealthSummaryDto;
 }) {
@@ -264,7 +270,7 @@ export function MetaHealthScreen({
             </Button>
         </>
       )}
-      description="Qualidade do número, situação da conta e alertas recebidos pela integração oficial."
+      description="Conexão do WhatsApp, qualidade do número e alertas da integração oficial."
       eyebrow="Configurações"
       title="Saúde da Meta"
     >
@@ -275,6 +281,8 @@ export function MetaHealthScreen({
             {syncNotice ? <p>{syncNotice}</p> : null}
           </div>
         ) : null}
+
+        <MetaConnectionCard connection={health.summary.connection} config={connectionConfig} phoneNumber={health.summary.phone.displayPhoneNumber} onRefresh={() => health.sync()} />
 
         <section aria-labelledby="current-meta-state" className="py-7">
           <h2 className="text-base font-bold" id="current-meta-state">Situação atual</h2>

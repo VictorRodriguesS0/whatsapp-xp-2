@@ -2,6 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { HttpError } from "@/lib/http";
+
 import { WhatsAppProviderError } from "@/modules/whatsapp/meta-provider";
 
 import {
@@ -53,6 +55,8 @@ class FakeRepository {
     return this.activeUser?.id === userId ? this.activeUser : null;
   }
 
+  async findBusinessReactionByRequestId(id: string) { return this.current?.clientRequestId === id ? this.current : null; }
+
   async findTarget(id: string) {
     return this.target?.messageId === id ? this.target : null;
   }
@@ -96,6 +100,12 @@ class FakeRepository {
   async markSent(id: string, clientRequestId: string, providerMessageId: string) {
     if (this.current?.id !== id || this.current.clientRequestId !== clientRequestId) return null;
     this.current = { ...this.current, status: "SENT", providerMessageId };
+    return this.current;
+  }
+
+  async markLocallyFailed(id: string, clientRequestId: string, reason: string) {
+    if (this.current?.id !== id || this.current.clientRequestId !== clientRequestId || this.current.providerAttemptedAt !== null || this.current.status !== "PENDING") return null;
+    this.current = { ...this.current, status: "FAILED", failureReason: reason };
     return this.current;
   }
 
@@ -280,4 +290,12 @@ describe("retryBusinessReaction", () => {
     ).resolves.toMatchObject({ emoji: "👍", status: "SENT" });
     expect(state.provider.sendReaction).toHaveBeenCalledOnce();
   });
+});
+
+it("rejects a new reaction before persisting when disconnected", async () => {
+  const state = setup();
+  state.dependencies.assertConnectionSendAllowed = async () => { throw new HttpError(503, "Integração desconectada", "META_DISCONNECTED"); };
+  await expect(setBusinessReaction(actor.id, messageId, { emoji: "👍", clientRequestId: randomUUID() }, state.dependencies)).rejects.toMatchObject({ code: "META_DISCONNECTED" });
+  expect(state.repository.beginCalls).toBe(0);
+  expect(state.provider.sendReaction).not.toHaveBeenCalled();
 });
