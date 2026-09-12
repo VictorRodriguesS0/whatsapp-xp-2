@@ -4,11 +4,14 @@ A reconexão fica em **Configurações → Saúde da Meta** (`/configuracoes/met
 
 ## Comportamento
 
-A conexão é independente da qualidade do número: `GREEN` não significa conectado. O sistema só confirma `CONNECTED` quando uma consulta recente verifica simultaneamente:
+A conexão é independente da qualidade do número: `GREEN` não significa conectado. No diagnóstico geral, o sistema confirma `CONNECTED` quando uma consulta recente verifica simultaneamente:
 
-- o número configurado com `status=CONNECTED`, `platform_type=CLOUD_API` e `is_on_biz_app=true`;
+- o número configurado com `status=CONNECTED`, `platform_type=CLOUD_API` e uma resposta booleana conhecida para `is_on_biz_app`;
 - o aplicativo configurado em `WABA/subscribed_apps`;
-- uma assinatura ativa de `whatsapp_business_account` no aplicativo com `messages`, `account_update`, `smb_message_echoes` e `smb_app_state_sync`.
+- uma assinatura ativa de `whatsapp_business_account` no aplicativo com `messages` e `account_update`;
+- para números com `is_on_biz_app=true`, também os campos `smb_message_echoes` e `smb_app_state_sync`.
+
+Uma conexão direta da Cloud API pode informar `is_on_biz_app=false` e ser reconhecida pelo diagnóstico. Uma resposta ausente não equivale a `false`. Já a tentativa de reconexão pelo Embedded Signup desta tela continua exigindo `is_on_biz_app=true` e todos os campos de coexistência: uma conexão apenas de API não conclui essa tentativa. Reconhecer a API direta não registra números nem remove o bloqueio externo do onboarding em coexistência.
 
 `ACCOUNT_OFFBOARDED` e `PARTNER_REMOVED` suspendem os novos envios. Assinaturas ausentes também impedem a confirmação e suspendem os envios. `ACCOUNT_RECONNECTED` sozinho não libera a central. Erros ou respostas incompletas preservam uma desconexão já confirmada. Consultas usam o horário de início; eventos antigos são ignorados, e desconexão tem prioridade em conflitos no mesmo segundo.
 
@@ -17,6 +20,8 @@ O estado inicial `UNKNOWN` é exibido como “A confirmar” e não bloqueia uma
 O bloqueio cobre mensagens, mídia, templates, catálogo, reações e confirmações de leitura. Consultas e downloads continuam disponíveis. Repetições de uma operação já concluída mantêm a resposta idempotente. Mensagens pendentes não são reenviadas automaticamente após reconectar; confirmações de leitura interrompidas podem voltar à rotina de repetição existente.
 
 ## Requisitos externos
+
+Uso direto da Cloud API nos ativos da própria empresa e onboarding de coexistência são situações diferentes. A [documentação da Meta sobre análise do app](https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/app-review) dispensa desenvolvedores diretos de acesso avançado e App Review. Já o [fluxo de coexistência usado por esta funcionalidade](https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/onboarding-business-app-users) exige atuar como provedor ou parceiro. Nesta instalação, a Meta confirmou essa barreira com o erro `2655111`. Não interpretar a dispensa para chamadas diretas como autorização para ignorar os requisitos do onboarding.
 
 No mesmo aplicativo Meta já utilizado pela central:
 
@@ -61,6 +66,7 @@ A tentativa pertence ao administrador e à sessão que a iniciou. Há somente um
 | --- | --- |
 | Botão indisponível | Conferir flag, IDs, provedor Meta e HTTPS |
 | Popup bloqueado | Permitir popup no domínio, encerrar tentativa e preparar outra |
+| Erro Meta `2655111` | Concluir a análise do app e obter acesso avançado a `whatsapp_business_messaging` e `whatsapp_business_management`. Verificação empresarial e publicação do app não bastam; alterações no código ou novas tentativas não concedem essas permissões |
 | Ativo divergente | Selecionar o mesmo negócio, WABA e número; não editar IDs para contornar a validação |
 | Autorização inválida | Conferir app, escopos, acesso e validade das credenciais |
 | Eventos não configurados | Conferir assinaturas da WABA e campos ativos do app |

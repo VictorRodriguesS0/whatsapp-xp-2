@@ -45,6 +45,17 @@ describe("Meta reconnection attempts", () => {
     expect((await service.status(actor, attempt.id)).state).toBe("CONNECTED");
   });
 
+  it("does not complete a coexistence attempt with a direct API-only connection", async () => {
+    const { actor, service, client } = await setup();
+    client.verifyConnection.mockResolvedValue({ connection: { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: false }, subscribed: true });
+    const attempt = await service.start(actor);
+    await service.finish(actor, { ...attempt, wabaId: "200", phoneNumberId: "300", businessId: "400" });
+    await service.exchange(actor, { ...attempt, code: "private-code" });
+    await service.reconcile(actor, attempt);
+    expect(await service.status(actor, attempt.id)).toMatchObject({ state: "VERIFYING", errorCode: "WAITING_FOR_META" });
+    expect((await prisma.metaHealthSnapshot.findUniqueOrThrow({ where: { phoneNumberId: "300" } })).connectionState).toBe("UNKNOWN");
+  });
+
   it("allows only one concurrent attempt and one exchange for a code", async () => {
     const { actor, service, client } = await setup();
     const results = await Promise.allSettled([service.start(actor), service.start(actor)]);

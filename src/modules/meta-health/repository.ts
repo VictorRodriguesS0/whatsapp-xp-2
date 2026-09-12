@@ -320,7 +320,7 @@ export const prismaMetaHealthRepository: MetaHealthRepository = {
       if (updated.count !== 1) return false;
       if (input.remote.connection) {
         const current = await transaction.metaHealthSnapshot.findUniqueOrThrow({ where: { id: input.snapshotId } });
-        const evidence = mergeConnectionEvidence(current, connectionFromGraph(input.remote.connection, input.now));
+        const evidence = mergeConnectionEvidence(current, connectionFromGraph(input.remote.connection, input.now, "cloud-api"));
         if (evidence) {
           await transaction.metaHealthSnapshot.update({ where: { id: input.snapshotId }, data: evidence });
           if (evidence.connectionState !== "UNKNOWN") {

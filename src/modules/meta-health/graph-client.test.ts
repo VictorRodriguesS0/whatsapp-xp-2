@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it, vi } from "vitest";
+import { connectionFromGraph } from "./connection";
 
 import {
   createMetaHealthGraphClient,
@@ -196,6 +197,38 @@ describe("Meta health Graph client", () => {
       createMetaHealthGraphClient(config(fetcher)).fetchState(),
     ).rejects.toMatchObject({ code: "META_INVALID_RESPONSE" });
   });
+});
+
+it.each([
+  { fields: ["messages", "account_update"], appId: "app-1", active: true, ready: true },
+  { fields: ["account_update"], appId: "app-1", active: true, ready: false },
+  { fields: ["messages"], appId: "app-1", active: true, ready: false },
+  { fields: ["messages", "account_update"], appId: "other-app", active: true, ready: false },
+  { fields: ["messages", "account_update"], appId: "app-1", active: false, ready: false },
+])("verifies subscriptions for a direct Cloud API phone: %j", async ({ fields, appId, active, ready }) => {
+  const responses = [
+    { id: "phone-1", status: "CONNECTED", platform_type: "CLOUD_API", is_on_biz_app: false },
+    { id: "waba-1" }, { data: [] },
+    { data: [{ whatsapp_business_api_data: { id: appId } }] },
+    { data: [{ object: "whatsapp_business_account", active, fields: fields.map((name) => ({ name })) }] },
+  ];
+  const fetcher = vi.fn<typeof fetch>(async () => jsonResponse(responses.shift()));
+  const state = await createMetaHealthGraphClient({ ...config(fetcher), appId: "app-1", appSecret: "test-secret" }).fetchState();
+  expect(state.connection).toMatchObject({ isOnBizApp: false, subscribed: ready });
+  expect(connectionFromGraph(state.connection!, new Date(), "cloud-api").connectionState).toBe(ready ? "CONNECTED" : "DISCONNECTED");
+  expect(fetcher).toHaveBeenCalledTimes(5);
+});
+
+it("keeps an unclassified phone unconfirmed instead of assuming direct Cloud API", async () => {
+  const responses = [
+    { id: "phone-1", status: "CONNECTED", platform_type: "CLOUD_API" },
+    { id: "waba-1" }, { data: [] },
+  ];
+  const fetcher = vi.fn<typeof fetch>(async () => jsonResponse(responses.shift()));
+  const state = await createMetaHealthGraphClient({ ...config(fetcher), appId: "app-1", appSecret: "test-secret" }).fetchState();
+  expect(state.connection).toMatchObject({ isOnBizApp: null, subscribed: null });
+  expect(connectionFromGraph(state.connection!, new Date(), "cloud-api").connectionState).toBe("UNKNOWN");
+  expect(fetcher).toHaveBeenCalledTimes(3);
 });
 
 it.each([true, false])("verifies both webhook subscriptions before reporting a ready connection (%s)", async (fieldsReady) => {

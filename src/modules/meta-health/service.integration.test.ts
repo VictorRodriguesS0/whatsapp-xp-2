@@ -189,4 +189,17 @@ describe("connection lifecycle ordering in PostgreSQL", () => {
     expect((await getMetaHealthSummary(user, { config })).connection.state).toBe("DISCONNECTED");
   });
 
+  it("recovers the stored health of a verified direct API phone without a mobile app", async () => {
+    const user = await actor();
+    await applyMetaOperationalEvent(lifecycle("PARTNER_REMOVED", 0), { config });
+    const client: MetaHealthGraphClient = { async fetchState() { return {
+      ...await connected.fetchState(),
+      connection: { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: false, subscribed: true },
+    }; } };
+    await syncMetaHealth(user, { config, client, force: true, now: () => new Date(now.getTime() + 61_000) });
+    const summary = await getMetaHealthSummary(user, { config, now: () => new Date(now.getTime() + 62_000) });
+    expect(summary.connection.state).toBe("CONNECTED");
+    expect(summary.label).toBe("NORMAL");
+  });
+
 });

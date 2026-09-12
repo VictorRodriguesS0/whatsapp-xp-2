@@ -5,6 +5,29 @@ const before = new Date("2026-09-10T12:00:00Z");
 const after = new Date("2026-09-10T12:00:02Z");
 
 describe("connection evidence", () => {
+  it("recognizes direct Cloud API connections in the health diagnostic", () => {
+    const direct = { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: false, subscribed: true };
+    expect(connectionFromGraph(direct, after, "cloud-api").connectionState).toBe("CONNECTED");
+    // Embedded Signup promises coexistence and must retain its stricter default.
+    expect(connectionFromGraph(direct, after).connectionState).toBe("UNKNOWN");
+  });
+
+  it.each([
+    { status: "CONNECTED", platformType: "ON_PREMISE", isOnBizApp: false, subscribed: true },
+    { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: null, subscribed: true },
+    { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: false, subscribed: null },
+  ])("does not confirm incomplete or non-Cloud direct API evidence: %j", (remote) => {
+    expect(connectionFromGraph(remote, after, "cloud-api").connectionState).toBe("UNKNOWN");
+  });
+
+  it("requires a newer verified direct connection to release a confirmed outage", () => {
+    const outage = connectionFromEvent("ACCOUNT_OFFBOARDED", before)!;
+    const remote = { status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: false, subscribed: true };
+    expect(mergeConnectionEvidence(outage, connectionFromGraph(remote, before, "cloud-api"))).toBeNull();
+    expect(mergeConnectionEvidence(outage, connectionFromGraph({ ...remote, subscribed: false }, after, "cloud-api"))?.connectionState).toBe("DISCONNECTED");
+    expect(mergeConnectionEvidence(outage, connectionFromGraph(remote, after, "cloud-api"))?.connectionState).toBe("CONNECTED");
+  });
+
   it("requires all coexistence indicators for a connected result", () => {
     expect(connectionFromGraph({ status: "CONNECTED", platformType: "CLOUD_API", isOnBizApp: true, subscribed: true }, after).connectionState).toBe("CONNECTED");
     expect(connectionFromGraph({ status: "DISCONNECTED", platformType: "ON_PREMISE", isOnBizApp: true, subscribed: true }, after).connectionState).toBe("DISCONNECTED");
