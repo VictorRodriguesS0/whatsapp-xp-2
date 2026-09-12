@@ -13,9 +13,14 @@ export type GraphConnection = {
   subscribed?: boolean | null;
 };
 
-export function connectionFromGraph(remote: GraphConnection, startedAt: Date): ConnectionEvidence {
+export function connectionFromGraph(
+  remote: GraphConnection,
+  startedAt: Date,
+  mode: "coexistence" | "cloud-api" = "coexistence",
+): ConnectionEvidence {
+  const appStateKnown = mode === "coexistence" ? remote.isOnBizApp === true : typeof remote.isOnBizApp === "boolean";
   const state = remote.status === "DISCONNECTED" || remote.subscribed === false ? "DISCONNECTED"
-    : remote.status === "CONNECTED" && remote.platformType === "CLOUD_API" && remote.isOnBizApp === true && remote.subscribed === true
+    : remote.status === "CONNECTED" && remote.platformType === "CLOUD_API" && appStateKnown && remote.subscribed === true
       ? "CONNECTED" : "UNKNOWN";
   return { connectionState: state, connectionObservedAt: startedAt, connectionReason: remote.subscribed === false ? "WEBHOOK_CONFIGURATION_REQUIRED" : `GRAPH_${state}` };
 }

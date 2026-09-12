@@ -1,6 +1,6 @@
 import "server-only";
 
-import { appSubscribedToWaba, hasCoexistenceWebhookFields } from "./subscriptions";
+import { appSubscribedToWaba, hasCloudApiWebhookFields, hasCoexistenceWebhookFields } from "./subscriptions";
 
 import type {
   MetaHealthRemoteState,
@@ -242,11 +242,13 @@ export function createMetaHealthGraphClient(
       }
 
       let subscribed: boolean | null = null;
-      if (phone.status === "CONNECTED" && phone.platform_type === "CLOUD_API" && phone.is_on_biz_app === true && config.appId && config.appSecret) {
+      if (phone.status === "CONNECTED" && phone.platform_type === "CLOUD_API" && typeof phone.is_on_biz_app === "boolean" && config.appId && config.appSecret) {
         const wabaSubscription = await get(endpoint(`${encodeURIComponent(config.wabaId)}/subscribed_apps?limit=100`));
         const appSubscription = await get(endpoint(`${encodeURIComponent(config.appId)}/subscriptions`), `${config.appId}|${config.appSecret}`);
         const appReady = appSubscribedToWaba(wabaSubscription, config.appId);
-        const fieldsReady = hasCoexistenceWebhookFields(appSubscription);
+        const fieldsReady = phone.is_on_biz_app
+          ? hasCoexistenceWebhookFields(appSubscription)
+          : hasCloudApiWebhookFields(appSubscription);
         if (appReady === null || fieldsReady === null) throw new MetaHealthGraphError("META_INVALID_RESPONSE");
         subscribed = appReady && fieldsReady;
       }
